@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import type { Villa } from "../data/villas";
+import type { Villa } from "../../data/villas";
 
 import type {
   Expense,
@@ -8,7 +8,7 @@ import type {
   ExpenseClassification,
   ExpenseScope,
   PaymentMethod,
-} from "../data/expenses";
+} from "../../data/expenses";
 
 
 type AddExpenseModalProps = {

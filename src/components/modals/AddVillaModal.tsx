@@ -3,7 +3,7 @@ import type {
   Villa,
   VillaCategory,
   VillaStatus,
-} from "../data/villas";
+} from "../../data/villas";
 
 type AddVillaModalProps = {
   isOpen: boolean;

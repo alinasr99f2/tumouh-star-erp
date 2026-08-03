@@ -6,8 +6,7 @@ import type {
 } from "../data/villas";
 
 import VillaDetailsModal from "./VillaDetailsModal";
-import EditVillaModal from "./EditVillaModal";
-
+import EditVillaModal from "./modals/EditVillaModal";
 
 type VillaGroupsProps = {
   villas: Villa[];

@@ -4,10 +4,10 @@ import Header from "../components/Header";
 import KpiCards from "../components/KpiCards";
 import VillaGroups from "../components/VillaGroups";
 import AddVillaButton from "../components/buttons/AddVillaButton";
-import AddVillaModal from "../components/AddVillaModal";
-import AddExpenseModal from "../components/AddExpenseModal";
+import AddVillaModal from "../components/modals/AddVillaModal";
+import AddExpenseModal from "../components/modals/AddExpenseModal";
 import ExpensesPage from "./ExpensesPage";
-import Sidebar from "../components/Sidebar";
+import Sidebar from "../components/sidebar/Sidebar";
 
 import {
   villas as initialVillas,
@@ -143,16 +143,7 @@ function Dashboard() {
   ] = useState(false);
 
 
-  const [
-  currentPage,
-  setCurrentPage
-] = useState<
-  "dashboard" |
-  "villas" |
-  "expenses" |
-  "reports"
->("dashboard");
-
+  
 
   // ==========================================
   // SAVE VILLAS
@@ -481,10 +472,8 @@ const deleteVilla = (villaToDelete: Villa) => {
         SIDEBAR
     ====================================== */}
 
-    <Sidebar
-      currentPage={currentPage}
-      onNavigate={setCurrentPage}
-    />
+    <Sidebar />
+  
 
 
     <div className="app-main">
@@ -493,8 +482,7 @@ const deleteVilla = (villaToDelete: Villa) => {
           DASHBOARD PAGE
       ====================================== */}
 
-      {currentPage === "dashboard" && (
-        <>
+            <>
           <Header />
 
           <main className="dashboard-content">
@@ -522,80 +510,7 @@ const deleteVilla = (villaToDelete: Villa) => {
 
                 {/* إدارة المصروفات */}
 
-                <button
-                  type="button"
-                  className="add-expense-button"
-                  onClick={() =>
-                    setCurrentPage("expenses")
-                  }
-                >
-
-                  <span className="expense-manage-icon">
-
-                    <svg
-                      width="22"
-                      height="22"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      xmlns="http://www.w3.org/2000/svg"
-                      aria-hidden="true"
-                    >
-                      <rect
-                        x="3"
-                        y="5"
-                        width="18"
-                        height="14"
-                        rx="2"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                      />
-
-                      <path
-                        d="M7 9H17"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                      />
-
-                      <path
-                        d="M7 13H11"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                      />
-
-                      <path
-                        d="M16 12V17"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                      />
-
-                      <path
-                        d="M13.5 14.5H18.5"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                      />
-                    </svg>
-
-                  </span>
-
-
-                  <span className="expense-manage-text">
-
-                    <strong>
-                      إدارة المصروفات
-                    </strong>
-
-                    <small>
-                      تسجيل ومتابعة مصروفات المشروع
-                    </small>
-
-                  </span>
-
-                </button>
-
+                
 
                 {/* إضافة فيلا */}
 
@@ -691,96 +606,25 @@ const deleteVilla = (villaToDelete: Villa) => {
 
           </main>
         </>
-      )}
-
-
+    
       {/* =====================================
           EXPENSES PAGE
       ====================================== */}
 
-      {currentPage === "expenses" && (
-
-        <ExpensesPage
-          expenses={expenses}
-          villas={villas}
-          categories={expenseCategories}
-          classifications={expenseClassifications}
-
-          onBack={() =>
-            setCurrentPage("dashboard")
-          }
-
-          onAddExpense={() =>
-            setIsAddExpenseOpen(true)
-          }
-        />
-
-      )}
-
+      
 
       {/* =====================================
           VILLAS PAGE
       ====================================== */}
 
-      {currentPage === "villas" && (
-
-        <main className="dashboard-content">
-
-          <div className="coming-page">
-
-            <span>
-              إدارة الفلل
-            </span>
-
-            <h1>
-              جميع فلل المشروع
-            </h1>
-
-            <p>
-              إدارة ومتابعة جميع فلل المشروع
-            </p>
-
-          </div>
-
-
-          <VillaGroups
-            villas={villas}
-            onUpdateVilla={updateVilla}
-            onDeleteVilla={deleteVilla}
-          />
-
-        </main>
-
-      )}
+      
 
 
       {/* =====================================
           REPORTS PAGE
       ====================================== */}
 
-      {currentPage === "reports" && (
-
-        <main className="dashboard-content">
-
-          <div className="coming-page">
-
-            <span>
-              التقارير والتحليلات
-            </span>
-
-            <h1>
-              تقارير المشروع
-            </h1>
-
-            <p>
-              التقارير المالية وتقارير الفلل والمصروفات
-            </p>
-
-          </div>
-
-        </main>
-
-      )}
+      
 
 
       {/* =====================================
