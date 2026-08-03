@@ -50,10 +50,11 @@ function Sidebar() {
               shadow-xl
             "
           >
-            <Building2
-              size={34}
-              className="text-[#081B33]"
-            />
+            <img
+  src="/logo.png"
+  alt="Tumouh Star"
+  className="w-12 h-12 object-contain"
+/>
           </div>
 
           <div>
