@@ -50,11 +50,26 @@ function Sidebar() {
               shadow-xl
             "
           >
-            <img
-  src="/logo.png"
-  alt="Tumouh Star"
-  className="w-12 h-12 object-contain"
-/>
+            <div
+  className="
+    w-24
+    h-24
+    rounded-3xl
+    bg-black
+    border
+    border-yellow-500/30
+    shadow-xl
+    flex
+    items-center
+    justify-center
+  "
+>
+  <img
+    src="/logo.png"
+    alt="Tumouh Star"
+    className="w-22 h-22 object-contain scale-150"
+  />
+</div>
           </div>
 
           <div>
