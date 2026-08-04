@@ -158,76 +158,67 @@ function ExpensesPage({
 
       <div className="expenses-summary-grid">
 
+  <div className="expenses-main-card">
+    <span>💰 إجمالي المصروفات</span>
 
-        <div className="expenses-main-card">
+    <strong>
+      {totalExpenses.toLocaleString()}
+    </strong>
 
-          <span>
-            إجمالي المصروفات
-          </span>
+    <small>ريال سعودي</small>
+  </div>
 
-          <strong>
-            {totalExpenses.toLocaleString()}
-          </strong>
+  <div className="expenses-stat-card">
+    <span>📄 عدد العمليات</span>
 
-          <small>
-            ريال سعودي
-          </small>
+    <strong>
+      {expenses.length}
+    </strong>
 
-        </div>
+    <small>عملية</small>
+  </div>
 
+  <div className="expenses-stat-card">
+    <span>✅ المدفوع</span>
 
-        <div className="expenses-stat-card">
+    <strong>
+      0
+    </strong>
 
-          <span>
-            المصاريف العامة للمشروع
-          </span>
+    <small>عملية</small>
+  </div>
 
-          <strong>
-            {projectExpenses.toLocaleString()}
-          </strong>
+  <div className="expenses-stat-card">
+    <span>⏳ الآجل</span>
 
-          <small>
-            ريال
-          </small>
+    <strong>
+      0
+    </strong>
 
-        </div>
+    <small>عملية</small>
+  </div>
 
+  <div className="expenses-stat-card">
+    <span>🧾 إجمالي الضريبة</span>
 
-        <div className="expenses-stat-card">
+    <strong>
+      0
+    </strong>
 
-          <span>
-            مصاريف الفلل
-          </span>
+    <small>ريال</small>
+  </div>
 
-          <strong>
-            {villaExpenses.toLocaleString()}
-          </strong>
+  <div className="expenses-stat-card">
+    <span>💼 إجمالي العهد</span>
 
-          <small>
-            ريال
-          </small>
+    <strong>
+      0
+    </strong>
 
-        </div>
+    <small>ريال</small>
+  </div>
 
-
-        <div className="expenses-stat-card">
-
-          <span>
-            عدد المصروفات
-          </span>
-
-          <strong>
-            {expenses.length.toLocaleString()}
-          </strong>
-
-          <small>
-            عملية مسجلة
-          </small>
-
-        </div>
-
-
-      </div>
+</div>
 
 
       {/* =====================================
