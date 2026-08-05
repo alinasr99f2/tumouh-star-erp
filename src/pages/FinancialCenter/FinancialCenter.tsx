@@ -4,8 +4,14 @@ import ExpensesPage from "./ExpensesPage";
 import AccountsPage from "./AccountsPage";
 import FundingPage from "./FundingPage";
 import CategoriesPage from "./CategoriesPage";
-
+import { financialAccounts } from "../../data/financialAccounts";
+import {
+  applyExpense,
+  applyFunding,
+  createLedgerEntry,
+} from "../../services/financialEngine";
 import ExpenseModal from "../../components/financial/ExpenseModal";
+import FundingModal from "./FundingModal";
 
 type Tab =
   | "expenses"
@@ -19,8 +25,105 @@ export default function FinancialCenter() {
     useState<Tab>("expenses");
 
   const [openExpenseModal, setOpenExpenseModal] =
-    useState(false);
+  useState(false);
 
+const [expenses, setExpenses] = useState<any[]>([]);
+
+const [accounts, setAccounts] =
+  useState(financialAccounts);
+
+const [openFundingModal, setOpenFundingModal] =
+  useState(false);
+
+const [funding, setFunding] = useState<any[]>([]);
+const [ledger, setLedger] = useState<any[]>([]);
+const handleSaveExpense = (expense: any) => {
+
+  setExpenses((prev) => [
+
+    ...prev,
+
+    expense,
+
+  ]);
+  setLedger((prev) => [
+
+  ...prev,
+
+  createLedgerEntry(
+    "expense",
+    expense
+  ),
+
+]);
+
+  setAccounts((prev) =>
+
+    prev.map((account) => {
+
+      if (account.id !== expense.accountId)
+        return account;
+const handleSaveFunding = (item: any) => {
+
+  setFunding((prev) => [
+
+    ...prev,
+
+    item,
+
+  ]);
+  setLedger((prev) => [
+
+  ...prev,
+
+  createLedgerEntry(
+    "funding",
+    funding
+  ),
+
+]);
+
+setAccounts((prev) =>
+  applyExpense(prev, expense)
+);
+
+};
+      return {
+
+        ...account,
+
+        currentBalance:
+          account.currentBalance -
+          expense.total,
+
+        totalExpenses:
+          account.totalExpenses +
+          expense.total,
+
+      };
+
+    })
+
+  );
+
+  console.log(expense);
+
+};
+const handleSaveFunding = (funding: any) => {
+
+  setFunding((prev) => [
+
+    ...prev,
+
+    funding,
+
+  ]);
+
+  setAccounts((prev) =>
+  applyFunding(prev, funding)
+);
+
+};
   return (
 
     <div className="space-y-8">
@@ -116,28 +219,41 @@ export default function FinancialCenter() {
       {/* Pages */}
 
       {activeTab === "expenses" && (
-        <ExpensesPage />
+       <ExpensesPage
+  expenses={expenses}
+  />
       )}
 
-      {activeTab === "accounts" && (
-        <AccountsPage />
-      )}
+     {activeTab === "accounts" && (
+  <AccountsPage
+    accounts={accounts}
+  />
+)}
 
-      {activeTab === "funding" && (
-        <FundingPage />
-      )}
-
-      {activeTab === "categories" && (
-        <CategoriesPage />
-      )}
+{activeTab === "funding" && (
+  <FundingPage
+    onAddFunding={() =>
+      setOpenFundingModal(true)
+    }
+  />
+)}
+{activeTab === "categories" && (
+  <CategoriesPage />
+)}
 
       {/* Modal */}
 
-      <ExpenseModal
-        open={openExpenseModal}
-        onClose={() => setOpenExpenseModal(false)}
-      />
+<ExpenseModal
+  open={openExpenseModal}
+  onClose={() => setOpenExpenseModal(false)}
+  onSave={handleSaveExpense}
+/>
 
+<FundingModal
+  open={openFundingModal}
+  onClose={() => setOpenFundingModal(false)}
+  onSave={handleSaveFunding}
+/>
     </div>
 
   );

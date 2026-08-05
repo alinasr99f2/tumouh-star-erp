@@ -434,29 +434,19 @@ const deleteVilla = (villaToDelete: Villa) => {
 
 
   const projectExpenses =
-    expenses
-      .filter(
-        (expense) =>
-          expense.scope === "Project"
-      )
-      .reduce(
-        (total, expense) =>
-          total + expense.amount,
-        0
-      );
+  expenses.reduce(
+    (total, expense) =>
+      total + expense.amount,
+    0
+  );
 
 
   const villaExpenses =
-    expenses
-      .filter(
-        (expense) =>
-          expense.scope === "Villa"
-      )
-      .reduce(
-        (total, expense) =>
-          total + expense.amount,
-        0
-      );
+  expenses.reduce(
+    (total, expense) =>
+      total + expense.amount,
+    0
+  );
 
 
   // ==========================================

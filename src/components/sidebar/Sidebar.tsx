@@ -56,8 +56,6 @@ function Sidebar() {
     h-24
     rounded-3xl
     bg-black
-    border
-    border-yellow-500/30
     shadow-xl
     flex
     items-center

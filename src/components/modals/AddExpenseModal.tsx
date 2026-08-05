@@ -1,17 +1,21 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
-import type { Villa } from "../../data/villas";
+import ExpenseBasicInfo from "../expense/ExpenseBasicInfo";
+import ExpensePayment from "../expense/ExpensePayment";
+import ExpenseAttachments from "../expense/ExpenseAttachments";
+import ExpenseNotes from "../expense/ExpenseNotes";
+import ExpenseActions from "../expense/ExpenseActions";
 
 import type {
   Expense,
   ExpenseCategory,
   ExpenseClassification,
-  ExpenseScope,
-  PaymentMethod,
 } from "../../data/expenses";
 
+import type { Villa } from "../../data/villas";
 
 type AddExpenseModalProps = {
+
   isOpen: boolean;
 
   villas: Villa[];
@@ -22,926 +26,421 @@ type AddExpenseModalProps = {
 
   onClose: () => void;
 
-  onAddExpense: (expense: Expense) => void;
+  onAddExpense: (
+    expense: Expense
+  ) => void;
 
-  onAddCategory: (name: string) => ExpenseCategory;
+  onAddCategory: (
+    name: string
+  ) => ExpenseCategory;
 
   onAddClassification: (
     categoryId: string,
     name: string
   ) => ExpenseClassification;
+
 };
 
+export default function AddExpenseModal({
 
-function AddExpenseModal({
   isOpen,
+
   villas,
+
   categories,
+
   classifications,
+
   onClose,
+
   onAddExpense,
+
   onAddCategory,
+
   onAddClassification,
+
 }: AddExpenseModalProps) {
 
+  if (!isOpen) return null;
+
   const today =
-    new Date().toISOString().split("T")[0];
+    new Date()
+      .toISOString()
+      .split("T")[0];
 
+  const [operationNo] =
+    useState(Date.now());
 
-  // ==========================================
-  // FORM STATE
-  // ==========================================
-
-  const [date, setDate] =
+  const [date,setDate] =
     useState(today);
 
-  const [amount, setAmount] =
+  const [projectId] =
+    useState("TABUK");
+
+  const [projectName] =
+    useState("مشروع فلل تبوك");
+
+  const [operationType,
+  setOperationType] =
     useState("");
 
-  const [scope, setScope] =
-    useState<ExpenseScope>("Project");
-
-  const [villaCode, setVillaCode] =
+  const [categoryId,
+  setCategoryId] =
     useState("");
 
-  const [categoryId, setCategoryId] =
+  const [classificationId,
+  setClassificationId] =
     useState("");
 
-  const [
-    classificationId,
-    setClassificationId
-  ] = useState("");
-
-  const [itemName, setItemName] =
+  const [supplier,
+  setSupplier] =
     useState("");
 
-  const [description, setDescription] =
+  const [voucherNo,
+  setVoucherNo] =
     useState("");
 
-  const [supplier, setSupplier] =
+  const [description,
+  setDescription] =
     useState("");
 
-  const [
-    paymentMethod,
-    setPaymentMethod
-  ] = useState<PaymentMethod>("Cash");
-
-  const [
-    invoiceNumber,
-    setInvoiceNumber
-  ] = useState("");
-
-  const [notes, setNotes] =
+  const [amount,
+  setAmount] =
     useState("");
 
+  const [taxPercent,
+  setTaxPercent] =
+    useState("15");
 
-  // ==========================================
-  // FILTER CLASSIFICATIONS
-  // ==========================================
+  const [paymentMethod,
+  setPaymentMethod] =
+    useState("Cash");
 
-  const availableClassifications =
-    classifications.filter(
-      (classification) =>
-        classification.categoryId ===
-          categoryId &&
-        classification.isActive
-    );
+  const [paymentSource,
+  setPaymentSource] =
+    useState("");
 
+  const [currency,
+  setCurrency] =
+    useState("SAR");
 
-  // ==========================================
-  // RESET
-  // ==========================================
+  const [status,
+  setStatus] =
+    useState("Paid");
 
-  const resetForm = () => {
+  const [custodyId,
+  setCustodyId] =
+    useState("");
 
-    setDate(today);
+  const [attachments,
+  setAttachments] =
+    useState<File[]>([]);
 
-    setAmount("");
+  const [notes,
+  setNotes] =
+    useState("");
 
-    setScope("Project");
+  const tax =
+    useMemo(()=>{
 
-    setVillaCode("");
+      return Number(amount||0)
+      *
+      Number(taxPercent||0)
+      /100;
 
-    setCategoryId("");
+    },[
+      amount,
+      taxPercent
+    ]);
 
-    setClassificationId("");
+  const total =
+    useMemo(()=>{
 
-    setItemName("");
+      return Number(amount||0)
+      + tax;
 
-    setDescription("");
+    },[
+      amount,
+      tax
+    ]);
 
-    setSupplier("");
+  const handleSave = () => {
 
-    setPaymentMethod("Cash");
-
-    setInvoiceNumber("");
-
-    setNotes("");
-
-  };
-
-
-  // ==========================================
-  // CLOSE
-  // ==========================================
-
-  const handleClose = () => {
-
-    resetForm();
-
-    onClose();
-
-  };
-
-
-  // ==========================================
-  // ADD CATEGORY
-  // ==========================================
-
-  const handleAddCategory = () => {
-
-    const name = window.prompt(
-      "اكتب اسم فئة المصروف الجديدة"
-    );
-
-    if (!name || !name.trim()) {
-      return;
-    }
-
-    const newCategory =
-      onAddCategory(name.trim());
-
-    setCategoryId(
-      newCategory.id
-    );
-
-    setClassificationId("");
-
-  };
-
-
-  // ==========================================
-  // ADD CLASSIFICATION
-  // ==========================================
-
-  const handleAddClassification = () => {
-
-    if (!categoryId) {
-
-      alert(
-        "اختر فئة المصروف أولاً"
-      );
-
-      return;
-
-    }
-
-
-    const name = window.prompt(
-      "اكتب اسم التصنيف الجديد"
-    );
-
-
-    if (!name || !name.trim()) {
-      return;
-    }
-
-
-    const newClassification =
-      onAddClassification(
-        categoryId,
-        name.trim()
-      );
-
-
-    setClassificationId(
-      newClassification.id
-    );
-
-  };
-
-
-  // ==========================================
-  // SUBMIT
-  // ==========================================
-
-  const [saveMode, setSaveMode] =
-  useState<"close" | "continue">("close");
-
-  
-  const handleSubmit = (
-    event: React.FormEvent<HTMLFormElement>
-  ) => {
-
-    event.preventDefault();
-
-
-    if (!date) {
-
-      alert(
-        "من فضلك أدخل تاريخ المصروف"
-      );
-
-      return;
-
-    }
-
-
-    if (Number(amount) <= 0) {
-
-      alert(
-        "من فضلك أدخل مبلغ صحيح"
-      );
-
-      return;
-
-    }
-
-
-    if (!categoryId) {
-
-      alert(
-        "من فضلك اختر فئة المصروف"
-      );
-
-      return;
-
-    }
-
-
-    if (
-      scope === "Villa" &&
-      !villaCode
-    ) {
-
-      alert(
-        "من فضلك اختر الفيلا"
-      );
-
-      return;
-
-    }
-
-
-    const newExpense: Expense = {
+    const expense: Expense = {
 
       id:
-        `EXP-${Date.now()}`,
+      crypto.randomUUID(),
 
-      projectId:
-        "TABUK",
+      operationNo,
 
       date,
 
-      amount:
-        Number(amount),
+      projectId,
 
-      scope,
+      projectName,
 
-      villaCode:
-        scope === "Villa"
-          ? villaCode
-          : null,
+      operationType,
 
       categoryId,
 
       classificationId,
 
-      itemName:
-        itemName.trim(),
-
-      description:
-        description.trim(),
-
-      supplier:
-        supplier.trim(),
+      supplier,
 
       paymentMethod,
 
-      invoiceNumber:
-        invoiceNumber.trim(),
+      amount:
+      Number(amount),
 
-      notes:
-        notes.trim(),
+      tax,
+
+      total,
+
+      voucherNo,
+
+      description,
+
+      paymentSource,
+
+      custodyId,
+
+      currency,
+
+      status,
+
+      attachment: "",
+
+      notes,
 
       createdAt:
-        new Date().toISOString(),
+      new Date()
+      .toISOString(),
 
     };
 
+    onAddExpense(
+      expense
+    );
 
-    onAddExpense(newExpense);
+    onClose();
 
-if (saveMode === "continue") {
-  setAmount("");
-  setItemName("");
-  setDescription("");
+  };
+  const handleSaveAndNew = () => {
+
+  const expense: Expense = {
+
+    id: crypto.randomUUID(),
+
+    operationNo,
+
+    date,
+
+    projectId,
+
+    projectName,
+
+    operationType,
+
+    categoryId,
+
+    classificationId,
+
+    supplier,
+
+    paymentMethod,
+
+    amount: Number(amount),
+
+    tax,
+
+    total,
+
+    voucherNo,
+
+    description,
+
+    paymentSource,
+
+    custodyId,
+
+    currency,
+
+    status,
+
+    attachment: "",
+
+    notes,
+
+    createdAt: new Date().toISOString(),
+
+  };
+
+  onAddExpense(expense);
+
   setSupplier("");
-  setInvoiceNumber("");
+
+  setVoucherNo("");
+
+  setDescription("");
+
+  setAmount("");
+
   setNotes("");
 
-  return;
-}
-
-resetForm();
-onClose();
 };
 
-if (!isOpen) {
-  return null;
-}
+return (
 
-
-
-  return (
+  <div className="modal-overlay">
 
     <div
-      className="modal-overlay"
-      onMouseDown={(event) => {
-
-        if (
-          event.target ===
-          event.currentTarget
-        ) {
-          handleClose();
-        }
-
-      }}
+      className="expense-modal"
+      dir="rtl"
     >
 
-      <div
-        className="villa-modal expense-modal"
-        dir="rtl"
-      >
+      <div className="modal-header">
 
+        <div>
 
-        {/* =====================================
-            HEADER
-        ====================================== */}
+          <h2>
 
-        <div className="modal-header">
+            إضافة مصروف جديد
 
-          <div>
+          </h2>
 
-            <span className="modal-label">
-              مشروع فلل تبوك
-            </span>
+          <span>
 
-            <h2>
-              إضافة مصروف جديد
-            </h2>
+            مشروع فلل تبوك
 
-            <p>
-              تسجيل وتصنيف مصروفات المشروع والفلل
-            </p>
-
-          </div>
-
-
-          <button
-            type="button"
-            className="modal-close"
-            onClick={handleClose}
-          >
-            ×
-          </button>
+          </span>
 
         </div>
 
+        <button
 
-        {/* =====================================
-            FORM
-        ====================================== */}
+          type="button"
 
-        <form
-          className="villa-form"
-          onSubmit={handleSubmit}
+          className="modal-close"
+
+          onClick={onClose}
+
         >
 
+          ✕
 
-          {/* =====================================
-              BASIC DATA
-          ====================================== */}
-
-          <div className="form-section-title">
-            بيانات المصروف
-          </div>
-
-
-          <div className="form-grid">
-
-
-            <div className="form-field">
-
-              <label>
-                تاريخ المصروف *
-              </label>
-
-              <input
-                type="date"
-                value={date}
-                onChange={(event) =>
-                  setDate(
-                    event.target.value
-                  )
-                }
-                required
-              />
-
-            </div>
-
-
-            <div className="form-field">
-
-              <label>
-                المبلغ (ريال) *
-              </label>
-
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                placeholder="0.00"
-                value={amount}
-                onChange={(event) =>
-                  setAmount(
-                    event.target.value
-                  )
-                }
-                required
-              />
-
-            </div>
-
-          </div>
-
-
-          {/* =====================================
-              EXPENSE SCOPE
-          ====================================== */}
-
-          <div className="form-section-title">
-            نطاق المصروف
-          </div>
-
-
-          <div className="expense-scope-options">
+        </button>
 
-  <button
-    type="button"
-    className={`expense-scope-card ${
-      scope === "Project" ? "active" : ""
-    }`}
-    onClick={() => {
-      setScope("Project");
-      setVillaCode("");
-    }}
-  >
-    <div className="expense-scope-check">
-      {scope === "Project" ? "✓" : ""}
-    </div>
+      </div>
 
-    <div className="expense-scope-icon">
-      🏗️
-    </div>
+      <div className="modal-body">
 
-    <div className="expense-scope-text">
-      <strong>مصروف عام للمشروع</strong>
-      <span>غير مرتبط بفيلا محددة</span>
-    </div>
-  </button>
+        <ExpenseBasicInfo
 
+          operationNo={operationNo}
 
-  <button
-    type="button"
-    className={`expense-scope-card ${
-      scope === "Villa" ? "active" : ""
-    }`}
-    onClick={() => setScope("Villa")}
-  >
-    <div className="expense-scope-check">
-      {scope === "Villa" ? "✓" : ""}
-    </div>
+          date={date}
 
-    <div className="expense-scope-icon">
-      🏠
-    </div>
+          projectName={projectName}
 
-    <div className="expense-scope-text">
-      <strong>مصروف خاص بفيلا</strong>
-      <span>تحميل المصروف على فيلا محددة</span>
-    </div>
-  </button>
+          operationType={operationType}
 
-</div>
+          categoryId={categoryId}
 
-            <div className="form-field form-field-full">
+          classificationId={classificationId}
 
-              <label>
-                اختر الفيلا *
-              </label>
+          supplier={supplier}
 
-              <select
-                value={villaCode}
-                onChange={(event) =>
-                  setVillaCode(
-                    event.target.value
-                  )
-                }
-                required
-              >
+          voucherNo={voucherNo}
 
-                <option value="">
-                  اختر الفيلا
-                </option>
+          description={description}
 
-                {villas.map(
-                  (villa) => (
+          categories={categories}
 
-                    <option
-                      key={villa.code}
-                      value={villa.code}
-                    >
-                      الفيلا {villa.code}
-                      {" — "}
-                      {villa.plotArea} م²
-                    </option>
+          classifications={classifications}
 
-                  )
-                )}
+          onDateChange={setDate}
 
-              </select>
+          onOperationTypeChange={setOperationType}
 
-            </div>
+          onCategoryChange={setCategoryId}
 
-        
+          onClassificationChange={setClassificationId}
 
+          onSupplierChange={setSupplier}
 
-          {/* =====================================
-              CLASSIFICATION
-          ====================================== */}
+          onVoucherChange={setVoucherNo}
 
-          <div className="form-section-title">
-            تصنيف المصروف
-          </div>
+          onDescriptionChange={setDescription}
 
+          onAddCategory={() => {}}
 
-          <div className="form-grid">
+          onAddClassification={() => {}}
 
+        />
 
-            {/* CATEGORY */}
+        <ExpensePayment
 
-            <div className="form-field">
+          amount={amount}
 
-              <label>
-                الفئة *
-              </label>
+          taxPercent={taxPercent}
 
+          tax={tax}
 
-              <div className="input-with-button">
+          total={total}
 
-                <select
-                  value={categoryId}
-                  onChange={(event) => {
+          paymentMethod={paymentMethod}
 
-                    setCategoryId(
-                      event.target.value
-                    );
+          paymentSource={paymentSource}
 
-                    setClassificationId("");
+          currency={currency}
 
-                  }}
-                  required
-                >
+          status={status}
 
-                  <option value="">
-                    اختر الفئة
-                  </option>
+          custodyId={custodyId}
 
+          onAmountChange={setAmount}
 
-                  {categories
-                    .filter(
-                      (category) =>
-                        category.isActive
-                    )
-                    .map(
-                      (category) => (
+          onTaxPercentChange={setTaxPercent}
 
-                        <option
-                          key={category.id}
-                          value={category.id}
-                        >
-                          {category.name}
-                        </option>
+          onPaymentMethodChange={setPaymentMethod}
 
-                      )
-                    )}
+          onPaymentSourceChange={setPaymentSource}
 
-                </select>
+          onCurrencyChange={setCurrency}
 
+          onStatusChange={setStatus}
 
-                <button
-                  type="button"
-                  className="small-add-button"
-                  onClick={
-                    handleAddCategory
-                  }
-                  title="إضافة فئة جديدة"
-                >
-                  +
-                </button>
+          onCustodyChange={setCustodyId}
 
-              </div>
+        />
 
-            </div>
+        <ExpenseAttachments
 
+          attachments={attachments}
 
-            {/* CLASSIFICATION */}
+          onFilesChange={setAttachments}
 
-            <div className="form-field">
+        />
 
-              <label>
-                التصنيف
-              </label>
+        <ExpenseNotes
 
+          notes={notes}
 
-              <div className="input-with-button">
-
-                <select
-                  value={
-                    classificationId
-                  }
-                  onChange={(event) =>
-                    setClassificationId(
-                      event.target.value
-                    )
-                  }
-                  disabled={!categoryId}
-                >
-
-                  <option value="">
-                    اختر التصنيف
-                  </option>
-
-
-                  {availableClassifications.map(
-                    (classification) => (
-
-                      <option
-                        key={
-                          classification.id
-                        }
-                        value={
-                          classification.id
-                        }
-                      >
-                        {
-                          classification.name
-                        }
-                      </option>
-
-                    )
-                  )}
-
-                </select>
-
-
-                <button
-                  type="button"
-                  className="small-add-button"
-                  onClick={
-                    handleAddClassification
-                  }
-                  title="إضافة تصنيف جديد"
-                >
-                  +
-                </button>
-
-              </div>
-
-            </div>
-
-
-            {/* ITEM */}
-
-            <div className="form-field">
-
-              <label>
-                البند
-              </label>
-
-              <input
-                type="text"
-                placeholder="مثال: كابلات 6 مم"
-                value={itemName}
-                onChange={(event) =>
-                  setItemName(
-                    event.target.value
-                  )
-                }
-              />
-
-            </div>
-
-
-            {/* SUPPLIER */}
-
-            <div className="form-field">
-
-              <label>
-                المورد / المقاول
-              </label>
-
-              <input
-                type="text"
-                placeholder="اسم المورد أو المقاول"
-                value={supplier}
-                onChange={(event) =>
-                  setSupplier(
-                    event.target.value
-                  )
-                }
-              />
-
-            </div>
-
-          </div>
-
-
-          {/* =====================================
-              PAYMENT
-          ====================================== */}
-
-          <div className="form-section-title">
-            بيانات الدفع
-          </div>
-
-
-          <div className="form-grid">
-
-
-            <div className="form-field">
-
-              <label>
-                طريقة الدفع
-              </label>
-
-              <select
-                value={paymentMethod}
-                onChange={(event) => {
-
-                  const value =
-                    event.target.value;
-
-                  if (
-                    value === "Cash" ||
-                    value === "Bank Transfer" ||
-                    value === "Card" ||
-                    value === "Cheque" ||
-                    value === "Other"
-                  ) {
-
-                    setPaymentMethod(
-                      value
-                    );
-
-                  }
-
-                }}
-              >
-
-                <option value="Cash">
-                  نقدي
-                </option>
-
-                <option value="Bank Transfer">
-                  تحويل بنكي
-                </option>
-
-                <option value="Card">
-                  بطاقة
-                </option>
-
-                <option value="Cheque">
-                  شيك
-                </option>
-
-                <option value="Other">
-                  أخرى
-                </option>
-
-              </select>
-
-            </div>
-
-
-            <div className="form-field">
-
-              <label>
-                رقم الفاتورة / المرجع
-              </label>
-
-              <input
-                type="text"
-                placeholder="اختياري"
-                value={invoiceNumber}
-                onChange={(event) =>
-                  setInvoiceNumber(
-                    event.target.value
-                  )
-                }
-              />
-
-            </div>
-
-          </div>
-
-
-          {/* =====================================
-              DESCRIPTION
-          ====================================== */}
-
-          <div className="form-field form-field-full">
-
-            <label>
-              وصف المصروف
-            </label>
-
-            <input
-              type="text"
-              placeholder="وصف مختصر للمصروف"
-              value={description}
-              onChange={(event) =>
-                setDescription(
-                  event.target.value
-                )
-              }
-            />
-
-          </div>
-
-
-          <div className="form-field form-field-full">
-
-            <label>
-              ملاحظات
-            </label>
-
-            <textarea
-              rows={3}
-              placeholder="أي ملاحظات إضافية..."
-              value={notes}
-              onChange={(event) =>
-                setNotes(
-                  event.target.value
-                )
-              }
-            />
-
-          </div>
-
-
-          {/* =====================================
-              ACTIONS
-          ====================================== */}
-
-          <div className="modal-actions expense-modal-actions">
-
-  <button
-    type="button"
-    className="cancel-button"
-    onClick={handleClose}
-  >
-    إلغاء
-  </button>
-
-  <button
-    type="submit"
-    className="save-and-close-button"
-    onClick={() => setSaveMode("close")}
-  >
-    ✓ حفظ وإغلاق
-  </button>
-
-  <button
-    type="submit"
-    className="save-villa-button save-and-continue-button"
-    onClick={() => setSaveMode("continue")}
-  >
-    ＋ حفظ وإضافة مصروف آخر
-  </button>
-
-</div>
-
-
-        </form>
+          onNotesChange={setNotes}
+
+        />
+               <ExpenseActions
+          onCancel={onClose}
+          onSave={handleSave}
+          onSaveAndNew={handleSaveAndNew}
+        />
 
       </div>
 
     </div>
 
-  );
+  </div>
+
+);
 
 }
-
-export default AddExpenseModal;

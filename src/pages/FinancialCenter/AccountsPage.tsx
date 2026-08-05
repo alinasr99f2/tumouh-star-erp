@@ -1,8 +1,23 @@
-import { financialAccounts } from "../../data/financialAccounts";
+type Account = {
+  id: number;
+  name: string;
+  type: string;
+  currentBalance: number;
+  totalFunding: number;
+  totalExpenses: number;
+};
 
-export default function AccountsPage() {
+type Props = {
+  accounts: Account[];
+};
+
+export default function AccountsPage({
+  accounts,
+}: Props) {
   return (
     <div className="space-y-6">
+
+      {/* Header */}
 
       <div className="flex items-center justify-between">
 
@@ -26,8 +41,8 @@ export default function AccountsPage() {
           py-3
           font-bold
           text-[#081B33]
-          hover:bg-yellow-500
           transition
+          hover:bg-yellow-500
           "
         >
           + حساب جديد
@@ -35,9 +50,11 @@ export default function AccountsPage() {
 
       </div>
 
+      {/* Cards */}
+
       <div className="grid gap-6 lg:grid-cols-3">
 
-        {financialAccounts.map((account) => (
+        {accounts.map((account) => (
 
           <div
             key={account.id}
@@ -50,7 +67,7 @@ export default function AccountsPage() {
             "
           >
 
-            <h3 className="text-2xl font-bold">
+            <h3 className="text-2xl font-bold text-white">
               {account.name}
             </h3>
 
@@ -62,7 +79,9 @@ export default function AccountsPage() {
 
               <div className="flex justify-between">
 
-                <span>الرصيد الحالي</span>
+                <span className="text-gray-400">
+                  الرصيد الحالي
+                </span>
 
                 <span className="font-bold text-yellow-400">
                   {account.currentBalance.toLocaleString()} ريال
@@ -72,21 +91,58 @@ export default function AccountsPage() {
 
               <div className="flex justify-between">
 
-                <span>إجمالي التغذية</span>
+                <span className="text-gray-400">
+                  إجمالي التغذية
+                </span>
 
-                <span>
-                  {account.totalFunding.toLocaleString()}
+                <span className="text-green-400">
+                  {account.totalFunding.toLocaleString()} ريال
                 </span>
 
               </div>
 
               <div className="flex justify-between">
 
-                <span>إجمالي المصروفات</span>
+                <span className="text-gray-400">
+                  إجمالي المصروفات
+                </span>
 
                 <span className="text-red-400">
-                  {account.totalExpenses.toLocaleString()}
+                  {account.totalExpenses.toLocaleString()} ريال
                 </span>
+
+              </div>
+                            <div className="mt-6 flex gap-2">
+
+                <button
+                  className="
+                  flex-1
+                  rounded-xl
+                  bg-sky-500
+                  py-2
+                  font-bold
+                  text-white
+                  transition
+                  hover:bg-sky-600
+                  "
+                >
+                  عرض
+                </button>
+
+                <button
+                  className="
+                  flex-1
+                  rounded-xl
+                  bg-green-500
+                  py-2
+                  font-bold
+                  text-white
+                  transition
+                  hover:bg-green-600
+                  "
+                >
+                  تغذية
+                </button>
 
               </div>
 
@@ -99,5 +155,7 @@ export default function AccountsPage() {
       </div>
 
     </div>
+
   );
+
 }

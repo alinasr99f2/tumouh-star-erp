@@ -1,8 +1,7 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 import { projects } from "../../data/projects";
 import { financialAccounts } from "../../data/financialAccounts";
-import { expenseCategories } from "../../data/expenseCategories";
 
 type Props = {
 
@@ -10,11 +9,11 @@ type Props = {
 
   onClose: () => void;
 
-  onSave: (expense: any) => void;
+  onSave: (funding: any) => void;
 
 };
 
-export default function ExpenseModal({
+export default function FundingModal({
 
   open,
 
@@ -31,14 +30,11 @@ const today = new Date().toISOString().split("T")[0];
 const [entryDate] = useState(today);
 
 const [expenseDate, setExpenseDate] = useState(today);
-const [supplier, setSupplier] = useState("");
 const [projectId, setProjectId] = useState("");
 const [accountId, setAccountId] = useState("");
-const [categoryId, setCategoryId] = useState("");
 const [voucherNo, setVoucherNo] = useState("");
 
 const [amount, setAmount] = useState("");
-const [taxPercent, setTaxPercent] = useState("15");
 
 const [paymentMethod, setPaymentMethod] =
   useState("");
@@ -46,57 +42,41 @@ const [paymentMethod, setPaymentMethod] =
 const [description, setDescription] =
   useState("");
 
-const tax = useMemo(() => {
-  const value = Number(amount || 0);
-  return value * Number(taxPercent || 0) / 100;
-}, [amount, taxPercent]);
 
-const total = useMemo(() => {
-  return Number(amount || 0) + tax;
-}, [amount, tax]);
+
 const handleSave = () => {
 
-  const expense = {
+  const funding = {
 
-    id: crypto.randomUUID(),
+  id: crypto.randomUUID(),
 
-    entryDate,
-expenseDate,
+  entryDate,
 
-    supplier,
+  fundingDate: expenseDate,
 
-    projectId,
+  projectId,
 
-    accountId,
+  accountId,
 
-    categoryId,
+  amount: Number(amount),
 
-    voucherNo,
+  paymentMethod,
 
-    amount: Number(amount),
+  referenceNo: voucherNo,
 
-    tax,
+  notes: description,
 
-    total,
+  createdAt: new Date().toISOString(),
 
-    paymentMethod,
+};
 
-    description,
-
-    createdAt: new Date().toISOString(),
-
-  };
-
-  onSave(expense);
-  console.log(expense);
+  onSave(funding);
+  console.log(funding);
 setExpenseDate(today);
-setSupplier("");
 setProjectId("");
 setAccountId("");
-setCategoryId("");
 setVoucherNo("");
 setAmount("");
-setTaxPercent("15");
 setPaymentMethod("");
 setDescription("");
   onClose();
@@ -117,7 +97,7 @@ if (!open) return null;
         <div className="mb-8 flex items-center justify-between">
 
           <h2 className="text-3xl font-bold text-white">
-            إضافة مصروف جديد
+            إضافة تغذية مالية
           </h2>
 
           <button
@@ -141,17 +121,13 @@ if (!open) return null;
 />
 
 <Input
-  label="تاريخ المصروف"
+  label="تاريخ التغذية"
   type="date"
   value={expenseDate}
   onChange={setExpenseDate}
 />
 
-          <Input
-  label="المورد"
-  value={supplier}
-  onChange={setSupplier}
-/>
+          
 
          <Select
   label="المشروع"
@@ -174,43 +150,22 @@ if (!open) return null;
     }))}
 />
 
-          <Select
-  label="البند"
-  value={categoryId}
-  onChange={setCategoryId}
-  options={expenseCategories.map((c) => ({
-    value: c.id,
-    label: c.name,
-  }))}
-/>
+         
 
           <Input
-  label="رقم الفاتورة"
+  label="رقم المرجع"
   value={voucherNo}
   onChange={setVoucherNo}
 />
 
           <Input
-  label="المبلغ قبل الضريبة"
+  label="مبلغ التغذية"
   type="number"
   value={amount}
   onChange={setAmount}
 />
 
-         <Input
-  label="الضريبة %"
-  type="number"
-  value={taxPercent}
-  onChange={setTaxPercent}
-/>
-
-          <Input
-  label="إجمالي الفاتورة"
-  type="number"
-  value={String(total)}
-  readOnly
-/>
-
+        
           <Select
   label="طريقة الدفع"
   value={paymentMethod}
@@ -255,7 +210,7 @@ if (!open) return null;
         <div className="mt-6">
 
           <label className="mb-2 block text-sm text-gray-300">
-            إرفاق فاتورة
+            إرفاق مستند
           </label>
 
           <input
@@ -283,7 +238,7 @@ if (!open) return null;
   className="rounded-xl bg-yellow-400 px-8 py-3 font-bold text-[#081B33] hover:bg-yellow-500"
 
 >
-            حفظ المصروف
+            حفظ التغذية
           </button>
 
         </div>
