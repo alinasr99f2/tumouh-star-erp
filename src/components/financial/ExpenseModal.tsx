@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { projects } from "../../data/projects";
 import { financialAccounts } from "../../data/financialAccounts";
 import { expenseCategories } from "../../data/expenseCategories";
+import { villas } from "../../data/villas";
 
 type Props = {
 
@@ -33,6 +34,8 @@ const [entryDate] = useState(today);
 const [expenseDate, setExpenseDate] = useState(today);
 const [supplier, setSupplier] = useState("");
 const [projectId, setProjectId] = useState("");
+const [villaCode, setVillaCode] = useState("");
+const [villaId, setVillaId] = useState("");
 const [accountId, setAccountId] = useState("");
 const [categoryId, setCategoryId] = useState("");
 const [voucherNo, setVoucherNo] = useState("");
@@ -54,6 +57,19 @@ const tax = useMemo(() => {
 const total = useMemo(() => {
   return Number(amount || 0) + tax;
 }, [amount, tax]);
+
+const projectVillas = useMemo(() => {
+  console.log(projectId);
+
+console.log(villas);
+
+  if (!projectId) return [];
+
+  return villas.filter(
+    (v) => String(v.projectId) === String(projectId)
+  );
+
+}, [projectId]);
 const handleSave = () => {
 
   const expense = {
@@ -66,6 +82,8 @@ expenseDate,
     supplier,
 
     projectId,
+
+    villaId,
 
     accountId,
 
@@ -92,6 +110,7 @@ expenseDate,
 setExpenseDate(today);
 setSupplier("");
 setProjectId("");
+setVillaId("");
 setAccountId("");
 setCategoryId("");
 setVoucherNo("");
@@ -161,6 +180,25 @@ if (!open) return null;
     value: p.id,
     label: p.name,
   }))}
+/>
+<Select
+  label="الفيلا"
+
+  value={villaId}
+
+  onChange={setVillaId}
+
+  options={[
+    {
+      value: "",
+      label: "🏘️ مصروف عام على المشروع",
+    },
+
+    ...projectVillas.map((villa) => ({
+      value: villa.code,
+label: `${villa.block} - فيلا ${villa.code}`,
+    })),
+  ]}
 />
 <Select
   label="العهدة"

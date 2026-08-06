@@ -12,7 +12,7 @@ export type VillaStatus =
 
 export interface Villa {
   code: string;
-  projectId: string;
+  projectId: number;
   block: string;
 
   plotArea: number;
@@ -43,7 +43,7 @@ export interface Villa {
 export const villas: Villa[] = [
   {
     code: "A1",
-    projectId: "TABUK",
+    projectId: 1,
     block: "A",
     plotArea: 405,
     builtUpArea: 0,
@@ -64,7 +64,7 @@ export const villas: Villa[] = [
   },
   {
     code: "A2",
-    projectId: "TABUK",
+    projectId: 1,
     block: "A",
     plotArea: 390,
     builtUpArea: 0,
@@ -85,7 +85,7 @@ export const villas: Villa[] = [
   },
   {
     code: "A3",
-    projectId: "TABUK",
+    projectId: 1,
     block: "A",
     plotArea: 403,
     builtUpArea: 0,
@@ -107,7 +107,7 @@ export const villas: Villa[] = [
 
   {
     code: "B1",
-    projectId: "TABUK",
+    projectId: 1,
     block: "B",
     plotArea: 386,
     builtUpArea: 0,
@@ -128,7 +128,7 @@ export const villas: Villa[] = [
   },
   {
     code: "B2",
-    projectId: "TABUK",
+   projectId: 1,
     block: "B",
     plotArea: 388,
     builtUpArea: 0,
@@ -149,7 +149,7 @@ export const villas: Villa[] = [
   },
   {
     code: "B3",
-    projectId: "TABUK",
+    projectId: 1,
     block: "B",
     plotArea: 388,
     builtUpArea: 0,
@@ -170,7 +170,7 @@ export const villas: Villa[] = [
   },
   {
     code: "B4",
-    projectId: "TABUK",
+    projectId: 1,
     block: "B",
     plotArea: 408,
     builtUpArea: 0,
@@ -191,7 +191,7 @@ export const villas: Villa[] = [
   },
   {
     code: "B5",
-    projectId: "TABUK",
+    projectId: 1,
     block: "B",
     plotArea: 436,
     builtUpArea: 0,
@@ -213,7 +213,7 @@ export const villas: Villa[] = [
 
   {
     code: "C1",
-    projectId: "TABUK",
+    projectId: 1,
     block: "C",
     plotArea: 355,
     builtUpArea: 0,
@@ -234,7 +234,7 @@ export const villas: Villa[] = [
   },
   {
     code: "C2",
-    projectId: "TABUK",
+    projectId: 1,
     block: "C",
     plotArea: 363,
     builtUpArea: 0,
@@ -255,7 +255,7 @@ export const villas: Villa[] = [
   },
   {
     code: "C3",
-    projectId: "TABUK",
+    projectId: 1,
     block: "C",
     plotArea: 388,
     builtUpArea: 0,
@@ -276,7 +276,7 @@ export const villas: Villa[] = [
   },
   {
     code: "C4",
-    projectId: "TABUK",
+    projectId: 1,
     block: "C",
     plotArea: 361,
     builtUpArea: 0,
@@ -297,7 +297,7 @@ export const villas: Villa[] = [
   },
   {
     code: "C5",
-    projectId: "TABUK",
+    projectId: 1,
     block: "C",
     plotArea: 369,
     builtUpArea: 0,
@@ -318,7 +318,7 @@ export const villas: Villa[] = [
   },
   {
     code: "C6",
-    projectId: "TABUK",
+    projectId: 1,
     block: "C",
     plotArea: 392,
     builtUpArea: 0,
@@ -340,7 +340,7 @@ export const villas: Villa[] = [
 
   {
     code: "D1",
-    projectId: "TABUK",
+    projectId: 1,
     block: "D",
     plotArea: 418,
     builtUpArea: 0,
@@ -361,7 +361,7 @@ export const villas: Villa[] = [
   },
   {
     code: "D2",
-    projectId: "TABUK",
+    projectId: 1,
     block: "D",
     plotArea: 410,
     builtUpArea: 0,
@@ -382,7 +382,7 @@ export const villas: Villa[] = [
   },
   {
     code: "D3",
-    projectId: "TABUK",
+    projectId: 1,
     block: "D",
     plotArea: 383,
     builtUpArea: 0,
@@ -403,7 +403,7 @@ export const villas: Villa[] = [
   },
   {
     code: "D4",
-    projectId: "TABUK",
+    projectId: 1,
     block: "D",
     plotArea: 411,
     builtUpArea: 0,
