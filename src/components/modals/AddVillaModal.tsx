@@ -87,7 +87,7 @@ function AddVillaModal({
     const newVilla: Villa = {
       code: cleanCode,
 
-      projectId: "TABUK",
+      projectId: 1,
 
       block: cleanCode.charAt(0),
 

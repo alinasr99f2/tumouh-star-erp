@@ -6,6 +6,7 @@ import ProjectsList from "../../components/projects/ProjectsList";
 import AddProjectModal from "../../components/projects/AddProjectModal";
 
 import { projects as projectsData } from "../../data/projects";
+
 import type { Project, ProjectStatus } from "../../types/project";
 
 type Filter = "الكل" | ProjectStatus;

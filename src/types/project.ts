@@ -1,20 +1,30 @@
+export type ProjectStatus =
+  | "قيد التنفيذ"
+  | "مكتمل"
+  | "متوقف";
+
 export interface Company {
-
   id: string;
-
   name: string;
-
 }
 
 export interface Project {
-
-  id: string;
-
-  companyId: string;
+  id: number;
 
   name: string;
 
-  type:
+  city: string;
+
+  progress: number;
+
+  units: number;
+
+  status: ProjectStatus;
+
+  // حقول إضافية للنظام لاحقًا
+  companyId?: string;
+
+  type?:
     | "villa"
     | "building"
     | "hotel"
@@ -23,12 +33,10 @@ export interface Project {
     | "mall"
     | "warehouse";
 
-  active: boolean;
-
+  active?: boolean;
 }
 
 export interface Asset {
-
   id: string;
 
   projectId: string;
@@ -50,5 +58,4 @@ export interface Asset {
   rooms?: number;
 
   active: boolean;
-
 }
