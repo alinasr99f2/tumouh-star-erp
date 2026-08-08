@@ -25,21 +25,24 @@ export default function FundingPage({
         </div>
 
         <button
-          onClick={onAddFunding}
-          className="
-            rounded-xl
-            bg-yellow-400
-            px-6
-            py-3
-            font-bold
-            text-[#081B33]
-            transition
-            hover:bg-yellow-500
-          "
-        >
-          + إضافة تغذية
-        </button>
-
+  onClick={onAddFunding}
+  className="
+    flex items-center gap-2
+    rounded-2xl
+    bg-gradient-to-r from-sky-400 to-cyan-500
+    px-7 py-3
+    font-bold
+    text-[#081B33]
+    shadow-lg shadow-cyan-500/20
+    transition-all duration-300
+    hover:-translate-y-1
+    hover:shadow-xl
+    hover:shadow-cyan-500/30
+  "
+>
+  <span className="text-xl">＋</span>
+  إضافة تغذية مالية
+</button>
       </div>
 
       {/* Statistics */}

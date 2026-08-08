@@ -1,96 +1,224 @@
-import { useState } from "react";
-
-import { projects } from "../../data/projects";
-import { financialAccounts } from "../../data/financialAccounts";
+import { useEffect, useState } from "react";
+import { supabase } from "../../utils/supabase";
 
 type Props = {
-
   open: boolean;
-
   onClose: () => void;
-
   onSave: (funding: any) => void;
+  selectedAccountId?: number | null;
+};
 
+type Account = {
+  id: number;
+  name: string;
+  balance: number;
 };
 
 export default function FundingModal({
-
   open,
-
   onClose,
-
   onSave,
-
+  selectedAccountId,
 }: Props) {
+  const today = new Date().toLocaleDateString("en-CA");
 
+  const [entryDate] = useState(today);
+  const [fundingDate, setFundingDate] = useState(today);
 
-  
-const today = new Date().toISOString().split("T")[0];
+  const [accountId, setAccountId] = useState("");
+  const [voucherNo, setVoucherNo] = useState("");
+  const [amount, setAmount] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("");
+  const [description, setDescription] = useState("");
 
-const [entryDate] = useState(today);
+  const [accountList, setAccountList] = useState<Account[]>([]);
 
-const [expenseDate, setExpenseDate] = useState(today);
-const [projectId, setProjectId] = useState("");
-const [accountId, setAccountId] = useState("");
-const [voucherNo, setVoucherNo] = useState("");
+  const [loadingData, setLoadingData] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-const [amount, setAmount] = useState("");
+  // تحميل العهد من Supabase
+  useEffect(() => {
+    if (!open) return;
 
-const [paymentMethod, setPaymentMethod] =
-  useState("");
+    const loadAccounts = async () => {
+      setLoadingData(true);
 
-const [description, setDescription] =
-  useState("");
+      try {
+        const { data, error } = await supabase
+          .from("accounts")
+          .select("id, name, balance")
+          .order("id", { ascending: true });
 
+        if (error) {
+          console.error("خطأ تحميل العهد:", error);
 
+          alert(
+            `تعذر تحميل العهد:\n${error.message}`
+          );
 
-const handleSave = () => {
+          return;
+        }
 
-  const funding = {
+        setAccountList(data || []);
+        if (selectedAccountId !== null && selectedAccountId !== undefined) {
+  setAccountId(String(selectedAccountId));
+}
 
-  id: crypto.randomUUID(),
+        console.log("ACCOUNTS:", data);
+      } catch (error) {
+        console.error("خطأ تحميل البيانات:", error);
 
-  entryDate,
+        alert("حدث خطأ أثناء تحميل العهد.");
+      } finally {
+        setLoadingData(false);
+      }
+    };
 
-  fundingDate: expenseDate,
+    loadAccounts();
+  }, [open]);
 
-  projectId,
+  const handleSave = async () => {
+    // التأكد من اختيار العهدة
+    if (!accountId) {
+      alert("من فضلك اختر العهدة");
+      return;
+    }
 
-  accountId,
+    // التأكد من إدخال المبلغ
+    if (!amount || Number(amount) <= 0) {
+      alert("من فضلك أدخل مبلغ التغذية");
+      return;
+    }
 
-  amount: Number(amount),
+    // التأكد من طريقة الدفع
+    if (!paymentMethod) {
+      alert("من فضلك اختر طريقة الدفع");
+      return;
+    }
 
-  paymentMethod,
+    setSaving(true);
 
-  referenceNo: voucherNo,
+    try {
+      const numericAmount = Number(amount);
 
-  notes: description,
+      // تجهيز الوصف النهائي
+      const finalDescription = voucherNo
+        ? `رقم المرجع: ${voucherNo}${
+            description ? ` - ${description}` : ""
+          }`
+        : description;
 
-  createdAt: new Date().toISOString(),
+      // ==============================
+      // 1️⃣ تسجيل التغذية
+      // ==============================
 
-};
+      const { data: fundingData, error: fundingError } =
+        await supabase
+          .from("funding")
+          .insert({
+            account_id: Number(accountId),
+            amount: numericAmount,
+            funding_date: fundingDate,
+            source: paymentMethod,
+            description: finalDescription,
+          })
+          .select()
+          .single();
 
-  onSave(funding);
-  console.log(funding);
-setExpenseDate(today);
-setProjectId("");
-setAccountId("");
-setVoucherNo("");
-setAmount("");
-setPaymentMethod("");
-setDescription("");
-  onClose();
+      if (fundingError) {
+        console.error(
+          "خطأ حفظ التغذية:",
+          fundingError
+        );
 
-};
+        alert(
+          `حدث خطأ أثناء حفظ التغذية:\n${fundingError.message}`
+        );
 
-if (!open) return null;
+        return;
+      }
 
+      // ==============================
+      // 2️⃣ تحديث رصيد العهدة
+      // ==============================
 
- 
+      const selectedAccount = accountList.find(
+        (account) =>
+          account.id === Number(accountId)
+      );
+
+      if (selectedAccount) {
+        const newBalance =
+          Number(selectedAccount.balance || 0) +
+          numericAmount;
+
+        const { error: balanceError } =
+          await supabase
+            .from("accounts")
+            .update({
+              balance: newBalance,
+            })
+            .eq("id", Number(accountId));
+
+        if (balanceError) {
+          console.error(
+            "خطأ تحديث رصيد العهدة:",
+            balanceError
+          );
+
+          alert(
+            "تم تسجيل التغذية، ولكن حدث خطأ أثناء تحديث رصيد العهدة."
+          );
+
+          return;
+        }
+      }
+
+      // ==============================
+      // 3️⃣ نجاح العملية
+      // ==============================
+
+      console.log(
+        "تم حفظ التغذية:",
+        fundingData
+      );
+
+      onSave(fundingData);
+
+      // تنظيف النموذج
+      setFundingDate(today);
+      setAccountId("");
+      setVoucherNo("");
+      setAmount("");
+      setPaymentMethod("");
+      setDescription("");
+
+      alert(
+        "تم حفظ التغذية المالية بنجاح ✅"
+      );
+
+      onClose();
+
+    } catch (error) {
+      console.error(
+        "خطأ غير متوقع:",
+        error
+      );
+
+      alert(
+        "حدث خطأ غير متوقع أثناء حفظ التغذية."
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!open) return null;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6">
 
-      <div className="w-[950px] rounded-3xl border border-white/10 bg-[#081B33] p-8 shadow-2xl">
+      <div className="w-[950px] max-w-full rounded-3xl border border-white/10 bg-[#081B33] p-8 shadow-2xl">
 
         {/* Header */}
 
@@ -102,6 +230,7 @@ if (!open) return null;
 
           <button
             onClick={onClose}
+            disabled={saving}
             className="text-2xl text-gray-400 hover:text-red-400"
           >
             ✕
@@ -113,78 +242,79 @@ if (!open) return null;
 
         <div className="grid grid-cols-2 gap-5">
 
-          <Input
-  label="تاريخ الإدخال"
-  type="date"
-  value={entryDate}
-  readOnly
-/>
-
-<Input
-  label="تاريخ التغذية"
-  type="date"
-  value={expenseDate}
-  onChange={setExpenseDate}
-/>
-
-          
-
-         <Select
-  label="المشروع"
-  value={projectId}
-  onChange={setProjectId}
-  options={projects.map((p) => ({
-    value: p.id,
-    label: p.name,
-  }))}
-/>
-<Select
-  label="العهدة"
-  value={accountId}
-  onChange={setAccountId}
-  options={financialAccounts
-    .filter((a) => a.active)
-    .map((a) => ({
-      value: a.id,
-      label: `${a.name} (${a.currentBalance.toLocaleString()} ريال)`,
-    }))}
-/>
-
-         
+          {/* تاريخ الإدخال */}
 
           <Input
-  label="رقم المرجع"
-  value={voucherNo}
-  onChange={setVoucherNo}
-/>
+            label="تاريخ الإدخال"
+            type="date"
+            value={entryDate}
+            readOnly
+          />
+
+          {/* تاريخ التغذية */}
 
           <Input
-  label="مبلغ التغذية"
-  type="number"
-  value={amount}
-  onChange={setAmount}
-/>
+            label="تاريخ التغذية"
+            type="date"
+            value={fundingDate}
+            onChange={setFundingDate}
+          />
 
-        
+          {/* العهدة */}
+
           <Select
-  label="طريقة الدفع"
-  value={paymentMethod}
-  onChange={setPaymentMethod}
-  options={[
-    {
-      value: "cash",
-      label: "💵 نقدًا",
-    },
-    {
-      value: "bank",
-      label: "🏦 تحويل بنكي",
-    },
-    {
-      value: "card",
-      label: "💳 بطاقة",
-    },
-  ]}
-/>
+            label="العهدة"
+            value={accountId}
+            onChange={setAccountId}
+            disabled={loadingData}
+            options={accountList.map(
+              (account) => ({
+                value: account.id,
+                label: `${account.name} (${Number(
+                  account.balance || 0
+                ).toLocaleString()} ريال)`,
+              })
+            )}
+          />
+
+          {/* رقم المرجع */}
+
+          <Input
+            label="رقم المرجع"
+            value={voucherNo}
+            onChange={setVoucherNo}
+          />
+
+          {/* مبلغ التغذية */}
+
+          <Input
+            label="مبلغ التغذية"
+            type="number"
+            value={amount}
+            onChange={setAmount}
+          />
+
+          {/* طريقة الدفع */}
+
+          <Select
+            label="طريقة الدفع"
+            value={paymentMethod}
+            onChange={setPaymentMethod}
+            options={[
+              {
+                value: "cash",
+                label: "💵 نقدًا",
+              },
+              {
+                value: "bank",
+                label: "🏦 تحويل بنكي",
+              },
+              {
+                value: "card",
+                label: "💳 بطاقة",
+              },
+            ]}
+          />
 
         </div>
 
@@ -197,11 +327,13 @@ if (!open) return null;
           </label>
 
           <textarea
-  rows={4}
-  value={description}
-  onChange={(e) => setDescription(e.target.value)}
-  className="w-full rounded-xl border border-white/10 bg-[#102947] p-4 text-white outline-none focus:border-yellow-400"
-/>
+            rows={4}
+            value={description}
+            onChange={(e) =>
+              setDescription(e.target.value)
+            }
+            className="w-full rounded-xl border border-white/10 bg-[#102947] p-4 text-white outline-none focus:border-yellow-400"
+          />
 
         </div>
 
@@ -215,7 +347,7 @@ if (!open) return null;
 
           <input
             type="file"
-            className="block w-full rounded-xl border border-white/10 bg-[#102947] p-3"
+            className="block w-full rounded-xl border border-white/10 bg-[#102947] p-3 text-white"
           />
 
         </div>
@@ -226,19 +358,20 @@ if (!open) return null;
 
           <button
             onClick={onClose}
+            disabled={saving}
             className="rounded-xl border border-white/10 px-6 py-3 text-white hover:bg-white/5"
           >
             إلغاء
           </button>
 
           <button
-
-  onClick={handleSave}
-
-  className="rounded-xl bg-yellow-400 px-8 py-3 font-bold text-[#081B33] hover:bg-yellow-500"
-
->
-            حفظ التغذية
+            onClick={handleSave}
+            disabled={saving || loadingData}
+            className="rounded-xl bg-yellow-400 px-8 py-3 font-bold text-[#081B33] hover:bg-yellow-500 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {saving
+              ? "جاري الحفظ..."
+              : "حفظ التغذية"}
           </button>
 
         </div>
@@ -249,72 +382,51 @@ if (!open) return null;
   );
 }
 
+
+/* =========================
+   Input
+========================= */
+
 type InputProps = {
-
   label: string;
-
   type?: string;
-
   value?: string;
-
   readOnly?: boolean;
-
-  onChange?: (
-    value: string
-  ) => void;
-
+  onChange?: (value: string) => void;
 };
 
 function Input({
-
   label,
-
   type = "text",
-
   value = "",
-
   readOnly = false,
-
   onChange,
-
 }: InputProps) {
-
   return (
-
     <div>
 
       <label className="mb-2 block text-sm text-gray-300">
-
         {label}
-
       </label>
 
       <input
-
         type={type}
-
         value={value}
-
         readOnly={readOnly}
-
-        onChange={(e)=>
-
-          onChange?.(
-            e.target.value
-          )
-
+        onChange={(e) =>
+          onChange?.(e.target.value)
         }
-
         className="h-12 w-full rounded-xl border border-white/10 bg-[#102947] px-4 text-white outline-none focus:border-yellow-400"
-
       />
 
     </div>
-
   );
-
 }
 
+
+/* =========================
+   Select
+========================= */
 
 type SelectOption = {
   value: number | string;
@@ -322,84 +434,53 @@ type SelectOption = {
 };
 
 type SelectProps = {
-
   label: string;
-
   value?: string;
-
   options?: SelectOption[];
-
-  onChange?: (
-    value: string
-  ) => void;
-
+  onChange?: (value: string) => void;
+  disabled?: boolean;
 };
 
 function Select({
-
   label,
-
   value = "",
-
   options = [],
-
   onChange,
-
+  disabled = false,
 }: SelectProps) {
-
   return (
-
     <div>
 
       <label className="mb-2 block text-sm text-gray-300">
-
         {label}
-
       </label>
 
       <select
-
         value={value}
-
-        onChange={(e)=>
-
-          onChange?.(
-            e.target.value
-          )
-
+        disabled={disabled}
+        onChange={(e) =>
+          onChange?.(e.target.value)
         }
-
-        className="h-12 w-full rounded-xl border border-white/10 bg-[#102947] px-4 text-white outline-none focus:border-yellow-400"
-
+        className="h-12 w-full rounded-xl border border-white/10 bg-[#102947] px-4 text-white outline-none focus:border-yellow-400 disabled:opacity-50"
       >
 
         <option value="">
-
-          اختر...
-
+          {disabled
+            ? "جاري التحميل..."
+            : "اختر..."}
         </option>
 
-        {options.map((option)=>(
-
+        {options.map((option) => (
           <option
-
             key={option.value}
-
             value={option.value}
-
           >
-
             {option.label}
-
           </option>
-
         ))}
 
       </select>
 
     </div>
-
   );
-
 }
-

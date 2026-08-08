@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   Receipt,
@@ -12,11 +12,12 @@ import AccountsPage from "./AccountsPage";
 import FundingPage from "./FundingPage";
 import CategoriesPage from "./CategoriesPage";
 
+import { supabase } from "../../utils/supabase";
 import { financialEngine } from "../../core/engine/financial.engine";
 import ExpenseModal from "../../components/financial/ExpenseModal";
 import FundingModal from "./FundingModal";
 
-import { financialAccounts } from "../../data/financialAccounts";
+
 import { projects } from "../../data/projects";
 import { expenseDistributions }
 from "../../data/expenseDistributions";
@@ -43,6 +44,12 @@ export default function FinancialCenter() {
 
   const [openFundingModal, setOpenFundingModal] =
     useState(false);
+  const [selectedAccountId, setSelectedAccountId] =
+  useState<number | null>(null);
+
+const [selectedAccount, setSelectedAccount] =
+  useState<any | null>(null);
+
 
   const [expenses, setExpenses] =
     useState<any[]>([]);
@@ -54,7 +61,106 @@ export default function FinancialCenter() {
     useState<any[]>([]);
 
   const [accounts, setAccounts] =
-    useState(financialAccounts);
+useState<any[]>([]);
+useEffect(() => {
+  const loadAccounts = async () => {
+  const [
+    { data: accountsData, error: accountsError },
+    { data: fundingData, error: fundingError },
+    { data: expensesData, error: expensesError },
+  ] = await Promise.all([
+    supabase
+      .from("accounts")
+      .select("*")
+      .order("id", { ascending: true }),
+
+    supabase
+      .from("funding")
+      .select("id, account_id, amount"),
+
+    supabase
+      .from("expenses")
+      .select("id, account_id, total, amount"),
+  ]);
+
+  if (accountsError) {
+    console.error("خطأ في تحميل الحسابات:", accountsError);
+    return;
+  }
+
+  if (fundingError) {
+    console.error("خطأ في تحميل التغذية:", fundingError);
+    return;
+  }
+
+  if (expensesError) {
+    console.error("خطأ في تحميل المصروفات:", expensesError);
+    return;
+  }
+
+  const fundingRows = fundingData ?? [];
+  const expenseRows = expensesData ?? [];
+
+  const formattedAccounts = (accountsData ?? []).map((account) => {
+
+    const accountFunding = fundingRows.filter(
+      (item) =>
+        Number(item.account_id) === Number(account.id)
+    );
+
+    const accountExpenses = expenseRows.filter(
+      (item) =>
+        Number(item.account_id) === Number(account.id)
+    );
+
+    const totalFunding = accountFunding.reduce(
+      (sum, item) =>
+        sum + Number(item.amount ?? 0),
+      0
+    );
+
+    const totalExpenses = accountExpenses.reduce(
+      (sum, item) =>
+        sum + Number(item.total ?? item.amount ?? 0),
+      0
+    );
+
+    const operationsCount =
+      accountFunding.length +
+      accountExpenses.length;
+
+    return {
+  id: account.id,
+  name: account.name,
+  type: account.type ?? "عهدة",
+  currentBalance: Number(account.balance ?? 0),
+ totalFunding: totalFunding,
+totalExpenses: totalExpenses,
+
+operationsCount: operationsCount,
+};
+  });
+
+  setAccounts(formattedAccounts);
+};
+const loadFunding = async () => {
+  const { data, error } = await supabase
+    .from("funding")
+    .select("*")
+    .order("id", { ascending: false });
+
+  if (error) {
+    console.error("خطأ في تحميل عمليات التغذية:", error);
+    return;
+  }
+
+  if (data) {
+    setFunding(data);
+  }
+};
+  loadAccounts();
+  loadFunding();
+}, []);
 
   const handleSaveExpense = (expense: any) => {
     const distribution =
@@ -105,29 +211,102 @@ console.log(distribution);
 
 };
 
-  const handleSaveFunding = (item: any) => {
+  const handleSaveFunding = async (item: any) => {
+  try {
+    // 1️⃣ حفظ عملية التغذية في Supabase
+    const { data, error } = await supabase
+      .from("funding")
+      .insert([
+        {
+          account_id: item.accountId,
+          amount: Number(item.amount),
+          funding_date: item.fundingDate,
+          source: item.source ?? null,
+          description: item.description ?? null,
+          project_id: null,
+        },
+      ])
+      .select()
+      .single();
 
-  financialEngine.addFunding(item);
+    if (error) {
+      console.error("خطأ في حفظ التغذية:", error);
+      alert("حدث خطأ أثناء حفظ التغذية");
+      return;
+    }
 
-  setFunding((prev) => [
-    ...prev,
-    item,
-  ]);
+    // 2️⃣ إضافة العملية للقائمة الحالية
+    setFunding((prev) => [
+      ...prev,
+      data,
+    ]);
 
-  setLedger((prev) => [
-    ...prev,
-    createLedgerEntry(
-      "funding",
-      item
-    ),
-  ]);
+    // 3️⃣ تحديث سجل الحركات
+    setLedger((prev) => [
+      ...prev,
+      createLedgerEntry("funding", data),
+    ]);
 
-  setAccounts((prev) =>
-    applyFunding(prev, item)
-  );
+    // 4️⃣ تحديث رصيد العهدة في الشاشة
+    setAccounts((prev) =>
+      prev.map((account) =>
+        Number(account.id) === Number(item.accountId)
+          ? {
+              ...account,
+              currentBalance:
+                Number(account.currentBalance) +
+                Number(item.amount),
+              totalFunding:
+                Number(account.totalFunding) +
+                Number(item.amount),
+            }
+          : account
+      )
+    );
 
+    // 5️⃣ تحديث الرصيد فعليًا داخل جدول accounts
+    const account = accounts.find(
+      (a) => Number(a.id) === Number(item.accountId)
+    );
+
+    if (account) {
+      const newBalance =
+        Number(account.currentBalance) +
+        Number(item.amount);
+
+      const { error: updateError } = await supabase
+        .from("accounts")
+        .update({
+          balance: newBalance,
+        })
+        .eq("id", item.accountId);
+
+      if (updateError) {
+        console.error(
+          "خطأ في تحديث رصيد العهدة:",
+          updateError
+        );
+      }
+    }
+
+    // 6️⃣ إغلاق النافذة
+    setOpenFundingModal(false);
+
+  } catch (error) {
+    console.error("خطأ غير متوقع:", error);
+    alert("حدث خطأ أثناء حفظ التغذية");
+  }
+};
+const handleAddFundingForAccount = (
+  accountId: number
+) => {
+  setSelectedAccountId(accountId);
+  setOpenFundingModal(true);
 };
 
+const handleViewAccount = (account: any) => {
+  setSelectedAccount(account);
+};
   return (
 
     <div className="space-y-8">
@@ -619,26 +798,20 @@ console.log(distribution);
 
     )}
 
-    {activeTab === "funding" && (
-
-      <button
-        onClick={() => setOpenFundingModal(true)}
-        className="rounded-xl bg-yellow-400 px-6 py-3 font-bold text-[#081B33] hover:bg-yellow-500"
-      >
-        + إضافة تغذية
-      </button>
-
-    )}
-
+    
   </div>
 
   {activeTab === "expenses" && (
     <ExpensesPage expenses={expenses} />
   )}
 
-  {activeTab === "accounts" && (
-    <AccountsPage accounts={accounts} />
-  )}
+ {activeTab === "accounts" && (
+  <AccountsPage
+    accounts={accounts}
+    onAddFunding={handleAddFundingForAccount}
+    onViewAccount={handleViewAccount}
+  />
+)}
 
   {activeTab === "funding" && (
     <FundingPage
@@ -664,7 +837,11 @@ console.log(distribution);
 
 <FundingModal
   open={openFundingModal}
-  onClose={() => setOpenFundingModal(false)}
+  selectedAccountId={selectedAccountId}
+  onClose={() => {
+    setOpenFundingModal(false);
+    setSelectedAccountId(null);
+  }}
   onSave={handleSaveFunding}
 />
 
