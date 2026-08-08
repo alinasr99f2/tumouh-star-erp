@@ -1,28 +1,21 @@
 import { useMemo, useState } from "react";
 
 import { projects } from "../../data/projects";
-import { financialAccounts } from "../../data/financialAccounts";
 import { expenseCategories } from "../../data/expenseCategories";
 import { villas } from "../../data/villas";
 
 type Props = {
-
   open: boolean;
-
   onClose: () => void;
-
   onSave: (expense: any) => void;
-
+  accounts: any[];
 };
 
 export default function ExpenseModal({
-
   open,
-
   onClose,
-
   onSave,
-
+  accounts,
 }: Props) {
 
 
@@ -70,14 +63,49 @@ console.log(villas);
   );
 
 }, [projectId]);
-const handleSave = () => {
+const resetForm = () => {
+  setExpenseDate(today);
+  setSupplier("");
+  setProjectId("");
+  setVillaId("");
+  setAccountId("");
+  setCategoryId("");
+  setVoucherNo("");
+  setAmount("");
+  setTaxPercent("15");
+  setPaymentMethod("");
+  setDescription("");
+};
+
+const handleSave = (addAnother = false) => {
+
+  if (!accountId) {
+    alert("من فضلك اختر العهدة");
+    return;
+  }
+
+  if (!projectId) {
+    alert("من فضلك اختر المشروع");
+    return;
+  }
+
+  if (!categoryId) {
+    alert("من فضلك اختر البند");
+    return;
+  }
+
+  if (!amount || Number(amount) <= 0) {
+    alert("من فضلك أدخل مبلغ المصروف");
+    return;
+  }
 
   const expense = {
 
     id: crypto.randomUUID(),
 
     entryDate,
-expenseDate,
+
+    expenseDate,
 
     supplier,
 
@@ -85,7 +113,7 @@ expenseDate,
 
     villaId,
 
-    accountId,
+    accountId: Number(accountId),
 
     categoryId,
 
@@ -106,21 +134,18 @@ expenseDate,
   };
 
   onSave(expense);
+
   console.log(expense);
-setExpenseDate(today);
-setSupplier("");
-setProjectId("");
-setVillaId("");
-setAccountId("");
-setCategoryId("");
-setVoucherNo("");
-setAmount("");
-setTaxPercent("15");
-setPaymentMethod("");
-setDescription("");
-  onClose();
+
+  resetForm();
+
+  if (!addAnother) {
+    onClose();
+  }
 
 };
+
+if (!open) return null;
 
 if (!open) return null;
 
@@ -204,12 +229,12 @@ label: `${villa.block} - فيلا ${villa.code}`,
   label="العهدة"
   value={accountId}
   onChange={setAccountId}
-  options={financialAccounts
-    .filter((a) => a.active)
-    .map((a) => ({
-      value: a.id,
-      label: `${a.name} (${a.currentBalance.toLocaleString()} ريال)`,
-    }))}
+  options={accounts.map((account) => ({
+    value: String(account.id),
+    label: `${account.name} (${Number(
+      account.currentBalance ?? account.balance ?? 0
+    ).toLocaleString()} ريال)`,
+  }))}
 />
 
           <Select
@@ -305,27 +330,68 @@ label: `${villa.block} - فيلا ${villa.code}`,
 
         {/* Buttons */}
 
-        <div className="mt-8 flex justify-end gap-4">
+        <div className="mt-8 flex justify-end gap-3">
 
-          <button
-            onClick={onClose}
-            className="rounded-xl border border-white/10 px-6 py-3 text-white hover:bg-white/5"
-          >
-            إلغاء
-          </button>
+  {/* إلغاء */}
 
-          <button
+  <button
+    type="button"
+    onClick={onClose}
+    className="
+      rounded-xl
+      border border-white/10
+      px-6 py-3
+      font-bold
+      text-white
+      transition
+      hover:bg-white/5
+    "
+  >
+    إلغاء
+  </button>
 
-  onClick={handleSave}
 
-  className="rounded-xl bg-yellow-400 px-8 py-3 font-bold text-[#081B33] hover:bg-yellow-500"
+  {/* حفظ وإضافة مصروف آخر */}
 
->
-            حفظ المصروف
-          </button>
+  <button
+    type="button"
+    onClick={() => handleSave(true)}
+    className="
+      rounded-xl
+      border border-green-400/30
+      bg-green-500/10
+      px-6 py-3
+      font-bold
+      text-green-400
+      transition
+      hover:border-green-400
+      hover:bg-green-500
+      hover:text-white
+    "
+  >
+    + حفظ وإضافة آخر
+  </button>
 
-        </div>
 
+  {/* حفظ المصروف */}
+
+  <button
+    type="button"
+    onClick={() => handleSave(false)}
+    className="
+      rounded-xl
+      bg-yellow-400
+      px-8 py-3
+      font-bold
+      text-[#081B33]
+      transition
+      hover:bg-yellow-300
+    "
+  >
+    حفظ المصروف
+  </button>
+
+</div>
       </div>
 
     </div>

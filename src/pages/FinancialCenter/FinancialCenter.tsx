@@ -62,6 +62,14 @@ const [selectedAccount, setSelectedAccount] =
 
   const [accounts, setAccounts] =
 useState<any[]>([]);
+const [openAccountModal, setOpenAccountModal] =
+  useState(false);
+
+const [newAccountName, setNewAccountName] =
+  useState("");
+
+const [newAccountType, setNewAccountType] =
+  useState("عهدة");
 useEffect(() => {
   const loadAccounts = async () => {
   const [
@@ -162,55 +170,189 @@ const loadFunding = async () => {
   loadFunding();
 }, []);
 
-  const handleSaveExpense = (expense: any) => {
+  const handleSaveExpense = async (expense: any) => {
+  try {
+    // 1️⃣ التأكد من اختيار العهدة
+    if (!expense.accountId) {
+      alert("من فضلك اختر العهدة التي تم دفع المصروف منها");
+      return;
+    }
+
+    const accountId = Number(expense.accountId);
+    const expenseTotal = Number(expense.total ?? 0);
+
+    if (!expenseTotal || expenseTotal <= 0) {
+      alert("من فضلك أدخل مبلغ المصروف");
+      return;
+    }
+
+    // 2️⃣ الحصول على العهدة الحالية
+    const account = accounts.find(
+      (item) => Number(item.id) === accountId
+    );
+
+    if (!account) {
+      alert("العهدة المختارة غير موجودة");
+      return;
+    }
+
+    const currentBalance = Number(
+      account.currentBalance ?? 0
+    );
+
+    // 3️⃣ التأكد من وجود رصيد كافٍ
+    if (expenseTotal > currentBalance) {
+      alert(
+        `رصيد العهدة غير كافٍ.\nالرصيد الحالي: ${currentBalance.toLocaleString()} ريال`
+      );
+      return;
+    }
+
+    // 4️⃣ حفظ المصروف في Supabase
+    const { data: savedExpense, error: expenseError } =
+      await supabase
+        .from("expenses")
+        .insert([
+          {
+            id: expense.id,
+            entry_date: expense.entryDate,
+            expense_date: expense.expenseDate,
+            supplier: expense.supplier || null,
+            project_id: expense.projectId
+              ? Number(expense.projectId)
+              : null,
+            villa_id: expense.villaId || null,
+            account_id: accountId,
+            category_id: expense.categoryId
+              ? Number(expense.categoryId)
+              : null,
+            voucher_no: expense.voucherNo || null,
+            amount: Number(expense.amount ?? 0),
+            tax: Number(expense.tax ?? 0),
+            total: expenseTotal,
+            payment_method:
+              expense.paymentMethod || null,
+            description: expense.description || null,
+          },
+        ])
+        .select()
+        .single();
+
+    if (expenseError) {
+      console.error(
+        "خطأ في حفظ المصروف:",
+        expenseError
+      );
+
+      alert("حدث خطأ أثناء حفظ المصروف");
+      return;
+    }
+
+    // 5️⃣ حساب الرصيد الجديد للعهدة
+    const newBalance =
+      currentBalance - expenseTotal;
+
+    // 6️⃣ تحديث رصيد العهدة في Supabase
+    const { error: accountError } =
+      await supabase
+        .from("accounts")
+        .update({
+          balance: newBalance,
+        })
+        .eq("id", accountId);
+
+    if (accountError) {
+      console.error(
+        "خطأ في تحديث رصيد العهدة:",
+        accountError
+      );
+
+      // المصروف اتسجل بالفعل، لذلك نوقف هنا
+      // بدل ما نظهر أن العملية اكتملت بالكامل
+      alert(
+        "تم تسجيل المصروف لكن حدث خطأ أثناء تحديث رصيد العهدة"
+      );
+
+      return;
+    }
+
+    // 7️⃣ تحديث سجل المصروفات على الشاشة
+    const finalExpense =
+      savedExpense ?? expense;
+
+    setExpenses((prev) => [
+      ...prev,
+      finalExpense,
+    ]);
+
+    // 8️⃣ تحديث سجل العمليات
+    setLedger((prev) => [
+      ...prev,
+      createLedgerEntry(
+        "expense",
+        finalExpense
+      ),
+    ]);
+
+    // 9️⃣ تحديث بيانات العهدة على الشاشة
+    setAccounts((prev) =>
+      prev.map((item) =>
+        Number(item.id) === accountId
+          ? {
+              ...item,
+              currentBalance: newBalance,
+              totalExpenses:
+                Number(item.totalExpenses ?? 0) +
+                expenseTotal,
+              operationsCount:
+                Number(item.operationsCount ?? 0) +
+                1,
+            }
+          : item
+      )
+    );
+
+    // 🔟 توزيع المصروف على المشاريع
     const distribution =
-  distributionEngine.distributeExpense(
-    expense,
-    projects
-  );
-if (Array.isArray(distribution)) {
-  expenseDistributions.push(...distribution);
-} else if (distribution) {
-  expenseDistributions.push(distribution);
-}
-console.log(distribution);
+      distributionEngine.distributeExpense(
+        finalExpense,
+        projects
+      );
 
-  financialEngine.addExpense(expense);
-  
-  
+    if (Array.isArray(distribution)) {
+      expenseDistributions.push(
+        ...distribution
+      );
+    } else if (distribution) {
+      expenseDistributions.push(
+        distribution
+      );
+    }
 
-  setExpenses((prev) => [
-    ...prev,
-    expense,
-  ]);
+    console.log(
+      "تم حفظ المصروف:",
+      finalExpense
+    );
 
-  setLedger((prev) => [
-    ...prev,
-    createLedgerEntry(
-      "expense",
-      expense
-    ),
-  ]);
+    console.log(
+      "الرصيد الجديد للعهدة:",
+      newBalance
+    );
 
-  setAccounts((prev) =>
-    prev.map((account) => {
+    // إغلاق نافذة المصروف
+    setOpenExpenseModal(false);
 
-      if (account.id !== expense.accountId)
-        return account;
+  } catch (error) {
+    console.error(
+      "خطأ غير متوقع أثناء حفظ المصروف:",
+      error
+    );
 
-      return {
-        ...account,
-        currentBalance:
-          account.currentBalance - expense.total,
-        totalExpenses:
-          account.totalExpenses + expense.total,
-      };
-
-    })
-  );
-
+    alert(
+      "حدث خطأ غير متوقع أثناء حفظ المصروف"
+    );
+  }
 };
-
   const handleSaveFunding = async (item: any) => {
   try {
     // 1️⃣ حفظ عملية التغذية في Supabase
@@ -306,6 +448,57 @@ const handleAddFundingForAccount = (
 
 const handleViewAccount = (account: any) => {
   setSelectedAccount(account);
+};
+const handleAddAccount = async () => {
+  const name = newAccountName.trim();
+
+  if (!name) {
+    alert("من فضلك اكتب اسم العهدة");
+    return;
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("accounts")
+      .insert([
+        {
+          name: name,
+          type: newAccountType,
+          balance: 0,
+        },
+      ])
+      .select()
+      .single();
+
+    if (error) {
+      console.error("خطأ في إضافة العهدة:", error);
+      alert("حدث خطأ أثناء إضافة العهدة");
+      return;
+    }
+
+    const newAccount = {
+      id: data.id,
+      name: data.name,
+      type: data.type ?? "عهدة",
+      currentBalance: Number(data.balance ?? 0),
+      totalFunding: 0,
+      totalExpenses: 0,
+      operationsCount: 0,
+    };
+
+    setAccounts((prev) => [
+      ...prev,
+      newAccount,
+    ]);
+
+    setNewAccountName("");
+    setNewAccountType("عهدة");
+    setOpenAccountModal(false);
+
+  } catch (error) {
+    console.error("خطأ غير متوقع:", error);
+    alert("حدث خطأ أثناء إضافة العهدة");
+  }
 };
   return (
 
@@ -802,12 +995,17 @@ const handleViewAccount = (account: any) => {
   </div>
 
   {activeTab === "expenses" && (
-    <ExpensesPage expenses={expenses} />
-  )}
+  <ExpensesPage
+    expenses={expenses}
+    accounts={accounts}
+    onAddExpense={() => setOpenExpenseModal(true)}
+  />
+)}
 
  {activeTab === "accounts" && (
   <AccountsPage
     accounts={accounts}
+    onAddAccount={() => setOpenAccountModal(true)}
     onAddFunding={handleAddFundingForAccount}
     onViewAccount={handleViewAccount}
   />
@@ -833,6 +1031,7 @@ const handleViewAccount = (account: any) => {
   open={openExpenseModal}
   onClose={() => setOpenExpenseModal(false)}
   onSave={handleSaveExpense}
+  accounts={accounts}
 />
 
 <FundingModal
@@ -844,7 +1043,106 @@ const handleViewAccount = (account: any) => {
   }}
   onSave={handleSaveFunding}
 />
+{openAccountModal && (
+  <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4">
 
+    <div className="w-full max-w-lg rounded-3xl border border-white/10 bg-[#081B33] p-7 shadow-2xl">
+
+      {/* العنوان */}
+
+      <div className="mb-6 flex items-center justify-between">
+
+        <div>
+          <h2 className="text-2xl font-bold text-white">
+            إضافة عهدة جديدة
+          </h2>
+
+          <p className="mt-2 text-sm text-gray-400">
+            إنشاء عهدة مالية جديدة
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => {
+            setOpenAccountModal(false);
+            setNewAccountName("");
+            setNewAccountType("عهدة");
+          }}
+          className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-xl text-gray-400 hover:bg-white/10 hover:text-white"
+        >
+          ×
+        </button>
+
+      </div>
+
+      {/* اسم العهدة */}
+
+      <div className="mb-5">
+
+        <label className="mb-2 block text-sm font-bold text-gray-300">
+          اسم العهدة
+        </label>
+
+        <input
+          type="text"
+          value={newAccountName}
+          onChange={(e) => setNewAccountName(e.target.value)}
+          placeholder="مثال: عهدة المشتريات"
+          className="w-full rounded-2xl border border-white/10 bg-[#102947] px-4 py-4 text-white outline-none placeholder:text-gray-500 focus:border-yellow-400/50"
+          autoFocus
+        />
+
+      </div>
+
+      {/* نوع العهدة */}
+
+      <div className="mb-7">
+
+        <label className="mb-2 block text-sm font-bold text-gray-300">
+          نوع العهدة
+        </label>
+
+        <select
+          value={newAccountType}
+          onChange={(e) => setNewAccountType(e.target.value)}
+          className="w-full rounded-2xl border border-white/10 bg-[#102947] px-4 py-4 text-white outline-none focus:border-yellow-400/50"
+        >
+          <option value="عهدة">عهدة</option>
+        </select>
+
+      </div>
+
+      {/* الأزرار */}
+
+      <div className="grid grid-cols-2 gap-3">
+
+        <button
+          type="button"
+          onClick={() => {
+            setOpenAccountModal(false);
+            setNewAccountName("");
+            setNewAccountType("عهدة");
+          }}
+          className="h-12 rounded-xl border border-white/10 bg-white/5 font-bold text-gray-300 hover:bg-white/10 hover:text-white"
+        >
+          إلغاء
+        </button>
+
+        <button
+          type="button"
+          onClick={handleAddAccount}
+          className="h-12 rounded-xl bg-green-500 font-bold text-white hover:bg-green-600"
+        >
+          + إنشاء العهدة
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+)}
 </div>
 
 );

@@ -1,5 +1,4 @@
 import { projects } from "../../data/projects";
-import { financialAccounts } from "../../data/financialAccounts";
 import { expenseCategories } from "../../data/expenseCategories";
 
 type Expense = {
@@ -28,12 +27,26 @@ type Expense = {
   total: number;
 };
 
+type Account = {
+  id: number;
+  name: string;
+  type: string;
+  currentBalance: number;
+  totalFunding: number;
+  totalExpenses: number;
+  operationsCount: number;
+};
+
 type ExpensesPageProps = {
   expenses: Expense[];
+  accounts: Account[];
+  onAddExpense?: () => void;
 };
 
 export default function ExpensesPage({
   expenses,
+  accounts,
+  onAddExpense,
 }: ExpensesPageProps) {
 
   const getProjectName = (id: string) => {
@@ -44,12 +57,12 @@ export default function ExpensesPage({
   };
 
   const getAccountName = (id: string) => {
-    return (
-      financialAccounts.find(
-        (a) => String(a.id) === String(id)
-      )?.name ?? "-"
-    );
-  };
+  return (
+    accounts.find(
+      (a) => String(a.id) === String(id)
+    )?.name ?? "-"
+  );
+};
 
   const getCategoryName = (id: string) => {
     return (
@@ -181,9 +194,13 @@ const yearExpenses = expenses
 
         <div className="flex items-center justify-between">
 
-          <button className="rounded-xl bg-yellow-400 px-6 py-3 font-bold text-[#081B33]">
-            + إضافة مصروف
-          </button>
+          <button
+  type="button"
+  onClick={onAddExpense}
+  className="rounded-xl bg-yellow-400 px-6 py-3 font-bold text-[#081B33] transition hover:bg-yellow-300"
+>
+  + إضافة مصروف
+</button>
 
           <input
             type="text"
