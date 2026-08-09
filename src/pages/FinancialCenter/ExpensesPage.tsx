@@ -251,104 +251,130 @@ const yearExpenses = expenses
           <tbody>
                       {expenses.length === 0 ? (
 
-            <tr>
+  <tr>
+    <td
+      colSpan={12}
+      className="py-20 text-center text-gray-500"
+    >
+      لا توجد بيانات حتى الآن
+    </td>
+  </tr>
 
-              <td
-                colSpan={9}
-                className="py-20 text-center text-gray-500"
-              >
-                لا توجد بيانات حتى الآن
-              </td>
+) : (
 
-            </tr>
+  expenses.map((expense) => (
 
-          ) : (
+    <tr
+      key={expense.id}
+      className="border-t border-white/10 hover:bg-[#102947]"
+    >
 
-            expenses.map((expense) => (
+      {/* تاريخ الإدخال */}
+      <td className="p-3 text-center">
+        {expense.entryDate
+          ? new Date(expense.entryDate).toLocaleDateString("ar-SA")
+          : "-"}
+      </td>
 
-              <tr
-  key={expense.id}
-  className="border-t border-white/10 hover:bg-[#102947]"
->
+      {/* تاريخ المصروف */}
+      <td className="p-3 text-center">
+        {expense.expenseDate
+          ? new Date(expense.expenseDate).toLocaleDateString("ar-SA")
+          : "-"}
+      </td>
 
-  <td className="p-4">
-    {expense.entryDate ?? "-"}
-  </td>
+      {/* المشروع */}
+      <td className="p-3 text-center">
+        {getProjectName(expense.projectId)}
+      </td>
 
-  <td>
-    {expense.expenseDate ?? "-"}
-  </td>
+      {/* رقم الفاتورة */}
+      <td className="p-3 text-center">
+        {expense.voucherNo || "-"}
+      </td>
 
-  <td>
-    {expense.voucherNo || "-"}
-  </td>
+      {/* المورد */}
+      <td className="p-3 text-center">
+        {expense.supplier || "-"}
+      </td>
 
-  <td>
-    {getProjectName(expense.projectId)}
-  </td>
+      {/* البند */}
+      <td className="p-3 text-center">
+        {getCategoryName(expense.categoryId)}
+      </td>
 
-  <td>
-    {getAccountName(expense.accountId)}
-  </td>
+      {/* الحساب */}
+      <td className="p-3 text-center">
+        {getAccountName(expense.accountId)}
+      </td>
 
-  <td>
-    {getCategoryName(expense.categoryId)}
-  </td>
+      {/* طريقة الدفع */}
+      <td className="p-3 text-center">
 
-  <td>
-    {expense.supplier}
-  </td>
+        {expense.paymentMethod === "Cash"
+          ? "💵 نقدًا"
+          : expense.paymentMethod === "Bank Transfer"
+          ? "🏦 تحويل"
+          : expense.paymentMethod === "Card"
+          ? "💳 بطاقة"
+          : expense.paymentMethod === "Cheque"
+          ? "🧾 شيك"
+          : expense.paymentMethod === "Other"
+          ? "💰 أخرى"
+          : "-"}
 
-  <td>
+      </td>
 
-    {expense.paymentMethod === "cash"
-      ? "💵 نقدًا"
-      : expense.paymentMethod === "bank"
-      ? "🏦 تحويل"
-      : expense.paymentMethod === "card"
-      ? "💳 بطاقة"
-      : "-"}
+      {/* المبلغ */}
+      <td className="p-3 text-center">
+        {(Number(expense.amount) || 0).toLocaleString()}
+      </td>
 
-  </td>
+      {/* الضريبة */}
+      <td className="p-3 text-center">
+        {(Number(expense.tax) || 0).toLocaleString()}
+      </td>
 
-  <td>
-    {expense.amount.toLocaleString()}
-  </td>
+      {/* الإجمالي */}
+      <td className="p-3 text-center font-bold text-yellow-400">
+        {(Number(expense.total) || 0).toLocaleString()}
+      </td>
 
-  <td>
-    {expense.tax.toLocaleString()}
-  </td>
+      {/* الإجراءات */}
+      <td className="p-3 text-center">
 
-  <td className="font-bold text-yellow-400">
-    {expense.total.toLocaleString()}
-  </td>
+        <div className="flex justify-center gap-2">
 
-  <td>
+          <button
+            type="button"
+            className="rounded-lg bg-sky-500 px-3 py-1 text-sm text-white hover:bg-sky-600"
+          >
+            عرض
+          </button>
 
-    <div className="flex justify-center gap-2">
+          <button
+            type="button"
+            className="rounded-lg bg-yellow-500 px-3 py-1 text-sm text-white hover:bg-yellow-600"
+          >
+            تعديل
+          </button>
 
-      <button className="rounded-lg bg-sky-500 px-3 py-1 text-sm text-white hover:bg-sky-600">
-        عرض
-      </button>
+          <button
+            type="button"
+            className="rounded-lg bg-red-500 px-3 py-1 text-sm text-white hover:bg-red-600"
+          >
+            إلغاء
+          </button>
 
-      <button className="rounded-lg bg-yellow-500 px-3 py-1 text-sm text-white hover:bg-yellow-600">
-        تعديل
-      </button>
+        </div>
 
-      <button className="rounded-lg bg-red-500 px-3 py-1 text-sm text-white hover:bg-red-600">
-        إلغاء
-      </button>
+      </td>
 
-    </div>
+    </tr>
 
-  </td>
+  ))
 
-</tr>
-
-            ))
-
-          )}
-
+)}
           </tbody>
 
         </table>

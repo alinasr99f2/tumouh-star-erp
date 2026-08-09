@@ -4,11 +4,21 @@ import { projects } from "../../data/projects";
 import { expenseCategories } from "../../data/expenseCategories";
 import { villas } from "../../data/villas";
 
+type Account = {
+  id: number;
+  name: string;
+  type: string;
+  currentBalance: number;
+  totalFunding: number;
+  totalExpenses: number;
+  operationsCount: number;
+};
+
 type Props = {
   open: boolean;
   onClose: () => void;
-  onSave: (expense: any) => void;
-  accounts: any[];
+  onSave: (expense: any) => Promise<boolean>;
+  accounts: Account[];
 };
 
 export default function ExpenseModal({
@@ -77,7 +87,7 @@ const resetForm = () => {
   setDescription("");
 };
 
-const handleSave = (addAnother = false) => {
+const handleSave = async (addAnother = false) => {
 
   if (!accountId) {
     alert("من فضلك اختر العهدة");
@@ -99,53 +109,43 @@ const handleSave = (addAnother = false) => {
     return;
   }
 
-  const expense = {
+  const savedVillaId =
+    villaId === "general" ? null : villaId;
 
+  const expense = {
     id: crypto.randomUUID(),
 
     entryDate,
-
     expenseDate,
-
     supplier,
-
     projectId,
-
-    villaId,
-
+    villaId: savedVillaId,
     accountId: Number(accountId),
-
     categoryId,
-
     voucherNo,
-
     amount: Number(amount),
-
     tax,
-
     total,
-
     paymentMethod,
-
     description,
-
     createdAt: new Date().toISOString(),
-
   };
 
-  onSave(expense);
+ const success = await onSave(expense);
 
-  console.log(expense);
+if (!success) {
+  return;
+}
 
-  resetForm();
+console.log(expense);
 
-  if (!addAnother) {
-    onClose();
-  }
+resetForm();
+
+if (!addAnother) {
+  onClose();
+}
 
 };
-
-if (!open) return null;
 
 if (!open) return null;
 
@@ -214,25 +214,25 @@ if (!open) return null;
   onChange={setVillaId}
 
   options={[
-    {
-      value: "",
-      label: "🏘️ مصروف عام على المشروع",
-    },
+  {
+    value: "general",
+    label: "🏘️ مصروف عام على المشروع",
+  },
 
-    ...projectVillas.map((villa) => ({
-      value: villa.code,
-label: `${villa.block} - فيلا ${villa.code}`,
-    })),
-  ]}
+  ...projectVillas.map((villa) => ({
+    value: villa.code,
+    label: `${villa.block} - فيلا ${villa.code}`,
+  })),
+]}
 />
 <Select
   label="العهدة"
   value={accountId}
   onChange={setAccountId}
   options={accounts.map((account) => ({
-    value: String(account.id),
+    value: account.id,
     label: `${account.name} (${Number(
-      account.currentBalance ?? account.balance ?? 0
+      account.currentBalance || 0
     ).toLocaleString()} ريال)`,
   }))}
 />

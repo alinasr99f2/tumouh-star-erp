@@ -87,10 +87,11 @@ useEffect(() => {
       .select("id, account_id, amount"),
 
     supabase
-      .from("expenses")
-      .select("id, account_id, total, amount"),
+  .from("expenses")
+  .select("id, account_id, total"),
   ]);
-
+console.log("ACCOUNTS FROM SUPABASE:", accountsData);
+console.log("ACCOUNTS ERROR:", accountsError);
   if (accountsError) {
     console.error("خطأ في تحميل الحسابات:", accountsError);
     return;
@@ -102,10 +103,8 @@ useEffect(() => {
   }
 
   if (expensesError) {
-    console.error("خطأ في تحميل المصروفات:", expensesError);
-    return;
-  }
-
+  console.error("خطأ في تحميل المصروفات:", expensesError);
+}
   const fundingRows = fundingData ?? [];
   const expenseRows = expensesData ?? [];
 
@@ -128,10 +127,10 @@ useEffect(() => {
     );
 
     const totalExpenses = accountExpenses.reduce(
-      (sum, item) =>
-        sum + Number(item.total ?? item.amount ?? 0),
-      0
-    );
+  (sum, item) =>
+    sum + Number(item.total ?? 0),
+  0
+);
 
     const operationsCount =
       accountFunding.length +
@@ -170,20 +169,20 @@ const loadFunding = async () => {
   loadFunding();
 }, []);
 
-  const handleSaveExpense = async (expense: any) => {
+  const handleSaveExpense = async (expense: any): Promise<boolean> => {
   try {
     // 1️⃣ التأكد من اختيار العهدة
     if (!expense.accountId) {
-      alert("من فضلك اختر العهدة التي تم دفع المصروف منها");
-      return;
-    }
+  alert("من فضلك اختر العهدة التي تم دفع المصروف منها");
+  return false;
+}
 
     const accountId = Number(expense.accountId);
     const expenseTotal = Number(expense.total ?? 0);
 
     if (!expenseTotal || expenseTotal <= 0) {
       alert("من فضلك أدخل مبلغ المصروف");
-      return;
+     return false;
     }
 
     // 2️⃣ الحصول على العهدة الحالية
@@ -192,9 +191,9 @@ const loadFunding = async () => {
     );
 
     if (!account) {
-      alert("العهدة المختارة غير موجودة");
-      return;
-    }
+  alert("العهدة المختارة غير موجودة");
+  return false;
+}
 
     const currentBalance = Number(
       account.currentBalance ?? 0
@@ -202,11 +201,11 @@ const loadFunding = async () => {
 
     // 3️⃣ التأكد من وجود رصيد كافٍ
     if (expenseTotal > currentBalance) {
-      alert(
-        `رصيد العهدة غير كافٍ.\nالرصيد الحالي: ${currentBalance.toLocaleString()} ريال`
-      );
-      return;
-    }
+  alert(
+    `رصيد العهدة غير كافٍ.\nالرصيد الحالي: ${currentBalance.toLocaleString()} ريال`
+  );
+  return false;
+}
 
     // 4️⃣ حفظ المصروف في Supabase
     const { data: savedExpense, error: expenseError } =
@@ -214,39 +213,42 @@ const loadFunding = async () => {
         .from("expenses")
         .insert([
           {
-            id: expense.id,
-            entry_date: expense.entryDate,
-            expense_date: expense.expenseDate,
-            supplier: expense.supplier || null,
+           
+            
+           
+            
             project_id: expense.projectId
               ? Number(expense.projectId)
               : null,
-            villa_id: expense.villaId || null,
+            
             account_id: accountId,
             category_id: expense.categoryId
               ? Number(expense.categoryId)
               : null,
-            voucher_no: expense.voucherNo || null,
-            amount: Number(expense.amount ?? 0),
-            tax: Number(expense.tax ?? 0),
-            total: expenseTotal,
-            payment_method:
-              expense.paymentMethod || null,
-            description: expense.description || null,
+            
+
+tax: Number(expense.tax ?? 0),
+
+total: expenseTotal,
+
+payment_method:
+  expense.paymentMethod || null,
+
+description: expense.description || null,
           },
         ])
         .select()
         .single();
 
     if (expenseError) {
-      console.error(
-        "خطأ في حفظ المصروف:",
-        expenseError
-      );
+  console.error(
+    "خطأ في حفظ المصروف:",
+    expenseError
+  );
 
-      alert("حدث خطأ أثناء حفظ المصروف");
-      return;
-    }
+  alert("حدث خطأ أثناء حفظ المصروف");
+  return false;
+}
 
     // 5️⃣ حساب الرصيد الجديد للعهدة
     const newBalance =
@@ -262,19 +264,17 @@ const loadFunding = async () => {
         .eq("id", accountId);
 
     if (accountError) {
-      console.error(
-        "خطأ في تحديث رصيد العهدة:",
-        accountError
-      );
+  console.error(
+    "خطأ في تحديث رصيد العهدة:",
+    accountError
+  );
 
-      // المصروف اتسجل بالفعل، لذلك نوقف هنا
-      // بدل ما نظهر أن العملية اكتملت بالكامل
-      alert(
-        "تم تسجيل المصروف لكن حدث خطأ أثناء تحديث رصيد العهدة"
-      );
+  alert(
+    "تم تسجيل المصروف لكن حدث خطأ أثناء تحديث رصيد العهدة"
+  );
 
-      return;
-    }
+  return false;
+}
 
     // 7️⃣ تحديث سجل المصروفات على الشاشة
     const finalExpense =
@@ -341,17 +341,20 @@ const loadFunding = async () => {
 
     // إغلاق نافذة المصروف
     setOpenExpenseModal(false);
+    return true;
 
   } catch (error) {
-    console.error(
-      "خطأ غير متوقع أثناء حفظ المصروف:",
-      error
-    );
+  console.error(
+    "خطأ غير متوقع أثناء حفظ المصروف:",
+    error
+  );
 
-    alert(
-      "حدث خطأ غير متوقع أثناء حفظ المصروف"
-    );
-  }
+  alert(
+    "حدث خطأ غير متوقع أثناء حفظ المصروف"
+  );
+
+  return false;
+}
 };
   const handleSaveFunding = async (item: any) => {
   try {
