@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { projects } from "../../data/projects";
-import { expenseCategories } from "../../data/expenseCategories";
 import { villas } from "../../data/villas";
+import { supabase } from "../../utils/supabase";
 
 type Account = {
   id: number;
@@ -19,6 +20,8 @@ type Props = {
   onClose: () => void;
   onSave: (expense: any) => Promise<boolean>;
   accounts: Account[];
+  initialExpense?: any | null;
+  isEditing?: boolean;
 };
 
 export default function ExpenseModal({
@@ -26,13 +29,15 @@ export default function ExpenseModal({
   onClose,
   onSave,
   accounts,
+  initialExpense,
+  isEditing = false,
 }: Props) {
 
 
   
 const today = new Date().toISOString().split("T")[0];
 
-const [entryDate] = useState(today);
+const [entryDate, setEntryDate] = useState(today);
 
 const [expenseDate, setExpenseDate] = useState(today);
 const [supplier, setSupplier] = useState("");
@@ -40,9 +45,25 @@ const [projectId, setProjectId] = useState("");
 const [villaCode, setVillaCode] = useState("");
 const [villaId, setVillaId] = useState("");
 const [accountId, setAccountId] = useState("");
-const [categoryId, setCategoryId] = useState("");
-const [voucherNo, setVoucherNo] = useState("");
 
+const [categoryId, setCategoryId] = useState("");
+const [itemId, setItemId] = useState("");
+
+const [showAddCategory, setShowAddCategory] = useState(false);
+const [showAddItem, setShowAddItem] = useState(false);
+
+const [newCategoryName, setNewCategoryName] = useState("");
+const [newItemName, setNewItemName] = useState("");
+
+const [categories, setCategories] = useState<
+  { id: number; name: string }[]
+>([]);
+
+const [expenseItems, setExpenseItems] = useState<
+  { id: number; name: string; category_id: number }[]
+>([]);
+
+const [voucherNo, setVoucherNo] = useState("");
 const [amount, setAmount] = useState("");
 const [taxPercent, setTaxPercent] = useState("15");
 
@@ -73,13 +94,201 @@ console.log(villas);
   );
 
 }, [projectId]);
+useEffect(() => {
+  const loadCategoriesAndItems = async () => {
+    const [
+      { data: categoriesData, error: categoriesError },
+      { data: itemsData, error: itemsError },
+    ] = await Promise.all([
+      supabase
+        .from("categories")
+        .select("id, name")
+        .order("id", { ascending: true }),
+
+      supabase
+        .from("expense_items")
+        .select("id, name, category_id")
+        .order("id", { ascending: true }),
+    ]);
+
+    if (categoriesError) {
+      console.error(
+        "خطأ في تحميل التصنيفات:",
+        categoriesError
+      );
+      return;
+    }
+
+    if (itemsError) {
+      console.error(
+        "خطأ في تحميل البنود:",
+        itemsError
+      );
+      return;
+    }
+
+    setCategories(categoriesData ?? []);
+    setExpenseItems(itemsData ?? []);
+  };
+
+  if (open) {
+    loadCategoriesAndItems();
+  }
+}, [open]);
+
+// تعبئة النموذج عند فتحه في وضع التعديل، وإرجاعه للوضع الفارغ عند الإضافة.
+useEffect(() => {
+  if (!open) return;
+
+  if (initialExpense && isEditing) {
+    setEntryDate(
+      String(
+        initialExpense.entryDate ??
+        initialExpense.entry_date ??
+        today
+      ).split("T")[0]
+    );
+    setExpenseDate(
+      String(
+        initialExpense.expenseDate ??
+        initialExpense.expense_date ??
+        initialExpense.entryDate ??
+        today
+      ).split("T")[0]
+    );
+    setSupplier(String(initialExpense.supplier ?? ""));
+    setProjectId(String(initialExpense.projectId ?? initialExpense.project_id ?? ""));
+    setVillaId(
+      initialExpense.villaId ?? initialExpense.villa_id
+        ? String(initialExpense.villaId ?? initialExpense.villa_id)
+        : ""
+    );
+    setAccountId(String(initialExpense.accountId ?? initialExpense.account_id ?? ""));
+    setCategoryId(String(initialExpense.categoryId ?? initialExpense.category_id ?? ""));
+    setItemId(String(initialExpense.itemId ?? initialExpense.item_id ?? ""));
+    setVoucherNo(String(initialExpense.voucherNo ?? initialExpense.voucher_no ?? ""));
+    setAmount(String(initialExpense.amount ?? 0));
+    setTaxPercent(
+      Number(initialExpense.amount ?? 0) > 0
+        ? String(
+            (Number(initialExpense.tax ?? initialExpense.tax_amount ?? 0) /
+              Number(initialExpense.amount ?? 1)) *
+              100
+          )
+        : "15"
+    );
+    setPaymentMethod(String(initialExpense.paymentMethod ?? initialExpense.payment_method ?? ""));
+    setDescription(String(initialExpense.description ?? ""));
+  } else {
+    resetForm();
+    setEntryDate(today);
+  }
+}, [open, initialExpense, isEditing]);
+
+const handleAddCategory = async () => {
+  const name = newCategoryName.trim();
+
+  if (!name) {
+    alert("من فضلك أدخل اسم التصنيف");
+    return;
+  }
+
+  const existingCategory = categories.find(
+    (category) =>
+      category.name.trim().toLowerCase() === name.toLowerCase()
+  );
+
+  if (existingCategory) {
+    alert("هذا التصنيف موجود بالفعل");
+    setCategoryId(String(existingCategory.id));
+    setItemId("");
+    setShowAddCategory(false);
+    setNewCategoryName("");
+    return;
+  }
+
+  const { data, error } = await supabase
+    .from("categories")
+    .insert({ name })
+    .select("id, name")
+    .single();
+
+  if (error) {
+    console.error("خطأ في إضافة التصنيف:", error);
+    alert("حدث خطأ أثناء إضافة التصنيف");
+    return;
+  }
+
+  if (data) {
+    setCategories((current) => [...current, data]);
+    setCategoryId(String(data.id));
+    setItemId("");
+  }
+
+  setNewCategoryName("");
+  setShowAddCategory(false);
+};
+
+const handleAddItem = async () => {
+  const name = newItemName.trim();
+
+  if (!categoryId) {
+    alert("من فضلك اختر التصنيف أولاً");
+    return;
+  }
+
+  if (!name) {
+    alert("من فضلك أدخل اسم البند");
+    return;
+  }
+
+  const existingItem = expenseItems.find(
+    (item) =>
+      String(item.category_id) === String(categoryId) &&
+      item.name.trim().toLowerCase() === name.toLowerCase()
+  );
+
+  if (existingItem) {
+    alert("هذا البند موجود بالفعل داخل التصنيف");
+    setItemId(String(existingItem.id));
+    setShowAddItem(false);
+    setNewItemName("");
+    return;
+  }
+
+  const { data, error } = await supabase
+    .from("expense_items")
+    .insert({
+      name,
+      category_id: Number(categoryId),
+    })
+    .select("id, name, category_id")
+    .single();
+
+  if (error) {
+    console.error("خطأ في إضافة البند:", error);
+    alert("حدث خطأ أثناء إضافة البند");
+    return;
+  }
+
+  if (data) {
+    setExpenseItems((current) => [...current, data]);
+    setItemId(String(data.id));
+  }
+
+  setNewItemName("");
+  setShowAddItem(false);
+};
+
 const resetForm = () => {
+  setEntryDate(today);
   setExpenseDate(today);
   setSupplier("");
   setProjectId("");
   setVillaId("");
   setAccountId("");
   setCategoryId("");
+  setItemId("");
   setVoucherNo("");
   setAmount("");
   setTaxPercent("15");
@@ -113,7 +322,7 @@ const handleSave = async (addAnother = false) => {
     villaId === "general" ? null : villaId;
 
   const expense = {
-    id: crypto.randomUUID(),
+    id: initialExpense?.id ?? crypto.randomUUID(),
 
     entryDate,
     expenseDate,
@@ -122,8 +331,9 @@ const handleSave = async (addAnother = false) => {
     villaId: savedVillaId,
     accountId: Number(accountId),
     categoryId,
-    voucherNo,
-    amount: Number(amount),
+itemId: itemId ? Number(itemId) : null,
+voucherNo,
+amount: Number(amount),
     tax,
     total,
     paymentMethod,
@@ -141,6 +351,7 @@ console.log(expense);
 
 resetForm();
 
+
 if (!addAnother) {
   onClose();
 }
@@ -149,321 +360,619 @@ if (!addAnother) {
 
 if (!open) return null;
 
+return (
+  <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4">
 
- 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div className="w-full max-w-5xl max-h-[90vh] overflow-y-auto rounded-3xl border border-white/10 bg-[#081B33] p-8 shadow-2xl">
 
-      <div className="w-[950px] rounded-3xl border border-white/10 bg-[#081B33] p-8 shadow-2xl">
+      {/* Header */}
+      <div className="mb-8 flex items-center justify-between">
 
-        {/* Header */}
+        <h2 className="text-3xl font-bold text-white">
+          {isEditing ? "تعديل المصروف" : "إضافة مصروف جديد"}
+        </h2>
 
-        <div className="mb-8 flex items-center justify-between">
+        <button
+          type="button"
+          onClick={onClose}
+          className="text-2xl text-gray-400 transition hover:text-red-400"
+        >
+          ✕
+        </button>
 
-          <h2 className="text-3xl font-bold text-white">
-            إضافة مصروف جديد
-          </h2>
+      </div>
 
-          <button
-            onClick={onClose}
-            className="text-2xl text-gray-400 hover:text-red-400"
+      {/* Form */}
+      <div className="grid grid-cols-2 gap-5">
+
+        {/* تاريخ الإدخال */}
+        <Input
+          label="تاريخ الإدخال"
+          type="date"
+          value={entryDate}
+          readOnly
+        />
+
+        {/* تاريخ المصروف */}
+        <Input
+          label="تاريخ المصروف"
+          type="date"
+          value={expenseDate}
+          onChange={setExpenseDate}
+        />
+
+        {/* المورد */}
+        <Input
+          label="المورد"
+          value={supplier}
+          onChange={setSupplier}
+        />
+
+        {/* المشروع */}
+        <Select
+          label="المشروع"
+          value={projectId}
+          onChange={setProjectId}
+          options={projects.map((p) => ({
+            value: p.id,
+            label: p.name,
+          }))}
+        />
+
+        {/* الفيلا */}
+        <Select
+          label="الفيلا"
+          value={villaId}
+          onChange={setVillaId}
+          options={[
+            {
+              value: "general",
+              label: "🏘️ مصروف عام على المشروع",
+            },
+            ...projectVillas.map((villa) => ({
+              value: villa.code,
+              label: `${villa.block} - فيلا ${villa.code}`,
+            })),
+          ]}
+        />
+
+        {/* العهدة */}
+        <Select
+          label="العهدة"
+          value={accountId}
+          onChange={setAccountId}
+          options={accounts.map((account) => ({
+            value: account.id,
+            label: `${account.name} (${Number(
+              account.currentBalance || 0
+            ).toLocaleString()} ريال)`,
+          }))}
+        />
+
+        {/* التصنيف */}
+        <div>
+          <div className="mb-2 flex items-center justify-between">
+            <label className="text-sm text-gray-300">
+              التصنيف
+            </label>
+
+            <button
+              type="button"
+              onClick={() => setShowAddCategory(true)}
+              className="
+                flex h-7 w-7
+                items-center justify-center
+                rounded-lg
+                bg-yellow-400
+                font-bold
+                text-[#081B33]
+                transition
+                hover:bg-yellow-300
+              "
+            >
+              +
+            </button>
+          </div>
+
+          <select
+            value={categoryId}
+            onChange={(e) => {
+              setCategoryId(e.target.value);
+              setItemId("");
+            }}
+            className="
+              h-12 w-full
+              rounded-xl
+              border border-white/10
+              bg-[#102947]
+              px-4
+              text-white
+              outline-none
+              focus:border-yellow-400
+            "
           >
-            ✕
-          </button>
+            <option value="">
+              اختر التصنيف...
+            </option>
 
+            {categories.map((category) => (
+              <option
+                key={category.id}
+                value={category.id}
+              >
+                {category.name}
+              </option>
+            ))}
+          </select>
         </div>
 
-        {/* Form */}
+        {/* البند */}
+        <div>
+          <div className="mb-2 flex items-center justify-between">
+            <label className="text-sm text-gray-300">
+              البند
+            </label>
 
-        <div className="grid grid-cols-2 gap-5">
+            <button
+              type="button"
+              disabled={!categoryId}
+              onClick={() => {
+                setNewItemName("");
+                setShowAddItem(true);
+              }}
+              className="
+                flex h-7 w-7
+                items-center justify-center
+                rounded-lg
+                bg-yellow-400
+                font-bold
+                text-[#081B33]
+                transition
+                hover:bg-yellow-300
+                disabled:cursor-not-allowed
+                disabled:opacity-40
+              "
+            >
+              +
+            </button>
+          </div>
 
-          <Input
-  label="تاريخ الإدخال"
-  type="date"
-  value={entryDate}
-  readOnly
-/>
+          <select
+            value={itemId}
+            onChange={(e) => setItemId(e.target.value)}
+            disabled={!categoryId}
+            className="
+              h-12 w-full
+              rounded-xl
+              border border-white/10
+              bg-[#102947]
+              px-4
+              text-white
+              outline-none
+              focus:border-yellow-400
+              disabled:cursor-not-allowed
+              disabled:opacity-50
+            "
+          >
+            <option value="">
+              {categoryId
+                ? "اختر البند..."
+                : "اختر التصنيف أولاً"}
+            </option>
 
-<Input
-  label="تاريخ المصروف"
-  type="date"
-  value={expenseDate}
-  onChange={setExpenseDate}
-/>
-
-          <Input
-  label="المورد"
-  value={supplier}
-  onChange={setSupplier}
-/>
-
-         <Select
-  label="المشروع"
-  value={projectId}
-  onChange={setProjectId}
-  options={projects.map((p) => ({
-    value: p.id,
-    label: p.name,
-  }))}
-/>
-<Select
-  label="الفيلا"
-
-  value={villaId}
-
-  onChange={setVillaId}
-
-  options={[
-  {
-    value: "general",
-    label: "🏘️ مصروف عام على المشروع",
-  },
-
-  ...projectVillas.map((villa) => ({
-    value: villa.code,
-    label: `${villa.block} - فيلا ${villa.code}`,
-  })),
-]}
-/>
-<Select
-  label="العهدة"
-  value={accountId}
-  onChange={setAccountId}
-  options={accounts.map((account) => ({
-    value: account.id,
-    label: `${account.name} (${Number(
-      account.currentBalance || 0
-    ).toLocaleString()} ريال)`,
-  }))}
-/>
-
-          <Select
-  label="البند"
-  value={categoryId}
-  onChange={setCategoryId}
-  options={expenseCategories.map((c) => ({
-    value: c.id,
-    label: c.name,
-  }))}
-/>
-
-          <Input
-  label="رقم الفاتورة"
-  value={voucherNo}
-  onChange={setVoucherNo}
-/>
-
-          <Input
-  label="المبلغ قبل الضريبة"
-  type="number"
-  value={amount}
-  onChange={setAmount}
-/>
-
-         <Input
-  label="الضريبة %"
-  type="number"
-  value={taxPercent}
-  onChange={setTaxPercent}
-/>
-
-          <Input
-  label="إجمالي الفاتورة"
-  type="number"
-  value={String(total)}
-  readOnly
-/>
-
-          <Select
-  label="طريقة الدفع"
-  value={paymentMethod}
-  onChange={setPaymentMethod}
-  options={[
-    {
-      value: "cash",
-      label: "💵 نقدًا",
-    },
-    {
-      value: "bank",
-      label: "🏦 تحويل بنكي",
-    },
-    {
-      value: "card",
-      label: "💳 بطاقة",
-    },
-  ]}
-/>
-
+            {expenseItems
+              .filter(
+                (item) =>
+                  String(item.category_id) ===
+                  String(categoryId)
+              )
+              .map((item) => (
+                <option
+                  key={item.id}
+                  value={item.id}
+                >
+                  {item.name}
+                </option>
+              ))}
+          </select>
         </div>
 
-        {/* Description */}
+        {/* رقم الفاتورة */}
+        <Input
+          label="رقم الفاتورة"
+          value={voucherNo}
+          onChange={setVoucherNo}
+        />
 
-        <div className="mt-6">
+        {/* المبلغ قبل الضريبة */}
+        <Input
+          label="المبلغ قبل الضريبة"
+          type="number"
+          value={amount}
+          onChange={setAmount}
+        />
 
-          <label className="mb-2 block text-sm text-gray-300">
-            الوصف
-          </label>
+        {/* الضريبة */}
+        <Input
+          label="الضريبة %"
+          type="number"
+          value={taxPercent}
+          onChange={setTaxPercent}
+        />
 
-          <textarea
-  rows={4}
-  value={description}
-  onChange={(e) => setDescription(e.target.value)}
-  className="w-full rounded-xl border border-white/10 bg-[#102947] p-4 text-white outline-none focus:border-yellow-400"
-/>
+        {/* إجمالي الفاتورة */}
+        <Input
+          label="إجمالي الفاتورة"
+          type="number"
+          value={String(total)}
+          readOnly
+        />
 
+        {/* طريقة الدفع */}
+        <Select
+          label="طريقة الدفع"
+          value={paymentMethod}
+          onChange={setPaymentMethod}
+          options={[
+            {
+              value: "cash",
+              label: "💵 نقدًا",
+            },
+            {
+              value: "bank",
+              label: "🏦 تحويل بنكي",
+            },
+            {
+              value: "card",
+              label: "💳 بطاقة",
+            },
+          ]}
+        />
+
+      </div>
+
+      {/* Description */}
+      <div className="mt-6">
+
+        <label className="mb-2 block text-sm text-gray-300">
+          الوصف
+        </label>
+
+        <textarea
+          rows={4}
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          className="
+            w-full
+            rounded-xl
+            border border-white/10
+            bg-[#102947]
+            p-4
+            text-white
+            outline-none
+            focus:border-yellow-400
+          "
+        />
+
+      </div>
+
+      {/* Attachment */}
+      <div className="mt-6">
+
+        <label className="mb-2 block text-sm text-gray-300">
+          إرفاق فاتورة
+        </label>
+
+        <input
+          type="file"
+          className="
+            block w-full
+            rounded-xl
+            border border-white/10
+            bg-[#102947]
+            p-3
+            text-white
+          "
+        />
+
+      </div>
+
+      {/* ================= إضافة تصنيف جديد ================= */}
+      {showAddCategory && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 p-4">
+          <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#081B33] p-7 shadow-2xl">
+            <div className="mb-6 flex items-center justify-between">
+              <h3 className="text-2xl font-bold text-white">
+                إضافة تصنيف جديد
+              </h3>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAddCategory(false);
+                  setNewCategoryName("");
+                }}
+                className="text-2xl text-gray-400 transition hover:text-red-400"
+              >
+                ✕
+              </button>
+            </div>
+
+            <label className="mb-2 block text-sm text-gray-300">
+              اسم التصنيف
+            </label>
+
+            <input
+              type="text"
+              value={newCategoryName}
+              onChange={(e) => setNewCategoryName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  handleAddCategory();
+                }
+              }}
+              autoFocus
+              placeholder="أدخل اسم التصنيف"
+              className="
+                h-12 w-full
+                rounded-xl
+                border border-white/10
+                bg-[#102947]
+                px-4
+                text-white
+                outline-none
+                placeholder:text-gray-500
+                focus:border-yellow-400
+              "
+            />
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAddCategory(false);
+                  setNewCategoryName("");
+                }}
+                className="
+                  rounded-xl
+                  border border-white/10
+                  px-6 py-3
+                  font-bold
+                  text-white
+                  transition
+                  hover:bg-white/5
+                "
+              >
+                إلغاء
+              </button>
+
+              <button
+                type="button"
+                onClick={handleAddCategory}
+                className="
+                  rounded-xl
+                  bg-yellow-400
+                  px-6 py-3
+                  font-bold
+                  text-[#081B33]
+                  transition
+                  hover:bg-yellow-300
+                "
+              >
+                + إضافة التصنيف
+              </button>
+            </div>
+          </div>
         </div>
+      )}
 
-        {/* Attachment */}
+      {/* ================= إضافة بند جديد ================= */}
+      {showAddItem && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 p-4">
+          <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#081B33] p-7 shadow-2xl">
+            <div className="mb-6 flex items-center justify-between">
+              <div>
+                <h3 className="text-2xl font-bold text-white">
+                  إضافة بند جديد
+                </h3>
 
-        <div className="mt-6">
+                <p className="mt-2 text-sm text-gray-400">
+                  التصنيف:{" "}
+                  {categories.find(
+                    (category) =>
+                      String(category.id) === String(categoryId)
+                  )?.name || "-"}
+                </p>
+              </div>
 
-          <label className="mb-2 block text-sm text-gray-300">
-            إرفاق فاتورة
-          </label>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAddItem(false);
+                  setNewItemName("");
+                }}
+                className="text-2xl text-gray-400 transition hover:text-red-400"
+              >
+                ✕
+              </button>
+            </div>
 
-          <input
-            type="file"
-            className="block w-full rounded-xl border border-white/10 bg-[#102947] p-3"
-          />
+            <label className="mb-2 block text-sm text-gray-300">
+              اسم البند
+            </label>
 
+            <input
+              type="text"
+              value={newItemName}
+              onChange={(e) => setNewItemName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  handleAddItem();
+                }
+              }}
+              autoFocus
+              placeholder="أدخل اسم البند"
+              className="
+                h-12 w-full
+                rounded-xl
+                border border-white/10
+                bg-[#102947]
+                px-4
+                text-white
+                outline-none
+                placeholder:text-gray-500
+                focus:border-yellow-400
+              "
+            />
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAddItem(false);
+                  setNewItemName("");
+                }}
+                className="
+                  rounded-xl
+                  border border-white/10
+                  px-6 py-3
+                  font-bold
+                  text-white
+                  transition
+                  hover:bg-white/5
+                "
+              >
+                إلغاء
+              </button>
+
+              <button
+                type="button"
+                onClick={handleAddItem}
+                className="
+                  rounded-xl
+                  bg-yellow-400
+                  px-6 py-3
+                  font-bold
+                  text-[#081B33]
+                  transition
+                  hover:bg-yellow-300
+                "
+              >
+                + إضافة البند
+              </button>
+            </div>
+          </div>
         </div>
+      )}
 
-        {/* Buttons */}
+      {/* Buttons */}
+      <div className="mt-8 flex justify-end gap-3">
 
-        <div className="mt-8 flex justify-end gap-3">
+        {/* إلغاء */}
+        <button
+          type="button"
+          onClick={onClose}
+          className="
+            rounded-xl
+            border border-white/10
+            px-6 py-3
+            font-bold
+            text-white
+            transition
+            hover:bg-white/5
+          "
+        >
+          إلغاء
+        </button>
 
-  {/* إلغاء */}
+        {!isEditing && (
+        <button
+          type="button"
+          onClick={() => handleSave(true)}
+          className="
+            rounded-xl
+            border border-green-400/30
+            bg-green-500/10
+            px-6 py-3
+            font-bold
+            text-green-400
+            transition
+            hover:border-green-400
+            hover:bg-green-500
+            hover:text-white
+          "
+        >
+          + حفظ وإضافة آخر
+        </button>
+        )}
 
-  <button
-    type="button"
-    onClick={onClose}
-    className="
-      rounded-xl
-      border border-white/10
-      px-6 py-3
-      font-bold
-      text-white
-      transition
-      hover:bg-white/5
-    "
-  >
-    إلغاء
-  </button>
+        {/* حفظ المصروف */}
+        <button
+          type="button"
+          onClick={() => handleSave(false)}
+          className="
+            rounded-xl
+            bg-yellow-400
+            px-8 py-3
+            font-bold
+            text-[#081B33]
+            transition
+            hover:bg-yellow-300
+          "
+        >
+          {isEditing ? "حفظ التعديل" : "حفظ المصروف"}
+        </button>
 
-
-  {/* حفظ وإضافة مصروف آخر */}
-
-  <button
-    type="button"
-    onClick={() => handleSave(true)}
-    className="
-      rounded-xl
-      border border-green-400/30
-      bg-green-500/10
-      px-6 py-3
-      font-bold
-      text-green-400
-      transition
-      hover:border-green-400
-      hover:bg-green-500
-      hover:text-white
-    "
-  >
-    + حفظ وإضافة آخر
-  </button>
-
-
-  {/* حفظ المصروف */}
-
-  <button
-    type="button"
-    onClick={() => handleSave(false)}
-    className="
-      rounded-xl
-      bg-yellow-400
-      px-8 py-3
-      font-bold
-      text-[#081B33]
-      transition
-      hover:bg-yellow-300
-    "
-  >
-    حفظ المصروف
-  </button>
-
-</div>
       </div>
 
     </div>
-  );
+  </div>
+);
+
 }
 
 type InputProps = {
-
   label: string;
-
   type?: string;
-
   value?: string;
-
   readOnly?: boolean;
-
-  onChange?: (
-    value: string
-  ) => void;
-
+  onChange?: (value: string) => void;
 };
 
 function Input({
-
   label,
-
   type = "text",
-
   value = "",
-
   readOnly = false,
-
   onChange,
-
 }: InputProps) {
-
   return (
-
     <div>
-
       <label className="mb-2 block text-sm text-gray-300">
-
         {label}
-
       </label>
 
       <input
-
         type={type}
-
         value={value}
-
         readOnly={readOnly}
-
-        onChange={(e)=>
-
-          onChange?.(
-            e.target.value
-          )
-
-        }
-
-        className="h-12 w-full rounded-xl border border-white/10 bg-[#102947] px-4 text-white outline-none focus:border-yellow-400"
-
+        onChange={(e) => onChange?.(e.target.value)}
+        className="
+          h-12
+          w-full
+          rounded-xl
+          border
+          border-white/10
+          bg-[#102947]
+          px-4
+          text-white
+          outline-none
+          focus:border-yellow-400
+        "
       />
-
     </div>
-
   );
-
 }
-
 
 type SelectOption = {
   value: number | string;
@@ -471,84 +980,53 @@ type SelectOption = {
 };
 
 type SelectProps = {
-
   label: string;
-
   value?: string;
-
   options?: SelectOption[];
-
-  onChange?: (
-    value: string
-  ) => void;
-
+  onChange?: (value: string) => void;
 };
 
 function Select({
-
   label,
-
   value = "",
-
   options = [],
-
   onChange,
-
 }: SelectProps) {
-
   return (
-
     <div>
-
       <label className="mb-2 block text-sm text-gray-300">
-
         {label}
-
       </label>
 
       <select
-
         value={value}
-
-        onChange={(e)=>
-
-          onChange?.(
-            e.target.value
-          )
-
-        }
-
-        className="h-12 w-full rounded-xl border border-white/10 bg-[#102947] px-4 text-white outline-none focus:border-yellow-400"
-
+        onChange={(e) => onChange?.(e.target.value)}
+        className="
+          h-12
+          w-full
+          rounded-xl
+          border
+          border-white/10
+          bg-[#102947]
+          px-4
+          text-white
+          outline-none
+          focus:border-yellow-400
+        "
       >
-
         <option value="">
-
           اختر...
-
         </option>
 
-        {options.map((option)=>(
-
+        {options.map((option) => (
           <option
-
             key={option.value}
-
             value={option.value}
-
           >
-
             {option.label}
-
           </option>
-
         ))}
-
       </select>
-
     </div>
-
   );
-
 }
-
