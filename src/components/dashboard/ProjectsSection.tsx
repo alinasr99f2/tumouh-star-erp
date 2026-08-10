@@ -16,47 +16,19 @@ const projects = [
     units: 18,
     start: "01/03/2026",
   },
-  {
-    id: 2,
-    name: "برج الرياض",
-    city: "الرياض",
-    status: "التشطيبات",
-    progress: 91,
-    value: "21M",
-    units: 36,
-    start: "14/11/2025",
-  },
-  {
-    id: 3,
-    name: "فندق جدة",
-    city: "جدة",
-    status: "الإنشاء",
-    progress: 43,
-    value: "15.7M",
-    units: 120,
-    start: "18/02/2026",
-  },
-  {
-    id: 4,
-    name: "مول الدمام",
-    city: "الدمام",
-    status: "التخطيط",
-    progress: 18,
-    value: "30M",
-    units: 48,
-    start: "01/07/2026",
-  },
 ];
 
 export default function ProjectsSection() {
   return (
-    <section className="rounded-3xl border border-white/10 bg-[#081B33] p-7">
+    <section>
 
-      <div className="mb-8 flex items-center justify-between">
+      {/* Header */}
+
+      <div className="mb-8">
 
         <div>
 
-          <h2 className="text-2xl font-bold">
+          <h2 className="text-2xl font-bold text-white">
             المشاريع النشطة
           </h2>
 
@@ -66,13 +38,11 @@ export default function ProjectsSection() {
 
         </div>
 
-        <button className="rounded-xl bg-yellow-400 px-5 py-2 font-bold text-[#081B33] hover:bg-yellow-500 transition">
-          عرض الكل
-        </button>
-
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-2">
+      {/* Projects */}
+
+      <div className="grid gap-6">
 
         {projects.map((project) => (
           <ProjectCard
@@ -107,13 +77,29 @@ function ProjectCard({
   start,
 }: ProjectCardProps) {
   return (
-    <div className="group rounded-3xl border border-white/10 bg-[#102947] p-6 transition-all duration-300 hover:-translate-y-1 hover:border-yellow-400/40">
+    <div
+      className="
+        group
+        rounded-3xl
+        border
+        border-white/10
+        bg-[#081B33]
+        p-7
+        transition-all
+        duration-300
+        hover:-translate-y-1
+        hover:border-yellow-400/30
+        hover:shadow-2xl
+      "
+    >
+
+      {/* Project Header */}
 
       <div className="flex items-start justify-between">
 
         <div>
 
-          <h3 className="text-xl font-bold">
+          <h3 className="text-xl font-bold text-white">
             {name}
           </h3>
 
@@ -127,11 +113,22 @@ function ProjectCard({
 
         </div>
 
-        <span className="rounded-full bg-yellow-400/20 px-3 py-1 text-sm text-yellow-400">
+        <span
+          className="
+            rounded-full
+            bg-yellow-400/20
+            px-3
+            py-1
+            text-sm
+            text-yellow-400
+          "
+        >
           {status}
         </span>
 
       </div>
+
+      {/* Progress */}
 
       <div className="mt-7">
 
@@ -150,7 +147,15 @@ function ProjectCard({
         <div className="h-3 overflow-hidden rounded-full bg-[#1C3B60]">
 
           <div
-            className="h-full rounded-full bg-gradient-to-r from-yellow-400 to-yellow-500 transition-all duration-500"
+            className="
+              h-full
+              rounded-full
+              bg-gradient-to-r
+              from-yellow-400
+              to-yellow-500
+              transition-all
+              duration-500
+            "
             style={{
               width: `${progress}%`,
             }}
@@ -160,7 +165,9 @@ function ProjectCard({
 
       </div>
 
-      <div className="mt-7 grid grid-cols-3 gap-4">
+      {/* Project Information */}
+
+      <div className="mt-7 grid grid-cols-1 gap-4 sm:grid-cols-3">
 
         <InfoCard
           icon={<Building2 size={18} />}
@@ -182,11 +189,39 @@ function ProjectCard({
 
       </div>
 
-      <button className="mt-7 flex w-full items-center justify-center gap-2 rounded-xl bg-[#17385D] py-3 font-semibold transition hover:bg-[#204B79] group-hover:bg-yellow-400 group-hover:text-[#081B33]">
+      {/* Project Button */}
+
+      <button
+        type="button"
+        className="
+          mt-7
+          flex
+          w-full
+          items-center
+          justify-center
+          gap-2
+          rounded-xl
+          bg-[#17385D]
+          py-3
+          font-semibold
+          text-white
+          transition-all
+          duration-300
+          hover:bg-yellow-400
+          hover:text-[#081B33]
+        "
+      >
 
         دخول المشروع
 
-        <ArrowLeft size={18} />
+        <ArrowLeft
+          size={18}
+          className="
+            transition-transform
+            duration-300
+            group-hover:-translate-x-1
+          "
+        />
 
       </button>
 
@@ -206,7 +241,15 @@ function InfoCard({
   value,
 }: InfoCardProps) {
   return (
-    <div className="rounded-2xl bg-[#0D223D] p-4">
+    <div
+      className="
+        rounded-2xl
+        border
+        border-white/10
+        bg-white/5
+        p-4
+      "
+    >
 
       <div className="mb-3 flex items-center gap-2 text-yellow-400">
 

@@ -1,4 +1,5 @@
 import {
+  Home,
   LayoutDashboard,
   FolderKanban,
   Receipt,
@@ -6,9 +7,15 @@ import {
 
 export const sidebarMenu = [
   {
+    title: "الشاشة الرئيسية",
+    icon: Home,
+    path: "/",
+  },
+
+  {
     title: "لوحة التحكم",
     icon: LayoutDashboard,
-    path: "/",
+    path: "/dashboard",
   },
 
   {

@@ -1,8 +1,7 @@
 import { NavLink } from "react-router-dom";
 import {
   LogOut,
-  Building2,
-  Plus,
+  
   Circle,
 } from "lucide-react";
 
@@ -11,22 +10,16 @@ import { sidebarMenu } from "../../data/menu";
 function Sidebar() {
   return (
     <aside
-      dir="rtl"
       className="
-  w-[320px]
-  min-w-[320px]
-  max-w-[320px]
-  shrink-0
-        bg-gradient-to-b
-        from-[#081B33]
-        via-[#0A1F39]
-        to-[#06111F]
-        border-l
-        border-white/10
+        w-72
+        h-screen
         flex
         flex-col
+        shrink-0
+        bg-[#081B33]
+        border-l
+        border-white/10
         text-white
-        shadow-[0_0_35px_rgba(0,0,0,.45)]
       "
     >
       {/* Header */}
@@ -37,8 +30,8 @@ function Sidebar() {
 
           <div
             className="
-              w-20
-              h-20
+              w-16
+              h-16
               rounded-3xl
               bg-gradient-to-br
               from-yellow-300
@@ -50,24 +43,26 @@ function Sidebar() {
               shadow-xl
             "
           >
+
             <div
-  className="
-    w-24
-    h-24
-    rounded-3xl
-    bg-black
-    shadow-xl
-    flex
-    items-center
-    justify-center
-  "
->
-  <img
-    src="/logo.png"
-    alt="Tumouh Star"
-    className="w-22 h-22 object-contain scale-150"
-  />
-</div>
+              className="
+                w-12
+                h-12
+                rounded-2xl
+                bg-black
+                shadow-xl
+                flex
+                items-center
+                justify-center
+              "
+            >
+
+              <span className="text-yellow-400 text-2xl font-black">
+                ★
+              </span>
+
+            </div>
+
           </div>
 
           <div>
@@ -117,6 +112,7 @@ function Sidebar() {
                 text-[#081B33]
                 font-bold
                 text-lg
+                shadow-lg
               "
             >
               A
@@ -154,45 +150,14 @@ function Sidebar() {
 
       </div>
 
-      {/* Quick Action */}
-
-      <div className="px-5 mt-5">
-
-        <button
-          className="
-            w-full
-            rounded-2xl
-            bg-gradient-to-r
-            from-yellow-400
-            to-yellow-500
-            py-3
-            flex
-            items-center
-            justify-center
-            gap-2
-            font-bold
-            text-[#081B33]
-            hover:scale-[1.02]
-            duration-300
-            shadow-lg
-          "
-        >
-
-          <Plus size={20} />
-
-          مشروع جديد
-
-        </button>
-
-      </div>
-
+      
       {/* Menu */}
 
       <div
         className="
           flex-1
-overflow-y-auto
-overflow-x-hidden
+          overflow-y-auto
+          overflow-x-hidden
           mt-6
           px-4
           pb-5
@@ -205,9 +170,12 @@ overflow-x-hidden
 
         <div className="space-y-2">
 
-          {sidebarMenu.map((item) => (            <NavLink
+          {sidebarMenu.map((item) => (
+
+            <NavLink
               key={item.title}
               to={item.path}
+              end={item.path === "/"}
               className={({ isActive }) =>
                 `
                 group
@@ -228,6 +196,7 @@ overflow-x-hidden
               `
               }
             >
+
               <item.icon
                 size={21}
                 className="
@@ -285,6 +254,7 @@ overflow-x-hidden
         </div>
 
         <button
+          type="button"
           className="
             w-full
             rounded-2xl
@@ -303,11 +273,14 @@ overflow-x-hidden
             duration-300
           "
         >
+
           <LogOut size={20} />
 
           تسجيل الخروج
 
-        </button>      </div>
+        </button>
+
+      </div>
 
     </aside>
   );

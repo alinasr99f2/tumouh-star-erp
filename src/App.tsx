@@ -6,6 +6,7 @@ import {
 
 import MainLayout from "./layouts/MainLayout";
 
+import Home from "./pages/Home/Home";
 import CompanyDashboard from "./pages/Dashboard/CompanyDashboard";
 import Projects from "./pages/Projects/Projects";
 import ProjectDetails from "./pages/Projects/ProjectDetails";
@@ -14,13 +15,20 @@ import FinancialCenter from "./pages/FinancialCenter/FinancialCenter";
 function App() {
   return (
     <BrowserRouter>
+
       <Routes>
 
         <Route element={<MainLayout />}>
 
-          {/* لوحة التحكم */}
+          {/* الشاشة الرئيسية */}
           <Route
             path="/"
+            element={<Home />}
+          />
+
+          {/* لوحة التحكم */}
+          <Route
+            path="/dashboard"
             element={<CompanyDashboard />}
           />
 
@@ -45,6 +53,7 @@ function App() {
         </Route>
 
       </Routes>
+
     </BrowserRouter>
   );
 }
