@@ -1,22 +1,40 @@
-@import "tailwindcss";@import url("https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&display=swap");
+@import "tailwindcss";
+@import url("https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&display=swap");
 
-
-*{
-    margin:0;
-    padding:0;
-    box-sizing:border-box;
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
-html{
-    direction:rtl;
+html {
+  direction: rtl;
 }
 
-body{
+body {
+  font-family: "Cairo", sans-serif;
+  background: #071321;
+  color: white;
+}
 
-    font-family:"Cairo",sans-serif;
+/* ================================= */
+/* حركة لوجو الشركة */
+/* ================================= */
 
-    background:#071321;
+@keyframes logoFloat {
+  0% {
+    transform: translateY(0) scale(1);
+  }
 
-    color:white;
+  50% {
+    transform: translateY(-15px) scale(1.03);
+  }
 
+  100% {
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-logo-float {
+  animation: logoFloat 12s ease-in-out infinite;
 }

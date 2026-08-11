@@ -294,17 +294,31 @@ export default function ProjectDetails() {
 
       <section>
 
-        <div className="mb-5 text-right">
+       <div className="mb-6 flex justify-center">
+  <div
+    className="
+      w-fit
+      min-w-[420px]
+      rounded-2xl
+      border
+      border-cyan-300/20
+      bg-[#102A43]
+      px-10
+      py-4
+      text-center
+      shadow-xl
+      shadow-black/20
+    "
+  >
+    <h2 className="text-2xl font-extrabold text-white">
+      مؤشرات المشروع
+    </h2>
 
-          <h2 className="text-2xl font-bold text-white">
-            مؤشرات المشروع
-          </h2>
-
-          <p className="mt-1 text-sm text-gray-400">
-            ملخص أهم بيانات مشروع {project.name}
-          </p>
-
-        </div>
+    <p className="mt-1 text-sm text-gray-300">
+      ملخص سريع لأهم بيانات مشروع فلل تبوك
+    </p>
+  </div>
+</div>
 
 
         <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
@@ -447,35 +461,66 @@ export default function ProjectDetails() {
 
       <section>
 
-        <div className="mb-5 flex items-end justify-between">
+       <div className="mb-6 mt-8 flex justify-center">
+ <div className="mb-6 mt-8 flex justify-center">
+  <div
+    className="
+      w-fit
+      min-w-[560px]
+      rounded-2xl
+      border
+      border-yellow-400/25
+      bg-[#171F2E]
+      px-8
+      py-4
+      shadow-xl
+      shadow-black/20
+    "
+  >
+    <div className="flex items-center justify-center gap-8">
 
-          <div>
+      {/* عنوان الفلل */}
+      <div className="text-center">
+        <h2 className="text-3xl font-extrabold text-white">
+          فلل المشروع
+        </h2>
 
-            <h2 className="text-2xl font-bold text-white">
-              فلل المشروع
-            </h2>
+        <p className="mt-1 text-sm text-gray-300">
+          جميع فلل مشروع {project.name}
+        </p>
+      </div>
 
-            <p className="mt-1 text-sm text-gray-400">
-              جميع فلل مشروع {project.name}
-            </p>
+      {/* إجمالي الفلل */}
+      <div
+        className="
+          flex
+          items-center
+          gap-3
+          rounded-xl
+          border
+          border-yellow-400/20
+          bg-yellow-400/10
+          px-5
+          py-3
+        "
+      >
+        <span className="text-base font-bold text-yellow-300">
+          إجمالي الفلل
+        </span>
 
-          </div>
+        <span className="text-3xl font-extrabold text-yellow-400">
+          18
+        </span>
 
-          <span
-            className="
-              rounded-full
-              border
-              border-yellow-400/20
-              bg-yellow-400/10
-              px-4
-              py-2
-              text-sm
-              font-bold
-              text-yellow-400
-            "
-          >
-            18 فيلا
-          </span>
+        <span className="text-base font-semibold text-gray-300">
+          فيلا
+        </span>
+      </div>
+
+    </div>
+  </div>
+</div>
+         
 
         </div>
 

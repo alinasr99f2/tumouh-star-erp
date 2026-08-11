@@ -46,30 +46,42 @@ const homeCards: HomeCard[] = [
 
 export default function Home() {
   return (
-    <div
-      className="
-        min-h-full
-        relative
-        overflow-hidden
-        rounded-3xl
-      "
-    >
+    <div className="relative min-h-full overflow-hidden">
 
-      {/* Background Decorations */}
-      <div
-        className="
-          pointer-events-none
-          absolute
-          -top-32
-          -right-32
-          w-96
-          h-96
-          rounded-full
-          bg-yellow-400/10
-          blur-3xl
-        "
-      />
+      {/* ========================= */}
+{/* شعار الشركة - Watermark */}
+{/* ========================= */}
 
+<div
+  className="
+    pointer-events-none
+    absolute
+    inset-0
+    z-[1]
+    flex
+    items-center
+    justify-center
+    overflow-hidden
+  "
+>
+  <img
+    src="/logo.png"
+    alt=""
+    draggable="false"
+    className="
+      w-[600px]
+      h-auto
+      max-w-none
+      select-none
+      opacity-20
+      object-contain
+      animate-logo-float
+      mix-blend-screen
+    "
+  />
+</div>
+
+      {/* Glow أسفل اليسار */}
       <div
         className="
           pointer-events-none
@@ -84,282 +96,323 @@ export default function Home() {
         "
       />
 
-      {/* Header */}
-      <div className="relative z-10 text-center pt-10 pb-10">
+     {/* ========================= */}
+{/* Full Screen Company Logo */}
+{/* ========================= */}
 
-        <div
-          className="
-            inline-flex
-            items-center
-            gap-2
-            rounded-full
-            border
-            border-yellow-400/20
-            bg-yellow-400/10
-            px-5
-            py-2
-            text-yellow-300
-            text-sm
-            mb-5
-          "
-        >
-          <Sparkles size={16} />
+<div
+  className="
+    pointer-events-none
+    absolute
+    inset-0
+    z-0
+    overflow-hidden
+    flex
+    items-center
+    justify-center
+  "
+>
+  <img
+    src="/logo.png"
+    alt=""
+    draggable="false"
+    className="
+      absolute
+      w-[120vw]
+      h-[120vh]
+      max-w-none
+      object-cover
+      select-none
+      opacity-[0.08]
+      animate-logo-float
+      mix-blend-screen
+    "
+  />
+</div>
 
-          Tumouh Star ERP
+      {/* ========================= */}
+      {/* المحتوى الرئيسي */}
+      {/* ========================= */}
+
+      <div className="relative z-10">
+
+        {/* Header */}
+        <div className="text-center pt-10 pb-10">
+
+          <div
+            className="
+              inline-flex
+              items-center
+              gap-2
+              rounded-full
+              border
+              border-yellow-400/20
+              bg-yellow-400/10
+              px-5
+              py-2
+              text-yellow-300
+              text-sm
+              mb-5
+              backdrop-blur-md
+            "
+          >
+            <Sparkles size={16} />
+
+            Tumouh Star ERP
+
+          </div>
+
+          <h1
+            className="
+              text-4xl
+              md:text-5xl
+              font-black
+              text-white
+              tracking-tight
+            "
+          >
+            الشاشة الرئيسية
+          </h1>
+
+          <p
+            className="
+              mt-4
+              text-gray-400
+              text-lg
+            "
+          >
+            مرحبًا بك في نظام طموح ستار لإدارة الأعمال
+          </p>
+
+          <p
+            className="
+              mt-2
+              text-gray-500
+              text-sm
+            "
+          >
+            اختر القسم الذي تريد الدخول إليه
+          </p>
 
         </div>
 
-        <h1
+        {/* Cards */}
+        <div
           className="
-            text-4xl
-            md:text-5xl
-            font-black
-            text-white
-            tracking-tight
+            grid
+            grid-cols-1
+            md:grid-cols-3
+            gap-7
+            px-4
+            pb-12
+            max-w-[1500px]
+            mx-auto
           "
         >
-          الشاشة الرئيسية
-        </h1>
 
-        <p
-          className="
-            mt-4
-            text-gray-400
-            text-lg
-          "
-        >
-          مرحبًا بك في نظام طموح ستار لإدارة الأعمال
-        </p>
+          {homeCards.map((card) => {
 
-        <p
-          className="
-            mt-2
-            text-gray-500
-            text-sm
-          "
-        >
-          اختر القسم الذي تريد الدخول إليه
-        </p>
+            const Icon = card.icon;
 
-      </div>
-
-      {/* Cards */}
-      <div
-        className="
-          relative
-          z-10
-          grid
-          grid-cols-1
-          md:grid-cols-3
-          gap-7
-          px-4
-          pb-12
-          max-w-[1500px]
-          mx-auto
-        "
-      >
-
-        {homeCards.map((card) => {
-
-          const Icon = card.icon;
-
-          return (
-            <Link
-              key={card.path}
-              to={card.path}
-              className="group"
-            >
-
-              <div
-                className={`
-                  relative
-                  h-[360px]
-                  overflow-hidden
-                  rounded-[2rem]
-                  border
-                  border-white/10
-                  bg-gradient-to-br
-                  ${card.gradient}
-                  backdrop-blur-2xl
-                  shadow-2xl
-                  ${card.glow}
-                  transition-all
-                  duration-500
-                  hover:-translate-y-3
-                  hover:scale-[1.015]
-                `}
+            return (
+              <Link
+                key={card.path}
+                to={card.path}
+                className="group"
               >
 
-                {/* Glass Shine */}
                 <div
-                  className="
-                    absolute
-                    -top-24
-                    -right-24
-                    w-64
-                    h-64
-                    rounded-full
-                    bg-white/5
-                    blur-2xl
+                  className={`
+                    relative
+                    h-[360px]
+                    overflow-hidden
+                    rounded-[2rem]
+                    border
+                    border-white/10
+                    bg-gradient-to-br
+                    ${card.gradient}
+                    backdrop-blur-2xl
+                    shadow-2xl
+                    ${card.glow}
                     transition-all
                     duration-500
-                    group-hover:bg-white/10
-                  "
-                />
+                    hover:-translate-y-3
+                    hover:scale-[1.015]
+                  `}
+                >
 
-                {/* Top Line */}
-                <div
-                  className="
-                    absolute
-                    top-0
-                    left-8
-                    right-8
-                    h-px
-                    bg-gradient-to-r
-                    from-transparent
-                    via-white/30
-                    to-transparent
-                  "
-                />
+                  {/* Glass Shine */}
+                  <div
+                    className="
+                      absolute
+                      -top-24
+                      -right-24
+                      w-64
+                      h-64
+                      rounded-full
+                      bg-white/5
+                      blur-2xl
+                      transition-all
+                      duration-500
+                      group-hover:bg-white/10
+                    "
+                  />
 
-                {/* Icon */}
-                <div className="relative z-10 flex justify-center pt-12">
+                  {/* Top Line */}
+                  <div
+                    className="
+                      absolute
+                      top-0
+                      left-8
+                      right-8
+                      h-px
+                      bg-gradient-to-r
+                      from-transparent
+                      via-white/30
+                      to-transparent
+                    "
+                  />
 
+                  {/* Icon */}
+                  <div className="relative z-10 flex justify-center pt-12">
+
+                    <div
+                      className="
+                        relative
+                        w-28
+                        h-28
+                        rounded-[2rem]
+                        border
+                        border-white/15
+                        bg-white/10
+                        backdrop-blur-xl
+                        flex
+                        items-center
+                        justify-center
+                        shadow-2xl
+                        transition-all
+                        duration-500
+                        group-hover:scale-110
+                        group-hover:rotate-2
+                      "
+                    >
+
+                      <div
+                        className="
+                          absolute
+                          inset-3
+                          rounded-[1.4rem]
+                          border
+                          border-white/10
+                        "
+                      />
+
+                      <Icon
+                        size={52}
+                        strokeWidth={1.7}
+                        className="
+                          relative
+                          z-10
+                          text-white
+                          transition-all
+                          duration-500
+                          group-hover:scale-110
+                        "
+                      />
+
+                    </div>
+
+                  </div>
+
+                  {/* Content */}
                   <div
                     className="
                       relative
-                      w-28
-                      h-28
-                      rounded-[2rem]
-                      border
-                      border-white/15
-                      bg-white/10
-                      backdrop-blur-xl
+                      z-10
+                      text-center
+                      px-8
+                      mt-8
+                    "
+                  >
+
+                    <h2
+                      className="
+                        text-2xl
+                        font-black
+                        text-white
+                      "
+                    >
+                      {card.title}
+                    </h2>
+
+                    <p
+                      className="
+                        mt-4
+                        text-gray-400
+                        text-sm
+                        leading-7
+                      "
+                    >
+                      {card.description}
+                    </p>
+
+                  </div>
+
+                  {/* Bottom Action */}
+                  <div
+                    className="
+                      absolute
+                      bottom-7
+                      left-0
+                      right-0
                       flex
-                      items-center
                       justify-center
-                      shadow-2xl
-                      transition-all
-                      duration-500
-                      group-hover:scale-110
-                      group-hover:rotate-2
                     "
                   >
 
                     <div
                       className="
-                        absolute
-                        inset-3
-                        rounded-[1.4rem]
+                        flex
+                        items-center
+                        gap-2
+                        rounded-full
                         border
                         border-white/10
-                      "
-                    />
-
-                    <Icon
-                      size={52}
-                      strokeWidth={1.7}
-                      className="
-                        relative
-                        z-10
-                        text-white
+                        bg-white/5
+                        px-5
+                        py-2.5
+                        text-sm
+                        text-gray-300
+                        backdrop-blur-md
                         transition-all
-                        duration-500
-                        group-hover:scale-110
-                      "
-                    />
-
-                  </div>
-
-                </div>
-
-                {/* Content */}
-                <div
-                  className="
-                    relative
-                    z-10
-                    text-center
-                    px-8
-                    mt-8
-                  "
-                >
-
-                  <h2
-                    className="
-                      text-2xl
-                      font-black
-                      text-white
-                    "
-                  >
-                    {card.title}
-                  </h2>
-
-                  <p
-                    className="
-                      mt-4
-                      text-gray-400
-                      text-sm
-                      leading-7
-                    "
-                  >
-                    {card.description}
-                  </p>
-
-                </div>
-
-                {/* Bottom Action */}
-                <div
-                  className="
-                    absolute
-                    bottom-7
-                    left-0
-                    right-0
-                    flex
-                    justify-center
-                  "
-                >
-
-                  <div
-                    className="
-                      flex
-                      items-center
-                      gap-2
-                      rounded-full
-                      border
-                      border-white/10
-                      bg-white/5
-                      px-5
-                      py-2.5
-                      text-sm
-                      text-gray-300
-                      backdrop-blur-md
-                      transition-all
-                      duration-300
-                      group-hover:bg-white/10
-                      group-hover:text-white
-                    "
-                  >
-
-                    الدخول إلى القسم
-
-                    <ArrowLeft
-                      size={17}
-                      className="
-                        transition-transform
                         duration-300
-                        group-hover:-translate-x-1
+                        group-hover:bg-white/10
+                        group-hover:text-white
                       "
-                    />
+                    >
+
+                      الدخول إلى القسم
+
+                      <ArrowLeft
+                        size={17}
+                        className="
+                          transition-transform
+                          duration-300
+                          group-hover:-translate-x-1
+                        "
+                      />
+
+                    </div>
 
                   </div>
 
                 </div>
 
-              </div>
+              </Link>
+            );
+          })}
 
-            </Link>
-          );
-        })}
+        </div>
 
       </div>
 
