@@ -9,7 +9,7 @@ export const sidebarMenu = [
   {
     title: "الشاشة الرئيسية",
     icon: Home,
-    path: "/",
+    path: "/home"
   },
 
   {

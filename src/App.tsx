@@ -2,9 +2,12 @@ import {
   BrowserRouter,
   Routes,
   Route,
+  Navigate,
 } from "react-router-dom";
 
 import MainLayout from "./layouts/MainLayout";
+
+import Login from "./pages/Login/Login";
 
 import Home from "./pages/Home/Home";
 import CompanyDashboard from "./pages/Dashboard/CompanyDashboard";
@@ -18,11 +21,34 @@ function App() {
 
       <Routes>
 
+        {/* =========================
+            تسجيل الدخول
+        ========================= */}
+        <Route
+          path="/login"
+          element={<Login />}
+        />
+
+
+        {/* =========================
+            النظام الرئيسي
+        ========================= */}
         <Route element={<MainLayout />}>
+
+          {/* فتح الموقع لأول مرة */}
+          <Route
+            path="/"
+            element={
+              <Navigate
+                to="/login"
+                replace
+              />
+            }
+          />
 
           {/* الشاشة الرئيسية */}
           <Route
-            path="/"
+            path="/home"
             element={<Home />}
           />
 
@@ -51,6 +77,18 @@ function App() {
           />
 
         </Route>
+
+
+        {/* أي رابط غير معروف */}
+        <Route
+          path="*"
+          element={
+            <Navigate
+              to="/login"
+              replace
+            />
+          }
+        />
 
       </Routes>
 

@@ -1,29 +1,32 @@
 import { NavLink } from "react-router-dom";
 import {
   LogOut,
-  
   Circle,
 } from "lucide-react";
 
 import { sidebarMenu } from "../../data/menu";
 
-function Sidebar() {
+type SidebarProps = {
+  onLogout: () => void;
+};
+
+function Sidebar({ onLogout }: SidebarProps) {
   return (
     <aside
       className="
-        w-72
+        w-[270px]
+        shrink-0
         h-screen
         flex
         flex-col
-        shrink-0
         bg-[#081B33]
         border-l
         border-white/10
         text-white
       "
     >
-      {/* Header */}
 
+      {/* Header */}
       <div className="px-6 pt-8 pb-6 border-b border-white/10">
 
         <div className="flex items-center gap-4">
@@ -81,8 +84,8 @@ function Sidebar() {
 
       </div>
 
-      {/* User */}
 
+      {/* User */}
       <div className="px-5 pt-5">
 
         <div
@@ -150,9 +153,8 @@ function Sidebar() {
 
       </div>
 
-      
-      {/* Menu */}
 
+      {/* Menu */}
       <div
         className="
           flex-1
@@ -218,8 +220,8 @@ function Sidebar() {
 
       </div>
 
-      {/* Footer */}
 
+      {/* Footer */}
       <div
         className="
           border-t
@@ -253,8 +255,11 @@ function Sidebar() {
 
         </div>
 
+
+        {/* Logout */}
         <button
           type="button"
+          onClick={onLogout}
           className="
             w-full
             rounded-2xl
@@ -271,6 +276,7 @@ function Sidebar() {
             hover:text-white
             transition-all
             duration-300
+            cursor-pointer
           "
         >
 

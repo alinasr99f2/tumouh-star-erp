@@ -4,16 +4,58 @@ import ProjectsSection from "../../components/dashboard/ProjectsSection";
 
 export default function CompanyDashboard() {
   return (
-    <div className="space-y-6">
+    <div className="relative min-h-screen overflow-hidden">
 
-      {/* الترحيب */}
-      <DashboardHero />
+      {/* ========================= */}
+      {/* خلفية لوجو الشركة */}
+      {/* ========================= */}
 
-      {/* الإحصائيات الرئيسية */}
-      <StatsCards />
+      <div
+        className="
+          pointer-events-none
+          absolute
+          inset-0
+          z-0
+          overflow-hidden
+          flex
+          items-center
+          justify-center
+        "
+      >
+        <img
+          src="/logo.png"
+          alt=""
+          draggable="false"
+          className="
+            absolute
+            w-[120vw]
+            h-[120vh]
+            max-w-none
+            object-cover
+            select-none
+            opacity-[0.08]
+            animate-logo-float
+            mix-blend-screen
+          "
+        />
+      </div>
 
-      {/* المشاريع النشطة */}
-      <ProjectsSection />
+      {/* ========================= */}
+      {/* محتوى لوحة التحكم */}
+      {/* ========================= */}
+
+      <div className="relative z-10">
+
+        {/* الترحيب */}
+        <DashboardHero />
+
+        {/* الإحصائيات الرئيسية */}
+        <StatsCards />
+
+        {/* المشاريع النشطة */}
+        <ProjectsSection />
+
+      </div>
 
     </div>
   );
