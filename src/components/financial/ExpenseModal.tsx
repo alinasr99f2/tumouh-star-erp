@@ -20,6 +20,7 @@ type Props = {
   onClose: () => void;
   onSave: (expense: any) => Promise<boolean>;
   accounts: Account[];
+  onAddAccount?: () => void;
   initialExpense?: any | null;
   isEditing?: boolean;
 };
@@ -29,6 +30,7 @@ export default function ExpenseModal({
   onClose,
   onSave,
   accounts,
+  onAddAccount,
   initialExpense,
   isEditing = false,
 }: Props) {
@@ -51,6 +53,21 @@ const [itemId, setItemId] = useState("");
 
 const [showAddCategory, setShowAddCategory] = useState(false);
 const [showAddItem, setShowAddItem] = useState(false);
+
+// ==========================================
+// المراحل - تصميم محلي مؤقت
+// سيتم ربطها بقاعدة البيانات لاحقًا من اللاب
+// ==========================================
+const [stages, setStages] = useState([
+  { id: "preliminary", name: "تمهيدي" },
+  { id: "structural", name: "إنشائي" },
+  { id: "finishing", name: "تشطيبي" },
+  { id: "decorations", name: "ديكورات" },
+]);
+
+const [stageId, setStageId] = useState("structural");
+const [showAddStage, setShowAddStage] = useState(false);
+const [newStageName, setNewStageName] = useState("");
 
 const [newCategoryName, setNewCategoryName] = useState("");
 const [newItemName, setNewItemName] = useState("");
@@ -436,11 +453,64 @@ return (
           ]}
         />
 
+        {/* المرحلة */}
+        <div>
+          <div className="mb-2 flex items-center justify-between">
+            <label className="text-sm text-gray-300">
+              المرحلة
+            </label>
+
+            <button
+              type="button"
+              onClick={() => {
+                setNewStageName("");
+                setShowAddStage(true);
+              }}
+              className="
+                flex h-7 w-7
+                items-center justify-center
+                rounded-lg
+                bg-yellow-400
+                font-bold
+                text-[#081B33]
+                transition
+                hover:bg-yellow-300
+              "
+              title="إضافة مرحلة جديدة"
+            >
+              +
+            </button>
+          </div>
+
+          <select
+            value={stageId}
+            onChange={(e) => setStageId(e.target.value)}
+            className="
+              h-12 w-full
+              rounded-xl
+              border border-white/10
+              bg-[#102947]
+              px-4
+              text-white
+              outline-none
+              focus:border-yellow-400
+            "
+          >
+            {stages.map((stage) => (
+              <option key={stage.id} value={stage.id}>
+                {stage.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
         {/* العهدة */}
         <Select
           label="العهدة"
           value={accountId}
           onChange={setAccountId}
+          showAddButton
+          onAdd={onAddAccount}
           options={accounts.map((account) => ({
             value: account.id,
             label: `${account.name} (${Number(
@@ -865,6 +935,93 @@ return (
         </div>
       )}
 
+      {/* ================= إضافة مرحلة جديدة ================= */}
+      {showAddStage && (
+        <div
+          className="fixed inset-0 z-[250] flex items-center justify-center bg-black/70 p-4"
+          onClick={() => setShowAddStage(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-3xl border border-white/10 bg-[#081B33] p-7 shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mb-6 flex items-center justify-between">
+              <div>
+                <h3 className="text-2xl font-bold text-white">
+                  إضافة مرحلة جديدة
+                </h3>
+                <p className="mt-2 text-sm text-gray-400">
+                  أضف مرحلة جديدة لاستخدامها في المصروفات
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowAddStage(false)}
+                className="text-2xl text-gray-400 transition hover:text-red-400"
+              >
+                ✕
+              </button>
+            </div>
+
+            <Input
+              label="اسم المرحلة"
+              value={newStageName}
+              onChange={setNewStageName}
+            />
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAddStage(false);
+                  setNewStageName("");
+                }}
+                className="rounded-xl border border-white/10 px-6 py-3 font-bold text-white transition hover:bg-white/5"
+              >
+                إلغاء
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const name = newStageName.trim();
+
+                  if (!name) {
+                    alert("من فضلك أدخل اسم المرحلة");
+                    return;
+                  }
+
+                  const exists = stages.some(
+                    (stage) =>
+                      stage.name.trim().toLowerCase() ===
+                      name.toLowerCase()
+                  );
+
+                  if (exists) {
+                    alert("هذه المرحلة موجودة بالفعل");
+                    return;
+                  }
+
+                  const newStage = {
+                    id: `stage-${Date.now()}`,
+                    name,
+                  };
+
+                  setStages((current) => [...current, newStage]);
+                  setStageId(newStage.id);
+                  setNewStageName("");
+                  setShowAddStage(false);
+                }}
+                className="rounded-xl bg-yellow-400 px-6 py-3 font-bold text-[#081B33] transition hover:bg-yellow-300"
+              >
+                + إضافة المرحلة
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Buttons */}
       <div className="mt-8 flex justify-end gap-3">
 
@@ -984,6 +1141,8 @@ type SelectProps = {
   value?: string;
   options?: SelectOption[];
   onChange?: (value: string) => void;
+  showAddButton?: boolean;
+  onAdd?: () => void;
 };
 
 function Select({
@@ -991,12 +1150,36 @@ function Select({
   value = "",
   options = [],
   onChange,
+  showAddButton = false,
+  onAdd,
 }: SelectProps) {
   return (
     <div>
-      <label className="mb-2 block text-sm text-gray-300">
-        {label}
-      </label>
+      <div className="mb-2 flex items-center justify-between">
+        <label className="text-sm text-gray-300">
+          {label}
+        </label>
+
+        {showAddButton && (
+          <button
+            type="button"
+            onClick={onAdd}
+            className="
+              flex h-7 w-7
+              items-center justify-center
+              rounded-lg
+              bg-yellow-400
+              font-bold
+              text-[#081B33]
+              transition
+              hover:bg-yellow-300
+            "
+            title={`إضافة ${label}`}
+          >
+            +
+          </button>
+        )}
+      </div>
 
       <select
         value={value}

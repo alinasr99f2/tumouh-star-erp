@@ -16,6 +16,9 @@ import ProjectDetails from "./pages/Projects/ProjectDetails";
 import FinancialCenter from "./pages/FinancialCenter/FinancialCenter";
 
 function App() {
+  const isDevMode =
+    import.meta.env.VITE_DEV_MODE === "true";
+
   return (
     <BrowserRouter>
 
@@ -40,11 +43,12 @@ function App() {
             path="/"
             element={
               <Navigate
-                to="/login"
+                to={isDevMode ? "/home" : "/login"}
                 replace
               />
             }
           />
+
 
           {/* الشاشة الرئيسية */}
           <Route
@@ -52,11 +56,13 @@ function App() {
             element={<Home />}
           />
 
+
           {/* لوحة التحكم */}
           <Route
             path="/dashboard"
             element={<CompanyDashboard />}
           />
+
 
           {/* المشاريع */}
           <Route
@@ -64,11 +70,13 @@ function App() {
             element={<Projects />}
           />
 
+
           {/* تفاصيل المشروع */}
           <Route
             path="/projects/:id"
             element={<ProjectDetails />}
           />
+
 
           {/* المركز المالي */}
           <Route
@@ -84,7 +92,7 @@ function App() {
           path="*"
           element={
             <Navigate
-              to="/login"
+              to={isDevMode ? "/home" : "/login"}
               replace
             />
           }

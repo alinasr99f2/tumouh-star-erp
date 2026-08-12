@@ -15,34 +15,33 @@ function MainLayout() {
     useState(false);
 
   const handleLogout = async () => {
-    try {
-      setLoggingOut(true);
+  try {
+    setLoggingOut(true);
 
-      const { error } =
-        await supabase.auth.signOut();
-
-      if (error) {
-        console.error(
-          "خطأ أثناء تسجيل الخروج:",
-          error
-        );
-
-        alert(
-          "حدث خطأ أثناء تسجيل الخروج، حاول مرة أخرى"
-        );
-
-        return;
-      }
-
+    // ==========================================
+    // LOCAL DEVELOPMENT MODE
+    // لا يوجد اتصال بـ Supabase
+    // ==========================================
+    if (import.meta.env.VITE_DEV_MODE === "true") {
       setShowLogoutModal(false);
 
-      navigate("/login", {
+      navigate("/home", {
         replace: true,
       });
 
-    } catch (error) {
+      return;
+    }
+
+    // ==========================================
+    // PRODUCTION MODE
+    // تسجيل خروج حقيقي من Supabase
+    // ==========================================
+    const { error } =
+      await supabase.auth.signOut();
+
+    if (error) {
       console.error(
-        "خطأ غير متوقع أثناء تسجيل الخروج:",
+        "خطأ أثناء تسجيل الخروج:",
         error
       );
 
@@ -50,10 +49,29 @@ function MainLayout() {
         "حدث خطأ أثناء تسجيل الخروج، حاول مرة أخرى"
       );
 
-    } finally {
-      setLoggingOut(false);
+      return;
     }
-  };
+
+    setShowLogoutModal(false);
+
+    navigate("/login", {
+      replace: true,
+    });
+
+  } catch (error) {
+    console.error(
+      "خطأ غير متوقع أثناء تسجيل الخروج:",
+      error
+    );
+
+    alert(
+      "حدث خطأ أثناء تسجيل الخروج، حاول مرة أخرى"
+    );
+
+  } finally {
+    setLoggingOut(false);
+  }
+};
 
   return (
     <div

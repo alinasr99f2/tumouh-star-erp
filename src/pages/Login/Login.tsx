@@ -1,10 +1,15 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Eye, EyeOff, LockKeyhole, Mail, LogIn } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../utils/supabase";
 
 export default function Login() {
   const navigate = useNavigate();
+  useEffect(() => {
+  if (import.meta.env.VITE_DEV_MODE === "true") {
+    navigate("/home", { replace: true });
+  }
+}, [navigate]);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

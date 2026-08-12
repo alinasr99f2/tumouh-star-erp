@@ -2,7 +2,6 @@ import { useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
   Building2,
-  MapPin,
   WalletCards,
   Ruler,
   Calculator,
@@ -47,7 +46,6 @@ export default function ProjectDetails() {
       </div>
     );
   }
-
   return (
     <div className="space-y-8 pb-10">
 
@@ -144,12 +142,8 @@ export default function ProjectDetails() {
           "
         >
 
-          {/* =========================
-              RIGHT - PROJECT ICON
-          ========================= */}
-
+          {/* RIGHT - PROJECT ICON */}
           <div className="flex w-[220px] shrink-0 items-center">
-
             <div
               className="
                 flex
@@ -168,16 +162,10 @@ export default function ProjectDetails() {
             >
               <Building2 size={58} />
             </div>
-
           </div>
 
-
-          {/* =========================
-              CENTER - PROJECT NAME
-          ========================= */}
-
+          {/* CENTER - PROJECT NAME */}
           <div className="flex-1 text-center">
-
             <h1
               className="
                 text-4xl
@@ -193,14 +181,10 @@ export default function ProjectDetails() {
             <p className="mt-3 text-base text-gray-400">
               إدارة ومتابعة بيانات المشروع
             </p>
-
           </div>
 
-
-          {/* =========================
-              LEFT - CITY + STATUS
-          ========================= */}
-
+          {/* LEFT - STATUS ONLY
+              المدينة أزيلت من الهيدر حسب التعديل المطلوب */}
           <div
             className="
               flex
@@ -212,45 +196,7 @@ export default function ProjectDetails() {
               gap-5
             "
           >
-
-            {/* City */}
             <div className="flex items-center gap-3">
-
-              <div
-                className="
-                  flex
-                  h-12
-                  w-12
-                  items-center
-                  justify-center
-                  rounded-2xl
-                  border
-                  border-cyan-400/20
-                  bg-cyan-400/10
-                  text-cyan-300
-                "
-              >
-                <MapPin size={25} />
-              </div>
-
-              <div>
-
-                <p className="text-sm text-gray-400">
-                  المدينة
-                </p>
-
-                <p className="mt-1 text-xl font-extrabold text-white">
-                  {project.city}
-                </p>
-
-              </div>
-
-            </div>
-
-
-            {/* Status */}
-            <div className="flex items-center gap-3">
-
               <div
                 className="
                   flex
@@ -269,7 +215,6 @@ export default function ProjectDetails() {
               </div>
 
               <div>
-
                 <p className="text-sm text-gray-400">
                   الحالة
                 </p>
@@ -277,11 +222,8 @@ export default function ProjectDetails() {
                 <p className="mt-1 text-xl font-extrabold text-white">
                   {project.status}
                 </p>
-
               </div>
-
             </div>
-
           </div>
 
         </div>
@@ -290,153 +232,42 @@ export default function ProjectDetails() {
 
       {/* =====================================================
           PROJECT KPIs
+          5 CARDS - ONE ROW
+          المدينة تم حذفها
       ===================================================== */}
 
       <section>
 
-       <div className="mb-6 flex justify-center">
-  <div
-    className="
-      w-fit
-      min-w-[420px]
-      rounded-2xl
-      border
-      border-cyan-300/20
-      bg-[#102A43]
-      px-10
-      py-4
-      text-center
-      shadow-xl
-      shadow-black/20
-    "
-  >
-    <h2 className="text-2xl font-extrabold text-white">
-      مؤشرات المشروع
-    </h2>
-
-    <p className="mt-1 text-sm text-gray-300">
-      ملخص سريع لأهم بيانات مشروع فلل تبوك
-    </p>
-  </div>
-</div>
-
-
-        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-
-
-          {/* =================================================
-              KPI 1 - TOTAL VILLAS
-          ================================================= */}
-
-          <ProjectKpi
-            icon={<Building2 size={46} />}
-            title="إجمالي الفلل"
-            value="18"
-            suffix="فيلا"
-            cardClass="
-              from-[#173F68]
-              via-[#123455]
-              to-[#0B2139]
-              border-blue-400/20
+        <div className="mb-6 flex justify-center">
+          <div
+            className="
+              w-fit
+              min-w-[420px]
+              rounded-2xl
+              border
+              border-cyan-300/20
+              bg-[#102A43]
+              px-10
+              py-4
+              text-center
+              shadow-xl
+              shadow-black/20
             "
           >
+            <h2 className="text-2xl font-extrabold text-white">
+              مؤشرات المشروع
+            </h2>
 
-            <div className="mt-5 grid grid-cols-3 gap-3 border-t border-white/10 pt-4">
-
-              <VillaCount
-                title="صغيرة"
-                value="0"
-              />
-
-              <VillaCount
-                title="متوسطة"
-                value="0"
-              />
-
-              <VillaCount
-                title="كبيرة"
-                value="0"
-              />
-
-            </div>
-
-          </ProjectKpi>
+            <p className="mt-1 text-sm text-gray-300">
+              ملخص سريع لأهم بيانات مشروع فلل تبوك
+            </p>
+          </div>
+        </div>
 
 
-          {/* =================================================
-              KPI 2 - STATUS
-          ================================================= */}
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-5">
 
-          <ProjectKpi
-            icon={<Building2 size={46} />}
-            title="حالة المشروع"
-            value={project.status}
-            cardClass="
-              from-[#164C46]
-              via-[#123A3B]
-              to-[#0B2730]
-              border-emerald-400/20
-            "
-          />
-
-
-          {/* =================================================
-              KPI 3 - CITY
-          ================================================= */}
-
-          <ProjectKpi
-            icon={<MapPin size={46} />}
-            title="المدينة"
-            value={project.city}
-            cardClass="
-              from-[#164B61]
-              via-[#123A4C]
-              to-[#0B2639]
-              border-cyan-400/20
-            "
-          />
-
-
-          {/* =================================================
-              KPI 4 - TOTAL EXPENSES
-          ================================================= */}
-
-          <ProjectKpi
-            icon={<WalletCards size={46} />}
-            title="إجمالي المصاريف"
-            value="0"
-            suffix="ريال"
-            cardClass="
-              from-[#4C2B3B]
-              via-[#362336]
-              to-[#211A2C]
-              border-rose-400/20
-            "
-          />
-
-
-          {/* =================================================
-              KPI 5 - TOTAL AREA
-          ================================================= */}
-
-          <ProjectKpi
-            icon={<Ruler size={46} />}
-            title="إجمالي المساحة"
-            value="0"
-            suffix="م²"
-            cardClass="
-              from-[#413462]
-              via-[#30284F]
-              to-[#1D203A]
-              border-violet-400/20
-            "
-          />
-
-
-          {/* =================================================
-              KPI 6 - CURRENT PRICE
-          ================================================= */}
-
+          {/* 1 - CURRENT PRICE */}
           <ProjectKpi
             icon={<Calculator size={46} />}
             title="سعر المتر الحالي"
@@ -450,7 +281,124 @@ export default function ProjectDetails() {
             "
           />
 
+          {/* 2 - TOTAL AREA */}
+          <ProjectKpi
+            icon={<Ruler size={46} />}
+            title="إجمالي المساحة"
+            value="0"
+            suffix="م²"
+            cardClass="
+              from-[#413462]
+              via-[#30284F]
+              to-[#1D203A]
+              border-violet-400/20
+            "
+          />
+
+          {/* 3 - PROJECT STATUS */}
+          <ProjectKpi
+            icon={<Building2 size={46} />}
+            title="حالة المشروع"
+            value={project.status}
+            cardClass="
+              from-[#164C46]
+              via-[#123A3B]
+              to-[#0B2730]
+              border-emerald-400/20
+            "
+          />
+
+          {/* 4 - TOTAL VILLAS */}
+          <ProjectKpi
+            icon={<Building2 size={46} />}
+            title="إجمالي الفلل"
+            value="18"
+            suffix="فيلا"
+            cardClass="
+              from-[#173F68]
+              via-[#123455]
+              to-[#0B2139]
+              border-blue-400/20
+            "
+          >
+            <div className="mt-5 grid grid-cols-3 gap-3 border-t border-white/10 pt-4">
+              <VillaCount title="صغيرة" value="0" />
+              <VillaCount title="متوسطة" value="0" />
+              <VillaCount title="كبيرة" value="0" />
+            </div>
+          </ProjectKpi>
+
+          {/* 5 - TOTAL EXPENSES */}
+          <ProjectKpi
+            icon={<WalletCards size={46} />}
+            title="إجمالي المصاريف"
+            value="0"
+            suffix="ريال"
+            cardClass="
+              from-[#4C2B3B]
+              via-[#362336]
+              to-[#211A2C]
+              border-rose-400/20
+            "
+          />
+
         </div>
+
+      </section>
+
+
+      {/* =====================================================
+          TOP COST ITEMS
+          نفس فكرة التصميم: لوحتان، 3 بنود في كل لوحة
+      ===================================================== */}
+
+      <section className="grid gap-5 xl:grid-cols-2">
+
+        {/* RIGHT - TOP 3 COST ITEMS */}
+        <TopCostPanel
+          title="أكثر 3 بنود تكلفة حتى الآن"
+          items={[
+            {
+              name: "البند الأول",
+              amount: 0,
+              percentage: 0,
+            },
+            {
+              name: "البند الثاني",
+              amount: 0,
+              percentage: 0,
+            },
+            {
+              name: "البند الثالث",
+              amount: 0,
+              percentage: 0,
+            },
+          ]}
+          accent="green"
+        />
+
+        {/* LEFT - TOP 3 COST ITEMS */}
+        <TopCostPanel
+          title="أكثر 3 بنود تكلفة حتى الآن"
+          items={[
+            {
+              name: "البند الرابع",
+              amount: 0,
+              percentage: 0,
+            },
+            {
+              name: "البند الخامس",
+              amount: 0,
+              percentage: 0,
+            },
+            {
+              name: "البند السادس",
+              amount: 0,
+              percentage: 0,
+            },
+          ]}
+          accent="blue"
+        />
 
       </section>
 
@@ -461,72 +409,67 @@ export default function ProjectDetails() {
 
       <section>
 
-       <div className="mb-6 mt-8 flex justify-center">
- <div className="mb-6 mt-8 flex justify-center">
-  <div
-    className="
-      w-fit
-      min-w-[560px]
-      rounded-2xl
-      border
-      border-yellow-400/25
-      bg-[#171F2E]
-      px-8
-      py-4
-      shadow-xl
-      shadow-black/20
-    "
-  >
-    <div className="flex items-center justify-center gap-8">
+        <div className="mb-6 mt-8 flex justify-center">
+          <div
+            className="
+              w-fit
+              min-w-[560px]
+              rounded-2xl
+              border
+              border-yellow-400/25
+              bg-[#171F2E]
+              px-8
+              py-4
+              shadow-xl
+              shadow-black/20
+            "
+          >
+            <div className="flex items-center justify-center gap-8">
 
-      {/* عنوان الفلل */}
-      <div className="text-center">
-        <h2 className="text-3xl font-extrabold text-white">
-          فلل المشروع
-        </h2>
+              {/* عنوان الفلل */}
+              <div className="text-center">
+                <h2 className="text-3xl font-extrabold text-white">
+                  فلل المشروع
+                </h2>
 
-        <p className="mt-1 text-sm text-gray-300">
-          جميع فلل مشروع {project.name}
-        </p>
-      </div>
+                <p className="mt-1 text-sm text-gray-300">
+                  جميع فلل مشروع {project.name}
+                </p>
+              </div>
 
-      {/* إجمالي الفلل */}
-      <div
-        className="
-          flex
-          items-center
-          gap-3
-          rounded-xl
-          border
-          border-yellow-400/20
-          bg-yellow-400/10
-          px-5
-          py-3
-        "
-      >
-        <span className="text-base font-bold text-yellow-300">
-          إجمالي الفلل
-        </span>
+              {/* إجمالي الفلل */}
+              <div
+                className="
+                  flex
+                  items-center
+                  gap-3
+                  rounded-xl
+                  border
+                  border-yellow-400/20
+                  bg-yellow-400/10
+                  px-5
+                  py-3
+                "
+              >
+                <span className="text-base font-bold text-yellow-300">
+                  إجمالي الفلل
+                </span>
 
-        <span className="text-3xl font-extrabold text-yellow-400">
-          18
-        </span>
+                <span className="text-3xl font-extrabold text-yellow-400">
+                  18
+                </span>
 
-        <span className="text-base font-semibold text-gray-300">
-          فيلا
-        </span>
-      </div>
+                <span className="text-base font-semibold text-gray-300">
+                  فيلا
+                </span>
+              </div>
 
-    </div>
-  </div>
-</div>
-         
-
+            </div>
+          </div>
         </div>
 
 
         {/* 3 VILLAS PER ROW */}
-
         <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
 
           {Array.from(
@@ -557,6 +500,278 @@ export default function ProjectDetails() {
         </div>
 
       </section>
+
+    </div>
+  );
+}
+
+
+/* =========================================================
+   TOP COST PANEL
+========================================================= */
+
+type TopCostItem = {
+  name: string;
+  amount: number;
+  percentage: number;
+};
+
+type TopCostPanelProps = {
+  title: string;
+  items: TopCostItem[];
+  accent: "green" | "blue";
+};
+
+function TopCostPanel({
+  title,
+  items,
+  accent,
+}: TopCostPanelProps) {
+
+  const accentClasses =
+    accent === "green"
+      ? {
+          border: "border-emerald-400/20",
+          icon: "text-emerald-400",
+          number: "bg-emerald-400/10 text-emerald-300 border-emerald-400/20",
+          bar: "bg-emerald-400",
+          button:
+            "border-emerald-400/20 bg-emerald-400/5 hover:bg-emerald-400/10",
+        }
+      : {
+          border: "border-blue-400/20",
+          icon: "text-blue-400",
+          number: "bg-blue-400/10 text-blue-300 border-blue-400/20",
+          bar: "bg-blue-400",
+          button:
+            "border-blue-400/20 bg-blue-400/5 hover:bg-blue-400/10",
+        };
+
+  return (
+    <div
+      className={`
+        overflow-hidden
+        rounded-3xl
+        border
+        ${accentClasses.border}
+        bg-gradient-to-br
+        from-[#102A43]
+        via-[#102337]
+        to-[#0B1928]
+        shadow-xl
+      `}
+    >
+
+      {/* Header */}
+      <div
+        className="
+          flex
+          items-center
+          justify-between
+          border-b
+          border-white/10
+          px-6
+          py-5
+        "
+      >
+        <div className="flex-1 text-center">
+  <h3 className="text-xl font-extrabold text-white">
+    {title}
+  </h3>
+
+  <p className="mt-1 text-sm text-gray-400">
+    ترتيب البنود حسب إجمالي التكلفة حتى الآن
+  </p>
+</div>
+
+        <div
+          className={`
+            mr-4
+            flex
+            h-12
+            w-12
+            items-center
+            justify-center
+            rounded-2xl
+            border
+            border-white/10
+            bg-white/5
+            ${accentClasses.icon}
+          `}
+        >
+          <WalletCards size={25} />
+        </div>
+      </div>
+
+
+      {/* Table Header */}
+      <div
+        className="
+          grid
+          grid-cols-[48px_1fr_145px_120px]
+          items-center
+          gap-3
+          border-b
+          border-white/10
+          bg-black/10
+          px-5
+          py-4
+          text-xs
+          font-bold
+          text-gray-400
+        "
+      >
+        <div className="text-center">
+          #
+        </div>
+
+        <div>
+          اسم البند
+        </div>
+
+        <div className="text-center">
+          إجمالي التكلفة
+        </div>
+
+        <div className="text-center">
+          النسبة
+        </div>
+      </div>
+
+
+      {/* Items */}
+      <div>
+        {items.slice(0, 3).map((item, index) => {
+
+          const percentage =
+            Math.max(
+              0,
+              Math.min(
+                100,
+                Number(item.percentage) || 0
+              )
+            );
+
+          return (
+            <div
+  key={`${item.name}-${index}`}
+  className="
+    border-b
+    border-white/10
+    px-5
+    py-8
+  "
+>
+
+              <div
+                className="
+                  grid
+                  grid-cols-[48px_1fr_145px_120px]
+                  items-center
+                  gap-3
+                "
+              >
+
+                {/* Number */}
+                <div className="flex justify-center">
+                  <span
+                    className={`
+                      flex
+                      h-9
+                      w-9
+                      items-center
+                      justify-center
+                      rounded-xl
+                      border
+                      text-sm
+                      font-extrabold
+                      ${accentClasses.number}
+                    `}
+                  >
+                    {index + 1}
+                  </span>
+                </div>
+
+
+                {/* Name */}
+                <div className="min-w-0">
+                  <p className="truncate text-base font-bold text-white">
+                    {item.name}
+                  </p>
+
+                  {/* Progress bar */}
+                  <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+                    <div
+                      className={`h-full rounded-full ${accentClasses.bar}`}
+                      style={{
+                        width: `${percentage}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+
+
+                {/* Amount */}
+                <div className="text-center">
+                  <p className="text-base font-extrabold text-white">
+                    {Number(item.amount).toLocaleString("ar-SA")}
+                  </p>
+
+                  <p className="mt-1 text-[11px] text-gray-500">
+                    ريال
+                  </p>
+                </div>
+
+
+                {/* Percentage */}
+                <div className="text-center">
+                  <span
+                    className={`
+                      inline-flex
+                      rounded-full
+                      border
+                      px-3
+                      py-1
+                      text-sm
+                      font-extrabold
+                      ${accentClasses.number}
+                    `}
+                  >
+                    {percentage.toFixed(1)}%
+                  </span>
+                </div>
+
+              </div>
+
+            </div>
+          );
+        })}
+      </div>
+
+
+      {/* Footer */}
+      <div className="px-5 py-4">
+        <button
+          type="button"
+          className={`
+            w-full
+            rounded-2xl
+            border
+            px-5
+            py-3
+            text-sm
+            font-bold
+            text-gray-200
+            transition
+            ${accentClasses.button}
+          `}
+        >
+          عرض جميع بنود التكاليف
+          <span className="mr-2">
+            ←
+          </span>
+        </button>
+      </div>
 
     </div>
   );
@@ -634,10 +849,7 @@ function ProjectKpi({
         "
       >
 
-        {/* =========================
-            RIGHT - ICON
-        ========================= */}
-
+        {/* RIGHT - ICON */}
         <div
           className="
             flex
@@ -663,10 +875,7 @@ function ProjectKpi({
         </div>
 
 
-        {/* =========================
-            LEFT - TEXT
-        ========================= */}
-
+        {/* LEFT - TEXT */}
         <div className="flex-1 text-left">
 
           <p
@@ -796,10 +1005,7 @@ function VillaCard({
       "
     >
 
-      {/* =================================================
-          VILLA HEADER
-      ================================================= */}
-
+      {/* VILLA HEADER */}
       <div
         className="
           flex
@@ -877,10 +1083,7 @@ function VillaCard({
       </div>
 
 
-      {/* =================================================
-          VILLA BODY
-      ================================================= */}
-
+      {/* VILLA BODY */}
       <div
         className="
           flex
@@ -918,10 +1121,7 @@ function VillaCard({
       </div>
 
 
-      {/* =================================================
-          ACTION BUTTONS - ALWAYS AT BOTTOM
-      ================================================= */}
-
+      {/* ACTION BUTTONS - ALWAYS AT BOTTOM */}
       <div
         className="
           mt-auto
