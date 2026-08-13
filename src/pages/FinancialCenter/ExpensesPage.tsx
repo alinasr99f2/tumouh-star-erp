@@ -76,9 +76,12 @@ type RawExpense = Expense & {
   category_id?: string | number | null;
   item_id?: string | number | null;
   voucher_no?: string | null;
+  voucher_number?: string | null;
+  invoiceNo?: string | null;
   invoice_no?: string | null;
-invoice_number?: string | null;
-voucher_number?: string | null;
+  invoice_number?: string | null;
+  supplierName?: string | null;
+  supplier_name?: string | null;
   payment_method?: string | null;
   amount_before_tax?: number | string | null;
   before_tax?: number | string | null;
@@ -182,11 +185,11 @@ const normalizeExpense = (
     supplier:
       expense.supplier ??
       expense.supplierName ??
-      expense.supplierName ??
+      expense.supplier_name ??
       null,
     supplierName:
       expense.supplierName ??
-      expense.supplierName ??
+      expense.supplier_name ??
       expense.supplier ??
       null,
     voucherNo:
@@ -503,6 +506,35 @@ export default function ExpensesPage({
   const weekStartString = getRolling7DayStart();
 
   // =========================================
+  // المبلغ الفعلي للمصروف
+  // =========================================
+
+  const getExpenseTotal = (expense: any) => {
+    const directTotal = Number(
+      expense?.total ??
+      expense?.grand_total ??
+      expense?.total_amount ??
+      expense?.totalAmount ??
+      0
+    );
+
+    if (directTotal > 0) {
+      return directTotal;
+    }
+
+    return (
+      Number(
+        expense?.amount ??
+        expense?.subtotal ??
+        expense?.before_tax ??
+        expense?.totalBeforeTax ??
+        0
+      ) +
+      Number(expense?.tax ?? expense?.tax_amount ?? 0)
+    );
+  };
+
+  // =========================================
   // حساب إجمالي اليوم
   // =========================================
 
@@ -515,7 +547,7 @@ export default function ExpensesPage({
       )
       .reduce(
         (sum, expense) =>
-          sum + Number(expense.total ?? 0),
+          sum + getExpenseTotal(expense),
         0
       );
   }, [normalizedExpenses, todayString]);
@@ -540,7 +572,7 @@ export default function ExpensesPage({
       })
       .reduce(
         (sum, expense) =>
-          sum + Number(expense.total ?? 0),
+          sum + getExpenseTotal(expense),
         0
       );
   }, [
@@ -575,7 +607,7 @@ export default function ExpensesPage({
       })
       .reduce(
         (sum, expense) =>
-          sum + Number(expense.total ?? 0),
+          sum + getExpenseTotal(expense),
         0
       );
   }, [normalizedExpenses, todayString]);
@@ -600,7 +632,7 @@ export default function ExpensesPage({
       })
       .reduce(
         (sum, expense) =>
-          sum + Number(expense.total ?? 0),
+          sum + getExpenseTotal(expense),
         0
       );
   }, [normalizedExpenses, todayString]);
@@ -648,7 +680,7 @@ export default function ExpensesPage({
         item.includes(text) ||
         supplier.includes(text) ||
         voucher.includes(text) ||
-        String(getStageName(expense)).toLowerCase().includes(text)
+        getStageName(expense).toLowerCase().includes(text)
       );
     });
   }, [

@@ -109,12 +109,45 @@ const [newAccountType, setNewAccountType] =
   const [newItemName, setNewItemName] = useState("");
   const [newItemCategoryId, setNewItemCategoryId] = useState("");
 
+  // ==========================================
+  // حساب إجمالي المصروف بشكل موحّد
+  // ==========================================
+  const getExpenseTotal = (item: any) => {
+    const directTotal = Number(
+      item?.total ??
+      item?.grand_total ??
+      item?.total_amount ??
+      item?.totalAmount ??
+      0
+    );
+
+    if (Number.isFinite(directTotal) && directTotal > 0) {
+      return directTotal;
+    }
+
+    const amount = Number(
+      item?.amount ??
+      item?.subtotal ??
+      item?.before_tax ??
+      item?.totalBeforeTax ??
+      0
+    );
+
+    const tax = Number(
+      item?.tax ??
+      item?.tax_amount ??
+      0
+    );
+
+    return amount + tax;
+  };
+
   useEffect(() => {
     localStorage.setItem("tumouh-expense-stages", JSON.stringify(stages));
   }, [stages]);
 
-useEffect(() => {
-  const loadAccounts = async () => {
+  useEffect(() => {
+    const loadAccounts = async () => {
   const [
     { data: accountsData, error: accountsError },
     { data: fundingData, error: fundingError },
@@ -128,8 +161,9 @@ useEffect(() => {
       .order("id", { ascending: true }),
 
     supabase
-      .from("funding")
-      .select("id, account_id, amount"),
+  .from("funding")
+  .select("id, account_id, amount")
+  .not("account_id", "is", null),
 
     supabase
       .from("expenses")
@@ -176,6 +210,10 @@ console.log("ACCOUNTS ERROR:", accountsError);
 
   const fundingRows = fundingData ?? [];
   const expenseRows = expensesData ?? [];
+
+  // حتى لو فشل استعلام واحد، نظل نعرض أي بيانات نجحت في التحميل.
+  setFunding(fundingRows);
+  setExpenses(expenseRows);
 
   let savedStageMap: Record<string, { id?: string | number; name?: string }> = {};
   try {
@@ -227,10 +265,9 @@ console.log("ACCOUNTS ERROR:", accountsError);
     );
 
     const totalExpenses = accountExpenses.reduce(
-  (sum, item) =>
-    sum + Number(item.total ?? 0),
-  0
-);
+      (sum, item) => sum + getExpenseTotal(item),
+      0
+    );
 
     const operationsCount =
       accountFunding.length +
@@ -732,9 +769,42 @@ const handleAddAccount = async () => {
   }
 };
   const totalExpensesAmount = expenses.reduce(
-    (sum, item) => sum + Number(item.total ?? item.amount ?? 0),
+    (sum, item) => sum + getExpenseTotal(item),
     0
   );
+
+  const totalAccounts = accounts.length;
+
+  // نعتمد على رقم العملية id حتى لا تتكرر نفس العملية في الإجماليات
+  // إذا وصلت البيانات للحالة أكثر من مرة.
+  const uniqueFunding = Array.from(
+  new Map(
+    funding.map((item) => [String(item.id), item])
+  ).values()
+);
+
+  const uniqueExpenses = Array.from(
+    new Map(
+      expenses.map((item) => [String(item.id), item])
+    ).values()
+  );
+
+  const totalFundingOperations = uniqueFunding.length;
+
+  const totalFundingAmount = uniqueFunding.reduce(
+    (sum, item) => sum + Number(item.amount ?? 0),
+    0
+  );
+
+ 
+
+  // إجمالي العمليات الحقيقي = التغذية الحقيقية + المصروفات الحقيقية.
+  const totalOperationsCount =
+    uniqueFunding.length + uniqueExpenses.length;
+
+  const totalExpenseItems = expenseItems.length;
+  const totalCategories = categories.length;
+  const totalStages = stages.length;
 
   const handleAddStage = () => {
     const name = newStageName.trim();
@@ -832,7 +902,7 @@ const handleAddAccount = async () => {
 
     <div className="space-y-8">
 
-      <div className="rounded-[28px] border border-white/10 bg-[#081B33] p-8">
+      <div className="rounded-[28px] border border-white/10 bg-[#081B33] p-8 text-center">
 
         <h1 className="text-4xl font-bold text-white">
           💰 المركز المالي
@@ -872,10 +942,7 @@ const handleAddAccount = async () => {
     </p>
 
     <h2 className="mt-3 text-4xl font-bold text-red-400">
-      {expenses.reduce(
-        (sum, item) => sum + Number(item.total ?? 0),
-        0
-      ).toLocaleString()}
+      {totalExpensesAmount.toLocaleString()}
     </h2>
 
     <span className="text-sm text-gray-500">
@@ -889,10 +956,7 @@ const handleAddAccount = async () => {
     </p>
 
     <h2 className="mt-3 text-4xl font-bold text-sky-400">
-      {funding.reduce(
-        (sum, item) => sum + Number(item.amount ?? 0),
-        0
-      ).toLocaleString()}
+      {totalFundingAmount.toLocaleString()}
     </h2>
 
     <span className="text-sm text-gray-500">
@@ -906,7 +970,7 @@ const handleAddAccount = async () => {
     </p>
 
     <h2 className="mt-3 text-4xl font-bold text-yellow-400">
-      {expenses.length + funding.length}
+      {totalOperationsCount}
     </h2>
 
     <span className="text-sm text-gray-500">
@@ -920,24 +984,19 @@ const handleAddAccount = async () => {
 
           <div className="rounded-[28px] border border-white/10 bg-[#081B33] p-6">
 
-            <div className="mb-8 flex items-center justify-between">
+            <div className="relative mb-8 flex items-center justify-center text-center">
 
               <div>
-
                 <h2 className="text-3xl font-bold text-white">
                   الأقسام المالية
                 </h2>
-
                 <p className="mt-2 text-gray-400">
                   اختر القسم الذي تريد العمل عليه
                 </p>
-
               </div>
 
-              <div className="rounded-2xl border border-yellow-400/20 bg-yellow-400/10 px-5 py-3 font-bold text-yellow-400">
-
+              <div className="absolute left-0 rounded-2xl border border-yellow-400/20 bg-yellow-400/10 px-5 py-3 font-bold text-yellow-400">
                 4 أقسام
-
               </div>
 
             </div>
@@ -1093,7 +1152,7 @@ const handleAddAccount = async () => {
     <div>
 
       <div className="text-4xl font-extrabold">
-        {accounts.length}
+        {totalAccounts}
       </div>
 
       <div
@@ -1181,7 +1240,7 @@ const handleAddAccount = async () => {
     <div>
 
       <div className="text-4xl font-extrabold">
-        {funding.length}
+        {totalFundingOperations}
       </div>
 
       <div
@@ -1264,36 +1323,19 @@ const handleAddAccount = async () => {
     }`}
   />
 
-  <div className="flex items-end justify-between">
-
-    <div>
-
-      <div className="text-4xl font-extrabold">
-        {expenseItems.length}
-      </div>
-
-      <div
-        className={`mt-1 text-sm ${
-          activeTab === "categories"
-            ? "text-[#081B33]/70"
-            : "text-gray-400"
-        }`}
-      >
-        عدد البنود
-      </div>
-
+  <div className="mt-5 grid grid-cols-3 gap-3 text-center">
+    <div className={`rounded-2xl px-3 py-3 ${activeTab === "categories" ? "bg-white/20" : "bg-white/5"}`}>
+      <div className="text-2xl font-extrabold">{totalExpenseItems}</div>
+      <div className={`mt-1 text-xs ${activeTab === "categories" ? "text-[#081B33]/70" : "text-gray-400"}`}>إجمالي البنود</div>
     </div>
-
-    <div
-      className={`rounded-xl px-3 py-1 text-xs font-bold ${
-        activeTab === "categories"
-          ? "bg-white/20"
-          : "bg-orange-400/10 text-orange-400"
-      }`}
-    >
-      نشط
+    <div className={`rounded-2xl px-3 py-3 ${activeTab === "categories" ? "bg-white/20" : "bg-white/5"}`}>
+      <div className="text-2xl font-extrabold">{totalCategories}</div>
+      <div className={`mt-1 text-xs ${activeTab === "categories" ? "text-[#081B33]/70" : "text-gray-400"}`}>إجمالي التصنيفات</div>
     </div>
-
+    <div className={`rounded-2xl px-3 py-3 ${activeTab === "categories" ? "bg-white/20" : "bg-white/5"}`}>
+      <div className="text-2xl font-extrabold">{totalStages}</div>
+      <div className={`mt-1 text-xs ${activeTab === "categories" ? "text-[#081B33]/70" : "text-gray-400"}`}>إجمالي المراحل</div>
+    </div>
   </div>
 
 </div>
@@ -1331,19 +1373,19 @@ const handleAddAccount = async () => {
       />
 
       {/* نافذة إضافة المصروف تظهر مباشرة أسفل جدول المصروفات */}
-      <ExpenseModal
-        open={openExpenseModal}
-        onClose={() => setOpenExpenseModal(false)}
-        onSave={handleSaveExpense}
-        accounts={accounts}
-       
-      />
+<ExpenseModal
+  open={openExpenseModal}
+  onClose={() => setOpenExpenseModal(false)}
+  onSave={handleSaveExpense}
+  accounts={accounts}
+/>
+      
     </>
   )}
 
   {activeTab === "accounts" && (
     <div dir="rtl" className="space-y-6">
-      <div className="flex items-center justify-between rounded-3xl border border-white/10 bg-[#081B33] p-6">
+      <div className="relative flex items-center justify-center rounded-3xl border border-white/10 bg-[#081B33] p-6 text-center">
         <div>
           <h2 className="text-3xl font-extrabold text-white">العهد المالية</h2>
           <p className="mt-2 text-gray-400">إدارة جميع العهد والأرصدة المالية</p>
@@ -1415,166 +1457,435 @@ const handleAddAccount = async () => {
     />
   )}
 
-  {activeTab === "categories" && (
-    <div dir="rtl" className="space-y-6">
-      <div className="rounded-3xl border border-white/10 bg-[#081B33] p-6">
-        <h2 className="text-3xl font-extrabold text-white">البنود والمراحل والتصنيفات</h2>
-        <p className="mt-2 text-gray-400">إدارة المراحل والتصنيفات وبنود المصروفات من مكان واحد</p>
-      </div>
+   {activeTab === "categories" && (
+  <div dir="rtl" className="space-y-6">
 
-      <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
-        <button type="button" onClick={() => setOpenStageModal(true)} className="group rounded-3xl border border-yellow-400/20 bg-[#102947] p-7 text-right transition hover:-translate-y-1 hover:border-yellow-400 hover:bg-[#153457]">
-          <div className="flex items-center justify-between">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-yellow-400/10 text-yellow-400">
-              <Layers3 size={34} />
+    {/* عنوان القسم */}
+    <div className="rounded-3xl border border-white/10 bg-[#081B33] p-6 text-center">
+      <h2 className="text-3xl font-extrabold text-white">
+        البنود والمراحل والتصنيفات
+      </h2>
+
+      <p className="mt-2 text-gray-400">
+        إدارة المراحل والتصنيفات وبنود المصروفات من مكان واحد
+      </p>
+    </div>
+
+    {/* كروت الإضافة */}
+    <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+
+      {/* إضافة مرحلة */}
+      <button
+        type="button"
+        onClick={() => setOpenStageModal(true)}
+        className="group rounded-3xl border border-yellow-400/20 bg-[#102947] p-7 text-right transition hover:-translate-y-1 hover:border-yellow-400 hover:bg-[#153457]"
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-yellow-400/10 text-yellow-400">
+            <Layers3 size={34} />
+          </div>
+
+          <Plus className="text-yellow-400 opacity-60 group-hover:opacity-100" />
+        </div>
+
+        <h3 className="mt-6 text-2xl font-extrabold text-white">
+          إضافة مرحلة
+        </h3>
+
+        <p className="mt-2 text-gray-400">
+          إضافة مرحلة جديدة لاستخدامها مع المصروفات
+        </p>
+
+        <div className="mt-5 text-sm font-bold text-yellow-400">
+          {stages.length} مراحل مسجلة
+        </div>
+      </button>
+
+
+      {/* إضافة تصنيف */}
+      <button
+        type="button"
+        onClick={() => setOpenCategoryModal(true)}
+        className="group rounded-3xl border border-purple-400/20 bg-[#102947] p-7 text-right transition hover:-translate-y-1 hover:border-purple-400 hover:bg-[#153457]"
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-purple-400/10 text-purple-300">
+            <Tags size={34} />
+          </div>
+
+          <Plus className="text-purple-300 opacity-60 group-hover:opacity-100" />
+        </div>
+
+        <h3 className="mt-6 text-2xl font-extrabold text-white">
+          إضافة تصنيف
+        </h3>
+
+        <p className="mt-2 text-gray-400">
+          إضافة تصنيف جديد للمصروفات
+        </p>
+
+        <div className="mt-5 text-sm font-bold text-purple-300">
+          {categories.length} تصنيف مسجل
+        </div>
+      </button>
+
+
+      {/* إضافة بند */}
+      <button
+        type="button"
+        onClick={() => setOpenItemModal(true)}
+        className="group rounded-3xl border border-orange-400/20 bg-[#102947] p-7 text-right transition hover:-translate-y-1 hover:border-orange-400 hover:bg-[#153457]"
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-orange-400/10 text-orange-300">
+            <ListPlus size={34} />
+          </div>
+
+          <Plus className="text-orange-300 opacity-60 group-hover:opacity-100" />
+        </div>
+
+        <h3 className="mt-6 text-2xl font-extrabold text-white">
+          إضافة بند
+        </h3>
+
+        <p className="mt-2 text-gray-400">
+          إضافة بند وربطه بالتصنيف المناسب
+        </p>
+
+        <div className="mt-5 text-3xl font-extrabold text-orange-300">
+          {expenseItems.length}
+        </div>
+
+        <div className="text-sm text-gray-400">
+          إجمالي عدد البنود
+        </div>
+      </button>
+
+    </div>
+
+
+    {/* ============================= */}
+    {/* الجداول الثلاثة */}
+    {/* ============================= */}
+
+    <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+
+
+      {/* جدول البنود */}
+      <div className="overflow-hidden rounded-3xl border border-orange-400/20 bg-[#081B33]">
+
+        <div className="flex items-center justify-between border-b border-white/10 bg-[#102947] px-5 py-4">
+
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-400/10 text-orange-300">
+              <ListPlus size={22} />
             </div>
-            <Plus className="text-yellow-400 opacity-60 group-hover:opacity-100" />
-          </div>
-          <h3 className="mt-6 text-2xl font-extrabold text-white">إضافة مرحلة</h3>
-          <p className="mt-2 text-gray-400">إضافة مرحلة جديدة لاستخدامها مع المصروفات</p>
-          <div className="mt-5 text-sm font-bold text-yellow-400">{stages.length} مراحل مسجلة</div>
-        </button>
 
-        <button type="button" onClick={() => setOpenCategoryModal(true)} className="group rounded-3xl border border-purple-400/20 bg-[#102947] p-7 text-right transition hover:-translate-y-1 hover:border-purple-400 hover:bg-[#153457]">
-          <div className="flex items-center justify-between">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-purple-400/10 text-purple-300">
-              <Tags size={34} />
+            <div>
+              <h3 className="font-extrabold text-white">
+                البنود
+              </h3>
+
+              <p className="text-xs text-gray-400">
+                بنود المصروفات
+              </p>
             </div>
-            <Plus className="text-purple-300 opacity-60 group-hover:opacity-100" />
           </div>
-          <h3 className="mt-6 text-2xl font-extrabold text-white">إضافة تصنيف</h3>
-          <p className="mt-2 text-gray-400">إضافة تصنيف جديد للمصروفات</p>
-          <div className="mt-5 text-sm font-bold text-purple-300">{categories.length} تصنيف مسجل</div>
-        </button>
 
-        <button type="button" onClick={() => setOpenItemModal(true)} className="group rounded-3xl border border-orange-400/20 bg-[#102947] p-7 text-right transition hover:-translate-y-1 hover:border-orange-400 hover:bg-[#153457]">
-          <div className="flex items-center justify-between">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-orange-400/10 text-orange-300">
-              <ListPlus size={34} />
+          <span className="rounded-xl bg-orange-400/10 px-3 py-1 text-sm font-bold text-orange-300">
+            {expenseItems.length}
+          </span>
+
+        </div>
+
+
+        <div className="max-h-[330px] overflow-y-auto">
+
+          {expenseItems.length === 0 ? (
+
+            <div className="px-5 py-10 text-center text-gray-500">
+              لا توجد بنود حتى الآن
             </div>
-            <Plus className="text-orange-300 opacity-60 group-hover:opacity-100" />
-          </div>
-          <h3 className="mt-6 text-2xl font-extrabold text-white">إضافة بند</h3>
-          <p className="mt-2 text-gray-400">إضافة بند وربطه بالتصنيف المناسب</p>
-          <div className="mt-5 text-3xl font-extrabold text-orange-300">{expenseItems.length}</div>
-          <div className="text-sm text-gray-400">إجمالي عدد البنود</div>
-        </button>
-      </div>
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-        <div className="rounded-3xl border border-white/10 bg-[#081B33] p-6">
-          <div className="mb-5 flex items-center justify-between">
-            <h3 className="text-xl font-bold text-white">المراحل الحالية</h3>
-            <span className="rounded-xl bg-yellow-400/10 px-3 py-1 text-sm font-bold text-yellow-400">{stages.length}</span>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            {stages.map((stage) => (
-              <span key={stage.id} className="rounded-xl border border-yellow-400/20 bg-yellow-400/5 px-4 py-2 text-sm font-bold text-yellow-300">{stage.name}</span>
-            ))}
-          </div>
+          ) : (
+
+            <table className="w-full text-sm">
+
+              <thead className="sticky top-0 bg-[#102947] text-gray-400">
+                <tr>
+                  <th className="px-4 py-3 text-right">
+                    #
+                  </th>
+
+                  <th className="px-4 py-3 text-right">
+                    اسم البند
+                  </th>
+
+                  <th className="px-4 py-3 text-right">
+                    التصنيف
+                  </th>
+                </tr>
+              </thead>
+
+
+              <tbody>
+
+                {expenseItems.map((item, index) => {
+
+                  const category = categories.find(
+                    (c) =>
+                      String(c.id) ===
+                      String(item.category_id)
+                  );
+
+                  return (
+                    <tr
+                      key={item.id}
+                      className="border-t border-white/10 hover:bg-white/5"
+                    >
+
+                      <td className="px-4 py-3 text-gray-500">
+                        {index + 1}
+                      </td>
+
+                      <td className="px-4 py-3 font-bold text-white">
+                        {item.name}
+                      </td>
+
+                      <td className="px-4 py-3 text-gray-400">
+                        {category?.name ?? "-"}
+                      </td>
+
+                    </tr>
+                  );
+
+                })}
+
+              </tbody>
+
+            </table>
+
+          )}
+
         </div>
 
-        <div className="rounded-3xl border border-white/10 bg-[#081B33] p-6">
-          <div className="mb-5 flex items-center justify-between">
-            <h3 className="text-xl font-bold text-white">ملخص البنود</h3>
-            <span className="rounded-xl bg-orange-400/10 px-3 py-1 text-sm font-bold text-orange-300">{expenseItems.length} بند</span>
-          </div>
-          <div className="max-h-52 space-y-2 overflow-y-auto">
-            {expenseItems.length === 0 ? (
-              <p className="text-gray-500">لا توجد بنود حتى الآن</p>
-            ) : (
-              expenseItems.map((item) => {
-                const category = categories.find((c) => String(c.id) === String(item.category_id));
-                return (
-                  <div key={item.id} className="flex items-center justify-between rounded-xl bg-[#102947] px-4 py-3">
-                    <span className="font-bold text-white">{item.name}</span>
-                    <span className="text-sm text-gray-400">{category?.name ?? "-"}</span>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </div>
       </div>
+
+
+
+      {/* جدول التصنيفات */}
+      <div className="overflow-hidden rounded-3xl border border-purple-400/20 bg-[#081B33]">
+
+        <div className="flex items-center justify-between border-b border-white/10 bg-[#102947] px-5 py-4">
+
+          <div className="flex items-center gap-3">
+
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-400/10 text-purple-300">
+              <Tags size={22} />
+            </div>
+
+            <div>
+              <h3 className="font-extrabold text-white">
+                التصنيفات
+              </h3>
+
+              <p className="text-xs text-gray-400">
+                تصنيفات المصروفات
+              </p>
+            </div>
+
+          </div>
+
+          <span className="rounded-xl bg-purple-400/10 px-3 py-1 text-sm font-bold text-purple-300">
+            {categories.length}
+          </span>
+
+        </div>
+
+
+        <div className="max-h-[330px] overflow-y-auto">
+
+          {categories.length === 0 ? (
+
+            <div className="px-5 py-10 text-center text-gray-500">
+              لا توجد تصنيفات حتى الآن
+            </div>
+
+          ) : (
+
+            <table className="w-full text-sm">
+
+              <thead className="sticky top-0 bg-[#102947] text-gray-400">
+                <tr>
+
+                  <th className="px-4 py-3 text-right">
+                    #
+                  </th>
+
+                  <th className="px-4 py-3 text-right">
+                    اسم التصنيف
+                  </th>
+
+                  <th className="px-4 py-3 text-right">
+                    عدد البنود
+                  </th>
+
+                </tr>
+              </thead>
+
+
+              <tbody>
+
+                {categories.map((category, index) => {
+
+                  const categoryItems =
+                    expenseItems.filter(
+                      (item) =>
+                        String(item.category_id) ===
+                        String(category.id)
+                    );
+
+                  return (
+
+                    <tr
+                      key={category.id}
+                      className="border-t border-white/10 hover:bg-white/5"
+                    >
+
+                      <td className="px-4 py-3 text-gray-500">
+                        {index + 1}
+                      </td>
+
+                      <td className="px-4 py-3 font-bold text-white">
+                        {category.name}
+                      </td>
+
+                      <td className="px-4 py-3 font-bold text-purple-300">
+                        {categoryItems.length}
+                      </td>
+
+                    </tr>
+
+                  );
+
+                })}
+
+              </tbody>
+
+            </table>
+
+          )}
+
+        </div>
+
+      </div>
+
+
+
+      {/* جدول المراحل */}
+      <div className="overflow-hidden rounded-3xl border border-yellow-400/20 bg-[#081B33]">
+
+        <div className="flex items-center justify-between border-b border-white/10 bg-[#102947] px-5 py-4">
+
+          <div className="flex items-center gap-3">
+
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-yellow-400/10 text-yellow-300">
+              <Layers3 size={22} />
+            </div>
+
+            <div>
+              <h3 className="font-extrabold text-white">
+                المراحل
+              </h3>
+
+              <p className="text-xs text-gray-400">
+                مراحل تنفيذ الأعمال
+              </p>
+            </div>
+
+          </div>
+
+          <span className="rounded-xl bg-yellow-400/10 px-3 py-1 text-sm font-bold text-yellow-300">
+            {stages.length}
+          </span>
+
+        </div>
+
+
+        <div className="max-h-[330px] overflow-y-auto">
+
+          {stages.length === 0 ? (
+
+            <div className="px-5 py-10 text-center text-gray-500">
+              لا توجد مراحل حتى الآن
+            </div>
+
+          ) : (
+
+            <table className="w-full text-sm">
+
+              <thead className="sticky top-0 bg-[#102947] text-gray-400">
+                <tr>
+
+                  <th className="px-4 py-3 text-right">
+                    #
+                  </th>
+
+                  <th className="px-4 py-3 text-right">
+                    اسم المرحلة
+                  </th>
+
+                  <th className="px-4 py-3 text-right">
+                    الحالة
+                  </th>
+
+                </tr>
+              </thead>
+
+
+              <tbody>
+
+                {stages.map((stage, index) => (
+
+                  <tr
+                    key={stage.id}
+                    className="border-t border-white/10 hover:bg-white/5"
+                  >
+
+                    <td className="px-4 py-3 text-gray-500">
+                      {index + 1}
+                    </td>
+
+                    <td className="px-4 py-3 font-bold text-white">
+                      {stage.name}
+                    </td>
+
+                    <td className="px-4 py-3">
+
+                      <span className="rounded-lg bg-green-400/10 px-2 py-1 text-xs font-bold text-green-400">
+                        نشطة
+                      </span>
+
+                    </td>
+
+                  </tr>
+
+                ))}
+
+              </tbody>
+
+            </table>
+
+          )}
+
+        </div>
+
+      </div>
+
     </div>
-  )}
 
-  {/* نافذة إضافة مرحلة */}
-  {openStageModal && (
-    <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/70 p-4">
-      <div className="w-full max-w-lg rounded-3xl border border-white/10 bg-[#081B33] p-7 shadow-2xl">
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <h3 className="text-2xl font-bold text-white">إضافة مرحلة جديدة</h3>
-            <p className="mt-2 text-sm text-gray-400">أضف مرحلة لاستخدامها في المصروفات</p>
-          </div>
-          <button type="button" onClick={() => setOpenStageModal(false)} className="text-2xl text-gray-400 hover:text-red-400">×</button>
-        </div>
-        <input value={newStageName} onChange={(e) => setNewStageName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleAddStage()} autoFocus placeholder="اسم المرحلة" className="w-full rounded-2xl border border-white/10 bg-[#102947] px-4 py-4 text-white outline-none focus:border-yellow-400" />
-        <div className="mt-6 grid grid-cols-2 gap-3">
-          <button type="button" onClick={() => setOpenStageModal(false)} className="h-12 rounded-xl border border-white/10 bg-white/5 font-bold text-gray-300">إلغاء</button>
-          <button type="button" onClick={handleAddStage} className="h-12 rounded-xl bg-yellow-400 font-bold text-[#081B33]">+ إضافة المرحلة</button>
-        </div>
-      </div>
-    </div>
-  )}
-
-  {/* نافذة إضافة تصنيف */}
-  {openCategoryModal && (
-    <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/70 p-4">
-      <div className="w-full max-w-lg rounded-3xl border border-white/10 bg-[#081B33] p-7 shadow-2xl">
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <h3 className="text-2xl font-bold text-white">إضافة تصنيف جديد</h3>
-            <p className="mt-2 text-sm text-gray-400">سيتم حفظ التصنيف مباشرة في قاعدة البيانات</p>
-          </div>
-          <button type="button" onClick={() => setOpenCategoryModal(false)} className="text-2xl text-gray-400 hover:text-red-400">×</button>
-        </div>
-        <input value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleAddCategory()} autoFocus placeholder="اسم التصنيف" className="w-full rounded-2xl border border-white/10 bg-[#102947] px-4 py-4 text-white outline-none focus:border-purple-400" />
-        <div className="mt-6 grid grid-cols-2 gap-3">
-          <button type="button" onClick={() => setOpenCategoryModal(false)} className="h-12 rounded-xl border border-white/10 bg-white/5 font-bold text-gray-300">إلغاء</button>
-          <button type="button" onClick={handleAddCategory} className="h-12 rounded-xl bg-purple-500 font-bold text-white">+ إضافة التصنيف</button>
-        </div>
-      </div>
-    </div>
-  )}
-
-  {/* نافذة إضافة بند */}
-  {openItemModal && (
-    <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/70 p-4">
-      <div className="w-full max-w-lg rounded-3xl border border-white/10 bg-[#081B33] p-7 shadow-2xl">
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <h3 className="text-2xl font-bold text-white">إضافة بند جديد</h3>
-            <p className="mt-2 text-sm text-gray-400">اختر التصنيف ثم أدخل اسم البند</p>
-          </div>
-          <button type="button" onClick={() => setOpenItemModal(false)} className="text-2xl text-gray-400 hover:text-red-400">×</button>
-        </div>
-        <select value={newItemCategoryId} onChange={(e) => setNewItemCategoryId(e.target.value)} className="mb-4 w-full rounded-2xl border border-white/10 bg-[#102947] px-4 py-4 text-white outline-none focus:border-orange-400">
-          <option value="">اختر التصنيف</option>
-          {categories.map((category) => (
-            <option key={category.id} value={category.id}>{category.name}</option>
-          ))}
-        </select>
-        <input value={newItemName} onChange={(e) => setNewItemName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleAddItem()} placeholder="اسم البند" className="w-full rounded-2xl border border-white/10 bg-[#102947] px-4 py-4 text-white outline-none focus:border-orange-400" />
-        <div className="mt-6 grid grid-cols-2 gap-3">
-          <button type="button" onClick={() => setOpenItemModal(false)} className="h-12 rounded-xl border border-white/10 bg-white/5 font-bold text-gray-300">إلغاء</button>
-          <button type="button" onClick={handleAddItem} className="h-12 rounded-xl bg-orange-500 font-bold text-white">+ إضافة البند</button>
-        </div>
-      </div>
-    </div>
-  )}
-
-  {/* نافذة التغذية */}
-  <FundingModal
-    open={openFundingModal}
-    selectedAccountId={selectedAccountId}
-    onClose={() => {
-      setOpenFundingModal(false);
-      setSelectedAccountId(null);
-    }}
-    onSave={handleSaveFunding}
-  />
+  </div>
+)}
 
   {/* نافذة إضافة عهدة */}
   {openAccountModal && (
