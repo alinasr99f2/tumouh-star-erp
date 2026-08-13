@@ -5,12 +5,16 @@ import {
   Wallet,
   Landmark,
   FolderTree,
+  Layers3,
+  Tags,
+  ListPlus,
+  Plus,
+  Eye,
+  ArrowUpRight,
 } from "lucide-react";
 
 import ExpensesPage from "./ExpensesPage";
-import AccountsPage from "./AccountsPage";
 import FundingPage from "./FundingPage";
-import CategoriesPage from "./CategoriesPage";
 
 import { supabase } from "../../utils/supabase";
 import { financialEngine } from "../../core/engine/financial.engine";
@@ -76,6 +80,39 @@ const [newAccountName, setNewAccountName] =
 
 const [newAccountType, setNewAccountType] =
   useState("عهدة");
+
+  // ==========================================
+  // إدارة المراحل والتصنيفات والبنود
+  // ==========================================
+  const [stages, setStages] = useState<any[]>(() => {
+    const saved = localStorage.getItem("tumouh-expense-stages");
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        // ignore and use defaults
+      }
+    }
+    return [
+      { id: "preliminary", name: "تمهيدي" },
+      { id: "structural", name: "إنشائي" },
+      { id: "finishing", name: "تشطيبي" },
+      { id: "decorations", name: "ديكورات" },
+    ];
+  });
+
+  const [openStageModal, setOpenStageModal] = useState(false);
+  const [openCategoryModal, setOpenCategoryModal] = useState(false);
+  const [openItemModal, setOpenItemModal] = useState(false);
+  const [newStageName, setNewStageName] = useState("");
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [newItemName, setNewItemName] = useState("");
+  const [newItemCategoryId, setNewItemCategoryId] = useState("");
+
+  useEffect(() => {
+    localStorage.setItem("tumouh-expense-stages", JSON.stringify(stages));
+  }, [stages]);
+
 useEffect(() => {
   const loadAccounts = async () => {
   const [
@@ -140,7 +177,37 @@ console.log("ACCOUNTS ERROR:", accountsError);
   const fundingRows = fundingData ?? [];
   const expenseRows = expensesData ?? [];
 
-  setExpenses(expenseRows);
+  let savedStageMap: Record<string, { id?: string | number; name?: string }> = {};
+  try {
+    savedStageMap = JSON.parse(
+      localStorage.getItem("tumouh-expense-stage-map") || "{}"
+    );
+  } catch {
+    savedStageMap = {};
+  }
+
+  const expensesWithStages = expenseRows.map((row) => {
+    const savedStage = savedStageMap[String(row.id)];
+    return {
+      ...row,
+      stageId:
+        row.stage_id ??
+        row.stageId ??
+        row.phase_id ??
+        row.phaseId ??
+        savedStage?.id ??
+        null,
+      stageName:
+        row.stage_name ??
+        row.stageName ??
+        row.phase_name ??
+        row.phaseName ??
+        savedStage?.name ??
+        null,
+    };
+  });
+
+  setExpenses(expensesWithStages);
   const formattedAccounts = (accountsData ?? []).map((account) => {
 
     const accountFunding = fundingRows.filter(
@@ -301,6 +368,25 @@ const loadFunding = async () => {
       return false;
     }
 
+    // حفظ المرحلة محليًا للمصروف حتى تظل ظاهرة بعد إعادة فتح الصفحة.
+    if (savedExpense?.id && expense.stageId) {
+      try {
+        const currentMap = JSON.parse(
+          localStorage.getItem("tumouh-expense-stage-map") || "{}"
+        );
+        currentMap[String(savedExpense.id)] = {
+          id: expense.stageId,
+          name: expense.stageName ?? null,
+        };
+        localStorage.setItem(
+          "tumouh-expense-stage-map",
+          JSON.stringify(currentMap)
+        );
+      } catch {
+        // لا نوقف حفظ المصروف بسبب localStorage
+      }
+    }
+
     // 5️⃣ حساب الرصيد الجديد للعهدة
     const newBalance =
       currentBalance - expenseTotal;
@@ -368,6 +454,18 @@ const loadFunding = async () => {
       itemId:
         savedExpense?.item_id ??
         expense.itemId ??
+        null,
+
+      stageId:
+        savedExpense?.stage_id ??
+        savedExpense?.phase_id ??
+        expense.stageId ??
+        null,
+
+      stageName:
+        savedExpense?.stage_name ??
+        savedExpense?.phase_name ??
+        expense.stageName ??
         null,
 
       voucherNo:
@@ -633,6 +731,103 @@ const handleAddAccount = async () => {
     alert("حدث خطأ أثناء إضافة العهدة");
   }
 };
+  const totalExpensesAmount = expenses.reduce(
+    (sum, item) => sum + Number(item.total ?? item.amount ?? 0),
+    0
+  );
+
+  const handleAddStage = () => {
+    const name = newStageName.trim();
+    if (!name) {
+      alert("من فضلك اكتب اسم المرحلة");
+      return;
+    }
+    if (stages.some((stage) => stage.name.trim().toLowerCase() === name.toLowerCase())) {
+      alert("هذه المرحلة موجودة بالفعل");
+      return;
+    }
+    setStages((prev) => [
+      ...prev,
+      { id: `stage-${Date.now()}`, name },
+    ]);
+    setNewStageName("");
+    setOpenStageModal(false);
+  };
+
+  const handleAddCategory = async () => {
+    const name = newCategoryName.trim();
+    if (!name) {
+      alert("من فضلك اكتب اسم التصنيف");
+      return;
+    }
+
+    const exists = categories.some(
+      (category) => category.name.trim().toLowerCase() === name.toLowerCase()
+    );
+    if (exists) {
+      alert("هذا التصنيف موجود بالفعل");
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("categories")
+      .insert([{ name }])
+      .select("id, name")
+      .single();
+
+    if (error) {
+      console.error("خطأ في إضافة التصنيف:", error);
+      alert(`تعذر إضافة التصنيف:\n${error.message}`);
+      return;
+    }
+
+    setCategories((prev) => [...prev, data]);
+    setNewCategoryName("");
+    setOpenCategoryModal(false);
+  };
+
+  const handleAddItem = async () => {
+    const name = newItemName.trim();
+    if (!name) {
+      alert("من فضلك اكتب اسم البند");
+      return;
+    }
+    if (!newItemCategoryId) {
+      alert("من فضلك اختر التصنيف");
+      return;
+    }
+
+    const exists = expenseItems.some(
+      (item) =>
+        String(item.category_id) === String(newItemCategoryId) &&
+        item.name.trim().toLowerCase() === name.toLowerCase()
+    );
+    if (exists) {
+      alert("هذا البند موجود بالفعل داخل التصنيف المختار");
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("expense_items")
+      .insert([{
+        name,
+        category_id: Number(newItemCategoryId),
+      }])
+      .select("id, name, category_id")
+      .single();
+
+    if (error) {
+      console.error("خطأ في إضافة البند:", error);
+      alert(`تعذر إضافة البند:\n${error.message}`);
+      return;
+    }
+
+    setExpenseItems((prev) => [...prev, data]);
+    setNewItemName("");
+    setNewItemCategoryId("");
+    setOpenItemModal(false);
+  };
+
   return (
 
     <div className="space-y-8">
@@ -810,7 +1005,7 @@ const handleAddAccount = async () => {
     <div>
 
       <div className="text-4xl font-extrabold">
-        {expenses.length}
+        {totalExpensesAmount.toLocaleString()}
       </div>
 
       <div
@@ -820,7 +1015,7 @@ const handleAddAccount = async () => {
             : "text-gray-400"
         }`}
       >
-        إجمالي المصروفات
+        إجمالي المصروفات (ريال)
       </div>
 
     </div>
@@ -1141,18 +1336,77 @@ const handleAddAccount = async () => {
         onClose={() => setOpenExpenseModal(false)}
         onSave={handleSaveExpense}
         accounts={accounts}
-        onAddAccount={() => setOpenAccountModal(true)}
+       
       />
     </>
   )}
 
   {activeTab === "accounts" && (
-    <AccountsPage
-      accounts={accounts}
-      onAddAccount={() => setOpenAccountModal(true)}
-      onAddFunding={handleAddFundingForAccount}
-      onViewAccount={handleViewAccount}
-    />
+    <div dir="rtl" className="space-y-6">
+      <div className="flex items-center justify-between rounded-3xl border border-white/10 bg-[#081B33] p-6">
+        <div>
+          <h2 className="text-3xl font-extrabold text-white">العهد المالية</h2>
+          <p className="mt-2 text-gray-400">إدارة جميع العهد والأرصدة المالية</p>
+        </div>
+        <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-6 py-4 text-center">
+          <div className="text-3xl font-extrabold text-emerald-400">{accounts.length}</div>
+          <div className="mt-1 text-sm text-gray-400">إجمالي العهد</div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+        {accounts.length === 0 ? (
+          <div className="col-span-full rounded-3xl border border-white/10 bg-[#081B33] p-12 text-center text-gray-500">
+            لا توجد عهد مالية مدخلة حتى الآن
+          </div>
+        ) : (
+          accounts.map((account) => (
+            <div key={account.id} className="rounded-3xl border border-white/10 bg-[#102947] p-6 shadow-xl">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h3 className="text-2xl font-extrabold text-white">{account.name}</h3>
+                  <p className="mt-1 text-sm text-gray-400">{account.type || "عهدة مالية"}</p>
+                </div>
+                <div className="rounded-2xl bg-emerald-400/10 p-3 text-emerald-400">
+                  <Wallet size={28} />
+                </div>
+              </div>
+
+              <div className="mt-6 rounded-2xl border border-white/10 bg-[#081B33] p-5">
+                <p className="text-sm text-gray-400">الرصيد الحالي</p>
+                <p className="mt-2 text-3xl font-extrabold text-yellow-400">
+                  {Number(account.currentBalance ?? 0).toLocaleString()} <span className="text-sm text-gray-500">ريال</span>
+                </p>
+              </div>
+
+              <div className="mt-5 grid grid-cols-3 gap-3 text-center">
+                <div className="rounded-xl bg-red-400/10 p-3">
+                  <div className="text-lg font-bold text-red-400">{Number(account.totalExpenses ?? 0).toLocaleString()}</div>
+                  <div className="text-xs text-gray-400">المصروفات</div>
+                </div>
+                <div className="rounded-xl bg-green-400/10 p-3">
+                  <div className="text-lg font-bold text-green-400">{Number(account.totalFunding ?? 0).toLocaleString()}</div>
+                  <div className="text-xs text-gray-400">التغذية</div>
+                </div>
+                <div className="rounded-xl bg-sky-400/10 p-3">
+                  <div className="text-lg font-bold text-sky-400">{Number(account.operationsCount ?? 0)}</div>
+                  <div className="text-xs text-gray-400">عدد العمليات</div>
+                </div>
+              </div>
+
+              <div className="mt-5 grid grid-cols-2 gap-3">
+                <button type="button" onClick={() => handleViewAccount(account)} className="flex items-center justify-center gap-2 rounded-xl border border-sky-400/30 bg-sky-400/10 py-3 font-bold text-sky-300 hover:bg-sky-400/20">
+                  <Eye size={18} /> عرض
+                </button>
+                <button type="button" onClick={() => handleAddFundingForAccount(Number(account.id))} className="flex items-center justify-center gap-2 rounded-xl bg-green-500 py-3 font-bold text-white hover:bg-green-600">
+                  <Plus size={18} /> تغذية
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
   )}
 
   {activeTab === "funding" && (
@@ -1162,7 +1416,153 @@ const handleAddAccount = async () => {
   )}
 
   {activeTab === "categories" && (
-    <CategoriesPage />
+    <div dir="rtl" className="space-y-6">
+      <div className="rounded-3xl border border-white/10 bg-[#081B33] p-6">
+        <h2 className="text-3xl font-extrabold text-white">البنود والمراحل والتصنيفات</h2>
+        <p className="mt-2 text-gray-400">إدارة المراحل والتصنيفات وبنود المصروفات من مكان واحد</p>
+      </div>
+
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+        <button type="button" onClick={() => setOpenStageModal(true)} className="group rounded-3xl border border-yellow-400/20 bg-[#102947] p-7 text-right transition hover:-translate-y-1 hover:border-yellow-400 hover:bg-[#153457]">
+          <div className="flex items-center justify-between">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-yellow-400/10 text-yellow-400">
+              <Layers3 size={34} />
+            </div>
+            <Plus className="text-yellow-400 opacity-60 group-hover:opacity-100" />
+          </div>
+          <h3 className="mt-6 text-2xl font-extrabold text-white">إضافة مرحلة</h3>
+          <p className="mt-2 text-gray-400">إضافة مرحلة جديدة لاستخدامها مع المصروفات</p>
+          <div className="mt-5 text-sm font-bold text-yellow-400">{stages.length} مراحل مسجلة</div>
+        </button>
+
+        <button type="button" onClick={() => setOpenCategoryModal(true)} className="group rounded-3xl border border-purple-400/20 bg-[#102947] p-7 text-right transition hover:-translate-y-1 hover:border-purple-400 hover:bg-[#153457]">
+          <div className="flex items-center justify-between">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-purple-400/10 text-purple-300">
+              <Tags size={34} />
+            </div>
+            <Plus className="text-purple-300 opacity-60 group-hover:opacity-100" />
+          </div>
+          <h3 className="mt-6 text-2xl font-extrabold text-white">إضافة تصنيف</h3>
+          <p className="mt-2 text-gray-400">إضافة تصنيف جديد للمصروفات</p>
+          <div className="mt-5 text-sm font-bold text-purple-300">{categories.length} تصنيف مسجل</div>
+        </button>
+
+        <button type="button" onClick={() => setOpenItemModal(true)} className="group rounded-3xl border border-orange-400/20 bg-[#102947] p-7 text-right transition hover:-translate-y-1 hover:border-orange-400 hover:bg-[#153457]">
+          <div className="flex items-center justify-between">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-orange-400/10 text-orange-300">
+              <ListPlus size={34} />
+            </div>
+            <Plus className="text-orange-300 opacity-60 group-hover:opacity-100" />
+          </div>
+          <h3 className="mt-6 text-2xl font-extrabold text-white">إضافة بند</h3>
+          <p className="mt-2 text-gray-400">إضافة بند وربطه بالتصنيف المناسب</p>
+          <div className="mt-5 text-3xl font-extrabold text-orange-300">{expenseItems.length}</div>
+          <div className="text-sm text-gray-400">إجمالي عدد البنود</div>
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <div className="rounded-3xl border border-white/10 bg-[#081B33] p-6">
+          <div className="mb-5 flex items-center justify-between">
+            <h3 className="text-xl font-bold text-white">المراحل الحالية</h3>
+            <span className="rounded-xl bg-yellow-400/10 px-3 py-1 text-sm font-bold text-yellow-400">{stages.length}</span>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            {stages.map((stage) => (
+              <span key={stage.id} className="rounded-xl border border-yellow-400/20 bg-yellow-400/5 px-4 py-2 text-sm font-bold text-yellow-300">{stage.name}</span>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-3xl border border-white/10 bg-[#081B33] p-6">
+          <div className="mb-5 flex items-center justify-between">
+            <h3 className="text-xl font-bold text-white">ملخص البنود</h3>
+            <span className="rounded-xl bg-orange-400/10 px-3 py-1 text-sm font-bold text-orange-300">{expenseItems.length} بند</span>
+          </div>
+          <div className="max-h-52 space-y-2 overflow-y-auto">
+            {expenseItems.length === 0 ? (
+              <p className="text-gray-500">لا توجد بنود حتى الآن</p>
+            ) : (
+              expenseItems.map((item) => {
+                const category = categories.find((c) => String(c.id) === String(item.category_id));
+                return (
+                  <div key={item.id} className="flex items-center justify-between rounded-xl bg-[#102947] px-4 py-3">
+                    <span className="font-bold text-white">{item.name}</span>
+                    <span className="text-sm text-gray-400">{category?.name ?? "-"}</span>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )}
+
+  {/* نافذة إضافة مرحلة */}
+  {openStageModal && (
+    <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/70 p-4">
+      <div className="w-full max-w-lg rounded-3xl border border-white/10 bg-[#081B33] p-7 shadow-2xl">
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h3 className="text-2xl font-bold text-white">إضافة مرحلة جديدة</h3>
+            <p className="mt-2 text-sm text-gray-400">أضف مرحلة لاستخدامها في المصروفات</p>
+          </div>
+          <button type="button" onClick={() => setOpenStageModal(false)} className="text-2xl text-gray-400 hover:text-red-400">×</button>
+        </div>
+        <input value={newStageName} onChange={(e) => setNewStageName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleAddStage()} autoFocus placeholder="اسم المرحلة" className="w-full rounded-2xl border border-white/10 bg-[#102947] px-4 py-4 text-white outline-none focus:border-yellow-400" />
+        <div className="mt-6 grid grid-cols-2 gap-3">
+          <button type="button" onClick={() => setOpenStageModal(false)} className="h-12 rounded-xl border border-white/10 bg-white/5 font-bold text-gray-300">إلغاء</button>
+          <button type="button" onClick={handleAddStage} className="h-12 rounded-xl bg-yellow-400 font-bold text-[#081B33]">+ إضافة المرحلة</button>
+        </div>
+      </div>
+    </div>
+  )}
+
+  {/* نافذة إضافة تصنيف */}
+  {openCategoryModal && (
+    <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/70 p-4">
+      <div className="w-full max-w-lg rounded-3xl border border-white/10 bg-[#081B33] p-7 shadow-2xl">
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h3 className="text-2xl font-bold text-white">إضافة تصنيف جديد</h3>
+            <p className="mt-2 text-sm text-gray-400">سيتم حفظ التصنيف مباشرة في قاعدة البيانات</p>
+          </div>
+          <button type="button" onClick={() => setOpenCategoryModal(false)} className="text-2xl text-gray-400 hover:text-red-400">×</button>
+        </div>
+        <input value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleAddCategory()} autoFocus placeholder="اسم التصنيف" className="w-full rounded-2xl border border-white/10 bg-[#102947] px-4 py-4 text-white outline-none focus:border-purple-400" />
+        <div className="mt-6 grid grid-cols-2 gap-3">
+          <button type="button" onClick={() => setOpenCategoryModal(false)} className="h-12 rounded-xl border border-white/10 bg-white/5 font-bold text-gray-300">إلغاء</button>
+          <button type="button" onClick={handleAddCategory} className="h-12 rounded-xl bg-purple-500 font-bold text-white">+ إضافة التصنيف</button>
+        </div>
+      </div>
+    </div>
+  )}
+
+  {/* نافذة إضافة بند */}
+  {openItemModal && (
+    <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/70 p-4">
+      <div className="w-full max-w-lg rounded-3xl border border-white/10 bg-[#081B33] p-7 shadow-2xl">
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h3 className="text-2xl font-bold text-white">إضافة بند جديد</h3>
+            <p className="mt-2 text-sm text-gray-400">اختر التصنيف ثم أدخل اسم البند</p>
+          </div>
+          <button type="button" onClick={() => setOpenItemModal(false)} className="text-2xl text-gray-400 hover:text-red-400">×</button>
+        </div>
+        <select value={newItemCategoryId} onChange={(e) => setNewItemCategoryId(e.target.value)} className="mb-4 w-full rounded-2xl border border-white/10 bg-[#102947] px-4 py-4 text-white outline-none focus:border-orange-400">
+          <option value="">اختر التصنيف</option>
+          {categories.map((category) => (
+            <option key={category.id} value={category.id}>{category.name}</option>
+          ))}
+        </select>
+        <input value={newItemName} onChange={(e) => setNewItemName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleAddItem()} placeholder="اسم البند" className="w-full rounded-2xl border border-white/10 bg-[#102947] px-4 py-4 text-white outline-none focus:border-orange-400" />
+        <div className="mt-6 grid grid-cols-2 gap-3">
+          <button type="button" onClick={() => setOpenItemModal(false)} className="h-12 rounded-xl border border-white/10 bg-white/5 font-bold text-gray-300">إلغاء</button>
+          <button type="button" onClick={handleAddItem} className="h-12 rounded-xl bg-orange-500 font-bold text-white">+ إضافة البند</button>
+        </div>
+      </div>
+    </div>
   )}
 
   {/* نافذة التغذية */}

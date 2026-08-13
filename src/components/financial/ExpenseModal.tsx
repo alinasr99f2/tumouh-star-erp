@@ -20,9 +20,6 @@ type Props = {
   onClose: () => void;
   onSave: (expense: any) => Promise<boolean>;
   accounts: Account[];
-  onAddAccount?: () => void;
-  initialExpense?: any | null;
-  isEditing?: boolean;
 };
 
 export default function ExpenseModal({
@@ -30,16 +27,13 @@ export default function ExpenseModal({
   onClose,
   onSave,
   accounts,
-  onAddAccount,
-  initialExpense,
-  isEditing = false,
 }: Props) {
 
 
   
 const today = new Date().toISOString().split("T")[0];
 
-const [entryDate, setEntryDate] = useState(today);
+const [entryDate] = useState(today);
 
 const [expenseDate, setExpenseDate] = useState(today);
 const [supplier, setSupplier] = useState("");
@@ -58,12 +52,19 @@ const [showAddItem, setShowAddItem] = useState(false);
 // المراحل - تصميم محلي مؤقت
 // سيتم ربطها بقاعدة البيانات لاحقًا من اللاب
 // ==========================================
-const [stages, setStages] = useState([
-  { id: "preliminary", name: "تمهيدي" },
-  { id: "structural", name: "إنشائي" },
-  { id: "finishing", name: "تشطيبي" },
-  { id: "decorations", name: "ديكورات" },
-]);
+const [stages, setStages] = useState<any[]>(() => {
+  try {
+    const saved = localStorage.getItem("tumouh-expense-stages");
+    if (saved) return JSON.parse(saved);
+  } catch {}
+
+  return [
+    { id: "preliminary", name: "تمهيدي" },
+    { id: "structural", name: "إنشائي" },
+    { id: "finishing", name: "تشطيبي" },
+    { id: "decorations", name: "ديكورات" },
+  ];
+});
 
 const [stageId, setStageId] = useState("structural");
 const [showAddStage, setShowAddStage] = useState(false);
@@ -98,6 +99,12 @@ const tax = useMemo(() => {
 const total = useMemo(() => {
   return Number(amount || 0) + tax;
 }, [amount, tax]);
+
+useEffect(() => {
+  try {
+    localStorage.setItem("tumouh-expense-stages", JSON.stringify(stages));
+  } catch {}
+}, [stages]);
 
 const projectVillas = useMemo(() => {
   console.log(projectId);
@@ -153,157 +160,13 @@ useEffect(() => {
   }
 }, [open]);
 
-// تعبئة النموذج عند فتحه في وضع التعديل، وإرجاعه للوضع الفارغ عند الإضافة.
-useEffect(() => {
-  if (!open) return;
-
-  if (initialExpense && isEditing) {
-    setEntryDate(
-      String(
-        initialExpense.entryDate ??
-        initialExpense.entry_date ??
-        today
-      ).split("T")[0]
-    );
-    setExpenseDate(
-      String(
-        initialExpense.expenseDate ??
-        initialExpense.expense_date ??
-        initialExpense.entryDate ??
-        today
-      ).split("T")[0]
-    );
-    setSupplier(String(initialExpense.supplier ?? ""));
-    setProjectId(String(initialExpense.projectId ?? initialExpense.project_id ?? ""));
-    setVillaId(
-      initialExpense.villaId ?? initialExpense.villa_id
-        ? String(initialExpense.villaId ?? initialExpense.villa_id)
-        : ""
-    );
-    setAccountId(String(initialExpense.accountId ?? initialExpense.account_id ?? ""));
-    setCategoryId(String(initialExpense.categoryId ?? initialExpense.category_id ?? ""));
-    setItemId(String(initialExpense.itemId ?? initialExpense.item_id ?? ""));
-    setVoucherNo(String(initialExpense.voucherNo ?? initialExpense.voucher_no ?? ""));
-    setAmount(String(initialExpense.amount ?? 0));
-    setTaxPercent(
-      Number(initialExpense.amount ?? 0) > 0
-        ? String(
-            (Number(initialExpense.tax ?? initialExpense.tax_amount ?? 0) /
-              Number(initialExpense.amount ?? 1)) *
-              100
-          )
-        : "15"
-    );
-    setPaymentMethod(String(initialExpense.paymentMethod ?? initialExpense.payment_method ?? ""));
-    setDescription(String(initialExpense.description ?? ""));
-  } else {
-    resetForm();
-    setEntryDate(today);
-  }
-}, [open, initialExpense, isEditing]);
-
-const handleAddCategory = async () => {
-  const name = newCategoryName.trim();
-
-  if (!name) {
-    alert("من فضلك أدخل اسم التصنيف");
-    return;
-  }
-
-  const existingCategory = categories.find(
-    (category) =>
-      category.name.trim().toLowerCase() === name.toLowerCase()
-  );
-
-  if (existingCategory) {
-    alert("هذا التصنيف موجود بالفعل");
-    setCategoryId(String(existingCategory.id));
-    setItemId("");
-    setShowAddCategory(false);
-    setNewCategoryName("");
-    return;
-  }
-
-  const { data, error } = await supabase
-    .from("categories")
-    .insert({ name })
-    .select("id, name")
-    .single();
-
-  if (error) {
-    console.error("خطأ في إضافة التصنيف:", error);
-    alert("حدث خطأ أثناء إضافة التصنيف");
-    return;
-  }
-
-  if (data) {
-    setCategories((current) => [...current, data]);
-    setCategoryId(String(data.id));
-    setItemId("");
-  }
-
-  setNewCategoryName("");
-  setShowAddCategory(false);
-};
-
-const handleAddItem = async () => {
-  const name = newItemName.trim();
-
-  if (!categoryId) {
-    alert("من فضلك اختر التصنيف أولاً");
-    return;
-  }
-
-  if (!name) {
-    alert("من فضلك أدخل اسم البند");
-    return;
-  }
-
-  const existingItem = expenseItems.find(
-    (item) =>
-      String(item.category_id) === String(categoryId) &&
-      item.name.trim().toLowerCase() === name.toLowerCase()
-  );
-
-  if (existingItem) {
-    alert("هذا البند موجود بالفعل داخل التصنيف");
-    setItemId(String(existingItem.id));
-    setShowAddItem(false);
-    setNewItemName("");
-    return;
-  }
-
-  const { data, error } = await supabase
-    .from("expense_items")
-    .insert({
-      name,
-      category_id: Number(categoryId),
-    })
-    .select("id, name, category_id")
-    .single();
-
-  if (error) {
-    console.error("خطأ في إضافة البند:", error);
-    alert("حدث خطأ أثناء إضافة البند");
-    return;
-  }
-
-  if (data) {
-    setExpenseItems((current) => [...current, data]);
-    setItemId(String(data.id));
-  }
-
-  setNewItemName("");
-  setShowAddItem(false);
-};
-
 const resetForm = () => {
-  setEntryDate(today);
   setExpenseDate(today);
   setSupplier("");
   setProjectId("");
   setVillaId("");
   setAccountId("");
+  setStageId("structural");
   setCategoryId("");
   setItemId("");
   setVoucherNo("");
@@ -339,7 +202,7 @@ const handleSave = async (addAnother = false) => {
     villaId === "general" ? null : villaId;
 
   const expense = {
-    id: initialExpense?.id ?? crypto.randomUUID(),
+    id: crypto.randomUUID(),
 
     entryDate,
     expenseDate,
@@ -349,6 +212,9 @@ const handleSave = async (addAnother = false) => {
     accountId: Number(accountId),
     categoryId,
 itemId: itemId ? Number(itemId) : null,
+    stageId,
+    stageName:
+      stages.find((stage) => String(stage.id) === String(stageId))?.name ?? null,
 voucherNo,
 amount: Number(amount),
     tax,
@@ -386,7 +252,7 @@ return (
       <div className="mb-8 flex items-center justify-between">
 
         <h2 className="text-3xl font-bold text-white">
-          {isEditing ? "تعديل المصروف" : "إضافة مصروف جديد"}
+          إضافة مصروف جديد
         </h2>
 
         <button
@@ -497,7 +363,10 @@ return (
             "
           >
             {stages.map((stage) => (
-              <option key={stage.id} value={stage.id}>
+              <option
+                key={stage.id}
+                value={stage.id}
+              >
                 {stage.name}
               </option>
             ))}
@@ -510,7 +379,9 @@ return (
           value={accountId}
           onChange={setAccountId}
           showAddButton
-          onAdd={onAddAccount}
+          onAdd={() =>
+            alert("زر إضافة العهدة جاهز للتصميم، وسيتم ربطه بقاعدة البيانات لاحقًا.")
+          }
           options={accounts.map((account) => ({
             value: account.id,
             label: `${account.name} (${Number(
@@ -586,10 +457,9 @@ return (
             <button
               type="button"
               disabled={!categoryId}
-              onClick={() => {
-                setNewItemName("");
-                setShowAddItem(true);
-              }}
+              onClick={() =>
+                alert("زر إضافة البند جاهز للتصميم، وسيتم ربطه بقاعدة البيانات لاحقًا.")
+              }
               className="
                 flex h-7 w-7
                 items-center justify-center
@@ -602,6 +472,7 @@ return (
                 disabled:cursor-not-allowed
                 disabled:opacity-40
               "
+              title="إضافة بند"
             >
               +
             </button>
@@ -747,281 +618,6 @@ return (
 
       </div>
 
-      {/* ================= إضافة تصنيف جديد ================= */}
-      {showAddCategory && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 p-4">
-          <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#081B33] p-7 shadow-2xl">
-            <div className="mb-6 flex items-center justify-between">
-              <h3 className="text-2xl font-bold text-white">
-                إضافة تصنيف جديد
-              </h3>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setShowAddCategory(false);
-                  setNewCategoryName("");
-                }}
-                className="text-2xl text-gray-400 transition hover:text-red-400"
-              >
-                ✕
-              </button>
-            </div>
-
-            <label className="mb-2 block text-sm text-gray-300">
-              اسم التصنيف
-            </label>
-
-            <input
-              type="text"
-              value={newCategoryName}
-              onChange={(e) => setNewCategoryName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  handleAddCategory();
-                }
-              }}
-              autoFocus
-              placeholder="أدخل اسم التصنيف"
-              className="
-                h-12 w-full
-                rounded-xl
-                border border-white/10
-                bg-[#102947]
-                px-4
-                text-white
-                outline-none
-                placeholder:text-gray-500
-                focus:border-yellow-400
-              "
-            />
-
-            <div className="mt-6 flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowAddCategory(false);
-                  setNewCategoryName("");
-                }}
-                className="
-                  rounded-xl
-                  border border-white/10
-                  px-6 py-3
-                  font-bold
-                  text-white
-                  transition
-                  hover:bg-white/5
-                "
-              >
-                إلغاء
-              </button>
-
-              <button
-                type="button"
-                onClick={handleAddCategory}
-                className="
-                  rounded-xl
-                  bg-yellow-400
-                  px-6 py-3
-                  font-bold
-                  text-[#081B33]
-                  transition
-                  hover:bg-yellow-300
-                "
-              >
-                + إضافة التصنيف
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ================= إضافة بند جديد ================= */}
-      {showAddItem && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 p-4">
-          <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#081B33] p-7 shadow-2xl">
-            <div className="mb-6 flex items-center justify-between">
-              <div>
-                <h3 className="text-2xl font-bold text-white">
-                  إضافة بند جديد
-                </h3>
-
-                <p className="mt-2 text-sm text-gray-400">
-                  التصنيف:{" "}
-                  {categories.find(
-                    (category) =>
-                      String(category.id) === String(categoryId)
-                  )?.name || "-"}
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setShowAddItem(false);
-                  setNewItemName("");
-                }}
-                className="text-2xl text-gray-400 transition hover:text-red-400"
-              >
-                ✕
-              </button>
-            </div>
-
-            <label className="mb-2 block text-sm text-gray-300">
-              اسم البند
-            </label>
-
-            <input
-              type="text"
-              value={newItemName}
-              onChange={(e) => setNewItemName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  handleAddItem();
-                }
-              }}
-              autoFocus
-              placeholder="أدخل اسم البند"
-              className="
-                h-12 w-full
-                rounded-xl
-                border border-white/10
-                bg-[#102947]
-                px-4
-                text-white
-                outline-none
-                placeholder:text-gray-500
-                focus:border-yellow-400
-              "
-            />
-
-            <div className="mt-6 flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowAddItem(false);
-                  setNewItemName("");
-                }}
-                className="
-                  rounded-xl
-                  border border-white/10
-                  px-6 py-3
-                  font-bold
-                  text-white
-                  transition
-                  hover:bg-white/5
-                "
-              >
-                إلغاء
-              </button>
-
-              <button
-                type="button"
-                onClick={handleAddItem}
-                className="
-                  rounded-xl
-                  bg-yellow-400
-                  px-6 py-3
-                  font-bold
-                  text-[#081B33]
-                  transition
-                  hover:bg-yellow-300
-                "
-              >
-                + إضافة البند
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ================= إضافة مرحلة جديدة ================= */}
-      {showAddStage && (
-        <div
-          className="fixed inset-0 z-[250] flex items-center justify-center bg-black/70 p-4"
-          onClick={() => setShowAddStage(false)}
-        >
-          <div
-            className="w-full max-w-md rounded-3xl border border-white/10 bg-[#081B33] p-7 shadow-2xl"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="mb-6 flex items-center justify-between">
-              <div>
-                <h3 className="text-2xl font-bold text-white">
-                  إضافة مرحلة جديدة
-                </h3>
-                <p className="mt-2 text-sm text-gray-400">
-                  أضف مرحلة جديدة لاستخدامها في المصروفات
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setShowAddStage(false)}
-                className="text-2xl text-gray-400 transition hover:text-red-400"
-              >
-                ✕
-              </button>
-            </div>
-
-            <Input
-              label="اسم المرحلة"
-              value={newStageName}
-              onChange={setNewStageName}
-            />
-
-            <div className="mt-6 flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowAddStage(false);
-                  setNewStageName("");
-                }}
-                className="rounded-xl border border-white/10 px-6 py-3 font-bold text-white transition hover:bg-white/5"
-              >
-                إلغاء
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  const name = newStageName.trim();
-
-                  if (!name) {
-                    alert("من فضلك أدخل اسم المرحلة");
-                    return;
-                  }
-
-                  const exists = stages.some(
-                    (stage) =>
-                      stage.name.trim().toLowerCase() ===
-                      name.toLowerCase()
-                  );
-
-                  if (exists) {
-                    alert("هذه المرحلة موجودة بالفعل");
-                    return;
-                  }
-
-                  const newStage = {
-                    id: `stage-${Date.now()}`,
-                    name,
-                  };
-
-                  setStages((current) => [...current, newStage]);
-                  setStageId(newStage.id);
-                  setNewStageName("");
-                  setShowAddStage(false);
-                }}
-                className="rounded-xl bg-yellow-400 px-6 py-3 font-bold text-[#081B33] transition hover:bg-yellow-300"
-              >
-                + إضافة المرحلة
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Buttons */}
       <div className="mt-8 flex justify-end gap-3">
 
@@ -1042,7 +638,7 @@ return (
           إلغاء
         </button>
 
-        {!isEditing && (
+        {/* حفظ وإضافة مصروف آخر */}
         <button
           type="button"
           onClick={() => handleSave(true)}
@@ -1061,7 +657,6 @@ return (
         >
           + حفظ وإضافة آخر
         </button>
-        )}
 
         {/* حفظ المصروف */}
         <button
@@ -1077,11 +672,124 @@ return (
             hover:bg-yellow-300
           "
         >
-          {isEditing ? "حفظ التعديل" : "حفظ المصروف"}
+          حفظ المصروف
         </button>
 
       </div>
 
+      {/* ==========================================
+          ADD STAGE MODAL - LOCAL DESIGN ONLY
+      ========================================== */}
+      {showAddStage && (
+        <div
+          className="
+            fixed inset-0 z-[120]
+            flex items-center justify-center
+            bg-black/70 p-4
+            backdrop-blur-sm
+          "
+          onClick={() => setShowAddStage(false)}
+        >
+          <div
+            className="
+              w-full max-w-md
+              rounded-3xl
+              border border-white/10
+              bg-[#081B33]
+              p-7
+              shadow-2xl
+            "
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mb-6 flex items-center justify-between">
+              <div>
+                <h3 className="text-2xl font-extrabold text-white">
+                  إضافة مرحلة جديدة
+                </h3>
+
+                <p className="mt-1 text-sm text-gray-400">
+                  أضف مرحلة للمشروع لاستخدامها في المصروفات
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowAddStage(false)}
+                className="
+                  flex h-10 w-10
+                  items-center justify-center
+                  rounded-xl
+                  border border-white/10
+                  bg-white/5
+                  text-xl text-gray-300
+                  transition
+                  hover:bg-red-500/10
+                  hover:text-red-400
+                "
+              >
+                ✕
+              </button>
+            </div>
+
+            <Input
+              label="اسم المرحلة"
+              value={newStageName}
+              onChange={setNewStageName}
+            />
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setShowAddStage(false)}
+                className="
+                  rounded-xl
+                  border border-white/10
+                  px-5 py-3
+                  font-bold text-gray-300
+                  transition
+                  hover:bg-white/5
+                  hover:text-white
+                "
+              >
+                إلغاء
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const name = newStageName.trim();
+
+                  if (!name) {
+                    alert("من فضلك أدخل اسم المرحلة");
+                    return;
+                  }
+
+                  const newStage = {
+                    id: `stage-${Date.now()}`,
+                    name,
+                  };
+
+                  setStages((prev) => [...prev, newStage]);
+                  setStageId(newStage.id);
+                  setNewStageName("");
+                  setShowAddStage(false);
+                }}
+                className="
+                  rounded-xl
+                  bg-yellow-400
+                  px-6 py-3
+                  font-bold
+                  text-[#081B33]
+                  transition
+                  hover:bg-yellow-300
+                "
+              >
+                + إضافة المرحلة
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   </div>
 );

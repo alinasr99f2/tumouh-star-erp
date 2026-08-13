@@ -462,7 +462,7 @@ const deleteVilla = (villaToDelete: Villa) => {
         SIDEBAR
     ====================================== */}
 
-    <Sidebar />
+    <Sidebar onLogout={() => {}} />
   
 
 

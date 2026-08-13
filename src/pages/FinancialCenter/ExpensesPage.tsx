@@ -10,14 +10,21 @@ type Expense = {
 
   projectId?: string | number | null;
   accountId?: string | number | null;
+  accountName?: string | null;
 
   categoryId?: string | number | null;
   itemId?: string | number | null;
+  itemName?: string | null;
 
   supplier?: string | null;
+  supplierName?: string | null;
   voucherNo?: string | null;
+  invoiceNo?: string | null;
 
   paymentMethod?: string | null;
+
+  stageId?: string | number | null;
+  stageName?: string | null;
 
   amount?: number | string | null;
   tax?: number | string | null;
@@ -69,6 +76,9 @@ type RawExpense = Expense & {
   category_id?: string | number | null;
   item_id?: string | number | null;
   voucher_no?: string | null;
+  invoice_no?: string | null;
+invoice_number?: string | null;
+voucher_number?: string | null;
   payment_method?: string | null;
   amount_before_tax?: number | string | null;
   before_tax?: number | string | null;
@@ -78,31 +88,60 @@ type RawExpense = Expense & {
   vat?: number | string | null;
   total_amount?: number | string | null;
   grand_total?: number | string | null;
+  stage_id?: string | number | null;
+  stage_name?: string | null;
+  phase_id?: string | number | null;
+  phase_name?: string | null;
+  stage?: string | null;
+  phase?: string | null;
+  account_name?: string | null;
+  accountName?: string | null;
+  item_name?: string | null;
+  itemName?: string | null;
   created_at?: string | null;
 };
 
 const normalizeExpense = (
   expense: RawExpense
 ): Expense => {
-  const amountValue =
-    expense.amount ??
-    expense.amount_before_tax ??
-    expense.before_tax ??
-    expense.subtotal ??
-    expense.net_amount ??
-    0;
-
   const taxValue =
     expense.tax ??
     expense.tax_amount ??
     expense.vat ??
     0;
 
-  const totalValue =
+  const rawTotalValue =
     expense.total ??
     expense.total_amount ??
     expense.grand_total ??
-    Number(amountValue) + Number(taxValue);
+    null;
+
+  const explicitAmount =
+    expense.amount ??
+    expense.amount_before_tax ??
+    expense.before_tax ??
+    expense.subtotal ??
+    expense.net_amount ??
+    null;
+
+  // بعض السجلات القديمة عندنا فيها amount = 0 بينما الإجمالي
+  // والضريبة محفوظان بشكل صحيح. في هذه الحالة نحسب قبل الضريبة
+  // من الإجمالي - الضريبة بدل عرض 0.
+  const amountNumber = Number(explicitAmount ?? 0);
+  const taxNumber = Number(taxValue ?? 0);
+  const totalNumber =
+    rawTotalValue === null || rawTotalValue === undefined || rawTotalValue === ""
+      ? amountNumber + taxNumber
+      : Number(rawTotalValue);
+
+  // لو amount القديم محفوظ بصفر/فارغ، احسب قبل الضريبة فعليًا من الإجمالي - الضريبة.
+  // ولو الضريبة = 0، فقبل الضريبة يساوي الإجمالي.
+  const amountValue =
+    amountNumber === 0 && totalNumber > 0
+      ? Math.max(totalNumber - taxNumber, 0)
+      : amountNumber;
+
+  const totalValue = totalNumber;
 
   return {
     ...expense,
@@ -124,6 +163,10 @@ const normalizeExpense = (
       expense.accountId ??
       expense.account_id ??
       null,
+    accountName:
+      expense.accountName ??
+      expense.account_name ??
+      null,
     categoryId:
       expense.categoryId ??
       expense.category_id ??
@@ -132,10 +175,47 @@ const normalizeExpense = (
       expense.itemId ??
       expense.item_id ??
       null,
-    supplier: expense.supplier ?? null,
+    itemName:
+      expense.itemName ??
+      expense.item_name ??
+      null,
+    supplier:
+      expense.supplier ??
+      expense.supplierName ??
+      expense.supplierName ??
+      null,
+    supplierName:
+      expense.supplierName ??
+      expense.supplierName ??
+      expense.supplier ??
+      null,
     voucherNo:
       expense.voucherNo ??
       expense.voucher_no ??
+      expense.voucher_number ??
+      expense.invoiceNo ??
+      expense.invoice_no ??
+      expense.invoice_number ??
+      null,
+    invoiceNo:
+      expense.invoiceNo ??
+      expense.invoice_no ??
+      expense.invoice_number ??
+      expense.voucherNo ??
+      expense.voucher_no ??
+      expense.voucher_number ??
+      null,
+    stageId:
+      expense.stageId ??
+      expense.stage_id ??
+      expense.phase_id ??
+      null,
+    stageName:
+      expense.stageName ??
+      expense.stage_name ??
+      expense.phase_name ??
+      (typeof expense.stage === "string" ? expense.stage : null) ??
+      (typeof expense.phase === "string" ? expense.phase : null) ??
       null,
     paymentMethod:
       expense.paymentMethod ??
@@ -184,9 +264,60 @@ export default function ExpensesPage({
   onEditExpense,
   onDeleteExpense,
 }: ExpensesPageProps) {
+  // =====================================================
+  // المصروفات
+  //
+  // الصفحة كانت تعتمد فقط على expenses القادمة من Dashboard.
+  // لو Dashboard لم يحمّل البيانات القديمة، كانت الصفحة تظهر
+  // "لا توجد بيانات حتى الآن" رغم أن البيانات موجودة في Supabase.
+  // لذلك نحمّل المصروفات مباشرة من جدول expenses هنا أيضًا.
+  // =====================================================
+  const [loadedExpenses, setLoadedExpenses] = useState<Expense[]>([]);
+  const [expensesLoading, setExpensesLoading] = useState(true);
+  const [expensesError, setExpensesError] = useState<string | null>(null);
+
+  const loadExpenses = async () => {
+    setExpensesLoading(true);
+    setExpensesError(null);
+
+    const { data, error } = await supabase
+      .from("expenses")
+      .select("*");
+
+    if (error) {
+      console.error("خطأ في تحميل المصروفات:", error);
+      setExpensesError(error.message);
+      setLoadedExpenses([]);
+      setExpensesLoading(false);
+      return;
+    }
+
+    const rows = ((data ?? []) as RawExpense[])
+      .map(normalizeExpense)
+      .sort((a, b) => {
+        const dateA = String(a.expenseDate ?? a.entryDate ?? "");
+        const dateB = String(b.expenseDate ?? b.entryDate ?? "");
+        return dateB.localeCompare(dateA);
+      });
+
+    setLoadedExpenses(rows);
+    setExpensesLoading(false);
+  };
+
+  useEffect(() => {
+    loadExpenses();
+  }, []);
+
+  // نستخدم البيانات التي تم تحميلها مباشرة من Supabase عندما تكون موجودة،
+  // وإلا نرجع للبيانات القادمة من Dashboard.
+  const sourceExpenses = useMemo(() => {
+    return loadedExpenses.length > 0 ? loadedExpenses : expenses;
+  }, [loadedExpenses, expenses]);
+
   const normalizedExpenses = useMemo(() => {
-    return expenses.map(normalizeExpense);
-  }, [expenses]);
+    return sourceExpenses.map(normalizeExpense);
+  }, [sourceExpenses]);
+
   const [categories, setCategories] = useState<Category[]>([]);
   const [expenseItems, setExpenseItems] = useState<ExpenseItem[]>([]);
 
@@ -299,6 +430,20 @@ export default function ExpensesPage({
     );
   };
 
+  const getStageName = (expense: Expense) => {
+    if (expense.stageName) return expense.stageName;
+
+    const id = String(expense.stageId ?? "").trim().toLowerCase();
+
+    const knownStages: Record<string, string> = {
+      structural: "إنشائي",
+      finishing: "تشطيبي",
+      decorations: "ديكورات",
+    };
+
+    return knownStages[id] ?? (expense.stageId ? String(expense.stageId) : "-");
+  };
+
   // =========================================
   // التاريخ بدون مشاكل timezone
   // =========================================
@@ -341,24 +486,12 @@ export default function ExpensesPage({
     ).padStart(2, "0")}`;
 
   // =========================================
-  // بداية الأسبوع - السبت
+  // بداية الفترة الأسبوعية: اليوم + 6 أيام قبله
   // =========================================
 
-  const getStartOfWeek = () => {
+  const getRolling7DayStart = () => {
     const date = new Date(today);
-
-    const day = date.getDay();
-
-    // JavaScript:
-    // الأحد = 0
-    // السبت = 6
-
-    const daysSinceSaturday =
-      (day + 1) % 7;
-
-    date.setDate(
-      date.getDate() - daysSinceSaturday
-    );
+    date.setDate(date.getDate() - 6);
 
     return `${date.getFullYear()}-${String(
       date.getMonth() + 1
@@ -367,8 +500,7 @@ export default function ExpensesPage({
     ).padStart(2, "0")}`;
   };
 
-  const weekStartString =
-    getStartOfWeek();
+  const weekStartString = getRolling7DayStart();
 
   // =========================================
   // حساب إجمالي اليوم
@@ -515,7 +647,8 @@ export default function ExpensesPage({
         category.includes(text) ||
         item.includes(text) ||
         supplier.includes(text) ||
-        voucher.includes(text)
+        voucher.includes(text) ||
+        String(getStageName(expense)).toLowerCase().includes(text)
       );
     });
   }, [
@@ -643,7 +776,8 @@ export default function ExpensesPage({
 
     alert("تم حذف المصروف بنجاح.");
 
-    window.location.reload();
+    // تحديث الجدول مباشرة بعد الحذف بدون إعادة تحميل الموقع بالكامل.
+    await loadExpenses();
   };
 
   // =========================================
@@ -761,6 +895,20 @@ export default function ExpensesPage({
       {/* الجدول */}
       {/* ===================================== */}
 
+      {expensesError && (
+        <div className="rounded-2xl border border-red-400/30 bg-red-500/10 p-4 text-right text-sm text-red-300">
+          <div className="font-bold">تعذر تحميل المصروفات من قاعدة البيانات</div>
+          <div className="mt-1 text-xs opacity-80">{expensesError}</div>
+          <button
+            type="button"
+            onClick={loadExpenses}
+            className="mt-3 rounded-lg bg-red-500 px-4 py-2 font-bold text-white hover:bg-red-600"
+          >
+            إعادة المحاولة
+          </button>
+        </div>
+      )}
+
       <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#081B33]">
 
         <div className="overflow-x-auto">
@@ -785,6 +933,10 @@ export default function ExpensesPage({
 
                 <th className="p-4 text-center text-sm text-white">
                   المشروع
+                </th>
+
+                <th className="p-4 text-center text-sm text-white">
+                  المرحلة
                 </th>
 
                 <th className="p-4 text-center text-sm text-white">
@@ -829,12 +981,23 @@ export default function ExpensesPage({
 
             <tbody>
 
-              {filteredExpenses.length === 0 ? (
+              {expensesLoading ? (
+
+                <tr>
+                  <td
+                    colSpan={14}
+                    className="p-12 text-center text-gray-400"
+                  >
+                    جاري تحميل المصروفات...
+                  </td>
+                </tr>
+
+              ) : filteredExpenses.length === 0 ? (
 
                 <tr>
 
                   <td
-                    colSpan={13}
+                    colSpan={14}
                     className="p-12 text-center text-gray-500"
                   >
                     لا توجد بيانات حتى الآن
@@ -882,12 +1045,22 @@ export default function ExpensesPage({
                         )}
                       </td>
 
+                      {/* المرحلة */}
+
+                      <td className="p-3 text-center">
+                        <span
+                          className="inline-flex items-center gap-2 rounded-lg border border-yellow-400/20 bg-yellow-400/10 px-3 py-1 text-xs font-bold text-yellow-300"
+                          title="مرحلة المشروع"
+                        >
+                          <span aria-hidden="true">🏗️</span>
+                          <span>{getStageName(expense)}</span>
+                        </span>
+                      </td>
+
                       {/* العهدة */}
 
                       <td className="p-3 text-center">
-                        {getAccountName(
-                          expense.accountId
-                        )}
+                        {expense.accountName ?? getAccountName(expense.accountId)}
                       </td>
 
                       {/* التصنيف */}
@@ -901,9 +1074,7 @@ export default function ExpensesPage({
                       {/* البند */}
 
                       <td className="p-3 text-center">
-                        {getItemName(
-                          expense.itemId
-                        )}
+                        {expense.itemName ?? getItemName(expense.itemId)}
                       </td>
 
                       {/* المورد */}
@@ -1129,9 +1300,15 @@ export default function ExpensesPage({
 
           <ViewBox
             label="العهدة"
-            value={getAccountName(
-              selectedExpense.accountId
-            )}
+            value={
+              selectedExpense.accountName ??
+              getAccountName(selectedExpense.accountId)
+            }
+          />
+
+          <ViewBox
+            label="المرحلة"
+            value={`🏗️ ${getStageName(selectedExpense)}`}
           />
 
           <ViewBox
@@ -1143,9 +1320,10 @@ export default function ExpensesPage({
 
           <ViewBox
             label="البند"
-            value={getItemName(
-              selectedExpense.itemId
-            )}
+            value={
+              selectedExpense.itemName ??
+              getItemName(selectedExpense.itemId)
+            }
           />
 
           <ViewBox
