@@ -13,6 +13,7 @@ import Home from "./pages/Home/Home";
 import CompanyDashboard from "./pages/Dashboard/CompanyDashboard";
 import Projects from "./pages/Projects/Projects";
 import ProjectDetails from "./pages/Projects/ProjectDetails";
+import ProjectExpenses from "./pages/Projects/ProjectExpenses";
 import FinancialCenter from "./pages/FinancialCenter/FinancialCenter";
 
 function App() {
@@ -76,6 +77,12 @@ function App() {
             path="/projects/:id"
             element={<ProjectDetails />}
           />
+
+          {/* مصروفات المشروع */}
+<Route
+  path="/projects/:id/expenses"
+  element={<ProjectExpenses />}
+/>
 
 
           {/* المركز المالي */}

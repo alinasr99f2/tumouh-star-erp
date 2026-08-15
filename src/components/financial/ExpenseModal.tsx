@@ -47,15 +47,20 @@ const [projectId, setProjectId] = useState("");
 const [villaCode, setVillaCode] = useState("");
 const [villaId, setVillaId] = useState("");
 const [accountId, setAccountId] = useState("");
+const [stageId, setStageId] = useState("");
 
 const [categoryId, setCategoryId] = useState("");
 const [itemId, setItemId] = useState("");
 
 const [showAddCategory, setShowAddCategory] = useState(false);
 const [showAddItem, setShowAddItem] = useState(false);
+const [showAddAccount, setShowAddAccount] = useState(false);
+const [showAddStage, setShowAddStage] = useState(false);
 
 const [newCategoryName, setNewCategoryName] = useState("");
 const [newItemName, setNewItemName] = useState("");
+const [newAccountName, setNewAccountName] = useState("");
+const [newStageName, setNewStageName] = useState("");
 
 const [categories, setCategories] = useState<
   { id: number; name: string }[]
@@ -64,6 +69,11 @@ const [categories, setCategories] = useState<
 const [expenseItems, setExpenseItems] = useState<
   { id: number; name: string; category_id: number }[]
 >([]);
+
+const [stages, setStages] = useState<
+  { id: number; name: string; is_active?: boolean }[]
+>([]);
+const [localAccounts, setLocalAccounts] = useState<Account[]>(accounts);
 
 const [voucherNo, setVoucherNo] = useState("");
 const [amount, setAmount] = useState("");
@@ -74,6 +84,10 @@ const [paymentMethod, setPaymentMethod] =
 
 const [description, setDescription] =
   useState("");
+
+useEffect(() => {
+  setLocalAccounts(accounts);
+}, [accounts]);
 
 const tax = useMemo(() => {
   const value = Number(amount || 0);
@@ -101,6 +115,7 @@ useEffect(() => {
     const [
       { data: categoriesData, error: categoriesError },
       { data: itemsData, error: itemsError },
+      { data: stagesData, error: stagesError },
     ] = await Promise.all([
       supabase
         .from("categories")
@@ -110,6 +125,12 @@ useEffect(() => {
       supabase
         .from("expense_items")
         .select("id, name, category_id")
+        .order("id", { ascending: true }),
+
+      supabase
+        .from("expense_stages")
+        .select("id, name, is_active")
+        .eq("is_active", true)
         .order("id", { ascending: true }),
     ]);
 
@@ -129,8 +150,13 @@ useEffect(() => {
       return;
     }
 
+    if (stagesError) {
+      console.error("خطأ في تحميل المراحل:", stagesError);
+    }
+
     setCategories(categoriesData ?? []);
     setExpenseItems(itemsData ?? []);
+    setStages(stagesData ?? []);
   };
 
   if (open) {
@@ -142,9 +168,9 @@ useEffect(() => {
 useEffect(() => {
   if (!open) return;
 
-  if (!isEditing && forcedProjectId != null) {
+  if (forcedProjectId != null) {
     setProjectId(String(forcedProjectId));
-    setVillaId("");
+    if (!isEditing) setVillaId("");
   }
 
   if (initialExpense && isEditing) {
@@ -171,6 +197,7 @@ useEffect(() => {
         : ""
     );
     setAccountId(String(initialExpense.accountId ?? initialExpense.account_id ?? ""));
+    setStageId(String(initialExpense.stageId ?? initialExpense.stage_id ?? ""));
     setCategoryId(String(initialExpense.categoryId ?? initialExpense.category_id ?? ""));
     setItemId(String(initialExpense.itemId ?? initialExpense.item_id ?? ""));
     setVoucherNo(String(initialExpense.voucherNo ?? initialExpense.voucher_no ?? ""));
@@ -189,6 +216,9 @@ useEffect(() => {
   } else {
     resetForm();
     setEntryDate(today);
+    if (forcedProjectId != null) {
+      setProjectId(String(forcedProjectId));
+    }
   }
 }, [open, initialExpense, isEditing]);
 
@@ -287,6 +317,95 @@ const handleAddItem = async () => {
   setShowAddItem(false);
 };
 
+const handleAddAccount = async () => {
+  const name = newAccountName.trim();
+
+  if (!name) {
+    alert("من فضلك أدخل اسم العهدة");
+    return;
+  }
+
+  const existing = localAccounts.find(
+    (account) => account.name.trim().toLowerCase() === name.toLowerCase()
+  );
+
+  if (existing) {
+    setAccountId(String(existing.id));
+    setShowAddAccount(false);
+    setNewAccountName("");
+    return;
+  }
+
+  const { data, error } = await supabase
+    .from("accounts")
+    .insert({ name, type: "عهدة", balance: 0 })
+    .select("id, name, type, balance")
+    .single();
+
+  if (error) {
+    console.error("خطأ في إضافة العهدة:", error);
+    alert(`تعذر إضافة العهدة:\n${error.message}`);
+    return;
+  }
+
+  if (data) {
+    const newAccount: Account = {
+      id: Number(data.id),
+      name: String(data.name ?? name),
+      type: String(data.type ?? "عهدة"),
+      currentBalance: Number(data.balance ?? 0),
+      totalFunding: 0,
+      totalExpenses: 0,
+      operationsCount: 0,
+    };
+    setLocalAccounts((current) => [...current, newAccount]);
+    setAccountId(String(newAccount.id));
+  }
+
+  setNewAccountName("");
+  setShowAddAccount(false);
+};
+
+const handleAddStage = async () => {
+  const name = newStageName.trim();
+
+  if (!name) {
+    alert("من فضلك أدخل اسم المرحلة");
+    return;
+  }
+
+  const existing = stages.find(
+    (stage) => stage.name.trim().toLowerCase() === name.toLowerCase()
+  );
+
+  if (existing) {
+    setStageId(String(existing.id));
+    setShowAddStage(false);
+    setNewStageName("");
+    return;
+  }
+
+  const { data, error } = await supabase
+    .from("expense_stages")
+    .insert({ name, is_active: true })
+    .select("id, name, is_active")
+    .single();
+
+  if (error) {
+    console.error("خطأ في إضافة المرحلة:", error);
+    alert(`تعذر إضافة المرحلة:\n${error.message}`);
+    return;
+  }
+
+  if (data) {
+    setStages((current) => [...current, data]);
+    setStageId(String(data.id));
+  }
+
+  setNewStageName("");
+  setShowAddStage(false);
+};
+
 const resetForm = () => {
   setEntryDate(today);
   setExpenseDate(today);
@@ -296,6 +415,7 @@ const resetForm = () => {
   setAccountId("");
   setCategoryId("");
   setItemId("");
+  setStageId("");
   setVoucherNo("");
   setAmount("");
   setTaxPercent("15");
@@ -338,6 +458,7 @@ const handleSave = async (addAnother = false) => {
     villaId: savedVillaId,
     accountId: Number(accountId),
     categoryId,
+    stageId: stageId ? Number(stageId) : null,
 itemId: itemId ? Number(itemId) : null,
 voucherNo,
 amount: Number(amount),
@@ -420,7 +541,7 @@ return (
           label="المشروع"
           value={projectId}
           onChange={setProjectId}
-          disabled={!isEditing && forcedProjectId != null}
+          disabled={forcedProjectId != null}
           options={projects.map((p) => ({
             value: p.id,
             label: p.name,
@@ -445,17 +566,64 @@ return (
         />
 
         {/* العهدة */}
-        <Select
-          label="العهدة"
-          value={accountId}
-          onChange={setAccountId}
-          options={accounts.map((account) => ({
-            value: account.id,
-            label: `${account.name} (${Number(
-              account.currentBalance || 0
-            ).toLocaleString()} ريال)`,
-          }))}
-        />
+        <div>
+          <div className="mb-2 flex items-center justify-between">
+            <label className="text-sm text-gray-300">العهدة</label>
+            <button
+              type="button"
+              onClick={() => {
+                setNewAccountName("");
+                setShowAddAccount(true);
+              }}
+              className="flex h-7 w-7 items-center justify-center rounded-lg bg-yellow-400 font-bold text-[#081B33] transition hover:bg-yellow-300"
+              title="إضافة عهدة"
+            >
+              +
+            </button>
+          </div>
+          <select
+            value={accountId}
+            onChange={(e) => setAccountId(e.target.value)}
+            className="h-12 w-full rounded-xl border border-white/10 bg-[#102947] px-4 text-white outline-none focus:border-yellow-400"
+          >
+            <option value="">اختر العهدة...</option>
+            {localAccounts.map((account) => (
+              <option key={account.id} value={account.id}>
+                {account.name} ({Number(account.currentBalance || 0).toLocaleString()} ريال)
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* المرحلة */}
+        <div>
+          <div className="mb-2 flex items-center justify-between">
+            <label className="text-sm text-gray-300">المرحلة</label>
+            <button
+              type="button"
+              onClick={() => {
+                setNewStageName("");
+                setShowAddStage(true);
+              }}
+              className="flex h-7 w-7 items-center justify-center rounded-lg bg-yellow-400 font-bold text-[#081B33] transition hover:bg-yellow-300"
+              title="إضافة مرحلة"
+            >
+              +
+            </button>
+          </div>
+          <select
+            value={stageId}
+            onChange={(e) => setStageId(e.target.value)}
+            className="h-12 w-full rounded-xl border border-white/10 bg-[#102947] px-4 text-white outline-none focus:border-yellow-400"
+          >
+            <option value="">اختر المرحلة...</option>
+            {stages.map((stage) => (
+              <option key={stage.id} value={stage.id}>
+                {stage.name}
+              </option>
+            ))}
+          </select>
+        </div>
 
         {/* التصنيف */}
         <div>
@@ -684,6 +852,58 @@ return (
         />
 
       </div>
+
+      {/* ================= إضافة عهدة جديدة ================= */}
+      {showAddAccount && (
+        <div className="fixed inset-0 z-[220] flex items-center justify-center bg-black/70 p-4">
+          <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#081B33] p-7 shadow-2xl">
+            <div className="mb-6 flex items-center justify-between">
+              <h3 className="text-2xl font-bold text-white">إضافة عهدة جديدة</h3>
+              <button type="button" onClick={() => setShowAddAccount(false)} className="text-2xl text-gray-400 hover:text-red-400">✕</button>
+            </div>
+            <label className="mb-2 block text-sm text-gray-300">اسم العهدة</label>
+            <input
+              type="text"
+              value={newAccountName}
+              onChange={(e) => setNewAccountName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleAddAccount()}
+              autoFocus
+              placeholder="أدخل اسم العهدة"
+              className="h-12 w-full rounded-xl border border-white/10 bg-[#102947] px-4 text-white outline-none focus:border-yellow-400"
+            />
+            <div className="mt-6 grid grid-cols-2 gap-3">
+              <button type="button" onClick={() => setShowAddAccount(false)} className="rounded-xl border border-white/10 px-6 py-3 font-bold text-white hover:bg-white/5">إلغاء</button>
+              <button type="button" onClick={handleAddAccount} className="rounded-xl bg-yellow-400 px-6 py-3 font-bold text-[#081B33] hover:bg-yellow-300">+ إضافة العهدة</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================= إضافة مرحلة جديدة ================= */}
+      {showAddStage && (
+        <div className="fixed inset-0 z-[220] flex items-center justify-center bg-black/70 p-4">
+          <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#081B33] p-7 shadow-2xl">
+            <div className="mb-6 flex items-center justify-between">
+              <h3 className="text-2xl font-bold text-white">إضافة مرحلة جديدة</h3>
+              <button type="button" onClick={() => setShowAddStage(false)} className="text-2xl text-gray-400 hover:text-red-400">✕</button>
+            </div>
+            <label className="mb-2 block text-sm text-gray-300">اسم المرحلة</label>
+            <input
+              type="text"
+              value={newStageName}
+              onChange={(e) => setNewStageName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleAddStage()}
+              autoFocus
+              placeholder="أدخل اسم المرحلة"
+              className="h-12 w-full rounded-xl border border-white/10 bg-[#102947] px-4 text-white outline-none focus:border-yellow-400"
+            />
+            <div className="mt-6 grid grid-cols-2 gap-3">
+              <button type="button" onClick={() => setShowAddStage(false)} className="rounded-xl border border-white/10 px-6 py-3 font-bold text-white hover:bg-white/5">إلغاء</button>
+              <button type="button" onClick={handleAddStage} className="rounded-xl bg-yellow-400 px-6 py-3 font-bold text-[#081B33] hover:bg-yellow-300">+ إضافة المرحلة</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ================= إضافة تصنيف جديد ================= */}
       {showAddCategory && (

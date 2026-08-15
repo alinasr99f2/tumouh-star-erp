@@ -750,6 +750,7 @@ export default function ProjectDetails() {
             account_id: accountId,
             category_id: categoryId,
             item_id: itemId,
+            stage_id: expense?.stageId ? Number(expense.stageId) : null,
             invoice_number: expense?.voucherNo || null,
             amount_before_tax: amount,
             tax,
@@ -825,6 +826,7 @@ export default function ProjectDetails() {
           account_id: accountId,
           category_id: categoryId,
           item_id: itemId,
+          stage_id: expense?.stageId ? Number(expense.stageId) : null,
           invoice_number: expense?.voucherNo || null,
           amount_before_tax: amount,
           tax,
@@ -1355,18 +1357,19 @@ export default function ProjectDetails() {
           </ProjectKpi>
 
           {/* 5 - TOTAL EXPENSES */}
-          <ProjectKpi
-            icon={<WalletCards size={46} />}
-            title="إجمالي المصاريف"
-            value={totalProjectExpenses.toLocaleString("ar-SA")}
-            suffix="ريال"
-            cardClass="
-              from-[#4C2B3B]
-              via-[#362336]
-              to-[#211A2C]
-              border-rose-400/20
-            "
-          />
+<ProjectKpi
+  icon={<WalletCards size={46} />}
+  title="إجمالي المصاريف"
+  value={totalProjectExpenses.toLocaleString("ar-SA")}
+  suffix="ريال"
+  cardClass="
+    from-[#4C2B3B]
+    via-[#362336]
+    to-[#211A2C]
+    border-rose-400/20
+  "
+  onClick={() => navigate(`/projects/${project.id}/expenses`)}
+/>
 
         </div>
 
@@ -2583,6 +2586,7 @@ type ProjectKpiProps = {
   suffix?: string;
   cardClass: string;
   children?: React.ReactNode;
+  onClick?: () => void;
 };
 
 function ProjectKpi({
@@ -2592,25 +2596,28 @@ function ProjectKpi({
   suffix,
   cardClass,
   children,
+  onClick,
 }: ProjectKpiProps) {
   return (
     <div
-      className={`
-        group
-        relative
-        min-h-[205px]
-        overflow-hidden
-        rounded-3xl
-        border
-        bg-gradient-to-br
-        ${cardClass}
-        p-6
-        shadow-lg
-        transition-all
-        duration-300
-        hover:-translate-y-1
-        hover:shadow-2xl
-      `}
+  onClick={onClick}
+  className={`
+    group
+    relative
+    min-h-[205px]
+    overflow-hidden
+    rounded-3xl
+    border
+    bg-gradient-to-br
+    ${cardClass}
+    p-6
+    shadow-lg
+    transition-all
+    duration-300
+    hover:-translate-y-1
+    hover:shadow-2xl
+    ${onClick ? "cursor-pointer" : ""}
+  `}
     >
 
       {/* Glow */}
