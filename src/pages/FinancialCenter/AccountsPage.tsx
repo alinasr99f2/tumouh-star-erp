@@ -1,5 +1,54 @@
 import { useState } from "react";
-import { RefreshCw } from "lucide-react";
+import {
+  RefreshCw,
+  Download,
+  FileSpreadsheet,
+  FileText,
+  Printer,
+  ChevronDown,
+} from "lucide-react";
+
+
+const escapeHtml = (value: unknown) =>
+  String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+
+const downloadBlob = (content: BlobPart, fileName: string, type: string) => {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+};
+
+const getAccountFundingRows = (funding: any[], accountId: number) =>
+  funding
+    .filter((item) => Number(item?.account_id) === Number(accountId))
+    .slice()
+    .sort((a, b) => {
+      const ad = new Date(a?.funding_date ?? a?.date ?? a?.created_at ?? 0).getTime();
+      const bd = new Date(b?.funding_date ?? b?.date ?? b?.created_at ?? 0).getTime();
+      return bd - ad || Number(b?.id ?? 0) - Number(a?.id ?? 0);
+    });
+
+const formatExportDate = (value: any) => {
+  if (!value) return "-";
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? String(value) : d.toLocaleDateString("ar-SA");
+};
+
+const getExportRef = (item: any) =>
+  item?.reference_number ?? item?.reference ?? item?.ref_number ?? item?.voucher_number ?? item?.id ?? "-";
+const getExportPayment = (item: any) => item?.payment_method ?? item?.method ?? item?.source ?? "-";
+const getExportDescription = (item: any) => item?.description ?? item?.notes ?? "-";
 
 type Account = {
   id: number;
@@ -16,32 +65,82 @@ type Props = {
   funding: any[];
 
   // إضافة عهدة جديدة
-  onAddAccount: () => void;
+onAddAccount: () => void;
 
-  // فتح صفحة التغذية مع اختيار العهدة تلقائيًا
-  onAddFunding: (accountId: number) => void;
+// تعديل العهدة
+onEditAccount: (account: Account) => void;
 
-  // فتح ملخص حركات العهدة
-  onViewAccount: (account: Account) => void;
+// حذف العهدة
+onDeleteAccount: (account: Account) => void;
+
+// فتح صفحة التغذية مع اختيار العهدة تلقائيًا
+onAddFunding: (accountId: number) => void;
+
+// فتح ملخص حركات العهدة
+onViewAccount: (account: Account) => void;
 };
-
 export default function AccountsPage({
   accounts,
   funding,
   onAddAccount,
+  onEditAccount,
+  onDeleteAccount,
   onAddFunding,
   onViewAccount,
 }: Props) {
   const [selectedAccountForView, setSelectedAccountForView] =
     useState<Account | null>(null);
+  const [openExportAccountId, setOpenExportAccountId] = useState<number | null>(null);
 
   const openFundingModal = (account: Account) => {
     setSelectedAccountForView(account);
     onViewAccount(account);
   };
 
+
   const closeFundingModal = () =>
     setSelectedAccountForView(null);
+
+  const exportAccount = (account: Account, mode: "excel" | "print") => {
+    const rows = getAccountFundingRows(funding, account.id);
+    const title = `تقرير عهدة - ${account.name}`;
+
+    if (mode === "excel") {
+      const body = rows.map((item) => `
+        <tr>
+          <td>${escapeHtml(formatExportDate(item?.created_at))}</td>
+          <td>${escapeHtml(formatExportDate(item?.funding_date ?? item?.date))}</td>
+          <td>${escapeHtml(account.name)}</td>
+          <td>${escapeHtml(getExportRef(item))}</td>
+          <td>${Number(item?.amount ?? 0)}</td>
+          <td>${escapeHtml(getExportPayment(item))}</td>
+          <td>${escapeHtml(getExportDescription(item))}</td>
+        </tr>`).join("");
+
+      const html = `<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><style>body{font-family:Arial,sans-serif;direction:rtl}h1{text-align:center}table{border-collapse:collapse;width:100%}th,td{border:1px solid #999;padding:8px;text-align:right}th{background:#e8eef7}</style></head><body><h1>${escapeHtml(title)}</h1><table><thead><tr><th>تاريخ الإدخال</th><th>تاريخ التغذية</th><th>العهدة</th><th>رقم المرجع</th><th>مبلغ التغذية</th><th>طريقة الدفع</th><th>الوصف</th></tr></thead><tbody>${body}</tbody></table></body></html>`;
+      downloadBlob(html, `${title}.xls`, "application/vnd.ms-excel;charset=utf-8");
+    } else {
+      const body = rows.map((item) => `
+        <tr>
+          <td>${escapeHtml(formatExportDate(item?.created_at))}</td>
+          <td>${escapeHtml(formatExportDate(item?.funding_date ?? item?.date))}</td>
+          <td>${escapeHtml(account.name)}</td>
+          <td>${escapeHtml(getExportRef(item))}</td>
+          <td>${Number(item?.amount ?? 0).toLocaleString()} ريال</td>
+          <td>${escapeHtml(getExportPayment(item))}</td>
+          <td>${escapeHtml(getExportDescription(item))}</td>
+        </tr>`).join("");
+
+      const win = window.open("", "_blank", "width=1200,height=800");
+      if (!win) {
+        alert("يرجى السماح بالنوافذ المنبثقة حتى يمكن إنشاء التقرير.");
+        return;
+      }
+      win.document.write(`<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><title>${escapeHtml(title)}</title><style>body{font-family:Arial,sans-serif;padding:25px;color:#111}h1{text-align:center}table{border-collapse:collapse;width:100%;font-size:12px}th,td{border:1px solid #aaa;padding:7px;text-align:right}th{background:#eee}</style></head><body><h1>${escapeHtml(title)}</h1><p style="text-align:center">الرصيد الحالي: ${Number(account.currentBalance ?? 0).toLocaleString()} ريال</p><table><thead><tr><th>تاريخ الإدخال</th><th>تاريخ التغذية</th><th>العهدة</th><th>رقم المرجع</th><th>مبلغ التغذية</th><th>طريقة الدفع</th><th>الوصف</th></tr></thead><tbody>${body}</tbody></table><script>window.onload=function(){window.print();}</script></body></html>`);
+      win.document.close();
+    }
+    setOpenExportAccountId(null);
+  };
 
   const getFundingDate = (item: any) => {
     const value =
@@ -183,77 +282,146 @@ export default function AccountsPage({
       </div>
 
 
-      {/* ================= Accounts ================= */}
+    {/* ================= Accounts ================= */}
 
-      {accounts.length > 0 && (
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+{accounts.length > 0 && (
+  <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
 
-          {accounts.map((account) => (
+    {accounts.map((account) => (
 
-            <div
-              key={account.id}
-              className="
-                group
-                overflow-hidden
-                rounded-3xl
-                border border-white/10
-                bg-[#081B33]
-                shadow-lg
-                transition-all
-                duration-300
-                hover:-translate-y-1
-                hover:border-yellow-400/30
-                hover:shadow-2xl
-              "
-            >
+      <div
+        key={account.id}
+        className="
+          group
+          overflow-hidden
+          rounded-3xl
+          border border-white/10
+          bg-[#081B33]
+          shadow-lg
+          transition-all
+          duration-300
+          hover:-translate-y-1
+          hover:border-yellow-400/30
+          hover:shadow-2xl
+        "
+      >
 
-              <div className="p-6">
+        <div className="p-6">
 
-                {/* ================= Card Header ================= */}
+          {/* ================= Card Header ================= */}
 
-                <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start justify-between gap-4">
 
-                  <div className="min-w-0 flex-1">
+            <div className="min-w-0 flex-1">
 
-                    <p className="mb-2 text-sm font-medium text-gray-400">
-                      عهدة مالية
-                    </p>
+              <p className="mb-2 text-sm font-medium text-gray-400">
+                عهدة مالية
+              </p>
 
-                    <h3
-                      className="
-                        text-xl
-                        font-extrabold
-                        leading-relaxed
-                        text-white
-                      "
-                    >
-                      {account.name}
-                    </h3>
+              <h3
+                className="
+                  text-xl
+                  font-extrabold
+                  leading-relaxed
+                  text-white
+                "
+              >
+                {account.name}
+              </h3>
 
+            </div>
+
+            <div className="flex shrink-0 items-center gap-2">
+
+              {/* تعديل */}
+              <button
+                type="button"
+                onClick={() => onEditAccount(account)}
+                title="تعديل العهدة"
+                className="
+                  flex
+                  h-10
+                  w-10
+                  items-center
+                  justify-center
+                  rounded-xl
+                  border
+                  border-blue-400/30
+                  bg-blue-400/10
+                  text-lg
+                  transition
+                  hover:border-blue-400
+                  hover:bg-blue-400/20
+                "
+              >
+                ✏️
+              </button>
+
+              {/* حذف */}
+              <button
+                type="button"
+                onClick={() => onDeleteAccount(account)}
+                title="حذف العهدة"
+                className="
+                  flex
+                  h-10
+                  w-10
+                  items-center
+                  justify-center
+                  rounded-xl
+                  border
+                  border-red-400/30
+                  bg-red-400/10
+                  text-lg
+                  transition
+                  hover:border-red-400
+                  hover:bg-red-400/20
+                "
+              >
+                🗑️
+              </button>
+
+              {/* تصدير العهدة */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setOpenExportAccountId((v) => v === account.id ? null : account.id)}
+                  title="تصدير العهدة"
+                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-green-400/30 bg-green-400/10 text-lg transition hover:border-green-400 hover:bg-green-400/20"
+                >
+                  📤
+                </button>
+                {openExportAccountId === account.id && (
+                  <div className="absolute right-0 top-12 z-50 w-48 overflow-hidden rounded-2xl border border-white/10 bg-[#102947] p-1 shadow-2xl">
+                    <button type="button" onClick={() => exportAccount(account, "excel")} className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-right text-sm text-white hover:bg-white/10"><FileSpreadsheet size={17} className="text-green-400" /> Excel</button>
+                    <button type="button" onClick={() => exportAccount(account, "print")} className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-right text-sm text-white hover:bg-white/10"><FileText size={17} className="text-red-400" /> PDF / حفظ PDF</button>
+                    <button type="button" onClick={() => exportAccount(account, "print")} className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-right text-sm text-white hover:bg-white/10"><Printer size={17} className="text-sky-400" /> طباعة</button>
                   </div>
+                )}
+              </div>
 
-                  <div
-                    className="
-                      flex
-                      h-16
-                      w-16
-                      shrink-0
-                      items-center
-                      justify-center
-                      rounded-2xl
-                      border
-                      border-yellow-400/30
-                      bg-yellow-400/10
-                      text-3xl
-                      shadow-inner
-                    "
-                  >
-                    💼
-                  </div>
+              {/* أيقونة العهدة */}
+              <div
+                className="
+                  flex
+                  h-16
+                  w-16
+                  items-center
+                  justify-center
+                  rounded-2xl
+                  border
+                  border-yellow-400/30
+                  bg-yellow-400/10
+                  text-3xl
+                  shadow-inner
+                "
+              >
+                💼
+              </div>
 
-                </div>
+            </div>
 
-
+          </div>
                 {/* ================= Balance ================= */}
 
                 <div className="mt-6">

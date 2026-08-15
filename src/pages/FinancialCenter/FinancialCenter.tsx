@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   Receipt,
@@ -46,6 +46,12 @@ export default function FinancialCenter() {
   const [openExpenseModal, setOpenExpenseModal] =
     useState(false);
 
+  const [editingExpense, setEditingExpense] =
+    useState<any | null>(null);
+
+  const [expenseRefreshKey, setExpenseRefreshKey] =
+    useState(0);
+
   const [openFundingModal, setOpenFundingModal] =
     useState(false);
   const [selectedAccountId, setSelectedAccountId] =
@@ -72,6 +78,7 @@ useState<any[]>([]);
 
   const [expenseItems, setExpenseItems] =
     useState<any[]>([]);
+    const [suppliers, setSuppliers] = useState<any[]>([]);
 const [openAccountModal, setOpenAccountModal] =
   useState(false);
 
@@ -80,7 +87,8 @@ const [newAccountName, setNewAccountName] =
 
 const [newAccountType, setNewAccountType] =
   useState("عهدة");
-
+const [editingAccount, setEditingAccount] =
+  useState<any | null>(null);
   // ==========================================
   // إدارة المراحل والتصنيفات والبنود
   // ==========================================
@@ -149,12 +157,14 @@ const [newAccountType, setNewAccountType] =
   useEffect(() => {
     const loadAccounts = async () => {
   const [
-    { data: accountsData, error: accountsError },
-    { data: fundingData, error: fundingError },
-    { data: expensesData, error: expensesError },
-    { data: categoriesData, error: categoriesError },
-    { data: itemsData, error: itemsError },
-  ] = await Promise.all([
+  { data: accountsData, error: accountsError },
+  { data: fundingData, error: fundingError },
+  { data: expensesData, error: expensesError },
+  { data: categoriesData, error: categoriesError },
+  { data: itemsData, error: itemsError },
+  { data: suppliersData, error: suppliersError },
+  { data: stagesData, error: stagesError },
+] = await Promise.all([
     supabase
       .from("accounts")
       .select("*")
@@ -162,7 +172,7 @@ const [newAccountType, setNewAccountType] =
 
     supabase
   .from("funding")
-  .select("id, account_id, amount")
+  .select("*")
   .not("account_id", "is", null),
 
     supabase
@@ -178,6 +188,16 @@ const [newAccountType, setNewAccountType] =
     supabase
       .from("expense_items")
       .select("id, name, category_id")
+      .order("id", { ascending: true }),
+    supabase
+  .from("suppliers")
+  .select("id, name, phone, tax_number, address, notes")
+  .order("id", { ascending: true }),
+
+    supabase
+      .from("expense_stages")
+      .select("id, name, is_active")
+      .eq("is_active", true)
       .order("id", { ascending: true }),
   ]);
 console.log("ACCOUNTS FROM SUPABASE:", accountsData);
@@ -207,6 +227,57 @@ console.log("ACCOUNTS ERROR:", accountsError);
   } else {
     setExpenseItems(itemsData ?? []);
   }
+  if (suppliersError) {
+  console.error("خطأ في تحميل الموردين:", suppliersError);
+} else {
+  setSuppliers(suppliersData ?? []);
+}
+
+  // تحميل المراحل من قاعدة البيانات حتى تكون متاحة أيضًا داخل نافذة إضافة المصروف.
+  // إذا لم توجد مراحل في قاعدة البيانات، نحتفظ بالمراحل المحلية كحل احتياطي.
+  if (stagesError) {
+    console.error("خطأ في تحميل المراحل:", stagesError);
+  } else if ((stagesData ?? []).length > 0) {
+    setStages(stagesData ?? []);
+  } else {
+    // لا توجد مراحل في قاعدة البيانات؟ ننقل المراحل المحلية الحالية إليها مرة واحدة.
+    // هذا مهم لأن نافذة إضافة المصروف تحتاج ID رقمي حقيقي من expense_stages.
+    try {
+      const localStageRows = stages.filter((stage) => stage?.name?.trim());
+
+      if (localStageRows.length > 0) {
+        const migratedStages: any[] = [];
+
+        for (const localStage of localStageRows) {
+          const { data: createdStage, error: createStageError } = await supabase
+            .from("expense_stages")
+            .insert([{
+              name: String(localStage.name).trim(),
+              is_active: true,
+            }])
+            .select("id, name, is_active")
+            .single();
+
+          if (createStageError) {
+            console.error(
+              "تعذر نقل المرحلة إلى قاعدة البيانات:",
+              localStage.name,
+              createStageError
+            );
+            continue;
+          }
+
+          if (createdStage) migratedStages.push(createdStage);
+        }
+
+        if (migratedStages.length > 0) {
+          setStages(migratedStages);
+        }
+      }
+    } catch (migrationError) {
+      console.error("خطأ أثناء نقل المراحل المحلية:", migrationError);
+    }
+  }
 
   const fundingRows = fundingData ?? [];
   const expenseRows = expensesData ?? [];
@@ -224,10 +295,18 @@ console.log("ACCOUNTS ERROR:", accountsError);
     savedStageMap = {};
   }
 
+  const supplierMap = new Map<number, any>(
+    (suppliersData ?? []).map((supplier: any) => [Number(supplier.id), supplier])
+  );
+
   const expensesWithStages = expenseRows.map((row) => {
     const savedStage = savedStageMap[String(row.id)];
+    const supplierId = row.supplier_id ?? row.supplierId ?? null;
+    const supplierRow = supplierId != null ? supplierMap.get(Number(supplierId)) : null;
     return {
       ...row,
+      supplierId,
+      supplier: supplierRow?.name ?? row.supplier ?? "",
       stageId:
         row.stage_id ??
         row.stageId ??
@@ -277,11 +356,15 @@ console.log("ACCOUNTS ERROR:", accountsError);
   id: account.id,
   name: account.name,
   type: account.type ?? "عهدة",
-  currentBalance: Number(account.balance ?? 0),
- totalFunding: totalFunding,
-totalExpenses: totalExpenses,
 
-operationsCount: operationsCount,
+  // الرصيد الحقيقي = إجمالي التغذية - إجمالي المصروفات
+  currentBalance:
+    Number(totalFunding) - Number(totalExpenses),
+
+  totalFunding: Number(totalFunding),
+  totalExpenses: Number(totalExpenses),
+
+  operationsCount: operationsCount,
 };
   });
 
@@ -305,406 +388,665 @@ const loadFunding = async () => {
   loadAccounts();
   loadFunding();
 }, []);
+const savingExpenseRef = useRef(false);
+
+  const closeExpenseModal = () => {
+    setOpenExpenseModal(false);
+    setEditingExpense(null);
+  };
+
+  const handleEditExpense = (expense: any) => {
+    setEditingExpense(expense);
+    setOpenExpenseModal(true);
+  };
+
+  const handleDeleteExpense = async (expense: any) => {
+    const confirmed = window.confirm(
+      `هل أنت متأكد من حذف هذا المصروف؟\n\nالإجمالي: ${Number(expense?.total ?? 0).toLocaleString()} ريال\n\nسيتم إعادة مبلغ المصروف إلى رصيد العهدة.`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      const expenseId = Number(expense?.id);
+      if (!expenseId) {
+        alert("رقم المصروف غير صالح");
+        return;
+      }
+
+      const { data: existing, error: existingError } = await supabase
+        .from("expenses")
+        .select("id, account_id, total")
+        .eq("id", expenseId)
+        .single();
+
+      if (existingError || !existing) {
+        console.error("خطأ في قراءة المصروف قبل الحذف:", existingError);
+        alert(`تعذر قراءة المصروف قبل الحذف:\n${existingError?.message ?? "السجل غير موجود"}`);
+        return;
+      }
+
+      const oldTotal = Number(existing.total ?? 0);
+      const oldAccountId = Number(existing.account_id ?? 0);
+
+      if (oldAccountId && oldTotal > 0) {
+        const { data: accountRow, error: accountReadError } = await supabase
+          .from("accounts")
+          .select("id, balance")
+          .eq("id", oldAccountId)
+          .single();
+
+        if (accountReadError) {
+          console.error("خطأ في قراءة رصيد العهدة:", accountReadError);
+          alert(`تعذر قراءة رصيد العهدة:\n${accountReadError.message}`);
+          return;
+        }
+
+        const restoredBalance = Number(accountRow?.balance ?? 0) + oldTotal;
+
+        const { error: balanceError } = await supabase
+          .from("accounts")
+          .update({ balance: restoredBalance })
+          .eq("id", oldAccountId);
+
+        if (balanceError) {
+          console.error("خطأ في إعادة مبلغ المصروف للعهدة:", balanceError);
+          alert(`تعذر إعادة مبلغ المصروف إلى العهدة:\n${balanceError.message}`);
+          return;
+        }
+      }
+
+      const { error: deleteError } = await supabase
+        .from("expenses")
+        .delete()
+        .eq("id", expenseId);
+
+      if (deleteError) {
+        console.error("خطأ في حذف المصروف:", deleteError);
+
+        // محاولة عكس إعادة الرصيد إذا فشل الحذف.
+        if (oldAccountId && oldTotal > 0) {
+          const { data: rollbackAccount } = await supabase
+            .from("accounts")
+            .select("balance")
+            .eq("id", oldAccountId)
+            .single();
+
+          if (rollbackAccount) {
+            await supabase
+              .from("accounts")
+              .update({ balance: Number(rollbackAccount.balance ?? 0) - oldTotal })
+              .eq("id", oldAccountId);
+          }
+        }
+
+        alert(`تعذر حذف المصروف:\n${deleteError.message}`);
+        return;
+      }
+
+      setExpenses((prev) => prev.filter((row) => String(row.id) !== String(expenseId)));
+      setExpenseRefreshKey((value) => value + 1);
+
+      setAccounts((prev) =>
+        prev.map((item) =>
+          Number(item.id) === oldAccountId
+            ? {
+                ...item,
+                currentBalance: Number(item.currentBalance ?? 0) + oldTotal,
+                totalExpenses: Math.max(0, Number(item.totalExpenses ?? 0) - oldTotal),
+                operationsCount: Math.max(0, Number(item.operationsCount ?? 0) - 1),
+              }
+            : item
+        )
+      );
+
+      alert("تم حذف المصروف وإعادة المبلغ إلى العهدة بنجاح.");
+    } catch (error) {
+      console.error("خطأ غير متوقع أثناء حذف المصروف:", error);
+      alert("حدث خطأ غير متوقع أثناء حذف المصروف.");
+    }
+  };
 
   const handleSaveExpense = async (
-  expense: any
-): Promise<boolean> => {
-  try {
-    // 1️⃣ التأكد من اختيار العهدة
-    if (!expense.accountId) {
-      alert("من فضلك اختر العهدة التي تم دفع المصروف منها");
+    expense: any
+  ): Promise<boolean> => {
+    if (savingExpenseRef.current) {
       return false;
     }
 
-    const accountId = Number(expense.accountId);
-    const expenseTotal = Number(expense.total ?? 0);
+    savingExpenseRef.current = true;
 
-    if (!expenseTotal || expenseTotal <= 0) {
-      alert("من فضلك أدخل مبلغ المصروف");
-      return false;
-    }
+    try {
+      if (!expense.accountId) {
+        alert("من فضلك اختر العهدة التي تم دفع المصروف منها");
+        return false;
+      }
 
-    // 2️⃣ الحصول على العهدة الحالية
-    const account = accounts.find(
-      (item) => Number(item.id) === accountId
-    );
-
-    if (!account) {
-      alert("العهدة المختارة غير موجودة");
-      return false;
-    }
-
-    const currentBalance = Number(
-      account.currentBalance ?? 0
-    );
-
-    // 3️⃣ التأكد من وجود رصيد كافٍ
-    if (expenseTotal > currentBalance) {
-      alert(
-        `رصيد العهدة غير كافٍ.\nالرصيد الحالي: ${currentBalance.toLocaleString()} ريال`
+      const accountId = Number(expense.accountId);
+      const expenseTotal = Number(expense.total ?? 0);
+      const tax = Number(expense.tax ?? 0);
+      const amountBeforeTax = Number(
+        expense.amount ?? Math.max(0, expenseTotal - tax)
       );
-      return false;
-    }
 
-    // 4️⃣ حفظ المصروف في Supabase
-    const { data: savedExpense, error: expenseError } =
-      await supabase
+      if (!expenseTotal || expenseTotal <= 0) {
+        alert("من فضلك أدخل مبلغ المصروف");
+        return false;
+      }
+
+      if (!expense.stageId || !Number.isFinite(Number(expense.stageId))) {
+        alert("من فضلك اختر مرحلة صحيحة مرتبطة بقاعدة البيانات");
+        return false;
+      }
+
+      const expenseDateForDb = expense.expenseDate || expense.entryDate || null;
+
+      const supplierId =
+        expense.supplierId != null && String(expense.supplierId).trim() !== ""
+          ? Number(expense.supplierId)
+          : expense.supplier && /^\d+$/.test(String(expense.supplier).trim())
+            ? Number(expense.supplier)
+            : null;
+
+      // ==============================
+      // تعديل مصروف موجود
+      // ==============================
+      if (editingExpense?.id) {
+        const expenseId = Number(editingExpense.id);
+
+        const { data: oldExpense, error: oldExpenseError } = await supabase
+          .from("expenses")
+          .select("id, account_id, total")
+          .eq("id", expenseId)
+          .single();
+
+        if (oldExpenseError || !oldExpense) {
+          console.error("خطأ في قراءة المصروف القديم:", oldExpenseError);
+          alert(`تعذر قراءة المصروف القديم:\n${oldExpenseError?.message ?? "السجل غير موجود"}`);
+          return false;
+        }
+
+        const oldAccountId = Number(oldExpense.account_id ?? 0);
+        const oldTotal = Number(oldExpense.total ?? 0);
+
+        const accountIds = Array.from(
+          new Set([oldAccountId, accountId].filter((id) => Number(id) > 0))
+        );
+
+        const { data: accountRows, error: accountRowsError } = await supabase
+          .from("accounts")
+          .select("id, balance")
+          .in("id", accountIds);
+
+        if (accountRowsError) {
+          console.error("خطأ في قراءة أرصدة العهد:", accountRowsError);
+          alert(`تعذر قراءة أرصدة العهد:\n${accountRowsError.message}`);
+          return false;
+        }
+
+        const accountMap = new Map<number, number>(
+          (accountRows ?? []).map((row: any) => [Number(row.id), Number(row.balance ?? 0)] as [number, number])
+        );
+
+        const oldBalance = accountMap.get(oldAccountId) ?? 0;
+        const newBalance = accountMap.get(accountId) ?? 0;
+
+        if (oldAccountId === accountId) {
+          const availableBalance = oldBalance + oldTotal;
+          if (expenseTotal > availableBalance) {
+            alert(
+              `رصيد العهدة غير كافٍ لتعديل المصروف.\nالرصيد المتاح بعد عكس المصروف القديم: ${availableBalance.toLocaleString()} ريال`
+            );
+            return false;
+          }
+        } else if (expenseTotal > newBalance) {
+          alert(
+            `رصيد العهدة الجديدة غير كافٍ.\nالرصيد الحالي: ${newBalance.toLocaleString()} ريال`
+          );
+          return false;
+        }
+
+        const { data: updatedExpense, error: updateError } = await supabase
+          .from("expenses")
+          .update({
+            date: expenseDateForDb,
+            project_id: expense.projectId ? Number(expense.projectId) : null,
+            account_id: accountId,
+            category_id: expense.categoryId ? Number(expense.categoryId) : null,
+            supplier_id: supplierId,
+            description: expense.description || null,
+            amount_before_tax: amountBeforeTax,
+            tax,
+            total: expenseTotal,
+            payment_method: expense.paymentMethod || null,
+            invoice_number: expense.voucherNo || null,
+            attachment:
+              expense.attachmentUrl ||
+              expense.attachmentPath ||
+              null,
+            item_id: expense.itemId ? Number(expense.itemId) : null,
+            stage_id: Number(expense.stageId),
+          })
+          .eq("id", expenseId)
+          .select()
+          .single();
+
+        if (updateError) {
+          console.error("خطأ في تعديل المصروف:", updateError);
+          alert(`تعذر تعديل المصروف:\n${updateError.message}`);
+          return false;
+        }
+
+        // تحديث الأرصدة: نعكس القديم أولًا ثم نخصم الجديد.
+        if (oldAccountId === accountId) {
+          const finalBalance = oldBalance + oldTotal - expenseTotal;
+          const { error: balanceError } = await supabase
+            .from("accounts")
+            .update({ balance: finalBalance })
+            .eq("id", accountId);
+
+          if (balanceError) {
+            console.error("خطأ في تحديث رصيد العهدة بعد التعديل:", balanceError);
+            alert(`تم تعديل المصروف لكن تعذر تحديث رصيد العهدة:\n${balanceError.message}`);
+            return false;
+          }
+        } else {
+          const { error: oldAccountError } = await supabase
+            .from("accounts")
+            .update({ balance: oldBalance + oldTotal })
+            .eq("id", oldAccountId);
+
+          if (oldAccountError) {
+            console.error("خطأ في إعادة رصيد العهدة القديمة:", oldAccountError);
+            alert(`تم تعديل المصروف لكن تعذر إعادة رصيد العهدة القديمة:\n${oldAccountError.message}`);
+            return false;
+          }
+
+          const { error: newAccountError } = await supabase
+            .from("accounts")
+            .update({ balance: newBalance - expenseTotal })
+            .eq("id", accountId);
+
+          if (newAccountError) {
+            console.error("خطأ في خصم رصيد العهدة الجديدة:", newAccountError);
+            alert(`تم تعديل المصروف لكن تعذر خصم رصيد العهدة الجديدة:\n${newAccountError.message}`);
+            return false;
+          }
+        }
+
+        const finalExpense = {
+          ...expense,
+          id: updatedExpense?.id ?? expenseId,
+          amount: amountBeforeTax,
+          total: expenseTotal,
+          tax,
+          projectId: updatedExpense?.project_id ?? expense.projectId ?? null,
+          accountId: updatedExpense?.account_id ?? accountId,
+          categoryId: updatedExpense?.category_id ?? expense.categoryId ?? null,
+          itemId: updatedExpense?.item_id ?? expense.itemId ?? null,
+          voucherNo: updatedExpense?.invoice_number ?? expense.voucherNo ?? "",
+          expenseDate: updatedExpense?.date ?? expenseDateForDb ?? "-",
+          entryDate: expense.entryDate ?? expenseDateForDb ?? "-",
+          paymentMethod: updatedExpense?.payment_method ?? expense.paymentMethod ?? "",
+          supplierId: updatedExpense?.supplier_id ?? supplierId ?? null,
+          supplier:
+            suppliers.find((item) => Number(item.id) === Number(updatedExpense?.supplier_id ?? supplierId))?.name
+              ?? expense.supplier
+              ?? "",
+          description: updatedExpense?.description ?? expense.description ?? "",
+          stageId: updatedExpense?.stage_id ?? expense.stageId ?? null,
+          stageName: expense.stageName ?? null,
+        };
+
+        setExpenses((prev) =>
+          prev.map((row) =>
+            String(row.id) === String(expenseId) ? finalExpense : row
+          )
+        );
+        setExpenseRefreshKey((value) => value + 1);
+
+        setAccounts((prev) =>
+          prev.map((item) => {
+            const id = Number(item.id);
+            if (oldAccountId === accountId && id === accountId) {
+              return {
+                ...item,
+                currentBalance: Number(item.currentBalance ?? 0) + oldTotal - expenseTotal,
+                totalExpenses: Math.max(0, Number(item.totalExpenses ?? 0) - oldTotal + expenseTotal),
+              };
+            }
+            if (oldAccountId !== accountId && id === oldAccountId) {
+              return {
+                ...item,
+                currentBalance: Number(item.currentBalance ?? 0) + oldTotal,
+                totalExpenses: Math.max(0, Number(item.totalExpenses ?? 0) - oldTotal),
+              };
+            }
+            if (oldAccountId !== accountId && id === accountId) {
+              return {
+                ...item,
+                currentBalance: Number(item.currentBalance ?? 0) - expenseTotal,
+                totalExpenses: Number(item.totalExpenses ?? 0) + expenseTotal,
+              };
+            }
+            return item;
+          })
+        );
+
+        setOpenExpenseModal(false);
+        setEditingExpense(null);
+        return true;
+      }
+
+      // ==============================
+      // إضافة مصروف جديد
+      // ==============================
+      const account = accounts.find(
+        (item) => Number(item.id) === accountId
+      );
+
+      if (!account) {
+        alert("العهدة المختارة غير موجودة");
+        return false;
+      }
+
+      const currentBalance = Number(account.currentBalance ?? 0);
+
+      if (expenseTotal > currentBalance) {
+        alert(
+          `رصيد العهدة غير كافٍ.\nالرصيد الحالي: ${currentBalance.toLocaleString()} ريال`
+        );
+        return false;
+      }
+
+      const { data: savedExpense, error: expenseError } = await supabase
         .from("expenses")
         .insert([
           {
-            entry_date: expense.entryDate || null,
-
-            expense_date: expense.expenseDate || null,
-
-            supplier: expense.supplier || null,
-
-            project_id: expense.projectId
-              ? Number(expense.projectId)
-              : null,
-
-            villa_id: expense.villaId || null,
-
+            date: expenseDateForDb,
+            project_id: expense.projectId ? Number(expense.projectId) : null,
             account_id: accountId,
-
-            category_id: expense.categoryId
-              ? Number(expense.categoryId)
-              : null,
-
-            item_id: expense.itemId
-              ? Number(expense.itemId)
-              : null,
-
-            voucher_no: expense.voucherNo || null,
-
-            amount: Number(expense.amount ?? 0),
-
-            tax: Number(expense.tax ?? 0),
-
+            category_id: expense.categoryId ? Number(expense.categoryId) : null,
+            supplier_id: supplierId,
+            description: expense.description || null,
+            amount_before_tax: amountBeforeTax,
+            tax,
             total: expenseTotal,
-
-            payment_method:
-              expense.paymentMethod || null,
-
-            description:
-              expense.description || null,
+            payment_method: expense.paymentMethod || null,
+            invoice_number: expense.voucherNo || null,
+            attachment:
+              expense.attachmentUrl || expense.attachmentPath || null,
+            item_id: expense.itemId ? Number(expense.itemId) : null,
+            stage_id: Number(expense.stageId),
           },
         ])
         .select()
         .single();
 
-    if (expenseError) {
-      console.error(
-        "خطأ في حفظ المصروف:",
-        expenseError
-      );
-
-      alert(
-        `حدث خطأ أثناء حفظ المصروف:\n${expenseError.message}`
-      );
-
-      return false;
-    }
-
-    // حفظ المرحلة محليًا للمصروف حتى تظل ظاهرة بعد إعادة فتح الصفحة.
-    if (savedExpense?.id && expense.stageId) {
-      try {
-        const currentMap = JSON.parse(
-          localStorage.getItem("tumouh-expense-stage-map") || "{}"
-        );
-        currentMap[String(savedExpense.id)] = {
-          id: expense.stageId,
-          name: expense.stageName ?? null,
-        };
-        localStorage.setItem(
-          "tumouh-expense-stage-map",
-          JSON.stringify(currentMap)
-        );
-      } catch {
-        // لا نوقف حفظ المصروف بسبب localStorage
+      if (expenseError) {
+        console.error("خطأ في حفظ المصروف:", expenseError);
+        alert(`حدث خطأ أثناء حفظ المصروف:\n${expenseError.message}`);
+        return false;
       }
-    }
 
-    // 5️⃣ حساب الرصيد الجديد للعهدة
-    const newBalance =
-      currentBalance - expenseTotal;
+      if (savedExpense?.id && expense.stageId) {
+        try {
+          const currentMap = JSON.parse(
+            localStorage.getItem("tumouh-expense-stage-map") || "{}"
+          );
+          currentMap[String(savedExpense.id)] = {
+            id: expense.stageId,
+            name: expense.stageName ?? null,
+          };
+          localStorage.setItem(
+            "tumouh-expense-stage-map",
+            JSON.stringify(currentMap)
+          );
+        } catch {
+          // لا نوقف الحفظ بسبب localStorage
+        }
+      }
 
-    // 6️⃣ تحديث رصيد العهدة في Supabase
-    const { error: accountError } =
-      await supabase
+      const newBalance = currentBalance - expenseTotal;
+
+      const { error: accountError } = await supabase
         .from("accounts")
-        .update({
-          balance: newBalance,
-        })
+        .update({ balance: newBalance })
         .eq("id", accountId);
 
-    if (accountError) {
-      console.error(
-        "خطأ في تحديث رصيد العهدة:",
-        accountError
+      if (accountError) {
+        console.error("خطأ في تحديث رصيد العهدة:", accountError);
+        // نحاول حذف المصروف الذي تم إدخاله حتى لا يبقى سجل غير مكتمل.
+        if (savedExpense?.id) {
+          await supabase.from("expenses").delete().eq("id", savedExpense.id);
+        }
+        alert("تعذر تحديث رصيد العهدة، لذلك تم إلغاء تسجيل المصروف.");
+        return false;
+      }
+
+      const finalExpense = {
+        ...expense,
+        id: savedExpense?.id ?? expense.id,
+        entryDate: expense.entryDate ?? expenseDateForDb ?? "-",
+        expenseDate: savedExpense?.date ?? expenseDateForDb ?? "-",
+        projectId: savedExpense?.project_id ?? expense.projectId ?? null,
+        accountId: savedExpense?.account_id ?? accountId,
+        categoryId: savedExpense?.category_id ?? expense.categoryId ?? null,
+        itemId: savedExpense?.item_id ?? expense.itemId ?? null,
+        voucherNo:
+          savedExpense?.invoice_number ?? expense.voucherNo ?? "",
+        amount: amountBeforeTax,
+        tax,
+        total: expenseTotal,
+        paymentMethod:
+          savedExpense?.payment_method ?? expense.paymentMethod ?? "",
+        supplierId: savedExpense?.supplier_id ?? supplierId ?? null,
+        supplier:
+          suppliers.find((item) => Number(item.id) === Number(savedExpense?.supplier_id ?? supplierId))?.name
+            ?? expense.supplier
+            ?? "",
+        description:
+          savedExpense?.description ?? expense.description ?? "",
+      };
+
+      setExpenses((prev) => [finalExpense, ...prev]);
+      setExpenseRefreshKey((value) => value + 1);
+      setAccounts((prev) =>
+        prev.map((item) =>
+          Number(item.id) === accountId
+            ? {
+                ...item,
+                currentBalance: newBalance,
+                totalExpenses:
+                  Number(item.totalExpenses ?? 0) + expenseTotal,
+                operationsCount:
+                  Number(item.operationsCount ?? 0) + 1,
+              }
+            : item
+        )
       );
 
-      alert(
-        "تم تسجيل المصروف لكن حدث خطأ أثناء تحديث رصيد العهدة"
-      );
-
-      return false;
-    }
-
-    // 7️⃣ تجهيز البيانات بالشكل الذي يفهمه جدول المصروفات
-    const finalExpense = {
-      id: savedExpense?.id ?? expense.id,
-
-      entryDate:
-        savedExpense?.entry_date ??
-        expense.entryDate ??
-        "-",
-
-      expenseDate:
-        savedExpense?.expense_date ??
-        expense.expenseDate ??
-        "-",
-
-      supplier:
-        savedExpense?.supplier ??
-        expense.supplier ??
-        "",
-
-      projectId:
-        savedExpense?.project_id ??
-        expense.projectId ??
-        "",
-
-      villaId:
-        savedExpense?.villa_id ??
-        expense.villaId ??
-        null,
-
-      accountId:
-        savedExpense?.account_id ??
-        accountId,
-
-      categoryId:
-        savedExpense?.category_id ??
-        expense.categoryId ??
-        "",
-
-      itemId:
-        savedExpense?.item_id ??
-        expense.itemId ??
-        null,
-
-      stageId:
-        savedExpense?.stage_id ??
-        savedExpense?.phase_id ??
-        expense.stageId ??
-        null,
-
-      stageName:
-        savedExpense?.stage_name ??
-        savedExpense?.phase_name ??
-        expense.stageName ??
-        null,
-
-      voucherNo:
-        savedExpense?.voucher_no ??
-        expense.voucherNo ??
-        "",
-
-      amount:
-        Number(
-          savedExpense?.amount ??
-          expense.amount ??
-          0
-        ),
-
-      tax:
-        Number(
-          savedExpense?.tax ??
-          expense.tax ??
-          0
-        ),
-
-      total:
-        Number(
-          savedExpense?.total ??
-          expenseTotal
-        ),
-
-      paymentMethod:
-        savedExpense?.payment_method ??
-        expense.paymentMethod ??
-        "",
-
-      description:
-        savedExpense?.description ??
-        expense.description ??
-        "",
-    };
-
-    // 8️⃣ تحديث جدول المصروفات على الشاشة
-    setExpenses((prev) => [
-      ...prev,
-      finalExpense,
-    ]);
-
-    // 9️⃣ تحديث سجل العمليات
-    setLedger((prev) => [
-      ...prev,
-      createLedgerEntry(
-        "expense",
-        finalExpense
-      ),
-    ]);
-
-    // 🔟 تحديث بيانات العهدة على الشاشة
-    setAccounts((prev) =>
-      prev.map((item) =>
-        Number(item.id) === accountId
-          ? {
-              ...item,
-              currentBalance: newBalance,
-              totalExpenses:
-                Number(item.totalExpenses ?? 0) +
-                expenseTotal,
-              operationsCount:
-                Number(item.operationsCount ?? 0) +
-                1,
-            }
-          : item
-      )
-    );
-
-    // 1️⃣1️⃣ توزيع المصروف على المشاريع
-    const distribution =
-      distributionEngine.distributeExpense(
+      const distribution = distributionEngine.distributeExpense(
         finalExpense,
         projects
       );
 
-    if (Array.isArray(distribution)) {
-      expenseDistributions.push(
-        ...distribution
+      if (Array.isArray(distribution)) {
+        expenseDistributions.push(...distribution);
+      } else if (distribution) {
+        expenseDistributions.push(distribution);
+      }
+
+      setOpenExpenseModal(false);
+setEditingExpense(null);
+
+alert("تم تعديل المصروف بنجاح.");
+
+return true;
+    } catch (error) {
+      console.error("خطأ غير متوقع أثناء حفظ المصروف:", error);
+      alert("حدث خطأ غير متوقع أثناء حفظ المصروف");
+      return false;
+    } finally {
+      savingExpenseRef.current = false;
+    }
+  };
+
+  const handleSaveFunding = async (item: any) => {
+  try {
+    // =========================================================
+    // 1) التأكد من بيانات عملية التغذية
+    // =========================================================
+
+    const fundingId = item?.id;
+
+    const accountId = Number(
+      item?.account_id ??
+      item?.accountId ??
+      selectedAccountId
+    );
+
+    const amount = Number(
+      item?.amount ?? 0
+    );
+
+    if (
+      !fundingId ||
+      !accountId ||
+      !amount ||
+      amount <= 0
+    ) {
+      console.error(
+        "بيانات التغذية غير صحيحة:",
+        item
       );
-    } else if (distribution) {
-      expenseDistributions.push(
-        distribution
+
+      return;
+    }
+
+    // =========================================================
+    // 2) إضافة عملية التغذية للواجهة مرة واحدة فقط
+    // =========================================================
+
+    setFunding((prev) => {
+      const exists = prev.some(
+        (row) =>
+          String(row.id) ===
+          String(fundingId)
+      );
+
+      if (exists) {
+        return prev;
+      }
+
+      return [
+        ...prev,
+        item,
+      ];
+    });
+
+    // =========================================================
+    // 3) تحديث سجل العمليات
+    // =========================================================
+
+    setLedger((prev) => {
+      const exists = prev.some(
+        (entry: any) =>
+          String(entry?.referenceId ?? "") ===
+          String(fundingId)
+      );
+
+      if (exists) {
+        return prev;
+      }
+
+      return [
+        ...prev,
+        createLedgerEntry(
+          "funding",
+          item
+        ),
+      ];
+    });
+
+    // =========================================================
+    // 4) إعادة تحميل العهد من Supabase
+    //
+    // مهم جدًا:
+    // لا نحسب currentBalance هنا يدويًا.
+    //
+    // Supabase هو مصدر الحقيقة.
+    // =========================================================
+
+    const {
+      data: accountsData,
+      error: accountsError,
+    } = await supabase
+      .from("accounts")
+      .select("*")
+      .order("id", {
+        ascending: true,
+      });
+
+    if (accountsError) {
+      console.error(
+        "خطأ أثناء إعادة تحميل العهد:",
+        accountsError
+      );
+    } else {
+      setAccounts(
+        (accountsData ?? []) as any[]
       );
     }
 
-    console.log(
-      "تم حفظ المصروف:",
-      finalExpense
-    );
+    // =========================================================
+    // 5) إعادة تحميل عمليات التغذية من Supabase
+    //
+    // يمنع أي تضاعف ناتج عن الحالة المحلية.
+    // =========================================================
+
+    const {
+      data: fundingData,
+      error: fundingError,
+    } = await supabase
+      .from("funding")
+      .select("*")
+      .order("id", {
+        ascending: true,
+      });
+
+    if (fundingError) {
+      console.error(
+        "خطأ أثناء إعادة تحميل عمليات التغذية:",
+        fundingError
+      );
+    } else {
+      setFunding(
+        (fundingData ?? []) as any[]
+      );
+    }
+
+    // =========================================================
+    // 6) إغلاق نافذة التغذية
+    // =========================================================
+
+    setOpenFundingModal(false);
+    setSelectedAccountId(null);
 
     console.log(
-      "الرصيد الجديد للعهدة:",
-      newBalance
+      "تم حفظ التغذية بنجاح:",
+      item
     );
-
-    // إغلاق نافذة المصروف
-    setOpenExpenseModal(false);
-
-    return true;
 
   } catch (error) {
     console.error(
-      "خطأ غير متوقع أثناء حفظ المصروف:",
+      "خطأ أثناء تحديث بيانات التغذية:",
       error
     );
 
     alert(
-      "حدث خطأ غير متوقع أثناء حفظ المصروف"
+      "حدث خطأ أثناء تحديث بيانات التغذية"
     );
-
-    return false;
-  }
-};
-
-  
-  const handleSaveFunding = async (item: any) => {
-  try {
-    // 1️⃣ حفظ عملية التغذية في Supabase
-    const { data, error } = await supabase
-      .from("funding")
-      .insert([
-        {
-          account_id: item.accountId,
-          amount: Number(item.amount),
-          funding_date: item.fundingDate,
-          source: item.source ?? null,
-          description: item.description ?? null,
-          project_id: null,
-        },
-      ])
-      .select()
-      .single();
-
-    if (error) {
-      console.error("خطأ في حفظ التغذية:", error);
-      alert("حدث خطأ أثناء حفظ التغذية");
-      return;
-    }
-
-    // 2️⃣ إضافة العملية للقائمة الحالية
-    setFunding((prev) => [
-      ...prev,
-      data,
-    ]);
-
-    // 3️⃣ تحديث سجل الحركات
-    setLedger((prev) => [
-      ...prev,
-      createLedgerEntry("funding", data),
-    ]);
-
-    // 4️⃣ تحديث رصيد العهدة في الشاشة
-    setAccounts((prev) =>
-      prev.map((account) =>
-        Number(account.id) === Number(item.accountId)
-          ? {
-              ...account,
-              currentBalance:
-                Number(account.currentBalance) +
-                Number(item.amount),
-              totalFunding:
-                Number(account.totalFunding) +
-                Number(item.amount),
-            }
-          : account
-      )
-    );
-
-    // 5️⃣ تحديث الرصيد فعليًا داخل جدول accounts
-    const account = accounts.find(
-      (a) => Number(a.id) === Number(item.accountId)
-    );
-
-    if (account) {
-      const newBalance =
-        Number(account.currentBalance) +
-        Number(item.amount);
-
-      const { error: updateError } = await supabase
-        .from("accounts")
-        .update({
-          balance: newBalance,
-        })
-        .eq("id", item.accountId);
-
-      if (updateError) {
-        console.error(
-          "خطأ في تحديث رصيد العهدة:",
-          updateError
-        );
-      }
-    }
-
-    // 6️⃣ إغلاق النافذة
-    setOpenFundingModal(false);
-
-  } catch (error) {
-    console.error("خطأ غير متوقع:", error);
-    alert("حدث خطأ أثناء حفظ التغذية");
   }
 };
 const handleAddFundingForAccount = (
@@ -768,6 +1110,192 @@ const handleAddAccount = async () => {
     alert("حدث خطأ أثناء إضافة العهدة");
   }
 };
+// تعديل العهدة
+const handleEditAccount = async (account: any) => {
+  const newName = prompt(
+    "اكتب اسم العهدة الجديد:",
+    account.name
+  );
+
+  if (newName === null) return;
+
+  const name = newName.trim();
+
+  if (!name) {
+    alert("من فضلك اكتب اسم العهدة");
+    return;
+  }
+
+  try {
+    const { error } = await supabase
+      .from("accounts")
+      .update({
+        name: name,
+      })
+      .eq("id", account.id);
+
+    if (error) {
+      console.error("خطأ في تعديل العهدة:", error);
+      alert("حدث خطأ أثناء تعديل العهدة");
+      return;
+    }
+
+    setAccounts((prev) =>
+      prev.map((item) =>
+        Number(item.id) === Number(account.id)
+          ? {
+              ...item,
+              name: name,
+            }
+          : item
+      )
+    );
+
+  } catch (error) {
+    console.error("خطأ غير متوقع أثناء تعديل العهدة:", error);
+    alert("حدث خطأ غير متوقع أثناء تعديل العهدة");
+  }
+};
+
+
+// حذف العهدة
+const handleDeleteAccount = async (account: any) => {
+  const confirmed = window.confirm(
+    `هل أنت متأكد من حذف العهدة "${account.name}"؟\n\nلن يتم حذفها إذا كانت مرتبطة بعمليات تغذية أو مصروفات.`
+  );
+
+  if (!confirmed) return;
+
+  try {
+    // =====================================================
+    // 1) التحقق من وجود تغذيات مرتبطة بالعهدة
+    // =====================================================
+
+    const { count: fundingCount, error: fundingCheckError } =
+      await supabase
+        .from("funding")
+        .select("id", { count: "exact", head: true })
+        .eq("account_id", account.id);
+
+    if (fundingCheckError) {
+      console.error(
+        "خطأ أثناء التحقق من التغذيات:",
+        fundingCheckError
+      );
+
+      alert("تعذر التحقق من حركات التغذية الخاصة بالعهدة");
+      return;
+    }
+
+    // =====================================================
+    // 2) التحقق من وجود مصروفات مرتبطة بالعهدة
+    // =====================================================
+
+    const { count: expenseCount, error: expenseCheckError } =
+      await supabase
+        .from("expenses")
+        .select("id", { count: "exact", head: true })
+        .eq("account_id", account.id);
+
+    if (expenseCheckError) {
+      console.error(
+        "خطأ أثناء التحقق من المصروفات:",
+        expenseCheckError
+      );
+
+      alert("تعذر التحقق من حركات المصروفات الخاصة بالعهدة");
+      return;
+    }
+
+    // =====================================================
+    // 3) منع الحذف إذا كانت العهدة مرتبطة بحركات
+    // =====================================================
+
+    if (
+      (fundingCount ?? 0) > 0 ||
+      (expenseCount ?? 0) > 0
+    ) {
+      alert(
+        "لا يمكن حذف هذه العهدة لأنها مرتبطة بعمليات تغذية أو مصروفات."
+      );
+      return;
+    }
+
+    // =====================================================
+    // 4) حذف العهدة من Supabase
+    //    ونطلب من Supabase إرجاع الصف المحذوف
+    //    للتأكد أن الحذف تم فعلاً
+    // =====================================================
+
+    const {
+      data: deletedRows,
+      error: deleteError,
+    } = await supabase
+      .from("accounts")
+      .delete()
+      .eq("id", account.id)
+      .select("id");
+
+    if (deleteError) {
+      console.error(
+        "خطأ في حذف العهدة من Supabase:",
+        deleteError
+      );
+
+      alert(
+        "حدث خطأ أثناء حذف العهدة من قاعدة البيانات."
+      );
+
+      return;
+    }
+
+    // =====================================================
+    // 5) التأكد أن Supabase حذف الصف فعلاً
+    // =====================================================
+
+    if (!deletedRows || deletedRows.length === 0) {
+      console.error(
+        "لم يتم حذف العهدة فعليًا من Supabase:",
+        account
+      );
+
+      alert(
+        "العهدة لم تُحذف من قاعدة البيانات.\n\n" +
+        "غالبًا توجد مشكلة في صلاحيات الحذف (RLS) في جدول accounts."
+      );
+
+      return;
+    }
+
+    // =====================================================
+    // 6) حذف العهدة من الواجهة بعد نجاح الحذف الحقيقي
+    // =====================================================
+
+    setAccounts((prev) =>
+      prev.filter(
+        (item) =>
+          Number(item.id) !== Number(account.id)
+      )
+    );
+
+    console.log(
+      "تم حذف العهدة بنجاح:",
+      deletedRows
+    );
+
+    alert(`تم حذف العهدة "${account.name}" بنجاح.`);
+
+  } catch (error) {
+    console.error(
+      "خطأ غير متوقع أثناء حذف العهدة:",
+      error
+    );
+
+    alert(
+      "حدث خطأ غير متوقع أثناء حذف العهدة."
+    );
+  }
+};
   const totalExpensesAmount = expenses.reduce(
     (sum, item) => sum + getExpenseTotal(item),
     0
@@ -806,20 +1334,43 @@ const handleAddAccount = async () => {
   const totalCategories = categories.length;
   const totalStages = stages.length;
 
-  const handleAddStage = () => {
+  const handleAddStage = async () => {
     const name = newStageName.trim();
+
     if (!name) {
       alert("من فضلك اكتب اسم المرحلة");
       return;
     }
-    if (stages.some((stage) => stage.name.trim().toLowerCase() === name.toLowerCase())) {
+
+    const exists = stages.some(
+      (stage) =>
+        String(stage.name ?? "").trim().toLowerCase() ===
+        name.toLowerCase()
+    );
+
+    if (exists) {
       alert("هذه المرحلة موجودة بالفعل");
       return;
     }
-    setStages((prev) => [
-      ...prev,
-      { id: `stage-${Date.now()}`, name },
-    ]);
+
+    // المرحلة يجب أن تكون في قاعدة البيانات، وليس localStorage فقط،
+    // لأن نافذة إضافة المصروف تقرأ المراحل من expense_stages.
+    const { data, error } = await supabase
+      .from("expense_stages")
+      .insert([{ name, is_active: true }])
+      .select("id, name, is_active")
+      .single();
+
+    if (error) {
+      console.error("خطأ في إضافة المرحلة:", error);
+      alert(`تعذر إضافة المرحلة:\n${error.message}`);
+      return;
+    }
+
+    if (data) {
+      setStages((prev) => [...prev, data]);
+    }
+
     setNewStageName("");
     setOpenStageModal(false);
   };
@@ -925,10 +1476,16 @@ const handleAddAccount = async () => {
     </p>
 
     <h2 className="mt-3 text-4xl font-bold text-emerald-400">
-      {accounts.reduce(
-        (sum, acc) => sum + acc.currentBalance,
-        0
-      ).toLocaleString()}
+      {(
+  funding.reduce(
+    (sum, item) => sum + Number(item.amount ?? 0),
+    0
+  ) -
+  expenses.reduce(
+    (sum, item) => sum + Number(item.total ?? 0),
+    0
+  )
+).toLocaleString()}
     </h2>
 
     <span className="text-sm text-gray-500">
@@ -1348,53 +1905,72 @@ const handleAddAccount = async () => {
 
 <div>
 
-  <div className="mb-6 flex justify-end">
-
-    {activeTab === "expenses" && (
-
-      <button
-        onClick={() => setOpenExpenseModal(true)}
-        className="rounded-xl bg-yellow-400 px-6 py-3 font-bold text-[#081B33] hover:bg-yellow-500"
-      >
-        + إضافة مصروف
-      </button>
-
-    )}
-
-    
-  </div>
+  <div className="mb-6" />
 
     {activeTab === "expenses" && (
     <>
       <ExpensesPage
         expenses={expenses}
         accounts={accounts}
-        onAddExpense={() => setOpenExpenseModal(true)}
+        refreshKey={expenseRefreshKey}
+        onAddExpense={() => {
+          setEditingExpense(null);
+          setOpenExpenseModal(true);
+        }}
+        onEditExpense={handleEditExpense}
+        onDeleteExpense={handleDeleteExpense}
       />
 
       {/* نافذة إضافة المصروف تظهر مباشرة أسفل جدول المصروفات */}
 <ExpenseModal
   open={openExpenseModal}
-  onClose={() => setOpenExpenseModal(false)}
+  onClose={closeExpenseModal}
   onSave={handleSaveExpense}
   accounts={accounts}
+  initialExpense={editingExpense}
+  isEditing={Boolean(editingExpense)}
 />
+  initialExpense={editingExpense}
+  isEditing={Boolean(editingExpense)}
       
     </>
   )}
 
   {activeTab === "accounts" && (
     <div dir="rtl" className="space-y-6">
-      <div className="relative flex items-center justify-center rounded-3xl border border-white/10 bg-[#081B33] p-6 text-center">
-        <div>
-          <h2 className="text-3xl font-extrabold text-white">العهد المالية</h2>
-          <p className="mt-2 text-gray-400">إدارة جميع العهد والأرصدة المالية</p>
-        </div>
-        <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-6 py-4 text-center">
-          <div className="text-3xl font-extrabold text-emerald-400">{accounts.length}</div>
-          <div className="mt-1 text-sm text-gray-400">إجمالي العهد</div>
-        </div>
-      </div>
+      <div className="relative flex items-center justify-between rounded-3xl border border-white/10 bg-[#081B33] p-6">
+
+  {/* زر إضافة عهدة */}
+  <button
+    type="button"
+    onClick={() => setOpenAccountModal(true)}
+    className="flex items-center gap-2 rounded-2xl bg-emerald-500 px-6 py-4 font-bold text-white transition hover:bg-emerald-600 hover:-translate-y-0.5"
+  >
+    <Plus size={20} />
+    إضافة عهدة جديدة
+  </button>
+
+  {/* العنوان */}
+  <div className="text-center">
+    <h2 className="text-3xl font-extrabold text-white">
+      العهد المالية
+    </h2>
+    <p className="mt-2 text-gray-400">
+      إدارة جميع العهد والأرصدة المالية
+    </p>
+  </div>
+
+  {/* إجمالي العهد */}
+  <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-6 py-4 text-center">
+    <div className="text-3xl font-extrabold text-emerald-400">
+      {accounts.length}
+    </div>
+    <div className="mt-1 text-sm text-gray-400">
+      إجمالي العهد
+    </div>
+  </div>
+
+</div>
 
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
         {accounts.length === 0 ? (
@@ -1405,13 +1981,63 @@ const handleAddAccount = async () => {
           accounts.map((account) => (
             <div key={account.id} className="rounded-3xl border border-white/10 bg-[#102947] p-6 shadow-xl">
               <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h3 className="text-2xl font-extrabold text-white">{account.name}</h3>
-                  <p className="mt-1 text-sm text-gray-400">{account.type || "عهدة مالية"}</p>
-                </div>
-                <div className="rounded-2xl bg-emerald-400/10 p-3 text-emerald-400">
-                  <Wallet size={28} />
-                </div>
+
+  <div className="min-w-0 flex-1">
+    <h3 className="text-2xl font-extrabold text-white">
+      {account.name}
+    </h3>
+
+    <p className="mt-1 text-sm text-gray-400">
+      {account.type || "عهدة مالية"}
+    </p>
+  </div>
+
+  <div className="flex shrink-0 items-center gap-2">
+
+    {/* تعديل */}
+    <button
+      type="button"
+      onClick={() => handleEditAccount(account)}
+      title="تعديل العهدة"
+      className="
+        flex h-10 w-10 items-center justify-center
+        rounded-xl
+        border border-blue-400/30
+        bg-blue-400/10
+        text-lg
+        transition
+        hover:border-blue-400
+        hover:bg-blue-400/20
+      "
+    >
+      ✏️
+    </button>
+
+    {/* حذف */}
+    <button
+      type="button"
+      onClick={() => handleDeleteAccount(account)}
+      title="حذف العهدة"
+      className="
+        flex h-10 w-10 items-center justify-center
+        rounded-xl
+        border border-red-400/30
+        bg-red-400/10
+        text-lg
+        transition
+        hover:border-red-400
+        hover:bg-red-400/20
+      "
+    >
+      🗑️
+    </button>
+
+    {/* أيقونة العهدة */}
+    <div className="rounded-2xl bg-emerald-400/10 p-3 text-emerald-400">
+      <Wallet size={28} />
+    </div>
+ 
+</div>
               </div>
 
               <div className="mt-6 rounded-2xl border border-white/10 bg-[#081B33] p-5">
@@ -1886,9 +2512,422 @@ const handleAddAccount = async () => {
 
   </div>
 )}
+  {/* نافذة إضافة مرحلة */}
+  {openStageModal && (
+    <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/70 p-4">
+      <div className="w-full max-w-lg rounded-3xl border border-white/10 bg-[#081B33] p-7 shadow-2xl">
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h3 className="text-2xl font-bold text-white">إضافة مرحلة جديدة</h3>
+            <p className="mt-2 text-sm text-gray-400">أضف مرحلة لاستخدامها في المصروفات</p>
+          </div>
+          <button type="button" onClick={() => setOpenStageModal(false)} className="text-2xl text-gray-400 hover:text-red-400">×</button>
+        </div>
+        <input value={newStageName} onChange={(e) => setNewStageName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleAddStage()} autoFocus placeholder="اسم المرحلة" className="w-full rounded-2xl border border-white/10 bg-[#102947] px-4 py-4 text-white outline-none focus:border-yellow-400" />
+        <div className="mt-6 grid grid-cols-2 gap-3">
+          <button type="button" onClick={() => setOpenStageModal(false)} className="h-12 rounded-xl border border-white/10 bg-white/5 font-bold text-gray-300">إلغاء</button>
+          <button type="button" onClick={handleAddStage} className="h-12 rounded-xl bg-yellow-400 font-bold text-[#081B33]">+ إضافة المرحلة</button>
+        </div>
+      </div>
+    </div>
+  )}
 
+  {/* نافذة إضافة تصنيف */}
+  {openCategoryModal && (
+    <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/70 p-4">
+      <div className="w-full max-w-lg rounded-3xl border border-white/10 bg-[#081B33] p-7 shadow-2xl">
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h3 className="text-2xl font-bold text-white">إضافة تصنيف جديد</h3>
+            <p className="mt-2 text-sm text-gray-400">سيتم حفظ التصنيف مباشرة في قاعدة البيانات</p>
+          </div>
+          <button type="button" onClick={() => setOpenCategoryModal(false)} className="text-2xl text-gray-400 hover:text-red-400">×</button>
+        </div>
+        <input value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleAddCategory()} autoFocus placeholder="اسم التصنيف" className="w-full rounded-2xl border border-white/10 bg-[#102947] px-4 py-4 text-white outline-none focus:border-purple-400" />
+        <div className="mt-6 grid grid-cols-2 gap-3">
+          <button type="button" onClick={() => setOpenCategoryModal(false)} className="h-12 rounded-xl border border-white/10 bg-white/5 font-bold text-gray-300">إلغاء</button>
+          <button type="button" onClick={handleAddCategory} className="h-12 rounded-xl bg-purple-500 font-bold text-white">+ إضافة التصنيف</button>
+        </div>
+      </div>
+    </div>
+  )}
+
+  {/* نافذة إضافة بند */}
+  {openItemModal && (
+    <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/70 p-4">
+      <div className="w-full max-w-lg rounded-3xl border border-white/10 bg-[#081B33] p-7 shadow-2xl">
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h3 className="text-2xl font-bold text-white">إضافة بند جديد</h3>
+            <p className="mt-2 text-sm text-gray-400">اختر التصنيف ثم أدخل اسم البند</p>
+          </div>
+          <button type="button" onClick={() => setOpenItemModal(false)} className="text-2xl text-gray-400 hover:text-red-400">×</button>
+        </div>
+        <select value={newItemCategoryId} onChange={(e) => setNewItemCategoryId(e.target.value)} className="mb-4 w-full rounded-2xl border border-white/10 bg-[#102947] px-4 py-4 text-white outline-none focus:border-orange-400">
+          <option value="">اختر التصنيف</option>
+          {categories.map((category) => (
+            <option key={category.id} value={category.id}>{category.name}</option>
+          ))}
+        </select>
+        <input value={newItemName} onChange={(e) => setNewItemName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleAddItem()} placeholder="اسم البند" className="w-full rounded-2xl border border-white/10 bg-[#102947] px-4 py-4 text-white outline-none focus:border-orange-400" />
+        <div className="mt-6 grid grid-cols-2 gap-3">
+          <button type="button" onClick={() => setOpenItemModal(false)} className="h-12 rounded-xl border border-white/10 bg-white/5 font-bold text-gray-300">إلغاء</button>
+          <button type="button" onClick={handleAddItem} className="h-12 rounded-xl bg-orange-500 font-bold text-white">+ إضافة البند</button>
+        </div>
+      </div>
+    </div>
+  )}
+
+
+<FundingModal
+  open={openFundingModal}
+  onClose={() => setOpenFundingModal(false)}
+  onSave={handleSaveFunding}
+  selectedAccountId={selectedAccountId}
+/>
+{selectedAccount && (
+  <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/70 p-4">
+    <div className="w-full max-w-5xl rounded-3xl border border-white/10 bg-[#081B33] p-7 shadow-2xl">
+
+      {/* العنوان */}
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-extrabold text-white">
+            تفاصيل العهدة
+          </h2>
+
+          <p className="mt-2 text-sm text-gray-400">
+            عرض بيانات وحركة العهدة المالية
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setSelectedAccount(null)}
+          className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-xl text-gray-400 hover:bg-white/10 hover:text-white"
+        >
+          ×
+        </button>
+      </div>
+
+      {/* اسم العهدة */}
+      <div className="mb-5 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-5">
+        <p className="text-sm text-gray-400">
+          اسم العهدة
+        </p>
+
+        <h3 className="mt-2 text-3xl font-extrabold text-white">
+          {selectedAccount.name}
+        </h3>
+
+        <p className="mt-1 text-sm text-gray-400">
+          {selectedAccount.type || "عهدة مالية"}
+        </p>
+      </div>
+
+      {/* البيانات المالية */}
+      <div className="grid grid-cols-3 gap-4">
+
+        {/* الرصيد الحالي */}
+        <div className="rounded-2xl border border-yellow-400/20 bg-yellow-400/10 p-5 text-center">
+          <p className="text-sm text-gray-400">
+            الرصيد الحالي
+          </p>
+
+          <p className="mt-2 text-2xl font-extrabold text-yellow-400">
+            {Number(
+              selectedAccount.currentBalance ?? 0
+            ).toLocaleString()}
+          </p>
+
+          <span className="text-xs text-gray-500">
+            ريال
+          </span>
+        </div>
+
+        {/* إجمالي التغذية */}
+        <div className="rounded-2xl border border-green-400/20 bg-green-400/10 p-5 text-center">
+          <p className="text-sm text-gray-400">
+            إجمالي التغذية
+          </p>
+
+          <p className="mt-2 text-2xl font-extrabold text-green-400">
+            {Number(
+              selectedAccount.totalFunding ?? 0
+            ).toLocaleString()}
+          </p>
+
+          <span className="text-xs text-gray-500">
+            ريال
+          </span>
+        </div>
+
+        {/* إجمالي المصروفات */}
+        <div className="rounded-2xl border border-red-400/20 bg-red-400/10 p-5 text-center">
+          <p className="text-sm text-gray-400">
+            إجمالي المصروفات
+          </p>
+
+          <p className="mt-2 text-2xl font-extrabold text-red-400">
+            {Number(
+              selectedAccount.totalExpenses ?? 0
+            ).toLocaleString()}
+          </p>
+
+          <span className="text-xs text-gray-500">
+            ريال
+          </span>
+        </div>
+
+      </div>
+
+      {/* عدد العمليات */}
+      <div className="mt-5 rounded-2xl border border-sky-400/20 bg-sky-400/10 p-5 text-center">
+        <p className="text-sm text-gray-400">
+          إجمالي عدد العمليات
+        </p>
+
+        <p className="mt-2 text-3xl font-extrabold text-sky-400">
+          {Number(
+            selectedAccount.operationsCount ?? 0
+          )}
+        </p>
+
+        <span className="text-xs text-gray-500">
+          عملية
+        </span>
+      </div>
+
+      {/* =========================
+          سجل تغذيات العهدة
+      ========================= */}
+      <div className="mt-6">
+
+        {/* عنوان الجدول */}
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="text-lg font-bold text-white">
+            سجل التغذيات
+          </h3>
+
+          <span className="rounded-lg bg-green-400/10 px-3 py-1 text-sm text-green-400">
+            {
+              funding.filter(
+                (item: any) =>
+                  Number(item.account_id) ===
+                  Number(selectedAccount.id)
+              ).length
+            }{" "}
+            تغذية
+          </span>
+        </div>
+
+        {/* الجدول */}
+        <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#102947]">
+
+          <div className="max-h-[280px] overflow-y-auto">
+
+            <table className="w-full min-w-[700px] text-sm">
+
+              {/* رأس الجدول */}
+              <thead className="sticky top-0 z-10 bg-[#163554]">
+                <tr className="text-gray-300">
+
+                  <th className="px-4 py-4 text-right font-bold">
+                    تاريخ الإدخال
+                  </th>
+
+                  <th className="px-4 py-4 text-right font-bold">
+                    تاريخ التغذية
+                  </th>
+
+                  <th className="px-4 py-4 text-right font-bold">
+                    المبلغ
+                  </th>
+
+                  <th className="px-4 py-4 text-right font-bold">
+                    طريقة الدفع
+                  </th>
+
+                  <th className="px-4 py-4 text-center font-bold">
+                    المرفقات
+                  </th>
+
+                </tr>
+              </thead>
+
+              {/* بيانات الجدول */}
+              <tbody>
+
+                {funding
+                  .filter(
+                    (item: any) =>
+                      Number(item.account_id) ===
+                      Number(selectedAccount.id)
+                  )
+                  .sort(
+                    (a: any, b: any) =>
+                      new Date(
+                        b.created_at || 0
+                      ).getTime() -
+                      new Date(
+                        a.created_at || 0
+                      ).getTime()
+                  )
+                  .map((item: any) => (
+
+                    <tr
+                      key={item.id}
+                      className="border-t border-white/10 text-gray-200 hover:bg-white/5"
+                    >
+
+                      {/* تاريخ الإدخال */}
+                      <td className="px-4 py-4">
+                        {item.created_at
+                          ? new Date(
+                              item.created_at
+                            ).toLocaleDateString("en-CA")
+                          : "—"}
+                      </td>
+
+                      {/* تاريخ التغذية */}
+                      <td className="px-4 py-4">
+                        {item.funding_date || "—"}
+                      </td>
+
+                      {/* المبلغ */}
+                      <td className="px-4 py-4 font-extrabold text-green-400">
+                        {Number(
+                          item.amount || 0
+                        ).toLocaleString()}{" "}
+                        ريال
+                      </td>
+
+                      {/* طريقة الدفع */}
+                      <td className="px-4 py-4">
+
+                        {item.source === "cash" ? (
+                          <span className="text-green-400">
+                            💵 نقدًا
+                          </span>
+                        ) : item.source === "bank" ? (
+                          <span className="text-sky-400">
+                            🏦 تحويل بنكي
+                          </span>
+                        ) : item.source === "card" ? (
+                          <span className="text-yellow-400">
+                            💳 بطاقة
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">
+                            {item.source || "—"}
+                          </span>
+                        )}
+
+                      </td>
+
+                      {/* المرفقات */}
+                      <td className="px-4 py-4 text-center">
+
+                        {item.attachment_url ? (
+
+                          <button
+  type="button"
+  onClick={async () => {
+    const { data, error } = await supabase.storage
+      .from("funding-attachments")
+      .createSignedUrl(item.attachment_url, 300);
+
+    if (error || !data?.signedUrl) {
+      console.error("خطأ فتح المرفق:", error);
+      alert("تعذر فتح المرفق");
+      return;
+    }
+
+    window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+  }}
+  className="inline-flex items-center justify-center rounded-lg bg-sky-400/10 px-4 py-2 text-sky-400 hover:bg-sky-400/20"
+>
+  عرض المرفق
+</button>
+
+                        ) : (
+
+                          <span className="text-gray-500">
+                            لا يوجد
+                          </span>
+
+                        )}
+
+                      </td>
+
+                    </tr>
+
+                  ))}
+
+                {/* لا توجد تغذيات */}
+                {funding.filter(
+                  (item: any) =>
+                    Number(item.account_id) ===
+                    Number(selectedAccount.id)
+                ).length === 0 && (
+
+                  <tr>
+                    <td
+                      colSpan={5}
+                      className="px-4 py-10 text-center text-gray-500"
+                    >
+                      لا توجد تغذيات مسجلة لهذه العهدة
+                    </td>
+                  </tr>
+
+                )}
+
+              </tbody>
+
+            </table>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      {/* الأزرار */}
+      <div className="mt-7 grid grid-cols-2 gap-3">
+
+        <button
+          type="button"
+          onClick={() => {
+            const accountId = Number(
+              selectedAccount.id
+            );
+
+            setSelectedAccount(null);
+            setSelectedAccountId(accountId);
+            setOpenFundingModal(true);
+          }}
+          className="flex h-12 items-center justify-center gap-2 rounded-xl bg-green-500 font-bold text-white hover:bg-green-600"
+        >
+          <Plus size={18} />
+          إضافة تغذية
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setSelectedAccount(null)}
+          className="h-12 rounded-xl border border-white/10 bg-white/5 font-bold text-gray-300 hover:bg-white/10 hover:text-white"
+        >
+          إغلاق
+        </button>
+
+      </div>
+
+    </div>
+  </div>
+)}
   {/* نافذة إضافة عهدة */}
   {openAccountModal && (
+    
     <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/70 p-4">
 
       <div className="w-full max-w-lg rounded-3xl border border-white/10 bg-[#081B33] p-7 shadow-2xl">

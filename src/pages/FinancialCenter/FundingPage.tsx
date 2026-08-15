@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Paperclip, RefreshCw } from "lucide-react";
+import {
+  Paperclip,
+  RefreshCw,
+  Download,
+  FileSpreadsheet,
+  Printer,
+  ChevronDown,
+  FileText,
+} from "lucide-react";
 import { supabase } from "../../utils/supabase";
 
 type FundingPageProps = {
@@ -25,8 +33,8 @@ type FundingRow = {
   ref_number?: string | null;
   voucher_number?: string | null;
 
-  attachments?: unknown;
-  attachment?: unknown;
+  attachment?: string | null;
+  attachment_url?: string | null;
   files?: unknown;
   file_url?: string | null;
   receipt_url?: string | null;
@@ -35,6 +43,92 @@ type FundingRow = {
 type AccountRow = {
   id: number;
   name: string;
+};
+
+
+const escapeHtml = (value: unknown) =>
+  String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+
+const downloadBlob = (content: BlobPart, fileName: string, type: string) => {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+};
+
+const exportFundingExcel = (
+  rows: FundingRow[],
+  accountNameMap: Map<number, string>,
+  title = "تقرير التغذية المالية"
+) => {
+  const body = rows
+    .map(
+      (item) => `
+        <tr>
+          <td>${escapeHtml(formatDateForExport(item.created_at))}</td>
+          <td>${escapeHtml(formatDateForExport(item.funding_date))}</td>
+          <td>${escapeHtml(accountNameMap.get(Number(item.account_id)) ?? "-")}</td>
+          <td>${escapeHtml(getReferenceNumber(item))}</td>
+          <td>${Number(item.amount ?? 0)}</td>
+          <td>${escapeHtml(getPaymentMethod(item))}</td>
+          <td>${escapeHtml(getCleanDescription(item))}</td>
+        </tr>`
+    )
+    .join("");
+
+  const html = `<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><style>
+    body{font-family:Arial,sans-serif;direction:rtl}h1{text-align:center}table{border-collapse:collapse;width:100%}th,td{border:1px solid #999;padding:8px;text-align:right}th{background:#e8eef7}
+  </style></head><body><h1>${escapeHtml(title)}</h1>
+  <table><thead><tr><th>تاريخ الإدخال</th><th>تاريخ التغذية</th><th>العهدة</th><th>رقم المرجع</th><th>مبلغ التغذية</th><th>طريقة الدفع</th><th>الوصف</th></tr></thead><tbody>${body}</tbody></table></body></html>`;
+
+  downloadBlob(html, `${title}.xls`, "application/vnd.ms-excel;charset=utf-8");
+};
+
+const formatDateForExport = (value?: string | null) => {
+  if (!value) return "-";
+  const parsed = parseDateOnly(value);
+  return parsed ? parsed.toLocaleDateString("ar-SA") : String(value);
+};
+
+const printFundingReport = (
+  rows: FundingRow[],
+  accountNameMap: Map<number, string>,
+  title = "تقرير التغذية المالية"
+) => {
+  const body = rows
+    .map(
+      (item) => `
+        <tr>
+          <td>${escapeHtml(formatDateForExport(item.created_at))}</td>
+          <td>${escapeHtml(formatDateForExport(item.funding_date))}</td>
+          <td>${escapeHtml(accountNameMap.get(Number(item.account_id)) ?? "-")}</td>
+          <td>${escapeHtml(getReferenceNumber(item))}</td>
+          <td>${Number(item.amount ?? 0).toLocaleString()} ريال</td>
+          <td>${escapeHtml(getPaymentMethod(item))}</td>
+          <td>${escapeHtml(getCleanDescription(item))}</td>
+        </tr>`
+    )
+    .join("");
+
+  const win = window.open("", "_blank", "width=1200,height=800");
+  if (!win) {
+    alert("يرجى السماح بالنوافذ المنبثقة حتى يمكن إنشاء التقرير.");
+    return;
+  }
+  win.document.write(`<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><title>${escapeHtml(title)}</title><style>
+    body{font-family:Arial,sans-serif;padding:25px;color:#111}h1{text-align:center;margin-bottom:8px}p{text-align:center;color:#555}table{border-collapse:collapse;width:100%;font-size:12px}th,td{border:1px solid #aaa;padding:7px;text-align:right}th{background:#eee} @media print{button{display:none}}
+  </style></head><body><h1>${escapeHtml(title)}</h1><p>تاريخ التقرير: ${escapeHtml(new Date().toLocaleString("ar-SA"))}</p><table><thead><tr><th>تاريخ الإدخال</th><th>تاريخ التغذية</th><th>العهدة</th><th>رقم المرجع</th><th>مبلغ التغذية</th><th>طريقة الدفع</th><th>الوصف</th></tr></thead><tbody>${body}</tbody></table><script>window.onload=function(){window.print();}</script></body></html>`);
+  win.document.close();
 };
 
 const formatMoney = (value: number) =>
@@ -148,11 +242,11 @@ const getCleanDescription = (item: FundingRow) => {
 
 const getAttachments = (item: FundingRow) => {
   const raw =
-    item.attachments ??
-    item.attachment ??
-    item.files ??
-    item.file_url ??
-    item.receipt_url;
+  item.attachment_url ??
+  item.attachment ??
+  item.files ??
+  item.file_url ??
+  item.receipt_url;
 
   if (!raw) {
     return [];
@@ -163,55 +257,179 @@ const getAttachments = (item: FundingRow) => {
   }
 
   if (typeof raw === "string") {
-    try {
-      const parsed = JSON.parse(raw);
-
-      if (Array.isArray(parsed)) {
-        return parsed.filter(Boolean);
-      }
-
-      if (parsed) {
-        return [parsed];
-      }
-    } catch {
-      return raw
-        .split(",")
-        .map((item) => item.trim())
-        .filter(Boolean);
-    }
+    return [raw];
   }
 
-  return [raw];
+  return [];
 };
 
 const getAttachmentUrl = (attachment: unknown) => {
   if (!attachment) return "";
 
+  let value = "";
+
   if (typeof attachment === "string") {
-    return attachment;
-  }
+    value = attachment;
+  } else if (typeof attachment === "object") {
+    const item = attachment as Record<string, unknown>;
 
-  if (typeof attachment === "object") {
-    const value = attachment as Record<string, unknown>;
-
-    return String(
-      value.url ??
-      value.path ??
-      value.file_url ??
-      value.publicUrl ??
+    value = String(
+      item.url ??
+      item.path ??
+      item.file_url ??
+      item.publicUrl ??
       ""
     );
   }
 
-  return "";
-};
+  if (!value) return "";
 
+  // لو الرابط كامل بالفعل
+  if (
+    value.startsWith("http://") ||
+    value.startsWith("https://")
+  ) {
+    return value;
+  }
+
+  // لو المخزن مجرد path داخل Bucket
+  const { data } = supabase.storage
+    .from("funding-attachments")
+    .getPublicUrl(value);
+
+  return data.publicUrl;
+};
+// =========================================================
+// تصدير بيانات التغذية إلى Excel
+// =========================================================
+
+const exportRowsExcel = (
+  rows: any[],
+  fileName: string
+) => {
+  try {
+    if (!rows || rows.length === 0) {
+      alert("لا توجد عمليات تغذية في الفترة المحددة للتصدير.");
+      return;
+    }
+
+    const exportData = rows.map((item: any, index: number) => ({
+      "م": index + 1,
+
+      "العهدة":
+        item?.account_name ??
+        item?.accountName ??
+        item?.account?.name ??
+        "-",
+
+      "تاريخ الإدخال":
+        item?.created_at ??
+        item?.createdAt ??
+        "-",
+
+      "تاريخ التغذية":
+        item?.funding_date ??
+                "-",
+
+      "المبلغ":
+        Number(item?.amount ?? 0),
+
+      "رقم المرجع":
+        item?.reference_number ??
+        item?.referenceNumber ??
+        item?.reference ??
+        "-",
+
+      "طريقة الدفع":
+        item?.payment_method ??
+        item?.paymentMethod ??
+        "-",
+
+      "الوصف":
+        item?.description ??
+        "-",
+
+      "المرفقات":
+        item?.attachment_url ??
+        item?.attachmentUrl ??
+        "-",
+    }));
+
+    const headers = Object.keys(exportData[0]);
+
+    const csvRows = [
+      headers.join(","),
+      ...exportData.map((row) =>
+        headers
+          .map((header) => {
+            const value =
+              row[header as keyof typeof row];
+
+            const text =
+              value === null ||
+              value === undefined
+                ? ""
+                : String(value);
+
+            return `"${text.replace(/"/g, '""')}"`;
+          })
+          .join(",")
+      ),
+    ];
+
+    const csvContent =
+      "\uFEFF" +
+      csvRows.join("\n");
+
+    const blob = new Blob(
+      [csvContent],
+      {
+        type: "text/csv;charset=utf-8;",
+      }
+    );
+
+    const url =
+      URL.createObjectURL(blob);
+
+    const link =
+      document.createElement("a");
+
+    link.href = url;
+
+    link.download =
+      `${fileName}.csv`;
+
+    document.body.appendChild(link);
+
+    link.click();
+
+    document.body.removeChild(link);
+
+    URL.revokeObjectURL(url);
+
+  } catch (error) {
+    console.error(
+      "خطأ أثناء تصدير بيانات التغذية:",
+      error
+    );
+
+    alert(
+      "حدث خطأ أثناء تصدير بيانات التغذية."
+    );
+  }
+};
 export default function FundingPage({
   onAddFunding,
 }: FundingPageProps) {
   const [funding, setFunding] = useState<FundingRow[]>([]);
   const [accounts, setAccounts] = useState<AccountRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [selectedDay, setSelectedDay] = useState(getLocalDateString());
+  const [selectedWeekStart, setSelectedWeekStart] = useState(getLocalDateString(new Date(Date.now() - 6 * 86400000)));
+  const [selectedWeekEnd, setSelectedWeekEnd] = useState(getLocalDateString());
+  const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [openExportMenu, setOpenExportMenu] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -296,43 +514,38 @@ export default function FundingPage({
     return map;
   }, [accounts]);
 
-  const today = useMemo(() => {
-    const now = new Date();
+  const selectedDayDate = useMemo(() => {
+    const d = parseDateOnly(selectedDay);
+    if (d) d.setHours(0, 0, 0, 0);
+    return d ?? new Date();
+  }, [selectedDay]);
 
-    now.setHours(0, 0, 0, 0);
+  const selectedWeekStartDate = useMemo(() => {
+    const d = parseDateOnly(selectedWeekStart);
+    if (d) d.setHours(0, 0, 0, 0);
+    return d ?? selectedDayDate;
+  }, [selectedWeekStart, selectedDayDate]);
 
-    return now;
-  }, []);
+  const selectedWeekEndDate = useMemo(() => {
+    const d = parseDateOnly(selectedWeekEnd);
+    if (d) d.setHours(0, 0, 0, 0);
+    return d ?? selectedDayDate;
+  }, [selectedWeekEnd, selectedDayDate]);
 
-  const todayString = getLocalDateString(today);
+  const selectedMonthStart = useMemo(() => {
+    const [year, month] = selectedMonth.split("-").map(Number);
+    return new Date(year || new Date().getFullYear(), (month || 1) - 1, 1);
+  }, [selectedMonth]);
 
-  const weekStart = useMemo(() => {
-    const date = new Date(today);
-
-    date.setDate(
-      date.getDate() - 6
-    );
-
-    date.setHours(0, 0, 0, 0);
-
-    return date;
-  }, [today]);
-
-  const monthStart = useMemo(() => {
+  const selectedMonthEnd = useMemo(() => {
     return new Date(
-      today.getFullYear(),
-      today.getMonth(),
-      1
-    );
-  }, [today]);
-
-  const monthEnd = useMemo(() => {
-    return new Date(
-      today.getFullYear(),
-      today.getMonth() + 1,
+      selectedMonthStart.getFullYear(),
+      selectedMonthStart.getMonth() + 1,
       0
     );
-  }, [today]);
+  }, [selectedMonthStart]);
+
+  const todayString = selectedDay;
 
   const totalFunding = useMemo(() => {
     return funding.reduce(
@@ -343,97 +556,118 @@ export default function FundingPage({
   }, [funding]);
 
   const todayFunding = useMemo(() => {
-    return funding.reduce(
-      (sum, item) => {
-        const date = parseDateOnly(
-          item.funding_date
-        );
-
-        if (!date) {
-          return sum;
-        }
-
-        if (
-          getLocalDateString(date) ===
-          todayString
-        ) {
-          return (
-            sum +
-            Number(item.amount ?? 0)
-          );
-        }
-
-        return sum;
-      },
-      0
-    );
-  }, [funding, todayString]);
+    return funding.reduce((sum, item) => {
+      const date = parseDateOnly(item.funding_date);
+      return date && getLocalDateString(date) === selectedDay
+        ? sum + Number(item.amount ?? 0)
+        : sum;
+    }, 0);
+  }, [funding, selectedDay]);
 
   const weekFunding = useMemo(() => {
-    return funding.reduce(
-      (sum, item) => {
-        const date = parseDateOnly(
-          item.funding_date
-        );
-
-        if (!date) {
-          return sum;
-        }
-
-        date.setHours(0, 0, 0, 0);
-
-        if (
-          date >= weekStart &&
-          date <= today
-        ) {
-          return (
-            sum +
-            Number(item.amount ?? 0)
-          );
-        }
-
-        return sum;
-      },
-      0
-    );
-  }, [
-    funding,
-    weekStart,
-    today,
-  ]);
+    return funding.reduce((sum, item) => {
+      const date = parseDateOnly(item.funding_date);
+      if (!date) return sum;
+      date.setHours(0, 0, 0, 0);
+      return date >= selectedWeekStartDate && date <= selectedWeekEndDate
+        ? sum + Number(item.amount ?? 0)
+        : sum;
+    }, 0);
+  }, [funding, selectedWeekStartDate, selectedWeekEndDate]);
 
   const monthFunding = useMemo(() => {
-    return funding.reduce(
-      (sum, item) => {
-        const date = parseDateOnly(
-          item.funding_date
+    return funding.reduce((sum, item) => {
+      const date = parseDateOnly(item.funding_date);
+      if (!date) return sum;
+      date.setHours(0, 0, 0, 0);
+      return date >= selectedMonthStart && date <= selectedMonthEnd
+        ? sum + Number(item.amount ?? 0)
+        : sum;
+    }, 0);
+  }, [funding, selectedMonthStart, selectedMonthEnd]);
+
+  const exportAllFunding = () => {
+    exportFundingExcel(funding, accountNameMap, "تقرير جميع عمليات التغذية");
+    setExportOpen(false);
+  };
+
+  const exportPrint = () => {
+    printFundingReport(funding, accountNameMap, "تقرير جميع عمليات التغذية");
+    setExportOpen(false);
+  };
+
+  const handlePeriodExport = (
+    type: "day" | "week" | "month",
+    action: "excel" | "pdf" | "print"
+  ) => {
+    let rows: FundingRow[] = [];
+    let title = "";
+
+    if (type === "day") {
+      rows = funding.filter((item) => {
+        const value =
+          item?.funding_date ??
+                    item?.created_at;
+
+        return (
+          !!value &&
+          String(value).slice(0, 10) === selectedDay
         );
+      });
 
-        if (!date) {
-          return sum;
-        }
+      title = `تقرير تغذية يوم ${selectedDay}`;
+    }
 
-        date.setHours(0, 0, 0, 0);
+    if (type === "week") {
+      rows = funding.filter((item) => {
+        const value =
+          item?.funding_date ??
+                    item?.created_at;
 
-        if (
-          date >= monthStart &&
-          date <= monthEnd
-        ) {
-          return (
-            sum +
-            Number(item.amount ?? 0)
-          );
-        }
+        if (!value) return false;
 
-        return sum;
-      },
-      0
-    );
-  }, [
-    funding,
-    monthStart,
-    monthEnd,
-  ]);
+        const date = String(value).slice(0, 10);
+
+        return (
+          date >= selectedWeekStart &&
+          date <= selectedWeekEnd
+        );
+      });
+
+      title =
+        `تقرير تغذية من ${selectedWeekStart} إلى ${selectedWeekEnd}`;
+    }
+
+    if (type === "month") {
+      rows = funding.filter((item) => {
+        const value =
+          item?.funding_date ??
+                    item?.created_at;
+
+        return (
+          !!value &&
+          String(value).slice(0, 7) === selectedMonth
+        );
+      });
+
+      title = `تقرير تغذية شهر ${selectedMonth}`;
+    }
+
+    if (!rows.length) {
+      alert("لا توجد عمليات تغذية في الفترة المحددة للتصدير.");
+      setOpenExportMenu(null);
+      return;
+    }
+
+    if (action === "excel") {
+      exportRowsExcel(rows, title);
+    } else {
+      // PDF = نافذة الطباعة، ومنها يمكن اختيار Save as PDF
+      printFundingReport(rows, accountNameMap, title);
+    }
+
+    setOpenExportMenu(null);
+  };
 
   return (
     <div
@@ -491,6 +725,26 @@ export default function FundingPage({
             />
           </button>
 
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setExportOpen((v) => !v)}
+              className="flex h-12 items-center gap-2 rounded-2xl border border-green-400/30 bg-green-500/10 px-4 font-bold text-green-400 transition hover:border-green-400 hover:bg-green-500 hover:text-white"
+              title="تصدير التقرير"
+            >
+              <Download size={19} />
+              تصدير
+              <ChevronDown size={16} />
+            </button>
+            {exportOpen && (
+              <div className="absolute right-0 top-14 z-50 w-52 overflow-hidden rounded-2xl border border-white/10 bg-[#102947] p-1 shadow-2xl">
+                <button onClick={exportAllFunding} className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-right text-sm text-white hover:bg-white/10"><FileSpreadsheet size={18} className="text-green-400" /> Excel</button>
+                <button onClick={exportPrint} className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-right text-sm text-white hover:bg-white/10"><FileText size={18} className="text-red-400" /> PDF / حفظ PDF</button>
+                <button onClick={exportPrint} className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-right text-sm text-white hover:bg-white/10"><Printer size={18} className="text-sky-400" /> طباعة</button>
+              </div>
+            )}
+          </div>
+
           <button
             type="button"
             onClick={onAddFunding}
@@ -526,99 +780,410 @@ export default function FundingPage({
 
       </div>
 
-      {/* ================= Statistics ================= */}
+     {/* ================= Statistics ================= */}
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
+<div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
 
-        {/* اليوم */}
+  {/* ================= اليوم ================= */}
 
+  <div
+    className="
+      rounded-2xl
+      border
+      border-sky-400/20
+      bg-[#081B33]
+      p-6
+      shadow-lg
+      shadow-sky-500/5
+    "
+  >
+
+    <div className="flex items-center justify-between gap-3">
+      <p className="text-gray-400">
+        تغذية اليوم
+      </p>
+
+      <input
+        type="date"
+        value={selectedDay}
+        onChange={(e) => setSelectedDay(e.target.value)}
+        className="
+          rounded-lg
+          border
+          border-sky-400/20
+          bg-[#102947]
+          px-2
+          py-1
+          text-xs
+          text-white
+          outline-none
+        "
+      />
+    </div>
+
+    <h2 className="mt-3 text-3xl font-bold text-sky-400">
+      {formatMoney(todayFunding)} ريال
+    </h2>
+
+    <p className="mt-2 text-xs text-gray-500">
+      إجمالي التغذية في اليوم المحدد:
+      {" "}
+      {formatDate(selectedDay)}
+    </p>
+
+    {/* تصدير الفترة */}
+    <div className="relative mt-4 flex justify-end">
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpenExportMenu(
+            openExportMenu === "day"
+              ? null
+              : "day"
+          );
+        }}
+        className="
+          flex items-center gap-2
+          rounded-xl
+          border border-sky-400/30
+          bg-sky-400/10
+          px-4 py-2
+          text-sm font-bold
+          text-sky-300
+          transition
+          hover:border-sky-400
+          hover:bg-sky-500
+          hover:text-white
+        "
+        title="تصدير التقرير"
+      >
+        <Download size={16} />
+        تصدير
+        <ChevronDown size={15} />
+      </button>
+
+      {openExportMenu === "day" && (
         <div
+          onClick={(e) => e.stopPropagation()}
           className="
-            rounded-2xl
-            border
-            border-sky-400/20
-            bg-[#081B33]
-            p-6
-            shadow-lg
-            shadow-sky-500/5
+            absolute right-0 top-12 z-50
+            w-48 overflow-hidden
+            rounded-xl
+            border border-white/10
+            bg-[#102947]
+            p-1
+            shadow-2xl
           "
         >
+          <button
+            type="button"
+            onClick={() => handlePeriodExport("day", "pdf")}
+            className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-right text-sm text-white transition hover:bg-white/10"
+          >
+            <FileText size={17} className="text-red-400" />
+            PDF / حفظ PDF
+          </button>
 
-          <p className="text-gray-400">
-            تغذية اليوم
-          </p>
+          <button
+            type="button"
+            onClick={() => handlePeriodExport("day", "excel")}
+            className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-right text-sm text-white transition hover:bg-white/10"
+          >
+            <FileSpreadsheet size={17} className="text-green-400" />
+            Excel
+          </button>
 
-          <h2 className="mt-3 text-3xl font-bold text-sky-400">
-            {formatMoney(todayFunding)} ريال
-          </h2>
-
-          <p className="mt-2 text-xs text-gray-500">
-            {formatDate(todayString)}
-          </p>
-
+          <button
+            type="button"
+            onClick={() => handlePeriodExport("day", "print")}
+            className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-right text-sm text-white transition hover:bg-white/10"
+          >
+            <Printer size={17} className="text-sky-400" />
+            طباعة
+          </button>
         </div>
+      )}
+    </div>
 
-        {/* الأسبوع */}
+  </div>
 
+  {/* ================= الأسبوع ================= */}
+
+  <div
+    className="
+      rounded-2xl
+      border
+      border-violet-400/20
+      bg-[#081B33]
+      p-6
+      shadow-lg
+      shadow-violet-500/5
+    "
+  >
+
+    <p className="text-gray-400">
+      تغذية الأسبوع
+    </p>
+
+    <div className="mt-3 grid grid-cols-2 gap-2">
+
+      <input
+        type="date"
+        value={selectedWeekStart}
+        onChange={(e) =>
+          setSelectedWeekStart(e.target.value)
+        }
+        className="
+          min-w-0
+          rounded-lg
+          border
+          border-violet-400/20
+          bg-[#102947]
+          px-2
+          py-1
+          text-xs
+          text-white
+          outline-none
+        "
+      />
+
+      <input
+        type="date"
+        value={selectedWeekEnd}
+        onChange={(e) =>
+          setSelectedWeekEnd(e.target.value)
+        }
+        className="
+          min-w-0
+          rounded-lg
+          border
+          border-violet-400/20
+          bg-[#102947]
+          px-2
+          py-1
+          text-xs
+          text-white
+          outline-none
+        "
+      />
+
+    </div>
+
+    <h2 className="mt-3 text-3xl font-bold text-violet-400">
+      {formatMoney(weekFunding)} ريال
+    </h2>
+
+    <p className="mt-2 text-xs text-gray-500">
+      من {formatDate(selectedWeekStart)}
+      {" "}
+      إلى {formatDate(selectedWeekEnd)}
+    </p>
+
+    {/* تصدير الفترة */}
+    <div className="relative mt-4 flex justify-end">
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpenExportMenu(
+            openExportMenu === "week"
+              ? null
+              : "week"
+          );
+        }}
+        className="
+          flex items-center gap-2
+          rounded-xl
+          border border-violet-400/30
+          bg-violet-400/10
+          px-4 py-2
+          text-sm font-bold
+          text-violet-300
+          transition
+          hover:border-violet-400
+          hover:bg-violet-500
+          hover:text-white
+        "
+        title="تصدير التقرير"
+      >
+        <Download size={16} />
+        تصدير
+        <ChevronDown size={15} />
+      </button>
+
+      {openExportMenu === "week" && (
         <div
+          onClick={(e) => e.stopPropagation()}
           className="
-            rounded-2xl
-            border
-            border-violet-400/20
-            bg-[#081B33]
-            p-6
-            shadow-lg
-            shadow-violet-500/5
+            absolute right-0 top-12 z-50
+            w-48 overflow-hidden
+            rounded-xl
+            border border-white/10
+            bg-[#102947]
+            p-1
+            shadow-2xl
           "
         >
+          <button
+            type="button"
+            onClick={() => handlePeriodExport("week", "pdf")}
+            className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-right text-sm text-white transition hover:bg-white/10"
+          >
+            <FileText size={17} className="text-red-400" />
+            PDF / حفظ PDF
+          </button>
 
-          <p className="text-gray-400">
-            تغذية الأسبوع
-          </p>
+          <button
+            type="button"
+            onClick={() => handlePeriodExport("week", "excel")}
+            className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-right text-sm text-white transition hover:bg-white/10"
+          >
+            <FileSpreadsheet size={17} className="text-green-400" />
+            Excel
+          </button>
 
-          <h2 className="mt-3 text-3xl font-bold text-violet-400">
-            {formatMoney(weekFunding)} ريال
-          </h2>
-
-          <p className="mt-2 text-xs text-gray-500">
-            من {formatDate(getLocalDateString(weekStart))}
-            {" "}
-            إلى{" "}
-            {formatDate(todayString)}
-          </p>
-
+          <button
+            type="button"
+            onClick={() => handlePeriodExport("week", "print")}
+            className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-right text-sm text-white transition hover:bg-white/10"
+          >
+            <Printer size={17} className="text-sky-400" />
+            طباعة
+          </button>
         </div>
+      )}
+    </div>
 
-        {/* الشهر */}
+  </div>
 
+  {/* ================= الشهر ================= */}
+
+  <div
+    className="
+      rounded-2xl
+      border
+      border-amber-400/20
+      bg-[#081B33]
+      p-6
+      shadow-lg
+      shadow-amber-500/5
+    "
+  >
+
+    <div className="flex items-center justify-between gap-3">
+
+      <p className="text-gray-400">
+        تغذية الشهر
+      </p>
+
+      <input
+        type="month"
+        value={selectedMonth}
+        onChange={(e) =>
+          setSelectedMonth(e.target.value)
+        }
+        className="
+          rounded-lg
+          border
+          border-amber-400/20
+          bg-[#102947]
+          px-2
+          py-1
+          text-xs
+          text-white
+          outline-none
+        "
+      />
+
+    </div>
+
+    <h2 className="mt-3 text-3xl font-bold text-amber-400">
+      {formatMoney(monthFunding)} ريال
+    </h2>
+
+    <p className="mt-2 text-xs text-gray-500">
+      من {formatDate(getLocalDateString(selectedMonthStart))}
+      {" "}
+      إلى {formatDate(getLocalDateString(selectedMonthEnd))}
+    </p>
+
+    {/* تصدير الفترة */}
+    <div className="relative mt-4 flex justify-end">
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpenExportMenu(
+            openExportMenu === "month"
+              ? null
+              : "month"
+          );
+        }}
+        className="
+          flex items-center gap-2
+          rounded-xl
+          border border-amber-400/30
+          bg-amber-400/10
+          px-4 py-2
+          text-sm font-bold
+          text-amber-300
+          transition
+          hover:border-amber-400
+          hover:bg-amber-500
+          hover:text-white
+        "
+        title="تصدير التقرير"
+      >
+        <Download size={16} />
+        تصدير
+        <ChevronDown size={15} />
+      </button>
+
+      {openExportMenu === "month" && (
         <div
+          onClick={(e) => e.stopPropagation()}
           className="
-            rounded-2xl
-            border
-            border-amber-400/20
-            bg-[#081B33]
-            p-6
-            shadow-lg
-            shadow-amber-500/5
+            absolute right-0 top-12 z-50
+            w-48 overflow-hidden
+            rounded-xl
+            border border-white/10
+            bg-[#102947]
+            p-1
+            shadow-2xl
           "
         >
+          <button
+            type="button"
+            onClick={() => handlePeriodExport("month", "pdf")}
+            className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-right text-sm text-white transition hover:bg-white/10"
+          >
+            <FileText size={17} className="text-red-400" />
+            PDF / حفظ PDF
+          </button>
 
-          <p className="text-gray-400">
-            تغذية الشهر
-          </p>
+          <button
+            type="button"
+            onClick={() => handlePeriodExport("month", "excel")}
+            className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-right text-sm text-white transition hover:bg-white/10"
+          >
+            <FileSpreadsheet size={17} className="text-green-400" />
+            Excel
+          </button>
 
-          <h2 className="mt-3 text-3xl font-bold text-amber-400">
-            {formatMoney(monthFunding)} ريال
-          </h2>
-
-          <p className="mt-2 text-xs text-gray-500">
-            من {formatDate(getLocalDateString(monthStart))}
-            {" "}
-            إلى{" "}
-            {formatDate(getLocalDateString(monthEnd))}
-          </p>
-
+          <button
+            type="button"
+            onClick={() => handlePeriodExport("month", "print")}
+            className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-right text-sm text-white transition hover:bg-white/10"
+          >
+            <Printer size={17} className="text-sky-400" />
+            طباعة
+          </button>
         </div>
+      )}
+    </div>
+
+  </div>
 
         {/* الإجمالي */}
 

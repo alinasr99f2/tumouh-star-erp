@@ -30,6 +30,7 @@ export default function FundingModal({
   const [amount, setAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("");
   const [description, setDescription] = useState("");
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
 
   const [accountList, setAccountList] = useState<Account[]>([]);
 
@@ -109,70 +110,71 @@ export default function FundingModal({
         : description;
 
       // ==============================
-      // 1️⃣ تسجيل التغذية
-      // ==============================
+// 1️⃣ رفع المرفق إن وجد
+// ==============================
 
-      const { data: fundingData, error: fundingError } =
-        await supabase
-          .from("funding")
-          .insert({
-            account_id: Number(accountId),
-            amount: numericAmount,
-            funding_date: fundingDate,
-            source: paymentMethod,
-            description: finalDescription,
-          })
-          .select()
-          .single();
+let attachmentUrl: string | null = null;
 
-      if (fundingError) {
-        console.error(
-          "خطأ حفظ التغذية:",
-          fundingError
-        );
+if (attachmentFile) {
+  const fileExt = attachmentFile.name.split(".").pop();
 
-        alert(
-          `حدث خطأ أثناء حفظ التغذية:\n${fundingError.message}`
-        );
+  const fileName = `${Date.now()}-${Math.random()
+    .toString(36)
+    .substring(2)}.${fileExt}`;
 
-        return;
-      }
+  const filePath = `funding/${Number(accountId)}/${fileName}`;
 
-      // ==============================
-      // 2️⃣ تحديث رصيد العهدة
-      // ==============================
+  const { error: uploadError } = await supabase.storage
+    .from("funding-attachments")
+    .upload(filePath, attachmentFile);
 
-      const selectedAccount = accountList.find(
-        (account) =>
-          account.id === Number(accountId)
-      );
+  if (uploadError) {
+    console.error(
+      "خطأ رفع المرفق:",
+      uploadError
+    );
 
-      if (selectedAccount) {
-        const newBalance =
-          Number(selectedAccount.balance || 0) +
-          numericAmount;
+    alert(
+      `حدث خطأ أثناء رفع المرفق:\n${uploadError.message}`
+    );
 
-        const { error: balanceError } =
-          await supabase
-            .from("accounts")
-            .update({
-              balance: newBalance,
-            })
-            .eq("id", Number(accountId));
+    return;
+  }
 
-        if (balanceError) {
-          console.error(
-            "خطأ تحديث رصيد العهدة:",
-            balanceError
-          );
+  // نحفظ مسار الملف فقط لأن الـ Bucket Private
+attachmentUrl = filePath;
+}
 
-          alert(
-            "تم تسجيل التغذية، ولكن حدث خطأ أثناء تحديث رصيد العهدة."
-          );
+// ==============================
+// 2️⃣ تسجيل التغذية
+// ==============================
 
-          return;
-        }
-      }
+const { data: fundingData, error: fundingError } =
+  await supabase
+    .from("funding")
+    .insert({
+      account_id: Number(accountId),
+      amount: numericAmount,
+      funding_date: fundingDate,
+      source: paymentMethod,
+      description: finalDescription,
+      attachment_url: attachmentUrl,
+    })
+    .select()
+    .single();
+
+if (fundingError) {
+  console.error(
+    "خطأ حفظ التغذية:",
+    fundingError
+  );
+
+  alert(
+    `حدث خطأ أثناء حفظ التغذية:\n${fundingError.message}`
+  );
+
+  return;
+}
 
       // ==============================
       // 3️⃣ نجاح العملية
@@ -346,9 +348,19 @@ export default function FundingModal({
           </label>
 
           <input
-            type="file"
-            className="block w-full rounded-xl border border-white/10 bg-[#102947] p-3 text-white"
-          />
+  type="file"
+  accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+  onChange={(e) => {
+    setAttachmentFile(e.target.files?.[0] ?? null);
+  }}
+  className="block w-full rounded-xl border border-white/10 bg-[#102947] p-3 text-white"
+/>
+
+{attachmentFile && (
+  <p className="mt-2 text-sm text-sky-400">
+    📎 {attachmentFile.name}
+  </p>
+)}
 
         </div>
 

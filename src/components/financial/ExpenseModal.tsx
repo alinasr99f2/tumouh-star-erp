@@ -20,9 +20,9 @@ type Props = {
   onClose: () => void;
   onSave: (expense: any) => Promise<boolean>;
   accounts: Account[];
-  onAccountCreated?: (account: Account) => void;
   initialExpense?: any | null;
   isEditing?: boolean;
+  forcedProjectId?: string | number | null;
 };
 
 export default function ExpenseModal({
@@ -30,9 +30,9 @@ export default function ExpenseModal({
   onClose,
   onSave,
   accounts,
-  onAccountCreated,
   initialExpense,
   isEditing = false,
+  forcedProjectId = null,
 }: Props) {
 
 
@@ -47,26 +47,6 @@ const [projectId, setProjectId] = useState("");
 const [villaCode, setVillaCode] = useState("");
 const [villaId, setVillaId] = useState("");
 const [accountId, setAccountId] = useState("");
-const [localAccounts, setLocalAccounts] = useState<Account[]>(accounts ?? []);
-
-const ensureAccountShape = (row: any): Account => ({
-  id: Number(row?.id),
-  name: String(row?.name ?? ""),
-  type: String(row?.type ?? "عهدة"),
-  currentBalance: Number(row?.balance ?? row?.current_balance ?? row?.currentBalance ?? 0),
-  totalFunding: Number(row?.totalFunding ?? row?.total_funding ?? 0),
-  totalExpenses: Number(row?.totalExpenses ?? row?.total_expenses ?? 0),
-  operationsCount: Number(row?.operationsCount ?? row?.operations_count ?? 0),
-});
-
-const [stageId, setStageId] = useState("");
-const [stages, setStages] = useState<{ id: number; name: string; is_active?: boolean }[]>([]);
-const [showAddStage, setShowAddStage] = useState(false);
-const [newStageName, setNewStageName] = useState("");
-
-const [showAddAccount, setShowAddAccount] = useState(false);
-const [newAccountName, setNewAccountName] = useState("");
-const [newAccountType, setNewAccountType] = useState("عهدة");
 
 const [categoryId, setCategoryId] = useState("");
 const [itemId, setItemId] = useState("");
@@ -104,30 +84,6 @@ const total = useMemo(() => {
   return Number(amount || 0) + tax;
 }, [amount, tax]);
 
-useEffect(() => {
-  setLocalAccounts((accounts ?? []).map(ensureAccountShape));
-}, [accounts]);
-
-useEffect(() => {
-  if (!open) return;
-
-  const loadAccountsDirect = async () => {
-    const { data, error } = await supabase
-      .from("accounts")
-      .select("*")
-      .order("id", { ascending: true });
-
-    if (error) {
-      console.error("خطأ في تحميل العهد داخل نافذة المصروف:", error);
-      return;
-    }
-
-    setLocalAccounts((data ?? []).map(ensureAccountShape));
-  };
-
-  loadAccountsDirect();
-}, [open]);
-
 const projectVillas = useMemo(() => {
   console.log(projectId);
 
@@ -145,7 +101,6 @@ useEffect(() => {
     const [
       { data: categoriesData, error: categoriesError },
       { data: itemsData, error: itemsError },
-      { data: stagesData, error: stagesError },
     ] = await Promise.all([
       supabase
         .from("categories")
@@ -156,39 +111,41 @@ useEffect(() => {
         .from("expense_items")
         .select("id, name, category_id")
         .order("id", { ascending: true }),
-
-      supabase
-        .from("expense_stages")
-        .select("id, name, is_active")
-        .eq("is_active", true)
-        .order("id", { ascending: true }),
     ]);
 
-    if (categoriesError) console.error("خطأ في تحميل التصنيفات:", categoriesError);
-    else setCategories(categoriesData ?? []);
-
-    if (itemsError) console.error("خطأ في تحميل البنود:", itemsError);
-    else setExpenseItems(itemsData ?? []);
-
-    if (stagesError) {
-      console.error("خطأ في تحميل المراحل:", stagesError);
-      setStages([]);
-    } else {
-      const rows = (stagesData ?? []).filter((stage) => stage.is_active !== false);
-      setStages(rows);
-      if (!initialExpense || !isEditing) {
-        const construction = rows.find((stage) => String(stage.name ?? "").trim() === "إنشائي");
-        setStageId(construction ? String(construction.id) : rows[0] ? String(rows[0].id) : "");
-      }
+    if (categoriesError) {
+      console.error(
+        "خطأ في تحميل التصنيفات:",
+        categoriesError
+      );
+      return;
     }
+
+    if (itemsError) {
+      console.error(
+        "خطأ في تحميل البنود:",
+        itemsError
+      );
+      return;
+    }
+
+    setCategories(categoriesData ?? []);
+    setExpenseItems(itemsData ?? []);
   };
 
-  if (open) loadCategoriesAndItems();
+  if (open) {
+    loadCategoriesAndItems();
+  }
 }, [open]);
 
 // تعبئة النموذج عند فتحه في وضع التعديل، وإرجاعه للوضع الفارغ عند الإضافة.
 useEffect(() => {
   if (!open) return;
+
+  if (!isEditing && forcedProjectId != null) {
+    setProjectId(String(forcedProjectId));
+    setVillaId("");
+  }
 
   if (initialExpense && isEditing) {
     setEntryDate(
@@ -214,7 +171,6 @@ useEffect(() => {
         : ""
     );
     setAccountId(String(initialExpense.accountId ?? initialExpense.account_id ?? ""));
-    setStageId(String(initialExpense.stageId ?? initialExpense.stage_id ?? ""));
     setCategoryId(String(initialExpense.categoryId ?? initialExpense.category_id ?? ""));
     setItemId(String(initialExpense.itemId ?? initialExpense.item_id ?? ""));
     setVoucherNo(String(initialExpense.voucherNo ?? initialExpense.voucher_no ?? ""));
@@ -235,74 +191,6 @@ useEffect(() => {
     setEntryDate(today);
   }
 }, [open, initialExpense, isEditing]);
-
-const handleAddAccount = async () => {
-  const name = newAccountName.trim();
-  if (!name) { alert("من فضلك اكتب اسم العهدة"); return; }
-
-  const { data, error } = await supabase
-    .from("accounts")
-    .insert({ name, type: newAccountType, balance: 0 })
-    .select("id, name, type, balance")
-    .single();
-
-  if (error) {
-    console.error("خطأ في إضافة العهدة:", error);
-    alert(`حدث خطأ أثناء إضافة العهدة:\n${error.message}`);
-    return;
-  }
-
-  if (data) {
-    const created: Account = {
-      id: Number(data.id),
-      name: data.name,
-      type: data.type ?? "عهدة",
-      currentBalance: Number(data.balance ?? 0),
-      totalFunding: 0,
-      totalExpenses: 0,
-      operationsCount: 0,
-    };
-    setLocalAccounts((current) => [...current, created]);
-    setAccountId(String(created.id));
-    onAccountCreated?.(created);
-  }
-
-  setNewAccountName("");
-  setNewAccountType("عهدة");
-  setShowAddAccount(false);
-};
-
-const handleAddStage = async () => {
-  const name = newStageName.trim();
-  if (!name) { alert("من فضلك اكتب اسم المرحلة"); return; }
-
-  const existing = stages.find((stage) => stage.name.trim().toLowerCase() === name.toLowerCase());
-  if (existing) {
-    setStageId(String(existing.id));
-    setShowAddStage(false);
-    setNewStageName("");
-    return;
-  }
-
-  const { data, error } = await supabase
-    .from("expense_stages")
-    .insert({ name, is_active: true })
-    .select("id, name, is_active")
-    .single();
-
-  if (error) {
-    console.error("خطأ في إضافة المرحلة:", error);
-    alert(`حدث خطأ أثناء إضافة المرحلة:\n${error.message}`);
-    return;
-  }
-
-  if (data) {
-    setStages((current) => [...current, data]);
-    setStageId(String(data.id));
-  }
-  setNewStageName("");
-  setShowAddStage(false);
-};
 
 const handleAddCategory = async () => {
   const name = newCategoryName.trim();
@@ -406,8 +294,6 @@ const resetForm = () => {
   setProjectId("");
   setVillaId("");
   setAccountId("");
-  const defaultStage = stages.find((stage) => stage.name.trim() === "إنشائي");
-  setStageId(defaultStage ? String(defaultStage.id) : "");
   setCategoryId("");
   setItemId("");
   setVoucherNo("");
@@ -419,9 +305,10 @@ const resetForm = () => {
 
 const handleSave = async (addAnother = false) => {
 
-  if (!accountId) { alert("من فضلك اختر العهدة"); return; }
-
-  if (!stageId) { alert("من فضلك اختر المرحلة"); return; }
+  if (!accountId) {
+    alert("من فضلك اختر العهدة");
+    return;
+  }
 
   if (!projectId) {
     alert("من فضلك اختر المشروع");
@@ -450,7 +337,6 @@ const handleSave = async (addAnother = false) => {
     projectId,
     villaId: savedVillaId,
     accountId: Number(accountId),
-    stageId: Number(stageId),
     categoryId,
 itemId: itemId ? Number(itemId) : null,
 voucherNo,
@@ -534,6 +420,7 @@ return (
           label="المشروع"
           value={projectId}
           onChange={setProjectId}
+          disabled={!isEditing && forcedProjectId != null}
           options={projects.map((p) => ({
             value: p.id,
             label: p.name,
@@ -558,54 +445,17 @@ return (
         />
 
         {/* العهدة */}
-        <div>
-          <div className="mb-2 flex items-center justify-between">
-            <label className="text-sm text-gray-300">العهدة</label>
-            <button
-              type="button"
-              onClick={() => setShowAddAccount(true)}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-yellow-400 font-bold text-[#081B33] transition hover:bg-yellow-300 ring-2 ring-yellow-300/20"
-              title="إضافة عهدة"
-            >+ </button>
-          </div>
-          <select
-            value={accountId}
-            onChange={(e) => setAccountId(e.target.value)}
-            className="h-12 w-full rounded-xl border border-white/10 bg-[#102947] px-4 text-white outline-none focus:border-yellow-400"
-          >
-            <option value="">{localAccounts.length ? "اختر العهدة..." : "لا توجد عهد محملة - أضف عهدة"}</option>
-            {localAccounts.map((account) => (
-              <option key={account.id} value={account.id}>
-                {account.name} ({Number(account.currentBalance || 0).toLocaleString()} ريال)
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* المرحلة */}
-        <div>
-          <div className="mb-2 flex items-center justify-between">
-            <label className="text-sm text-gray-300">المرحلة</label>
-            <button
-              type="button"
-              onClick={() => setShowAddStage(true)}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-yellow-400 font-bold text-[#081B33] transition hover:bg-yellow-300 ring-2 ring-yellow-300/20"
-              title="إضافة مرحلة"
-            >+ </button>
-          </div>
-          <select
-            value={stageId}
-            onChange={(e) => setStageId(e.target.value)}
-            className="h-12 w-full rounded-xl border border-white/10 bg-[#102947] px-4 text-white outline-none focus:border-yellow-400"
-          >
-            <option value="">{stages.length ? "اختر المرحلة..." : "جارٍ تحميل المراحل..."}</option>
-            {stages.map((stage) => (
-              <option key={stage.id} value={stage.id}>
-                {stage.name}
-              </option>
-            ))}
-          </select>
-        </div>
+        <Select
+          label="العهدة"
+          value={accountId}
+          onChange={setAccountId}
+          options={accounts.map((account) => ({
+            value: account.id,
+            label: `${account.name} (${Number(
+              account.currentBalance || 0
+            ).toLocaleString()} ريال)`,
+          }))}
+        />
 
         {/* التصنيف */}
         <div>
@@ -834,55 +684,6 @@ return (
         />
 
       </div>
-
-      {/* ================= إضافة عهدة جديدة ================= */}
-      {showAddAccount && (
-        <div className="fixed inset-0 z-[210] flex items-center justify-center bg-black/70 p-4">
-          <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#081B33] p-7 shadow-2xl">
-            <div className="mb-6 flex items-center justify-between">
-              <h3 className="text-2xl font-bold text-white">إضافة عهدة جديدة</h3>
-              <button type="button" onClick={() => setShowAddAccount(false)} className="text-2xl text-gray-400 hover:text-red-400">✕</button>
-            </div>
-            <label className="mb-2 block text-sm text-gray-300">اسم العهدة</label>
-            <input
-              autoFocus
-              value={newAccountName}
-              onChange={(e) => setNewAccountName(e.target.value)}
-              placeholder="مثال: عهدة المشتريات"
-              className="h-12 w-full rounded-xl border border-white/10 bg-[#102947] px-4 text-white outline-none focus:border-yellow-400"
-            />
-            <div className="mt-6 grid grid-cols-2 gap-3">
-              <button type="button" onClick={() => setShowAddAccount(false)} className="h-12 rounded-xl border border-white/10 bg-white/5 font-bold text-gray-300">إلغاء</button>
-              <button type="button" onClick={handleAddAccount} className="h-12 rounded-xl bg-green-500 font-bold text-white">+ إنشاء العهدة</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ================= إضافة مرحلة جديدة ================= */}
-      {showAddStage && (
-        <div className="fixed inset-0 z-[210] flex items-center justify-center bg-black/70 p-4">
-          <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#081B33] p-7 shadow-2xl">
-            <div className="mb-6 flex items-center justify-between">
-              <h3 className="text-2xl font-bold text-white">إضافة مرحلة جديدة</h3>
-              <button type="button" onClick={() => setShowAddStage(false)} className="text-2xl text-gray-400 hover:text-red-400">✕</button>
-            </div>
-            <label className="mb-2 block text-sm text-gray-300">اسم المرحلة</label>
-            <input
-              autoFocus
-              value={newStageName}
-              onChange={(e) => setNewStageName(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") handleAddStage(); }}
-              placeholder="مثال: أعمال خارجية"
-              className="h-12 w-full rounded-xl border border-white/10 bg-[#102947] px-4 text-white outline-none focus:border-yellow-400"
-            />
-            <div className="mt-6 grid grid-cols-2 gap-3">
-              <button type="button" onClick={() => setShowAddStage(false)} className="h-12 rounded-xl border border-white/10 bg-white/5 font-bold text-gray-300">إلغاء</button>
-              <button type="button" onClick={handleAddStage} className="h-12 rounded-xl bg-yellow-400 font-bold text-[#081B33]">+ إضافة المرحلة</button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ================= إضافة تصنيف جديد ================= */}
       {showAddCategory && (
@@ -1191,6 +992,7 @@ type SelectProps = {
   value?: string;
   options?: SelectOption[];
   onChange?: (value: string) => void;
+  disabled?: boolean;
 };
 
 function Select({
@@ -1198,6 +1000,7 @@ function Select({
   value = "",
   options = [],
   onChange,
+  disabled = false,
 }: SelectProps) {
   return (
     <div>
@@ -1207,6 +1010,7 @@ function Select({
 
       <select
         value={value}
+        disabled={disabled}
         onChange={(e) => onChange?.(e.target.value)}
         className="
           h-12

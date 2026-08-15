@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Eye, Pencil, Trash2, Search, FileSpreadsheet, FileText, Printer, Download, CalendarDays, RefreshCw } from "lucide-react";
 import { supabase } from "../../utils/supabase";
 import { projects } from "../../data/projects";
 
@@ -31,6 +32,9 @@ type Expense = {
   total?: number | string | null;
 
   description?: string | null;
+  attachmentUrl?: string | null;
+  attachmentPath?: string | null;
+  attachmentName?: string | null;
 };
 
 type Account = {
@@ -64,13 +68,15 @@ type ExpensesPageProps = {
 
   onEditExpense?: (expense: Expense) => void;
 
-  onDeleteExpense?: (expense: Expense) => void;
+  onDeleteExpense?: (expense: Expense) => void | Promise<void>;
+  refreshKey?: number;
 };
 
 
 type RawExpense = Expense & {
   entry_date?: string | null;
   expense_date?: string | null;
+  date?: string | null;
   project_id?: string | number | null;
   account_id?: string | number | null;
   category_id?: string | number | null;
@@ -102,6 +108,10 @@ type RawExpense = Expense & {
   item_name?: string | null;
   itemName?: string | null;
   created_at?: string | null;
+  attachment?: string | null;
+  attachment_url?: string | null;
+  attachment_path?: string | null;
+  attachment_name?: string | null;
 };
 
 const normalizeExpense = (
@@ -157,6 +167,7 @@ const normalizeExpense = (
     expenseDate:
       expense.expenseDate ??
       expense.expense_date ??
+      expense.date ??
       null,
     projectId:
       expense.projectId ??
@@ -228,6 +239,18 @@ const normalizeExpense = (
     tax: taxValue,
     total: totalValue,
     description: expense.description ?? null,
+    attachmentUrl:
+      expense.attachmentUrl ??
+      expense.attachment_url ??
+      (typeof expense.attachment === "string" && expense.attachment.startsWith("http") ? expense.attachment : null),
+    attachmentPath:
+      expense.attachmentPath ??
+      expense.attachment_path ??
+      (typeof expense.attachment === "string" && !expense.attachment.startsWith("http") ? expense.attachment : null),
+    attachmentName:
+      expense.attachmentName ??
+      expense.attachment_name ??
+      null,
   };
 };
 
@@ -266,6 +289,7 @@ export default function ExpensesPage({
   onViewExpense,
   onEditExpense,
   onDeleteExpense,
+  refreshKey = 0,
 }: ExpensesPageProps) {
   // =====================================================
   // المصروفات
@@ -283,9 +307,18 @@ export default function ExpensesPage({
     setExpensesLoading(true);
     setExpensesError(null);
 
-    const { data, error } = await supabase
-      .from("expenses")
-      .select("*");
+    const [
+      { data, error },
+      { data: suppliersData, error: suppliersError },
+    ] = await Promise.all([
+      supabase
+        .from("expenses")
+        .select("*"),
+      supabase
+        .from("suppliers")
+        .select("id, name")
+        .order("id", { ascending: true }),
+    ]);
 
     if (error) {
       console.error("خطأ في تحميل المصروفات:", error);
@@ -295,11 +328,58 @@ export default function ExpensesPage({
       return;
     }
 
+    if (suppliersError) {
+      console.warn("تعذر تحميل أسماء الموردين داخل جدول المصروفات:", suppliersError);
+    }
+
+    const supplierMap = new Map<number, string>(
+      (suppliersData ?? []).map((supplier: any) => [
+        Number(supplier.id),
+        String(supplier.name ?? ""),
+      ])
+    );
+
     const rows = ((data ?? []) as RawExpense[])
-      .map(normalizeExpense)
+  .map((row) => {
+    const normalized = normalizeExpense(row);
+
+    const rawRow = row as RawExpense & {
+      supplier_id?: number | null;
+      supplierId?: number | null;
+    };
+
+    const supplierId =
+      rawRow.supplier_id ??
+      rawRow.supplierId ??
+      null;
+
+    const supplierName =
+      normalized.supplier ??
+      normalized.supplierName ??
+      (supplierId != null
+        ? supplierMap.get(Number(supplierId))
+        : null) ??
+      null;
+
+    return {
+      ...normalized,
+      supplierId,
+      supplier: supplierName,
+      supplierName,
+    };
+  })
       .sort((a, b) => {
-        const dateA = String(a.expenseDate ?? a.entryDate ?? "");
-        const dateB = String(b.expenseDate ?? b.entryDate ?? "");
+        // جدول expenses يستخدم date كتاريخ المصروف، مع دعم الأسماء القديمة.
+        const dateA = String(
+          a.expenseDate ??
+          a.entryDate ??
+          ""
+        );
+        const dateB = String(
+          b.expenseDate ??
+          b.entryDate ??
+          ""
+        );
         return dateB.localeCompare(dateA);
       });
 
@@ -309,7 +389,7 @@ export default function ExpensesPage({
 
   useEffect(() => {
     loadExpenses();
-  }, []);
+  }, [refreshKey]);
 
   // نستخدم البيانات التي تم تحميلها مباشرة من Supabase عندما تكون موجودة،
   // وإلا نرجع للبيانات القادمة من Dashboard.
@@ -324,7 +404,27 @@ export default function ExpensesPage({
   const [categories, setCategories] = useState<Category[]>([]);
   const [expenseItems, setExpenseItems] = useState<ExpenseItem[]>([]);
 
+  const todayStringSafe = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  };
+
+  const currentMonthString = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  };
+
+  const currentYearString = () => String(new Date().getFullYear());
+
   const [search, setSearch] = useState("");
+
+  // فلاتر الفترات التي تتحكم في كروت اليوم/الأسبوع/الشهر/السنة
+  const [selectedDay, setSelectedDay] = useState(todayStringSafe());
+  const [weekFrom, setWeekFrom] = useState("");
+  const [weekTo, setWeekTo] = useState("");
+  const [selectedMonth, setSelectedMonth] = useState("");
+  const [selectedYear, setSelectedYear] = useState("");
+  const [exportMenu, setExportMenu] = useState<string | null>(null);
 
   // =========================================
   // تحميل التصنيفات والبنود من Supabase
@@ -505,6 +605,15 @@ export default function ExpensesPage({
 
   const weekStartString = getRolling7DayStart();
 
+  // القيم الافتراضية للفلاتر الزمنية
+  useEffect(() => {
+    setSelectedDay(todayString);
+    setWeekFrom(weekStartString);
+    setWeekTo(todayString);
+    setSelectedMonth(`${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`);
+    setSelectedYear(String(today.getFullYear()));
+  }, [todayString, weekStartString]);
+
   // =========================================
   // المبلغ الفعلي للمصروف
   // =========================================
@@ -535,107 +644,41 @@ export default function ExpensesPage({
   };
 
   // =========================================
-  // حساب إجمالي اليوم
+  // حساب الإجماليات حسب الفترة المختارة
   // =========================================
 
   const todayExpenses = useMemo(() => {
     return normalizedExpenses
-      .filter(
-        (expense) =>
-          getDateString(expense.expenseDate) ===
-          todayString
-      )
-      .reduce(
-        (sum, expense) =>
-          sum + getExpenseTotal(expense),
-        0
-      );
-  }, [normalizedExpenses, todayString]);
-
-  // =========================================
-  // حساب إجمالي الأسبوع
-  // =========================================
+      .filter((expense) => getDateString(expense.expenseDate) === selectedDay)
+      .reduce((sum, expense) => sum + getExpenseTotal(expense), 0);
+  }, [normalizedExpenses, selectedDay]);
 
   const weekExpenses = useMemo(() => {
+    if (!weekFrom || !weekTo) return 0;
+    const from = weekFrom <= weekTo ? weekFrom : weekTo;
+    const to = weekFrom <= weekTo ? weekTo : weekFrom;
+
     return normalizedExpenses
       .filter((expense) => {
-        const date = getDateString(
-          expense.expenseDate
-        );
-
-        if (!date) return false;
-
-        return (
-          date >= weekStartString &&
-          date <= todayString
-        );
+        const date = getDateString(expense.expenseDate);
+        return Boolean(date) && date >= from && date <= to;
       })
-      .reduce(
-        (sum, expense) =>
-          sum + getExpenseTotal(expense),
-        0
-      );
-  }, [
-    normalizedExpenses,
-    weekStartString,
-    todayString,
-  ]);
-
-  // =========================================
-  // حساب إجمالي الشهر
-  // =========================================
+      .reduce((sum, expense) => sum + getExpenseTotal(expense), 0);
+  }, [normalizedExpenses, weekFrom, weekTo]);
 
   const monthExpenses = useMemo(() => {
-    const year = today.getFullYear();
-    const month = today.getMonth() + 1;
-
-    const monthString =
-      `${year}-${String(month).padStart(
-        2,
-        "0"
-      )}`;
-
+    if (!selectedMonth) return 0;
     return normalizedExpenses
-      .filter((expense) => {
-        const date = getDateString(
-          expense.expenseDate
-        );
-
-        return date.startsWith(
-          monthString
-        );
-      })
-      .reduce(
-        (sum, expense) =>
-          sum + getExpenseTotal(expense),
-        0
-      );
-  }, [normalizedExpenses, todayString]);
-
-  // =========================================
-  // حساب إجمالي السنة
-  // =========================================
+      .filter((expense) => getDateString(expense.expenseDate).startsWith(selectedMonth))
+      .reduce((sum, expense) => sum + getExpenseTotal(expense), 0);
+  }, [normalizedExpenses, selectedMonth]);
 
   const yearExpenses = useMemo(() => {
-    const yearString =
-      String(today.getFullYear());
-
+    if (!selectedYear) return 0;
     return normalizedExpenses
-      .filter((expense) => {
-        const date = getDateString(
-          expense.expenseDate
-        );
-
-        return date.startsWith(
-          yearString
-        );
-      })
-      .reduce(
-        (sum, expense) =>
-          sum + getExpenseTotal(expense),
-        0
-      );
-  }, [normalizedExpenses, todayString]);
+      .filter((expense) => getDateString(expense.expenseDate).startsWith(selectedYear))
+      .reduce((sum, expense) => sum + getExpenseTotal(expense), 0);
+  }, [normalizedExpenses, selectedYear]);
 
   // =========================================
   // البحث
@@ -649,29 +692,18 @@ export default function ExpensesPage({
     }
 
     return normalizedExpenses.filter((expense) => {
-      const project = getProjectName(
-        String(expense.projectId ?? "")
-      ).toLowerCase();
-
-      const account = getAccountName(
-        String(expense.accountId ?? "")
-      ).toLowerCase();
-
-      const category = getCategoryName(
-        String(expense.categoryId ?? "")
-      ).toLowerCase();
-
-      const item = getItemName(
-        String(expense.itemId ?? "")
-      ).toLowerCase();
-
-      const supplier = String(
-        expense.supplier ?? ""
-      ).toLowerCase();
-
-      const voucher = String(
-        expense.voucherNo ?? ""
-      ).toLowerCase();
+      const project = getProjectName(String(expense.projectId ?? "")).toLowerCase();
+      const account = getAccountName(String(expense.accountId ?? "")).toLowerCase();
+      const category = getCategoryName(String(expense.categoryId ?? "")).toLowerCase();
+      const item = getItemName(String(expense.itemId ?? "")).toLowerCase();
+      const supplier = String(expense.supplier ?? expense.supplierName ?? "").toLowerCase();
+      const voucher = String(expense.voucherNo ?? expense.invoiceNo ?? "").toLowerCase();
+      const payment = getPaymentMethod(expense.paymentMethod).toLowerCase();
+      const stage = getStageName(expense).toLowerCase();
+      const dateText = `${getDateString(expense.entryDate)} ${getDateString(expense.expenseDate)}`.toLowerCase();
+      const amountText = `${expense.amount ?? ""} ${expense.tax ?? ""} ${expense.total ?? ""}`.toLowerCase();
+      const description = String(expense.description ?? "").toLowerCase();
+      const allRawFields = JSON.stringify(expense).toLowerCase();
 
       return (
         project.includes(text) ||
@@ -680,7 +712,12 @@ export default function ExpensesPage({
         item.includes(text) ||
         supplier.includes(text) ||
         voucher.includes(text) ||
-        getStageName(expense).toLowerCase().includes(text)
+        payment.includes(text) ||
+        stage.includes(text) ||
+        dateText.includes(text) ||
+        amountText.includes(text) ||
+        description.includes(text) ||
+        allRawFields.includes(text)
       );
     });
   }, [
@@ -752,11 +789,12 @@ export default function ExpensesPage({
   // تعديل
   // =========================================
 
-  const handleEdit = (
+  const handleEdit = async (
     expense: Expense
   ) => {
     if (onEditExpense) {
-      onEditExpense(expense);
+      await onEditExpense(expense);
+      await loadExpenses();
       return;
     }
 
@@ -783,7 +821,8 @@ export default function ExpensesPage({
     if (!confirmed) return;
 
     if (onDeleteExpense) {
-      onDeleteExpense(expense);
+      await onDeleteExpense(expense);
+      await loadExpenses();
       return;
     }
 
@@ -813,6 +852,151 @@ export default function ExpensesPage({
   };
 
   // =========================================
+  // التصدير والطباعة
+  // =========================================
+
+  const exportRows = (rows: Expense[]) => rows.map((expense) => ({
+    "تاريخ الإدخال": formatDate(expense.entryDate),
+    "تاريخ المصروف": formatDate(expense.expenseDate),
+    "رقم الفاتورة": expense.voucherNo || "-",
+    "المشروع": getProjectName(expense.projectId),
+    "المرحلة": getStageName(expense),
+    "العهدة": expense.accountName ?? getAccountName(expense.accountId),
+    "التصنيف": getCategoryName(expense.categoryId),
+    "البند": expense.itemName ?? getItemName(expense.itemId),
+    "المورد": expense.supplier || "-",
+    "طريقة الدفع": getPaymentMethod(expense.paymentMethod),
+    "قبل الضريبة": Number(expense.amount ?? 0),
+    "الضريبة": Number(expense.tax ?? 0),
+    "الإجمالي": Number(expense.total ?? 0),
+    "الوصف": expense.description || "-",
+  }));
+
+  const downloadExcel = (title: string, rows: Expense[]) => {
+    const data = exportRows(rows);
+    const headers = Object.keys(data[0] ?? {
+      "تاريخ المصروف": "",
+      "المشروع": "",
+      "الإجمالي": "",
+    });
+
+    const table = `\ufeff<table border="1" dir="rtl"><caption><b>${title}</b></caption><thead><tr>${headers.map((h) => `<th>${escapeHtml(h)}</th>`).join("")}</tr></thead><tbody>${data.map((row) => `<tr>${headers.map((h) => `<td>${escapeHtml(String((row as any)[h] ?? ""))}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+    const blob = new Blob([table], { type: "application/vnd.ms-excel;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${title.replace(/[^\u0600-\u06FF\w\-]+/g, "-")}.xls`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const escapeHtml = (value: string) => value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+
+  const printRows = (title: string, rows: Expense[]) => {
+    if (!rows.length) {
+      alert("لا توجد مصروفات في الفترة المحددة للتصدير.");
+      return;
+    }
+
+    const data = exportRows(rows);
+    const headers = Object.keys(data[0] ?? { "تاريخ المصروف": "", "الإجمالي": "" });
+
+    // لا نستخدم window.open لأن المتصفح كان يمنع نافذة الطباعة.
+    // نستخدم iframe مخفيًا، ثم نطلب الطباعة مباشرة من نفس الصفحة.
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "fixed";
+    iframe.style.right = "0";
+    iframe.style.bottom = "0";
+    iframe.style.width = "0";
+    iframe.style.height = "0";
+    iframe.style.border = "0";
+    iframe.style.visibility = "hidden";
+
+    document.body.appendChild(iframe);
+
+    const printDocument = iframe.contentDocument;
+    const printWindow = iframe.contentWindow;
+
+    if (!printDocument || !printWindow) {
+      iframe.remove();
+      alert("تعذر تجهيز نافذة الطباعة. حاول مرة أخرى.");
+      return;
+    }
+
+    printDocument.open();
+    printDocument.write(`<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>${escapeHtml(title)}</title>
+<style>
+body{font-family:Arial,sans-serif;padding:24px;color:#111;background:#fff}
+h1{font-size:22px;margin:0 0 18px;text-align:center}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{border:1px solid #aaa;padding:7px;text-align:center}
+th{background:#eee;font-weight:700}
+@media print{body{padding:8px}h1{margin-bottom:12px}}
+</style>
+</head>
+<body>
+<h1>${escapeHtml(title)}</h1>
+<table>
+<thead><tr>${headers.map((h) => `<th>${escapeHtml(h)}</th>`).join("")}</tr></thead>
+<tbody>${data.map((row) => `<tr>${headers.map((h) => `<td>${escapeHtml(String((row as any)[h] ?? ""))}</td>`).join("")}</tr>`).join("")}</tbody>
+</table>
+</body>
+</html>`);
+    printDocument.close();
+
+    const cleanup = () => {
+      window.setTimeout(() => iframe.remove(), 1000);
+    };
+
+    window.setTimeout(() => {
+      printWindow.focus();
+      printWindow.print();
+      cleanup();
+    }, 250);
+  };
+
+  const getPeriodRows = (type: "day" | "week" | "month" | "year") => {
+    return normalizedExpenses.filter((expense) => {
+      const date = getDateString(expense.expenseDate);
+      if (!date) return false;
+      if (type === "day") return date === selectedDay;
+      if (type === "month") return date.startsWith(selectedMonth);
+      if (type === "year") return date.startsWith(selectedYear);
+      const from = weekFrom <= weekTo ? weekFrom : weekTo;
+      const to = weekFrom <= weekTo ? weekTo : weekFrom;
+      return Boolean(from && to) && date >= from && date <= to;
+    });
+  };
+
+  const exportAllExpenses = (mode: "excel" | "print") => {
+    const title = "تقرير جميع حركات المصروفات";
+    const rows = normalizedExpenses;
+    if (mode === "excel") downloadExcel(title, rows);
+    else printRows(title, rows);
+    setExportMenu(null);
+  };
+
+  const exportPeriod = (type: "day" | "week" | "month", mode: "excel" | "print") => {
+    const labels = { day: "مصروفات اليوم المحدد", week: "مصروفات الفترة المحددة", month: "مصروفات الشهر المحدد" };
+    const rows = getPeriodRows(type);
+    const title = labels[type];
+    if (mode === "excel") downloadExcel(title, rows);
+    else printRows(title, rows);
+    setExportMenu(null);
+  };
+
+  // =========================================
   // الواجهة
   // =========================================
 
@@ -828,67 +1012,71 @@ export default function ExpensesPage({
       <div className="grid grid-cols-4 gap-5">
 
         {/* اليوم */}
-
-        <div className="rounded-2xl border border-orange-400/20 bg-[#081B33] p-5">
-          <p className="text-sm text-gray-400">
-            مصروفات اليوم
-          </p>
-
-          <h2 className="mt-3 text-3xl font-bold text-orange-400">
-            {todayExpenses.toLocaleString()}
-          </h2>
-
-          <span className="text-sm text-gray-500">
-            ريال
-          </span>
+        <div className="rounded-[24px] border border-orange-400/20 bg-[#081B33] p-4 shadow-lg">
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <p className="text-sm font-bold text-gray-400">مصروفات اليوم</p>
+              <h2 className="mt-2 text-3xl font-extrabold text-orange-400">{todayExpenses.toLocaleString()}</h2>
+              <span className="text-xs text-gray-500">ريال</span>
+            </div>
+            <CalendarDays size={28} className="text-orange-400/60" />
+          </div>
+          <input type="date" value={selectedDay} onChange={(e) => setSelectedDay(e.target.value)} className="mt-4 w-full rounded-xl border border-white/10 bg-[#102947] px-3 py-2 text-sm text-white outline-none focus:border-orange-400" />
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <button type="button" onClick={() => exportPeriod("day", "excel")} className="flex items-center justify-center gap-1 rounded-lg bg-emerald-500/15 px-2 py-2 text-xs font-bold text-emerald-300 hover:bg-emerald-500/25"><FileSpreadsheet size={15} /> Excel</button>
+            <button type="button" onClick={() => exportPeriod("day", "print")} className="flex items-center justify-center gap-1 rounded-lg bg-sky-500/15 px-2 py-2 text-xs font-bold text-sky-300 hover:bg-sky-500/25"><Printer size={15} /> PDF / طباعة</button>
+          </div>
         </div>
 
         {/* الأسبوع */}
-
-        <div className="rounded-2xl border border-purple-400/20 bg-[#081B33] p-5">
-          <p className="text-sm text-gray-400">
-            مصروفات الأسبوع
-          </p>
-
-          <h2 className="mt-3 text-3xl font-bold text-purple-400">
-            {weekExpenses.toLocaleString()}
-          </h2>
-
-          <span className="text-sm text-gray-500">
-            ريال
-          </span>
+        <div className="rounded-[24px] border border-purple-400/20 bg-[#081B33] p-4 shadow-lg">
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <p className="text-sm font-bold text-gray-400">مصروفات الفترة</p>
+              <h2 className="mt-2 text-3xl font-extrabold text-purple-400">{weekExpenses.toLocaleString()}</h2>
+              <span className="text-xs text-gray-500">ريال</span>
+            </div>
+            <CalendarDays size={28} className="text-purple-400/60" />
+          </div>
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <input type="date" value={weekFrom} onChange={(e) => setWeekFrom(e.target.value)} className="w-full rounded-xl border border-white/10 bg-[#102947] px-2 py-2 text-xs text-white outline-none focus:border-purple-400" />
+            <input type="date" value={weekTo} onChange={(e) => setWeekTo(e.target.value)} className="w-full rounded-xl border border-white/10 bg-[#102947] px-2 py-2 text-xs text-white outline-none focus:border-purple-400" />
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <button type="button" onClick={() => exportPeriod("week", "excel")} className="flex items-center justify-center gap-1 rounded-lg bg-emerald-500/15 px-2 py-2 text-xs font-bold text-emerald-300 hover:bg-emerald-500/25"><FileSpreadsheet size={15} /> Excel</button>
+            <button type="button" onClick={() => exportPeriod("week", "print")} className="flex items-center justify-center gap-1 rounded-lg bg-sky-500/15 px-2 py-2 text-xs font-bold text-sky-300 hover:bg-sky-500/25"><Printer size={15} /> PDF / طباعة</button>
+          </div>
         </div>
 
         {/* الشهر */}
-
-        <div className="rounded-2xl border border-emerald-400/20 bg-[#081B33] p-5">
-          <p className="text-sm text-gray-400">
-            مصروفات الشهر
-          </p>
-
-          <h2 className="mt-3 text-3xl font-bold text-emerald-400">
-            {monthExpenses.toLocaleString()}
-          </h2>
-
-          <span className="text-sm text-gray-500">
-            ريال
-          </span>
+        <div className="rounded-[24px] border border-emerald-400/20 bg-[#081B33] p-4 shadow-lg">
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <p className="text-sm font-bold text-gray-400">مصروفات الشهر</p>
+              <h2 className="mt-2 text-3xl font-extrabold text-emerald-400">{monthExpenses.toLocaleString()}</h2>
+              <span className="text-xs text-gray-500">ريال</span>
+            </div>
+            <CalendarDays size={28} className="text-emerald-400/60" />
+          </div>
+          <input type="month" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className="mt-4 w-full rounded-xl border border-white/10 bg-[#102947] px-3 py-2 text-sm text-white outline-none focus:border-emerald-400" />
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <button type="button" onClick={() => exportPeriod("month", "excel")} className="flex items-center justify-center gap-1 rounded-lg bg-emerald-500/15 px-2 py-2 text-xs font-bold text-emerald-300 hover:bg-emerald-500/25"><FileSpreadsheet size={15} /> Excel</button>
+            <button type="button" onClick={() => exportPeriod("month", "print")} className="flex items-center justify-center gap-1 rounded-lg bg-sky-500/15 px-2 py-2 text-xs font-bold text-sky-300 hover:bg-sky-500/25"><Printer size={15} /> PDF / طباعة</button>
+          </div>
         </div>
 
         {/* السنة */}
-
-        <div className="rounded-2xl border border-yellow-400/20 bg-[#081B33] p-5">
-          <p className="text-sm text-gray-400">
-            إجمالي السنة
-          </p>
-
-          <h2 className="mt-3 text-3xl font-bold text-yellow-400">
-            {yearExpenses.toLocaleString()}
-          </h2>
-
-          <span className="text-sm text-gray-500">
-            ريال
-          </span>
+        <div className="rounded-[24px] border border-yellow-400/20 bg-[#081B33] p-4 shadow-lg">
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <p className="text-sm font-bold text-gray-400">إجمالي السنة</p>
+              <h2 className="mt-2 text-3xl font-extrabold text-yellow-400">{yearExpenses.toLocaleString()}</h2>
+              <span className="text-xs text-gray-500">ريال</span>
+            </div>
+            <CalendarDays size={28} className="text-yellow-400/60" />
+          </div>
+          <input type="number" min="2000" max="2100" value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} className="mt-4 w-full rounded-xl border border-white/10 bg-[#102947] px-3 py-2 text-sm text-white outline-none focus:border-yellow-400" placeholder="السنة" />
+          <div className="mt-3 rounded-lg bg-yellow-400/10 px-2 py-2 text-center text-xs font-bold text-yellow-300">حدد السنة لعرض إجماليها</div>
         </div>
 
       </div>
@@ -897,30 +1085,51 @@ export default function ExpensesPage({
       {/* شريط الأدوات */}
       {/* ===================================== */}
 
-      <div className="rounded-2xl border border-white/10 bg-[#081B33] p-5">
-
+      <div className="rounded-2xl border border-white/10 bg-[#081B33] p-4">
         <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={onAddExpense}
+              className="flex items-center gap-2 rounded-xl bg-yellow-400 px-5 py-3 font-bold text-[#081B33] transition hover:bg-yellow-300"
+            >
+              + إضافة مصروف
+            </button>
 
-          <button
-            type="button"
-            onClick={onAddExpense}
-            className="rounded-xl bg-yellow-400 px-6 py-3 font-bold text-[#081B33] transition hover:bg-yellow-300"
-          >
-            + إضافة مصروف
-          </button>
+            <button
+              type="button"
+              onClick={loadExpenses}
+              disabled={expensesLoading}
+              title="تحديث بيانات المصروفات"
+              className="flex items-center gap-2 rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-5 py-3 font-bold text-emerald-300 transition hover:bg-emerald-400/20 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <RefreshCw
+                size={18}
+                className={expensesLoading ? "animate-spin" : ""}
+              />
+              {expensesLoading ? "جاري التحديث..." : "تحديث"}
+            </button>
 
-          <input
-            type="text"
-            value={search}
-            onChange={(e) =>
-              setSearch(e.target.value)
-            }
-            placeholder="بحث بالمشروع أو العهدة أو البند أو المورد..."
-            className="w-full max-w-xl rounded-xl border border-white/10 bg-[#102947] px-4 py-3 text-white outline-none placeholder:text-gray-500 focus:border-yellow-400"
-          />
+            <div className="relative">
+              <button type="button" onClick={() => setExportMenu(exportMenu === "all" ? null : "all")} className="flex items-center gap-2 rounded-xl border border-sky-400/30 bg-sky-400/10 px-5 py-3 font-bold text-sky-300 transition hover:bg-sky-400/20">
+                <Download size={18} /> تصدير
+              </button>
+              {exportMenu === "all" && (
+                <div className="absolute right-0 top-full z-50 mt-2 w-48 overflow-hidden rounded-2xl border border-white/10 bg-[#102947] p-2 shadow-2xl">
+                  <button type="button" onClick={() => exportAllExpenses("excel")} className="flex w-full items-center gap-2 rounded-xl px-3 py-3 text-sm font-bold text-emerald-300 hover:bg-white/5"><FileSpreadsheet size={17} /> Excel</button>
+                  <button type="button" onClick={() => exportAllExpenses("print")} className="flex w-full items-center gap-2 rounded-xl px-3 py-3 text-sm font-bold text-sky-300 hover:bg-white/5"><FileText size={17} /> PDF</button>
+                  <button type="button" onClick={() => exportAllExpenses("print")} className="flex w-full items-center gap-2 rounded-xl px-3 py-3 text-sm font-bold text-gray-200 hover:bg-white/5"><Printer size={17} /> طباعة</button>
+                </div>
+              )}
+            </div>
+          </div>
 
+          <div className="relative w-full max-w-xl">
+            <Search size={19} className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-gray-500" />
+            <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="بحث في أي خانة من خانات المصروف..." className="w-full rounded-xl border border-white/10 bg-[#102947] py-3 pr-11 pl-4 text-white outline-none placeholder:text-gray-500 focus:border-yellow-400" />
+            {search && <button type="button" onClick={() => setSearch("")} className="absolute left-3 top-1/2 -translate-y-1/2 rounded-md px-2 text-gray-400 hover:bg-white/5 hover:text-white">×</button>}
+          </div>
         </div>
-
       </div>
 
       {/* ===================================== */}
@@ -1151,50 +1360,16 @@ export default function ExpensesPage({
 
                       <td className="p-3">
 
-                        <div className="flex justify-center gap-2">
-
-                          <button
-  type="button"
-  onClick={() => handleView(expense)}
-  className="
-    rounded-lg
-    bg-sky-500
-    px-3
-    py-2
-    text-xs
-    font-bold
-    text-white
-    transition
-    hover:bg-sky-600
-  "
->
-  👁 عرض
-</button>
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleEdit(
-                                expense
-                              )
-                            }
-                            className="rounded-lg bg-yellow-500 px-3 py-2 text-xs font-bold text-[#081B33] transition hover:bg-yellow-400"
-                          >
-                            ✏ تعديل
+                        <div className="flex items-center justify-center gap-2">
+                          <button type="button" onClick={() => handleView(expense)} title="عرض المصروف" className="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-500 text-white shadow-lg transition hover:scale-105 hover:bg-sky-600">
+                            <Eye size={21} strokeWidth={2.4} />
                           </button>
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleDelete(
-                                expense
-                              )
-                            }
-                            className="rounded-lg bg-red-500 px-3 py-2 text-xs font-bold text-white transition hover:bg-red-600"
-                          >
-                            🗑 حذف
+                          <button type="button" onClick={() => handleEdit(expense)} title="تعديل المصروف" className="flex h-10 w-10 items-center justify-center rounded-xl bg-yellow-400 text-[#081B33] shadow-lg transition hover:scale-105 hover:bg-yellow-300">
+                            <Pencil size={21} strokeWidth={2.4} />
                           </button>
-
+                          <button type="button" onClick={() => handleDelete(expense)} title="حذف المصروف" className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-500 text-white shadow-lg transition hover:scale-105 hover:bg-red-600">
+                            <Trash2 size={21} strokeWidth={2.4} />
+                          </button>
                         </div>
 
                       </td>
@@ -1215,326 +1390,95 @@ export default function ExpensesPage({
       </div>
 {selectedExpense && (
   <div
-    className="
-      fixed
-      inset-0
-      z-[200]
-      flex
-      items-center
-      justify-center
-      bg-black/70
-      p-4
-      backdrop-blur-sm
-    "
-    onClick={() =>
-      setSelectedExpense(null)
-    }
+    className="fixed inset-0 z-[300] flex items-center justify-center bg-black/75 p-4 backdrop-blur-md"
+    onClick={() => setSelectedExpense(null)}
   >
-
     <div
       dir="rtl"
-      className="
-        w-full
-        max-w-4xl
-        overflow-hidden
-        rounded-[28px]
-        border
-        border-white/10
-        bg-[#081B33]
-        shadow-2xl
-      "
-      onClick={(e) =>
-        e.stopPropagation()
-      }
+      className="w-full max-w-5xl max-h-[92vh] overflow-y-auto overflow-hidden rounded-[30px] border border-white/10 bg-[#081B33] shadow-[0_30px_100px_rgba(0,0,0,.55)]"
+      onClick={(e) => e.stopPropagation()}
     >
-
-      {/* Header */}
-
-      <div
-        className="
-          flex
-          items-center
-          justify-between
-          border-b
-          border-white/10
-          bg-[#102947]
-          px-7
-          py-5
-        "
-      >
-
+      <div className="sticky top-0 z-10 flex items-center justify-between border-b border-white/10 bg-[#102947] px-7 py-5">
         <div>
-
-          <h2 className="text-2xl font-bold text-white">
-            تفاصيل المصروف
-          </h2>
-
-          <p className="mt-1 text-sm text-gray-400">
-            رقم العملية: #{selectedExpense.id}
-          </p>
-
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-yellow-400/10 text-yellow-400">
+              <FileText size={25} />
+            </div>
+            <div>
+              <h2 className="text-2xl font-extrabold text-white">تفاصيل المصروف</h2>
+              <p className="mt-1 text-sm text-gray-400">عرض كامل لبيانات وحركة المصروف</p>
+            </div>
+          </div>
         </div>
-
-        <button
-          type="button"
-          onClick={() =>
-            setSelectedExpense(null)
-          }
-          className="
-            flex
-            h-10
-            w-10
-            items-center
-            justify-center
-            rounded-xl
-            bg-white/5
-            text-xl
-            text-gray-400
-            transition
-            hover:bg-red-500/20
-            hover:text-red-400
-          "
-        >
-          ✕
-        </button>
-
+        <button type="button" onClick={() => setSelectedExpense(null)} className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-xl text-gray-400 transition hover:bg-red-500/15 hover:text-red-400">×</button>
       </div>
 
-
-      {/* Content */}
-
       <div className="p-7">
-
-        {/* المعلومات الأساسية */}
-
-        <div className="mb-6 grid grid-cols-2 gap-4">
-
-          <ViewBox
-            label="تاريخ الإدخال"
-            value={formatDate(
-              selectedExpense.entryDate
-            )}
-          />
-
-          <ViewBox
-            label="تاريخ المصروف"
-            value={formatDate(
-              selectedExpense.expenseDate
-            )}
-          />
-
-          <ViewBox
-            label="المشروع"
-            value={getProjectName(
-              selectedExpense.projectId
-            )}
-          />
-
-          <ViewBox
-            label="العهدة"
-            value={
-              selectedExpense.accountName ??
-              getAccountName(selectedExpense.accountId)
-            }
-          />
-
-          <ViewBox
-            label="المرحلة"
-            value={`🏗️ ${getStageName(selectedExpense)}`}
-          />
-
-          <ViewBox
-            label="التصنيف"
-            value={getCategoryName(
-              selectedExpense.categoryId
-            )}
-          />
-
-          <ViewBox
-            label="البند"
-            value={
-              selectedExpense.itemName ??
-              getItemName(selectedExpense.itemId)
-            }
-          />
-
-          <ViewBox
-            label="المورد"
-            value={
-              selectedExpense.supplier ||
-              "-"
-            }
-          />
-
-          <ViewBox
-            label="رقم الفاتورة"
-            value={
-              selectedExpense.voucherNo ||
-              "-"
-            }
-          />
-
-          <ViewBox
-            label="طريقة الدفع"
-            value={getPaymentMethod(
-              selectedExpense.paymentMethod
-            )}
-          />
-
+        <div className="mb-6 rounded-3xl border border-yellow-400/20 bg-gradient-to-l from-yellow-400/10 to-white/[0.02] p-6">
+          <div className="flex flex-wrap items-end justify-between gap-5">
+            <div>
+              <p className="text-sm text-gray-400">إجمالي المصروف</p>
+              <p className="mt-1 text-4xl font-extrabold text-yellow-400">{Number(selectedExpense.total ?? 0).toLocaleString()} <span className="text-sm text-gray-500">ريال</span></p>
+            </div>
+            <div className="text-left">
+              <p className="text-xs text-gray-500">رقم العملية</p>
+              <p className="mt-1 font-bold text-white">#{selectedExpense.id}</p>
+            </div>
+          </div>
         </div>
 
-
-        {/* المبالغ */}
+        <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-3">
+          <ViewBox label="تاريخ الإدخال" value={formatDate(selectedExpense.entryDate)} />
+          <ViewBox label="تاريخ المصروف" value={formatDate(selectedExpense.expenseDate)} />
+          <ViewBox label="رقم الفاتورة" value={selectedExpense.voucherNo || "-"} />
+          <ViewBox label="المشروع" value={getProjectName(selectedExpense.projectId)} />
+          <ViewBox label="المرحلة" value={`🏗️ ${getStageName(selectedExpense)}`} />
+          <ViewBox label="العهدة" value={selectedExpense.accountName ?? getAccountName(selectedExpense.accountId)} />
+          <ViewBox label="التصنيف" value={getCategoryName(selectedExpense.categoryId)} />
+          <ViewBox label="البند" value={selectedExpense.itemName ?? getItemName(selectedExpense.itemId)} />
+          <ViewBox label="المورد" value={selectedExpense.supplier || "-"} />
+          <ViewBox label="طريقة الدفع" value={getPaymentMethod(selectedExpense.paymentMethod)} />
+        </div>
 
         <div className="grid grid-cols-3 gap-4">
-
-          <div
-            className="
-              rounded-2xl
-              border
-              border-white/10
-              bg-[#102947]
-              p-5
-            "
-          >
-
-            <p className="text-sm text-gray-400">
-              قبل الضريبة
-            </p>
-
-            <p className="mt-2 text-2xl font-bold text-white">
-              {Number(
-                selectedExpense.amount ?? 0
-              ).toLocaleString()}
-              <span className="mr-2 text-sm text-gray-500">
-                ريال
-              </span>
-            </p>
-
+          <div className="rounded-2xl border border-white/10 bg-[#102947] p-5 text-center">
+            <p className="text-sm text-gray-400">قبل الضريبة</p>
+            <p className="mt-2 text-2xl font-extrabold text-white">{Number(selectedExpense.amount ?? 0).toLocaleString()} <span className="text-xs text-gray-500">ريال</span></p>
           </div>
-
-
-          <div
-            className="
-              rounded-2xl
-              border
-              border-white/10
-              bg-[#102947]
-              p-5
-            "
-          >
-
-            <p className="text-sm text-gray-400">
-              الضريبة
-            </p>
-
-            <p className="mt-2 text-2xl font-bold text-orange-400">
-              {Number(
-                selectedExpense.tax ?? 0
-              ).toLocaleString()}
-              <span className="mr-2 text-sm text-gray-500">
-                ريال
-              </span>
-            </p>
-
+          <div className="rounded-2xl border border-orange-400/20 bg-orange-400/10 p-5 text-center">
+            <p className="text-sm text-gray-400">الضريبة</p>
+            <p className="mt-2 text-2xl font-extrabold text-orange-400">{Number(selectedExpense.tax ?? 0).toLocaleString()} <span className="text-xs text-gray-500">ريال</span></p>
           </div>
-
-
-          <div
-            className="
-              rounded-2xl
-              border
-              border-yellow-400/20
-              bg-yellow-400/10
-              p-5
-            "
-          >
-
-            <p className="text-sm text-gray-400">
-              إجمالي الفاتورة
-            </p>
-
-            <p className="mt-2 text-2xl font-bold text-yellow-400">
-              {Number(
-                selectedExpense.total ?? 0
-              ).toLocaleString()}
-              <span className="mr-2 text-sm text-gray-500">
-                ريال
-              </span>
-            </p>
-
+          <div className="rounded-2xl border border-yellow-400/20 bg-yellow-400/10 p-5 text-center">
+            <p className="text-sm text-gray-400">الإجمالي</p>
+            <p className="mt-2 text-2xl font-extrabold text-yellow-400">{Number(selectedExpense.total ?? 0).toLocaleString()} <span className="text-xs text-gray-500">ريال</span></p>
           </div>
-
         </div>
 
-
-        {/* الوصف */}
-
         {selectedExpense.description && (
-          <div
-            className="
-              mt-6
-              rounded-2xl
-              border
-              border-white/10
-              bg-[#102947]
-              p-5
-            "
-          >
-
-            <p className="mb-2 text-sm text-gray-400">
-              الوصف
-            </p>
-
-            <p className="leading-7 text-white">
-              {selectedExpense.description}
-            </p>
-
+          <div className="mt-6 rounded-2xl border border-white/10 bg-[#102947] p-5">
+            <p className="mb-2 text-sm font-bold text-gray-400">الوصف</p>
+            <p className="leading-8 text-white">{selectedExpense.description}</p>
           </div>
         )}
 
+        {(selectedExpense as any).attachmentUrl || (selectedExpense as any).attachment_url || (selectedExpense as any).attachmentPath ? (
+          <div className="mt-6 flex items-center justify-between rounded-2xl border border-sky-400/20 bg-sky-400/10 p-5">
+            <div>
+              <p className="text-sm font-bold text-sky-300">مرفق المصروف</p>
+              <p className="mt-1 text-xs text-gray-400">يوجد مستند مرفق بهذا المصروف</p>
+            </div>
+            <button type="button" onClick={() => { const url = (selectedExpense as any).attachmentUrl || (selectedExpense as any).attachment_url || (selectedExpense as any).attachmentPath; if (String(url).startsWith("http")) window.open(url, "_blank", "noopener,noreferrer"); else alert("لا يمكن فتح المرفق لأن الرابط غير متاح بشكل مباشر."); }} className="rounded-xl bg-sky-500 px-5 py-3 font-bold text-white hover:bg-sky-600">عرض المرفق</button>
+          </div>
+        ) : null}
       </div>
 
-
-      {/* Footer */}
-
-      <div
-        className="
-          flex
-          justify-end
-          border-t
-          border-white/10
-          bg-[#102947]
-          px-7
-          py-4
-        "
-      >
-
-        <button
-          type="button"
-          onClick={() =>
-            setSelectedExpense(null)
-          }
-          className="
-            rounded-xl
-            bg-yellow-400
-            px-7
-            py-3
-            font-bold
-            text-[#081B33]
-            transition
-            hover:bg-yellow-300
-          "
-        >
-          إغلاق
-        </button>
-
+      <div className="flex items-center justify-between gap-3 border-t border-white/10 bg-[#102947] px-7 py-4">
+        <button type="button" onClick={() => { setSelectedExpense(null); handleEdit(selectedExpense); }} className="flex items-center gap-2 rounded-xl bg-yellow-400 px-6 py-3 font-bold text-[#081B33] hover:bg-yellow-300"><Pencil size={18} /> تعديل المصروف</button>
+        <button type="button" onClick={() => setSelectedExpense(null)} className="rounded-xl border border-white/10 bg-white/5 px-7 py-3 font-bold text-gray-300 hover:bg-white/10 hover:text-white">إغلاق</button>
       </div>
-
     </div>
-
   </div>
-)}
-    </div>
+)}    </div>
   );
 }
