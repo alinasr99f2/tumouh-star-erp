@@ -310,12 +310,17 @@ export default function ExpensesPage({
     const [
       { data, error },
       { data: suppliersData, error: suppliersError },
+      { data: stagesData, error: stagesError },
     ] = await Promise.all([
       supabase
         .from("expenses")
         .select("*"),
       supabase
         .from("suppliers")
+        .select("id, name")
+        .order("id", { ascending: true }),
+      supabase
+        .from("expense_stages")
         .select("id, name")
         .order("id", { ascending: true }),
     ]);
@@ -339,6 +344,17 @@ export default function ExpensesPage({
       ])
     );
 
+    const stageMap = new Map<number, string>(
+      (stagesData ?? []).map((stage: any) => [
+        Number(stage.id),
+        String(stage.name ?? ""),
+      ])
+    );
+
+    if (stagesError) {
+      console.warn("تعذر تحميل أسماء المراحل داخل جدول المصروفات:", stagesError);
+    }
+
     const rows = ((data ?? []) as RawExpense[])
   .map((row) => {
     const normalized = normalizeExpense(row);
@@ -361,11 +377,23 @@ export default function ExpensesPage({
         : null) ??
       null;
 
+    const stageId =
+      normalized.stageId ??
+      rawRow.stage_id ??
+      rawRow.phase_id ??
+      null;
+
+    const stageName =
+      normalized.stageName ??
+      (stageId != null ? stageMap.get(Number(stageId)) ?? null : null);
+
     return {
       ...normalized,
       supplierId,
       supplier: supplierName,
       supplierName,
+      stageId,
+      stageName,
     };
   })
       .sort((a, b) => {
@@ -544,7 +572,7 @@ export default function ExpensesPage({
       decorations: "ديكورات",
     };
 
-    return knownStages[id] ?? (expense.stageId ? String(expense.stageId) : "-");
+    return knownStages[id] ?? "-";
   };
 
   // =========================================

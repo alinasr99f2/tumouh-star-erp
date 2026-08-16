@@ -880,7 +880,7 @@ const savingExpenseRef = useRef(false);
       setOpenExpenseModal(false);
 setEditingExpense(null);
 
-alert("تم تعديل المصروف بنجاح.");
+alert("تم حفظ المصروف بنجاح.");
 
 return true;
     } catch (error) {
@@ -1930,9 +1930,6 @@ const handleDeleteAccount = async (account: any) => {
   initialExpense={editingExpense}
   isEditing={Boolean(editingExpense)}
 />
-  initialExpense={editingExpense}
-  isEditing={Boolean(editingExpense)}
-      
     </>
   )}
 

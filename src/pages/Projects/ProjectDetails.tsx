@@ -67,14 +67,27 @@ export default function ProjectDetails() {
   const project = projects.find(
     (p) => p.id === Number(id)
   );
-  const projectName = project?.name ?? "مشروع تبوك";
 
   const [projectExpenses, setProjectExpenses] = useState<any[]>([]);
   const [projectVillas, setProjectVillas] = useState<ProjectVilla[]>([]);
   const [topCostItems, setTopCostItems] = useState<any[]>([]);
   const [showAllCostItems, setShowAllCostItems] = useState(false);
+  const [showProjectExpenseOverview, setShowProjectExpenseOverview] = useState(false);
+  const [editingVilla, setEditingVilla] = useState<ProjectVilla | null>(null);
+  const [selectedVilla, setSelectedVilla] = useState<ProjectVilla | null>(null);
+  const [expenseVillaId, setExpenseVillaId] = useState<number | null>(null);
   const [loadingProjectData, setLoadingProjectData] = useState(true);
   const [projectDataError, setProjectDataError] = useState<string | null>(null);
+  // إجمالي مساحة المشروع - قيمة يدوية محفوظة مع المشروع
+const [projectTotalArea, setProjectTotalArea] = useState<number>(
+  Number((project as any)?.total_area ?? 0)
+);
+
+const [editingProjectArea, setEditingProjectArea] = useState(false);
+const [projectAreaInput, setProjectAreaInput] = useState(
+  String(Number((project as any)?.total_area ?? 0) || "")
+);
+const [savingProjectArea, setSavingProjectArea] = useState(false);
 
   // Expense management state
   const [accounts, setAccounts] = useState<any[]>([]);
@@ -323,22 +336,73 @@ export default function ProjectDetails() {
     [projectExpenses]
   );
 
+  const generalProjectExpenses = useMemo(
+    () =>
+      projectExpenses
+        .filter((expense) => {
+          const villaId = expense?.villaId ?? expense?.villa_id;
+          return villaId === null || villaId === undefined || villaId === "" || villaId === "general";
+        })
+        .reduce((sum, expense) => sum + getExpenseTotal(expense), 0),
+    [projectExpenses]
+  );
+  const GENERAL_EXPENSE_VILLAS = 18;
+
+const generalExpensePerVilla =
+  generalProjectExpenses / GENERAL_EXPENSE_VILLAS;
+
   const villaCounts = useMemo(() => ({
     صغيرة: projectVillas.filter((villa) => villa.classification === "صغيرة").length,
     متوسطة: projectVillas.filter((villa) => villa.classification === "متوسطة").length,
     كبيرة: projectVillas.filter((villa) => villa.classification === "كبيرة").length,
   }), [projectVillas]);
 
-  const totalProjectArea = useMemo(
-    () => projectVillas.reduce((sum, villa) => sum + Number(villa.area ?? 0), 0),
-    [projectVillas]
-  );
-
+const totalProjectArea = projectTotalArea;
   const totalCostItems = useMemo(
     () => topCostItems.reduce((sum, item) => sum + Number(item.total ?? 0), 0),
     [topCostItems]
   );
+const saveProjectTotalArea = async () => {
+  const area = Number(projectAreaInput);
 
+  if (!Number.isFinite(area) || area <= 0) {
+    alert("من فضلك أدخل إجمالي مساحة صحيحة.");
+    return;
+  }
+
+  if (!project?.id) {
+    alert("المشروع غير موجود.");
+    return;
+  }
+
+  setSavingProjectArea(true);
+
+  try {
+    const { error } = await supabase
+      .from("projects")
+      .update({
+        total_area: area,
+      })
+      .eq("id", project.id);
+
+    if (error) {
+      console.error("خطأ في حفظ إجمالي مساحة المشروع:", error);
+      alert(`تعذر حفظ إجمالي المساحة:\n${error.message}`);
+      return;
+    }
+
+    setProjectTotalArea(area);
+    setProjectAreaInput(String(area));
+    setEditingProjectArea(false);
+
+    alert("تم حفظ إجمالي مساحة المشروع بنجاح.");
+  } catch (error: any) {
+    console.error(error);
+    alert(`حدث خطأ أثناء حفظ إجمالي المساحة:\n${error?.message ?? ""}`);
+  } finally {
+    setSavingProjectArea(false);
+  }
+};
   const formatCostItem = (item: any) => ({
     name: String(item.name ?? "غير مصنف"),
     amount: Number(item.total ?? 0),
@@ -569,6 +633,7 @@ export default function ProjectDetails() {
   const closeExpenseModal = () => {
     setShowExpenseModal(false);
     setEditingExpense(null);
+    setExpenseVillaId(null);
   };
 
   const handleEditExpense = (expense: any) => {
@@ -750,7 +815,6 @@ export default function ProjectDetails() {
             account_id: accountId,
             category_id: categoryId,
             item_id: itemId,
-            stage_id: expense?.stageId ? Number(expense.stageId) : null,
             invoice_number: expense?.voucherNo || null,
             amount_before_tax: amount,
             tax,
@@ -826,7 +890,6 @@ export default function ProjectDetails() {
           account_id: accountId,
           category_id: categoryId,
           item_id: itemId,
-          stage_id: expense?.stageId ? Number(expense.stageId) : null,
           invoice_number: expense?.voucherNo || null,
           amount_before_tax: amount,
           tax,
@@ -934,9 +997,9 @@ export default function ProjectDetails() {
 
     const html = `
       <html dir="rtl">
-        <head><meta charset="UTF-8" /><title>${periodLabel} - ${escapeHtml(projectName)}</title></head>
+        <head><meta charset="UTF-8" /><title>${periodLabel} - ${escapeHtml(project?.name ?? "")}</title>
         <body>
-          <h2>${periodLabel} - ${escapeHtml(projectName)}</h2>
+         <h2>${periodLabel} - ${escapeHtml(project?.name ?? "")}</h2>
           <table border="1">
             <tr>
               <th>#</th><th>التاريخ</th><th>الفيلا</th><th>العهدة</th>
@@ -955,7 +1018,7 @@ export default function ProjectDetails() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `${periodLabel}_${projectName}.xls`;
+    link.download = `${periodLabel}_${project?.name ?? "project"}.xls`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -1006,7 +1069,7 @@ export default function ProjectDetails() {
       <html lang="ar" dir="rtl">
         <head>
           <meta charset="UTF-8" />
-          <title>${periodLabel} - ${escapeHtml(projectName)}</title>
+          <title>${periodLabel} - ${escapeHtml(project?.name ?? "")}</title>
           <style>
             body { margin:0; padding:24px; font-family:Arial,Tahoma,sans-serif; color:#111827; }
             h1 { margin-bottom:8px; }
@@ -1019,8 +1082,8 @@ export default function ProjectDetails() {
           </style>
         </head>
         <body>
-          <h1>${periodLabel} - ${escapeHtml(projectName)}</h1>
-          <div class="meta">مشروع ${escapeHtml(projectName)} — ${new Date().toLocaleDateString("ar-SA")}</div>
+          <h1>${periodLabel} - ${escapeHtml(project?.name ?? "")}</h1>
+          <div class="meta">مشروع ${escapeHtml(project?.name ?? "")} - ${new Date().toLocaleDateString("ar-SA")}</div>
           <div class="total">الإجمالي: ${getExpensePeriodTotal(period).toLocaleString("ar-SA")} ريال</div>
           <table>
             <tr>
@@ -1046,6 +1109,62 @@ export default function ProjectDetails() {
   ) => {
     if (type === "excel") exportExpensesToExcel(period);
     else printExpenses(period);
+  };
+
+  const handleUpdateVilla = async (updatedVilla: ProjectVilla) => {
+    const villaNumber = Number(updatedVilla.villa_number);
+    const area = Number(updatedVilla.area ?? 0);
+
+    if (!villaNumber || villaNumber <= 0) {
+      alert("من فضلك أدخل رقم فيلا صحيح");
+      return false;
+    }
+    if (!area || area <= 0) {
+      alert("من فضلك أدخل مساحة صحيحة للفيلا");
+      return false;
+    }
+    if (!String(updatedVilla.name ?? "").trim()) {
+      alert("من فضلك أدخل اسم الفيلا");
+      return false;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from("project_villas")
+        .update({
+          villa_number: villaNumber,
+          name: String(updatedVilla.name).trim(),
+          area,
+          classification: updatedVilla.classification || null,
+        })
+        .eq("id", updatedVilla.id)
+        .select("id, project_id, villa_number, name, area, classification")
+        .single();
+
+      if (error) {
+        alert(`تعذر تعديل بيانات الفيلا:
+${error.message}`);
+        return false;
+      }
+
+      if (data) {
+        setProjectVillas((current) =>
+          current
+            .map((villa) => Number(villa.id) === Number(data.id) ? (data as ProjectVilla) : villa)
+            .sort((a, b) => Number(a.villa_number) - Number(b.villa_number))
+        );
+        setEditingVilla(null);
+        setSelectedVilla((current) =>
+          current && Number(current.id) === Number(data.id) ? (data as ProjectVilla) : current
+        );
+        alert("تم تعديل بيانات الفيلا بنجاح.");
+        return true;
+      }
+    } catch (error: any) {
+      alert(`حدث خطأ أثناء تعديل الفيلا:
+${error?.message ?? ""}`);
+    }
+    return false;
   };
 
   if (!project) {
@@ -1296,32 +1415,129 @@ export default function ProjectDetails() {
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-5">
 
           {/* 1 - CURRENT PRICE */}
-          <ProjectKpi
-            icon={<Calculator size={46} />}
-            title="سعر المتر الحالي"
-            value="0"
-            suffix="ريال / م²"
-            cardClass="
-              from-[#4D3D21]
-              via-[#393020]
-              to-[#222132]
-              border-amber-400/20
-            "
-          />
+<ProjectKpi
+  icon={<Calculator size={46} />}
+  title="سعر المتر الحالي"
+  value={
+  totalProjectArea > 0
+    ? (totalProjectExpenses / totalProjectArea).toLocaleString("ar-SA", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })
+    : "0"
+}
+  suffix="ريال / م²"
+  cardClass="
+    from-[#4D3D21]
+    via-[#393020]
+    to-[#222132]
+    border-amber-400/20
+  "
+/>
 
           {/* 2 - TOTAL AREA */}
-          <ProjectKpi
-            icon={<Ruler size={46} />}
-            title="إجمالي المساحة"
-            value={totalProjectArea.toLocaleString("ar-SA")}
-            suffix="م²"
-            cardClass="
-              from-[#413462]
-              via-[#30284F]
-              to-[#1D203A]
-              border-violet-400/20
-            "
-          />
+<ProjectKpi
+  icon={<Ruler size={46} />}
+  title="إجمالي المساحة"
+  value={totalProjectArea.toLocaleString("ar-SA")}
+  suffix="م²"
+  cardClass="
+    from-[#413462]
+    via-[#30284F]
+    to-[#1D203A]
+    border-violet-400/20
+  "
+>
+  <div className="mt-4 flex justify-end">
+    {!editingProjectArea ? (
+      <button
+        type="button"
+        onClick={() => {
+          setProjectAreaInput(String(totalProjectArea || ""));
+          setEditingProjectArea(true);
+        }}
+        className="
+          flex items-center gap-2
+          rounded-xl
+          border border-yellow-400/20
+          bg-yellow-400/10
+          px-4 py-2
+          text-sm font-bold
+          text-yellow-300
+          transition
+          hover:bg-yellow-400
+          hover:text-[#081B33]
+        "
+      >
+        <Pencil size={16} />
+        تعديل المساحة
+      </button>
+    ) : (
+      <div className="flex w-full items-center gap-2">
+        <input
+          type="number"
+          value={projectAreaInput}
+          onChange={(e) => setProjectAreaInput(e.target.value)}
+          placeholder="أدخل إجمالي المساحة"
+          className="
+            min-w-0 flex-1
+            rounded-xl
+            border border-white/10
+            bg-black/20
+            px-3 py-2
+            text-center
+            font-bold
+            text-white
+            outline-none
+            focus:border-yellow-400/50
+          "
+          autoFocus
+        />
+
+        <button
+          type="button"
+          onClick={saveProjectTotalArea}
+          disabled={savingProjectArea}
+          className="
+            rounded-xl
+            border border-emerald-400/20
+            bg-emerald-400/10
+            px-4 py-2
+            text-sm font-bold
+            text-emerald-300
+            transition
+            hover:bg-emerald-400
+            hover:text-[#081B33]
+            disabled:opacity-50
+          "
+        >
+          {savingProjectArea ? "جاري..." : "حفظ"}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setProjectAreaInput(String(totalProjectArea || ""));
+            setEditingProjectArea(false);
+          }}
+          className="
+            rounded-xl
+            border border-rose-400/20
+            bg-rose-400/10
+            px-4 py-2
+            text-sm font-bold
+            text-rose-300
+            transition
+            hover:bg-rose-400
+            hover:text-white
+          "
+        >
+          إلغاء
+        </button>
+      </div>
+    )}
+  </div>
+</ProjectKpi>
 
           {/* 3 - PROJECT STATUS */}
           <ProjectKpi
@@ -1357,24 +1573,47 @@ export default function ProjectDetails() {
           </ProjectKpi>
 
           {/* 5 - TOTAL EXPENSES */}
-<ProjectKpi
-  icon={<WalletCards size={46} />}
-  title="إجمالي المصاريف"
-  value={totalProjectExpenses.toLocaleString("ar-SA")}
-  suffix="ريال"
-  cardClass="
-    from-[#4C2B3B]
-    via-[#362336]
-    to-[#211A2C]
-    border-rose-400/20
-  "
-  onClick={() => navigate(`/projects/${project.id}/expenses`)}
-/>
+          <ProjectKpi
+            icon={<WalletCards size={46} />}
+            title="إجمالي المصاريف"
+            value={totalProjectExpenses.toLocaleString("ar-SA")}
+            suffix="ريال"
+            onClick={() => navigate(`/projects/${project.id}/expenses`)}
+            cardClass="
+              from-[#4C2B3B]
+              via-[#362336]
+              to-[#211A2C]
+              border-rose-400/20
+            "
+          />
 
         </div>
 
       </section>
 
+      {showProjectExpenseOverview && (
+        <div
+          className="fixed inset-0 z-[95] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setShowProjectExpenseOverview(false);
+          }}
+        >
+          <div className="flex max-h-[94vh] w-full max-w-[1600px] flex-col overflow-hidden rounded-3xl border border-white/10 bg-[#071A2E] shadow-2xl">
+            <div className="flex shrink-0 items-center justify-between border-b border-white/10 bg-[#102947] px-7 py-5">
+              <div className="text-right">
+                <h2 className="text-2xl font-extrabold text-white">تفاصيل إجمالي مصروفات المشروع</h2>
+                <p className="mt-1 text-sm text-gray-400">كل ملخصات المصروفات والتفاصيل وبنود التكلفة الخاصة بـ {project.name}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowProjectExpenseOverview(false)}
+                className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-gray-300 hover:bg-red-500/20 hover:text-red-300"
+                aria-label="إغلاق تفاصيل المصروفات"
+              >
+                <X size={22} />
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto p-5 md:p-7">
       {/* =====================================================
           EXPENSE SUMMARY - 4 CARDS
       ===================================================== */}
@@ -1654,6 +1893,13 @@ export default function ProjectDetails() {
           initialExpense={editingExpense}
           isEditing={Boolean(editingExpense)}
           forcedProjectId={project.id}
+          forcedVillaId={expenseVillaId}
+          forcedVillaLabel={
+            expenseVillaId != null
+              ? (projectVillas.find((villa) => Number(villa.id) === Number(expenseVillaId))?.name ||
+                `فيلا ${projectVillas.find((villa) => Number(villa.id) === Number(expenseVillaId))?.villa_number ?? ""}`)
+              : undefined
+          }
         />
       )}
 
@@ -1697,6 +1943,12 @@ export default function ProjectDetails() {
         />
       )}
 
+
+
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* =====================================================
           VILLAS
@@ -1762,45 +2014,103 @@ export default function ProjectDetails() {
             </div>
           </div>
         </div>
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
 
+                </div>
 
-        {/* 3 VILLAS PER ROW */}
-        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
 
-          {loadingProjectData ? (
-            <div className="col-span-full rounded-3xl border border-white/10 bg-white/5 px-6 py-10 text-center text-gray-300">
-              جاري تحميل بيانات الفلل...
-            </div>
-          ) : projectVillas.length > 0 ? (
-            projectVillas.map((villa) => {
-              const villaExpenses = projectExpenses
-                .filter((expense) => Number(expense.villa_id) === Number(villa.id))
-                .reduce((sum, expense) => sum + getExpenseTotal(expense), 0);
+        {loadingProjectData ? (
+          <div className="col-span-full rounded-3xl border border-white/10 bg-white/5 px-6 py-10 text-center text-gray-300">
+            جاري تحميل بيانات الفلل...
+          </div>
+        ) : projectVillas.length > 0 ? (
+          projectVillas.map((villa) => {
+            // المصروفات الخاصة بهذه الفيلا فقط
+            const villaExpenses = projectExpenses
+              .filter(
+                (expense) =>
+                  Number(expense.villaId ?? expense.villa_id) === Number(villa.id)
+              )
+              .reduce((sum, expense) => sum + getExpenseTotal(expense), 0);
 
-              return (
-                <VillaCard
-  key={villa.id}
-  villaNumber={villa.villa_number}
-  villaName={villa.name || `فيلا ${villa.villa_number}`}
-  projectName={project?.name ?? "المشروع"}
-  classification={villa.classification}
-  area={villa.area}
-  expenseTotal={villaExpenses}
-  onView={() => console.log(`عرض فيلا ${villa.villa_number}`)}
-  onEdit={() => console.log(`تعديل فيلا ${villa.villa_number}`)}
-  onAddExpense={() => console.log(`إضافة مصروف لفيلا ${villa.villa_number}`)}
-/>
-              );
-            })
-          ) : (
-            <div className="col-span-full rounded-3xl border border-rose-400/20 bg-rose-400/5 px-6 py-10 text-center text-gray-300">
-              {projectDataError || "لا توجد بيانات فلل لهذا المشروع."}
-            </div>
-          )}
+            // إجمالي المصروفات العامة للمشروع يتم توزيعه بالتساوي على 18 فيلا
+            const villaGeneralExpenses = generalProjectExpenses / 18;
+
+            // إجمالي مصروف الفيلا = نصيبها من المصروف العام + مصروفها الخاص
+            const villaTotalExpenses = villaGeneralExpenses + villaExpenses;
+
+            // تكلفة المتر للفيلا
+            const villaMeterPrice =
+              Number(villa.area ?? 0) > 0
+                ? villaTotalExpenses / Number(villa.area ?? 0)
+                : 0;
+
+            return (
+              <VillaCard
+                key={villa.id}
+                villaNumber={villa.villa_number}
+                villaName={villa.name || `فيلا ${villa.villa_number}`}
+                projectName={project?.name ?? "المشروع"}
+                classification={villa.classification}
+                area={villa.area}
+                generalExpenseTotal={villaGeneralExpenses}
+                villaExpenseTotal={villaExpenses}
+                expenseTotal={villaTotalExpenses}
+                currentMeterPrice={villaMeterPrice}
+                onView={() => {
+                  setExpenseVillaId(null);
+                  setSelectedVilla(villa);
+                }}
+                onEdit={() => {
+                  setExpenseVillaId(null);
+                  setEditingVilla(villa);
+                }}
+                onAddExpense={() => {
+                  setEditingExpense(null);
+                  setExpenseVillaId(Number(villa.id));
+                  setSelectedVilla(null);
+                  setShowExpenseModal(true);
+                  setShowProjectExpenseOverview(true);
+                }}
+              />
+            );
+          })
+        ) : (
+          <div className="col-span-full rounded-3xl border border-rose-400/20 bg-rose-400/5 px-6 py-10 text-center text-gray-300">
+            {projectDataError || "لا توجد بيانات فلل لهذا المشروع."}
+          </div>
+        )}
 
         </div>
-
       </section>
+
+
+      {selectedVilla && (
+        <VillaDetailsModal
+          villa={selectedVilla}
+         generalExpenseTotal={generalExpensePerVilla}
+          villaExpenseTotal={projectExpenses
+            .filter((expense) => Number(expense.villaId ?? expense.villa_id) === Number(selectedVilla.id))
+            .reduce((sum, expense) => sum + getExpenseTotal(expense), 0)}
+          onClose={() => setSelectedVilla(null)}
+          onEdit={() => {
+            setSelectedVilla(null);
+            setEditingVilla(selectedVilla);
+          }}
+          onAddExpense={() => {
+            setSelectedVilla(null);
+            setEditingExpense(null);
+            setExpenseVillaId(Number(selectedVilla.id));
+            setShowExpenseModal(true);
+            setShowProjectExpenseOverview(true);
+          }}
+        />
+      )}
+
+      {editingVilla && (
+        <VillaEditModal villa={editingVilla} onClose={() => setEditingVilla(null)} onSave={handleUpdateVilla} />
+      )}
 
     </div>
   );
@@ -2585,8 +2895,8 @@ type ProjectKpiProps = {
   value: string;
   suffix?: string;
   cardClass: string;
-  children?: React.ReactNode;
   onClick?: () => void;
+  children?: React.ReactNode;
 };
 
 function ProjectKpi({
@@ -2595,29 +2905,34 @@ function ProjectKpi({
   value,
   suffix,
   cardClass,
-  children,
   onClick,
+  children,
 }: ProjectKpiProps) {
   return (
     <div
-  onClick={onClick}
-  className={`
-    group
-    relative
-    min-h-[205px]
-    overflow-hidden
-    rounded-3xl
-    border
-    bg-gradient-to-br
-    ${cardClass}
-    p-6
-    shadow-lg
-    transition-all
-    duration-300
-    hover:-translate-y-1
-    hover:shadow-2xl
-    ${onClick ? "cursor-pointer" : ""}
-  `}
+      className={`
+        group
+        relative
+        min-h-[205px]
+        overflow-hidden
+        rounded-3xl
+        border
+        bg-gradient-to-br
+        ${cardClass}
+        p-6
+        shadow-lg
+        transition-all
+        duration-300
+        hover:-translate-y-1
+        hover:shadow-2xl
+        ${onClick ? "cursor-pointer" : ""}
+      `}
+      onClick={onClick}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={(event) => {
+        if (onClick && (event.key === "Enter" || event.key === " ")) onClick();
+      }}
     >
 
       {/* Glow */}
@@ -2767,17 +3082,16 @@ function VillaCount({
 }
 
 
-/* =========================================================
-   VILLA CARD
-========================================================= */
-
 type VillaCardProps = {
   villaNumber: number;
   villaName: string;
   projectName: string;
   classification: string | null;
   area: number | null;
+  generalExpenseTotal: number;
+  villaExpenseTotal: number;
   expenseTotal: number;
+  currentMeterPrice: number;
   onView: () => void;
   onEdit: () => void;
   onAddExpense: () => void;
@@ -2789,249 +3103,120 @@ function VillaCard({
   projectName,
   classification,
   area,
+  generalExpenseTotal,
+  villaExpenseTotal,
   expenseTotal,
+  currentMeterPrice,
   onView,
   onEdit,
   onAddExpense,
 }: VillaCardProps) {
   return (
-    <div
-      className="
-        group
-        flex
-        min-h-[330px]
-        flex-col
-        overflow-hidden
-        rounded-3xl
-        border
-        border-blue-400/15
-        bg-gradient-to-br
-        from-[#12365D]
-        via-[#0D2948]
-        to-[#091C31]
-        shadow-lg
-        transition-all
-        duration-300
-        hover:-translate-y-1
-        hover:border-yellow-400/30
-        hover:shadow-2xl
-      "
-    >
-
-      {/* VILLA HEADER */}
-      <div
-        className="
-          flex
-          items-start
-          justify-between
-          border-b
-          border-white/10
-          p-6
-        "
-      >
-
-        {/* Icon */}
-        <div
-          className="
-            flex
-            h-16
-            w-16
-            items-center
-            justify-center
-            rounded-2xl
-            border
-            border-yellow-400/20
-            bg-yellow-400/10
-            text-yellow-400
-            shadow-lg
-            transition
-            duration-300
-            group-hover:scale-110
-          "
-        >
-          <Home size={32} />
-        </div>
-
-
-        {/* Name + Classification */}
-        <div className="text-right">
-
-          <div className="flex items-center justify-end gap-3">
-
-            <h3
-              className="
-                text-2xl
-                font-extrabold
-                leading-none
-                text-white
-              "
-            >
-              {villaName}
-            </h3>
-
-            <span
-              className="
-                rounded-full
-                border
-                border-yellow-400/20
-                bg-yellow-400/10
-                px-3
-                py-1
-                text-base
-                font-extrabold
-                text-yellow-400
-              "
-            >
-              {classification || "غير محدد"}
-            </span>
-
+    <div className="group flex min-h-[410px] flex-col overflow-hidden rounded-3xl border border-blue-400/15 bg-gradient-to-br from-[#12365D] via-[#0D2948] to-[#091C31] shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-yellow-400/30 hover:shadow-2xl">
+      <div className="flex items-start justify-between border-b border-white/10 p-7">
+        <div className="flex items-center gap-4">
+          <div className="flex h-20 w-20 items-center justify-center rounded-2xl border border-yellow-400/20 bg-yellow-400/10 text-yellow-400 shadow-lg transition duration-300 group-hover:scale-105">
+            <Home size={40} />
           </div>
-
-       <p className="mt-3 text-sm text-gray-400">
-  مشروع {projectName}
-</p>
+          <div className="rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-center">
+            <p className="text-xs font-semibold text-gray-400">سعر المتر الحالي</p>
+            <p className="mt-1 text-xl font-extrabold text-amber-300">
+              {currentMeterPrice.toLocaleString("ar-SA", { maximumFractionDigits: 2 })}
+            </p>
+            <p className="text-[11px] text-gray-500">ريال / م²</p>
+          </div>
         </div>
-
-      </div>
-
-
-      {/* VILLA BODY */}
-      <div
-        className="
-          flex
-          flex-1
-          items-center
-          justify-center
-          px-6
-          py-8
-        "
-      >
-
-        <div className="text-center">
-
-          <p className="text-sm font-semibold text-gray-400">
-            تصنيف الفيلا
-          </p>
-
-          <p
-            className="
-              mt-3
-              text-xl
-              font-extrabold
-              text-white
-            "
-          >
-            {classification || "لم يتم تحديد التصنيف بعد"}
-          </p>
-
-          <p className="mt-2 text-sm text-gray-400">
-            المساحة: {Number(area ?? 0).toLocaleString("ar-SA")} م²
-          </p>
-
-          <p className="mt-3 text-sm font-semibold text-gray-400">
-            إجمالي مصاريف الفيلا حتى الآن
-          </p>
-          <p className="mt-1 text-2xl font-extrabold text-yellow-400">
-            {expenseTotal.toLocaleString("ar-SA")} ريال
-          </p>
-
+        <div className="text-right">
+          <div className="flex items-center justify-end gap-3">
+            <h3 className="text-2xl font-extrabold leading-tight text-white">{villaName}</h3>
+            <span className="rounded-full border border-yellow-400/20 bg-yellow-400/10 px-3 py-1 text-base font-extrabold text-yellow-400">فيلا {villaNumber}</span>
+          </div>
+          <p className="mt-2 text-sm font-bold text-yellow-300">{classification || "غير محدد"}</p>
+          <p className="mt-2 text-sm text-gray-400">مشروع {projectName}</p>
         </div>
-
       </div>
 
-
-      {/* ACTION BUTTONS - ALWAYS AT BOTTOM */}
-      <div
-        className="
-          mt-auto
-          grid
-          grid-cols-2
-          gap-3
-          border-t
-          border-white/10
-          p-5
-        "
-      >
-
-        {/* View */}
-        <button
-          onClick={onView}
-          className="
-            flex
-            items-center
-            justify-center
-            gap-2
-            rounded-xl
-            border
-            border-blue-400/20
-            bg-blue-500/10
-            py-3
-            font-bold
-            text-blue-300
-            transition-all
-            duration-300
-            hover:bg-blue-500
-            hover:text-white
-          "
-        >
-          عرض
-          <Eye size={18} />
-        </button>
-
-
-        {/* Add Expense */}
-        <button
-          onClick={onAddExpense}
-          className="
-            flex
-            items-center
-            justify-center
-            gap-2
-            rounded-xl
-            border
-            border-emerald-400/20
-            bg-emerald-400/10
-            py-3
-            font-bold
-            text-emerald-300
-            transition-all
-            duration-300
-            hover:bg-emerald-400
-            hover:text-[#081B33]
-          "
-        >
-          مصروف
-          <WalletCards size={18} />
-        </button>
-
-
-        {/* Edit */}
-        <button
-          onClick={onEdit}
-          className="
-            flex
-            items-center
-            justify-center
-            gap-2
-            rounded-xl
-            border
-            border-yellow-400/20
-            bg-yellow-400/10
-            py-3
-            font-bold
-            text-yellow-400
-            transition-all
-            duration-300
-            hover:bg-yellow-400
-            hover:text-[#081B33]
-          "
-        >
-          تعديل
-          <Pencil size={18} />
-        </button>
-
+      <div className="flex-1 px-7 py-7">
+        <div className="grid grid-cols-2 gap-4">
+          <VillaStatBox label="المساحة" value={`${Number(area ?? 0).toLocaleString("ar-SA")} م²`} />
+          <VillaStatBox label="التصنيف" value={classification || "غير محدد"} />
+          <VillaStatBox label="المصاريف الخاصة بالفيلا" value={`${villaExpenseTotal.toLocaleString("ar-SA")} ريال`} />
+          <VillaStatBox label="المصاريف العامة للمشروع" value={`${generalExpenseTotal.toLocaleString("ar-SA")} ريال`} />
+        </div>
+        <div className="mt-4 rounded-2xl border border-yellow-400/20 bg-yellow-400/10 px-5 py-4 text-center">
+          <p className="text-sm font-semibold text-gray-400">إجمالي المصاريف المحتسبة على سعر المتر</p>
+          <p className="mt-1 text-3xl font-extrabold text-yellow-400">{expenseTotal.toLocaleString("ar-SA")} ريال</p>
+        </div>
       </div>
 
+      <div className="mt-auto grid grid-cols-3 gap-3 border-t border-white/10 p-5">
+        <button onClick={onView} className="flex items-center justify-center gap-2 rounded-xl border border-blue-400/20 bg-blue-500/10 py-3 font-bold text-blue-300 transition hover:bg-blue-500 hover:text-white">عرض <Eye size={18} /></button>
+        <button onClick={onAddExpense} className="flex items-center justify-center gap-2 rounded-xl border border-emerald-400/20 bg-emerald-400/10 py-3 font-bold text-emerald-300 transition hover:bg-emerald-400 hover:text-[#081B33]">مصروف <WalletCards size={18} /></button>
+        <button onClick={onEdit} className="flex items-center justify-center gap-2 rounded-xl border border-yellow-400/20 bg-yellow-400/10 py-3 font-bold text-yellow-400 transition hover:bg-yellow-400 hover:text-[#081B33]">تعديل <Pencil size={18} /></button>
+      </div>
+    </div>
+  );
+}
+
+function VillaStatBox({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-center">
+      <p className="text-sm font-semibold text-gray-400">{label}</p>
+      <p className="mt-2 text-lg font-extrabold text-white">{value}</p>
+    </div>
+  );
+}
+
+function VillaEditModal({ villa, onClose, onSave }: { villa: ProjectVilla; onClose: () => void; onSave: (villa: ProjectVilla) => Promise<boolean> }) {
+  const [form, setForm] = useState<ProjectVilla>(villa);
+  return (
+    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <div className="w-full max-w-2xl rounded-3xl border border-white/10 bg-[#081B33] shadow-2xl">
+        <div className="flex items-center justify-between border-b border-white/10 bg-[#102947] px-7 py-5">
+          <div><h2 className="text-2xl font-extrabold text-white">تعديل بيانات الفيلا</h2><p className="mt-1 text-sm text-gray-400">تعديل الاسم والمساحة والرقم والتصنيف</p></div>
+          <button type="button" onClick={onClose} className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 text-gray-400 hover:bg-red-500/20 hover:text-red-300"><X size={20} /></button>
+        </div>
+        <div className="grid grid-cols-1 gap-5 p-7 md:grid-cols-2">
+          <label><span className="mb-2 block text-sm font-semibold text-gray-300">اسم الفيلا *</span><input value={form.name ?? ""} onChange={(e) => setForm({ ...form, name: e.target.value })} className="h-12 w-full rounded-xl border border-white/10 bg-[#102947] px-4 text-white outline-none focus:border-yellow-400" /></label>
+          <label><span className="mb-2 block text-sm font-semibold text-gray-300">رقم الفيلا *</span><input type="number" min="1" value={form.villa_number} onChange={(e) => setForm({ ...form, villa_number: Number(e.target.value) })} className="h-12 w-full rounded-xl border border-white/10 bg-[#102947] px-4 text-white outline-none focus:border-yellow-400" /></label>
+          <label><span className="mb-2 block text-sm font-semibold text-gray-300">المساحة م² *</span><input type="number" min="0" step="0.01" value={form.area ?? ""} onChange={(e) => setForm({ ...form, area: Number(e.target.value) })} className="h-12 w-full rounded-xl border border-white/10 bg-[#102947] px-4 text-white outline-none focus:border-yellow-400" /></label>
+          <label><span className="mb-2 block text-sm font-semibold text-gray-300">التصنيف</span><select value={form.classification ?? ""} onChange={(e) => setForm({ ...form, classification: e.target.value || null })} className="h-12 w-full rounded-xl border border-white/10 bg-[#102947] px-4 text-white outline-none focus:border-yellow-400"><option value="">غير محدد</option><option value="صغيرة">صغيرة</option><option value="متوسطة">متوسطة</option><option value="كبيرة">كبيرة</option></select></label>
+        </div>
+        <div className="grid grid-cols-2 gap-3 border-t border-white/10 bg-[#102947] p-5">
+          <button type="button" onClick={onClose} className="rounded-xl border border-white/10 px-6 py-3 font-bold text-white hover:bg-white/5">إلغاء</button>
+          <button type="button" onClick={() => onSave(form)} className="rounded-xl bg-yellow-400 px-6 py-3 font-bold text-[#081B33] hover:bg-yellow-300">حفظ التعديلات</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function VillaDetailsModal({ villa, generalExpenseTotal, villaExpenseTotal, onClose, onEdit, onAddExpense }: { villa: ProjectVilla; generalExpenseTotal: number; villaExpenseTotal: number; onClose: () => void; onEdit: () => void; onAddExpense: () => void }) {
+  const totalExpenses = generalExpenseTotal + villaExpenseTotal;
+  const area = Number(villa.area ?? 0);
+  const meterPrice = area > 0 ? totalExpenses / area : 0;
+  return (
+    <div className="fixed inset-0 z-[115] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <div className="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-3xl border border-white/10 bg-[#081B33] shadow-2xl">
+        <div className="flex items-center justify-between border-b border-white/10 bg-[#102947] px-7 py-5">
+          <div className="flex items-center gap-4"><div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-yellow-400/20 bg-yellow-400/10 text-yellow-400"><Home size={30} /></div><div><h2 className="text-2xl font-extrabold text-white">تفاصيل {villa.name || `فيلا ${villa.villa_number}`}</h2><p className="mt-1 text-sm text-gray-400">جميع بيانات الفيلا وحساب التكلفة الحالية</p></div></div>
+          <button type="button" onClick={onClose} className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 text-gray-400 hover:bg-red-500/20 hover:text-red-300"><X size={20} /></button>
+        </div>
+        <div className="p-7">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-4"><VillaStatBox label="رقم الفيلا" value={String(villa.villa_number)} /><VillaStatBox label="المساحة" value={`${area.toLocaleString("ar-SA")} م²`} /><VillaStatBox label="التصنيف" value={villa.classification || "غير محدد"} /><VillaStatBox label="سعر المتر الحالي" value={`${meterPrice.toLocaleString("ar-SA", { maximumFractionDigits: 2 })} ريال`} /></div>
+          <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div className="rounded-2xl border border-blue-400/20 bg-blue-400/5 p-6 text-center"><p className="text-sm font-semibold text-gray-400">إجمالي المصاريف العامة للمشروع</p><p className="mt-2 text-3xl font-extrabold text-blue-300">{generalExpenseTotal.toLocaleString("ar-SA")} ريال</p></div>
+            <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/5 p-6 text-center"><p className="text-sm font-semibold text-gray-400">إجمالي المصاريف الخاصة بالفيلا</p><p className="mt-2 text-3xl font-extrabold text-emerald-300">{villaExpenseTotal.toLocaleString("ar-SA")} ريال</p></div>
+            <div className="rounded-2xl border border-yellow-400/20 bg-yellow-400/10 p-6 text-center"><p className="text-sm font-semibold text-gray-400">توتال المصاريف</p><p className="mt-2 text-3xl font-extrabold text-yellow-400">{totalExpenses.toLocaleString("ar-SA")} ريال</p></div>
+          </div>
+          <div className="mt-5 rounded-2xl border border-white/10 bg-white/5 p-5"><p className="text-sm font-semibold text-gray-400">طريقة الحساب</p><p className="mt-2 text-lg font-bold text-white">{totalExpenses.toLocaleString("ar-SA")} ÷ {area.toLocaleString("ar-SA")} = {meterPrice.toLocaleString("ar-SA", { maximumFractionDigits: 2 })} ريال / م²</p></div>
+        </div>
+        <div className="grid grid-cols-1 gap-3 border-t border-white/10 bg-[#102947] p-5 md:grid-cols-3">
+          <button type="button" onClick={onAddExpense} className="rounded-xl bg-emerald-400 px-5 py-3 font-bold text-[#081B33] hover:bg-emerald-300">+ إضافة مصروف للفيلا</button>
+          <button type="button" onClick={onEdit} className="rounded-xl bg-yellow-400 px-5 py-3 font-bold text-[#081B33] hover:bg-yellow-300">تعديل بيانات الفيلا</button>
+          <button type="button" onClick={onClose} className="rounded-xl border border-white/10 px-5 py-3 font-bold text-white hover:bg-white/5">إغلاق</button>
+        </div>
+      </div>
     </div>
   );
 }

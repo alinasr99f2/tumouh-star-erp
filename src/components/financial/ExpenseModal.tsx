@@ -23,6 +23,8 @@ type Props = {
   initialExpense?: any | null;
   isEditing?: boolean;
   forcedProjectId?: string | number | null;
+  forcedVillaId?: string | number | null;
+  forcedVillaLabel?: string;
 };
 
 export default function ExpenseModal({
@@ -33,6 +35,8 @@ export default function ExpenseModal({
   initialExpense,
   isEditing = false,
   forcedProjectId = null,
+  forcedVillaId = null,
+  forcedVillaLabel,
 }: Props) {
 
 
@@ -44,6 +48,12 @@ const [entryDate, setEntryDate] = useState(today);
 const [expenseDate, setExpenseDate] = useState(today);
 const [supplier, setSupplier] = useState("");
 const [projectId, setProjectId] = useState("");
+const [suppliers, setSuppliers] = useState<
+  { id: number; name: string }[]
+>([]);
+
+const [showAddSupplier, setShowAddSupplier] = useState(false);
+const [newSupplierName, setNewSupplierName] = useState("");
 const [villaCode, setVillaCode] = useState("");
 const [villaId, setVillaId] = useState("");
 const [accountId, setAccountId] = useState("");
@@ -115,6 +125,7 @@ useEffect(() => {
     const [
       { data: categoriesData, error: categoriesError },
       { data: itemsData, error: itemsError },
+      { data: suppliersData, error: suppliersError },
       { data: stagesData, error: stagesError },
     ] = await Promise.all([
       supabase
@@ -126,6 +137,11 @@ useEffect(() => {
         .from("expense_items")
         .select("id, name, category_id")
         .order("id", { ascending: true }),
+
+      supabase
+  .from("suppliers")
+  .select("id, name")
+  .order("id", { ascending: true }),
 
       supabase
         .from("expense_stages")
@@ -150,12 +166,17 @@ useEffect(() => {
       return;
     }
 
+    if (suppliersError) {
+      console.error("خطأ في تحميل الموردين:", suppliersError);
+    }
+
     if (stagesError) {
       console.error("خطأ في تحميل المراحل:", stagesError);
     }
 
     setCategories(categoriesData ?? []);
     setExpenseItems(itemsData ?? []);
+    setSuppliers(suppliersData ?? []);
     setStages(stagesData ?? []);
   };
 
@@ -170,7 +191,12 @@ useEffect(() => {
 
   if (forcedProjectId != null) {
     setProjectId(String(forcedProjectId));
-    if (!isEditing) setVillaId("");
+  }
+
+  if (forcedVillaId != null && !isEditing) {
+    setVillaId(String(forcedVillaId));
+  } else if (!isEditing && forcedVillaId == null) {
+    setVillaId("");
   }
 
   if (initialExpense && isEditing) {
@@ -219,8 +245,51 @@ useEffect(() => {
     if (forcedProjectId != null) {
       setProjectId(String(forcedProjectId));
     }
+    if (forcedVillaId != null) {
+      setVillaId(String(forcedVillaId));
+    }
   }
-}, [open, initialExpense, isEditing]);
+}, [open, initialExpense, isEditing, forcedProjectId, forcedVillaId]);
+
+const handleAddSupplier = async () => {
+  const name = newSupplierName.trim();
+
+  if (!name) {
+    alert("من فضلك أدخل اسم المورد");
+    return;
+  }
+
+  const existingSupplier = suppliers.find(
+    (item) => item.name.trim().toLowerCase() === name.toLowerCase()
+  );
+
+  if (existingSupplier) {
+    setSupplier(existingSupplier.name);
+    setShowAddSupplier(false);
+    setNewSupplierName("");
+    return;
+  }
+
+  const { data, error } = await supabase
+    .from("suppliers")
+    .insert({ name })
+    .select("id, name")
+    .single();
+
+  if (error) {
+    console.error("خطأ في إضافة المورد:", error);
+    alert(`تعذر إضافة المورد:\n${error.message}`);
+    return;
+  }
+
+  if (data) {
+    setSuppliers((current) => [...current, data]);
+    setSupplier(String(data.name ?? name));
+  }
+
+  setNewSupplierName("");
+  setShowAddSupplier(false);
+};
 
 const handleAddCategory = async () => {
   const name = newCategoryName.trim();
@@ -435,6 +504,11 @@ const handleSave = async (addAnother = false) => {
     return;
   }
 
+  if (forcedVillaId != null && !villaId) {
+    alert("الفيلا المختارة مطلوبة");
+    return;
+  }
+
   if (!categoryId) {
     alert("من فضلك اختر البند");
     return;
@@ -479,6 +553,12 @@ console.log(expense);
 
 resetForm();
 
+if (forcedProjectId != null) {
+  setProjectId(String(forcedProjectId));
+}
+if (forcedVillaId != null) {
+  setVillaId(String(forcedVillaId));
+}
 
 if (!addAnother) {
   onClose();
@@ -530,11 +610,34 @@ return (
         />
 
         {/* المورد */}
-        <Input
-          label="المورد"
-          value={supplier}
-          onChange={setSupplier}
-        />
+        <div>
+          <div className="mb-2 flex items-center justify-between">
+            <label className="text-sm text-gray-300">المورد</label>
+            <button
+              type="button"
+              onClick={() => {
+                setNewSupplierName("");
+                setShowAddSupplier(true);
+              }}
+              className="flex h-7 w-7 items-center justify-center rounded-lg bg-yellow-400 font-bold text-[#081B33] transition hover:bg-yellow-300"
+              title="إضافة مورد"
+            >
+              +
+            </button>
+          </div>
+          <select
+            value={supplier}
+            onChange={(e) => setSupplier(e.target.value)}
+            className="h-12 w-full rounded-xl border border-white/10 bg-[#102947] px-4 text-white outline-none focus:border-yellow-400"
+          >
+            <option value="">اختر المورد...</option>
+            {suppliers.map((item) => (
+              <option key={item.id} value={item.name}>
+                {item.name}
+              </option>
+            ))}
+          </select>
+        </div>
 
         {/* المشروع */}
         <Select
@@ -553,16 +656,26 @@ return (
           label="الفيلا"
           value={villaId}
           onChange={setVillaId}
-          options={[
-            {
-              value: "general",
-              label: "🏘️ مصروف عام على المشروع",
-            },
-            ...projectVillas.map((villa) => ({
-              value: villa.code,
-              label: `${villa.block} - فيلا ${villa.code}`,
-            })),
-          ]}
+          disabled={forcedVillaId != null}
+          options={
+            forcedVillaId != null
+              ? [
+                  {
+                    value: String(forcedVillaId),
+                    label: forcedVillaLabel || `فيلا ${forcedVillaId}`,
+                  },
+                ]
+              : [
+                  {
+                    value: "general",
+                    label: "🏘️ مصروف عام على المشروع",
+                  },
+                  ...projectVillas.map((villa) => ({
+                    value: villa.code,
+                    label: `${villa.block} - فيلا ${villa.code}`,
+                  })),
+                ]
+          }
         />
 
         {/* العهدة */}
@@ -852,6 +965,58 @@ return (
         />
 
       </div>
+
+      {/* ================= إضافة مورد جديد ================= */}
+      {showAddSupplier && (
+        <div className="fixed inset-0 z-[220] flex items-center justify-center bg-black/70 p-4">
+          <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#081B33] p-7 shadow-2xl">
+            <div className="mb-6 flex items-center justify-between">
+              <h3 className="text-2xl font-bold text-white">إضافة مورد جديد</h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAddSupplier(false);
+                  setNewSupplierName("");
+                }}
+                className="text-2xl text-gray-400 hover:text-red-400"
+              >
+                ✕
+              </button>
+            </div>
+
+            <label className="mb-2 block text-sm text-gray-300">اسم المورد</label>
+            <input
+              type="text"
+              value={newSupplierName}
+              onChange={(e) => setNewSupplierName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleAddSupplier()}
+              autoFocus
+              placeholder="أدخل اسم المورد"
+              className="h-12 w-full rounded-xl border border-white/10 bg-[#102947] px-4 text-white outline-none focus:border-yellow-400"
+            />
+
+            <div className="mt-6 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAddSupplier(false);
+                  setNewSupplierName("");
+                }}
+                className="rounded-xl border border-white/10 px-6 py-3 font-bold text-white hover:bg-white/5"
+              >
+                إلغاء
+              </button>
+              <button
+                type="button"
+                onClick={handleAddSupplier}
+                className="rounded-xl bg-yellow-400 px-6 py-3 font-bold text-[#081B33] hover:bg-yellow-300"
+              >
+                + إضافة المورد
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ================= إضافة عهدة جديدة ================= */}
       {showAddAccount && (
