@@ -73,6 +73,7 @@ export default function ProjectDetails() {
   const [topCostItems, setTopCostItems] = useState<any[]>([]);
   const [showAllCostItems, setShowAllCostItems] = useState(false);
   const [showProjectExpenseOverview, setShowProjectExpenseOverview] = useState(false);
+  const [showVillaSummary, setShowVillaSummary] = useState(false);
   const [editingVilla, setEditingVilla] = useState<ProjectVilla | null>(null);
   const [selectedVilla, setSelectedVilla] = useState<ProjectVilla | null>(null);
   const [expenseVillaId, setExpenseVillaId] = useState<number | null>(null);
@@ -377,6 +378,70 @@ const totalProjectArea = projectTotalArea;
     () => topCostItems.reduce((sum, item) => sum + Number(item.total ?? 0), 0),
     [topCostItems]
   );
+    const villaReportRows = useMemo(() => {
+    return projectVillas.map((villa) => {
+      const villaExpenseTotal = projectExpenses
+        .filter(
+          (expense) =>
+            Number(expense.villaId ?? expense.villa_id) === Number(villa.id)
+        )
+        .reduce((sum, expense) => sum + getExpenseTotal(expense), 0);
+
+      const villaGeneralExpenses = generalProjectExpenses / 18;
+
+      const totalExpenses =
+        villaGeneralExpenses + villaExpenseTotal;
+
+      return {
+        id: villa.id,
+        villaNumber: villa.villa_number,
+        name: villa.name || `فيلا ${villa.villa_number}`,
+        area: Number(villa.area ?? 0),
+        classification: villa.classification || "غير محدد",
+        generalExpenses: villaGeneralExpenses,
+        specialExpenses: villaExpenseTotal,
+        totalExpenses,
+      };
+    });
+  }, [projectVillas, projectExpenses, generalProjectExpenses]);
+
+  const villaReportGroups = useMemo(
+    () => ({
+      صغيرة: villaReportRows.filter(
+        (villa) => villa.classification === "صغيرة"
+      ),
+      متوسطة: villaReportRows.filter(
+        (villa) => villa.classification === "متوسطة"
+      ),
+      كبيرة: villaReportRows.filter(
+        (villa) => villa.classification === "كبيرة"
+      ),
+    }),
+    [villaReportRows]
+  );
+
+  const villaReportTotalArea = useMemo(
+    () =>
+      villaReportRows.reduce(
+        (sum, villa) => sum + villa.area,
+        0
+      ),
+    [villaReportRows]
+  );
+
+  const villaReportTotalCost = useMemo(
+    () =>
+      villaReportRows.reduce(
+        (sum, villa) => sum + villa.totalExpenses,
+        0
+      ),
+    [villaReportRows]
+  );
+
+  const currentProjectMeterPrice =
+    totalProjectArea > 0
+      ? totalProjectExpenses / totalProjectArea
+      : 0;
 const saveProjectTotalArea = async () => {
   const area = Number(projectAreaInput);
 
@@ -640,7 +705,110 @@ const saveProjectTotalArea = async () => {
       }
     }, 300);
   };
+  const exportVillaSummaryToExcel = () => {
+    const createRows = (rows: typeof villaReportRows) =>
+      rows
+        .map(
+          (villa) => `
+            <tr>
+              <td>${villa.villaNumber}</td>
+              <td>${escapeHtml(villa.name)}</td>
+              <td>${villa.area}</td>
+              <td>${villa.generalExpenses.toFixed(2)}</td>
+              <td>${villa.specialExpenses.toFixed(2)}</td>
+              <td>${villa.totalExpenses.toFixed(2)}</td>
+            </tr>
+          `
+        )
+        .join("");
 
+    const html = `
+      <html dir="rtl">
+        <head>
+          <meta charset="UTF-8" />
+          <title>تقرير فلل ${escapeHtml(project?.name ?? "المشروع")}</title>
+        </head>
+
+        <body>
+          <h2>تقرير فلل ${escapeHtml(project?.name ?? "المشروع")}</h2>
+
+          <h3>الفلل الصغيرة</h3>
+          <table border="1">
+            <tr>
+              <th>رقم الفيلا</th>
+              <th>اسم الفيلا</th>
+              <th>المساحة</th>
+              <th>المصاريف العامة</th>
+              <th>المصاريف الخاصة</th>
+              <th>الإجمالي</th>
+            </tr>
+            ${createRows(villaReportGroups.صغيرة)}
+          </table>
+
+          <br />
+
+          <h3>الفلل المتوسطة</h3>
+          <table border="1">
+            <tr>
+              <th>رقم الفيلا</th>
+              <th>اسم الفيلا</th>
+              <th>المساحة</th>
+              <th>المصاريف العامة</th>
+              <th>المصاريف الخاصة</th>
+              <th>الإجمالي</th>
+            </tr>
+            ${createRows(villaReportGroups.متوسطة)}
+          </table>
+
+          <br />
+
+          <h3>الفلل الكبيرة</h3>
+          <table border="1">
+            <tr>
+              <th>رقم الفيلا</th>
+              <th>اسم الفيلا</th>
+              <th>المساحة</th>
+              <th>المصاريف العامة</th>
+              <th>المصاريف الخاصة</th>
+              <th>الإجمالي</th>
+            </tr>
+            ${createRows(villaReportGroups.كبيرة)}
+          </table>
+
+          <br />
+
+          <h3>الإجماليات</h3>
+
+          <p>عدد الفلل: ${villaReportRows.length}</p>
+          <p>إجمالي مساحة الفلل: ${villaReportTotalArea.toLocaleString("ar-SA")} م²</p>
+          <p>إجمالي المصاريف: ${totalProjectExpenses.toLocaleString("ar-SA")} ريال</p>
+          <p>سعر المتر الحالي: ${currentProjectMeterPrice.toLocaleString("ar-SA", {
+            maximumFractionDigits: 2,
+          })} ريال / م²</p>
+
+          <p>صغيرة: ${villaReportGroups.صغيرة.length}</p>
+          <p>متوسطة: ${villaReportGroups.متوسطة.length}</p>
+          <p>كبيرة: ${villaReportGroups.كبيرة.length}</p>
+        </body>
+      </html>
+    `;
+
+    const blob = new Blob([html], {
+      type: "application/vnd.ms-excel;charset=utf-8;",
+    });
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = `تقرير_فلل_${project?.name ?? "المشروع"}.xls`;
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    URL.revokeObjectURL(url);
+  };
   const refreshProjectExpenses = async () => {
     await loadProjectData();
   };
@@ -1569,10 +1737,11 @@ ${error?.message ?? ""}`);
 
           {/* 4 - TOTAL VILLAS */}
           <ProjectKpi
-            icon={<Building2 size={46} />}
-            title="إجمالي الفلل"
-            value={String(projectVillas.length || 18)}
-            suffix="فيلا"
+  icon={<Building2 size={46} />}
+  title="إجمالي الفلل"
+  value={String(projectVillas.length || 18)}
+  suffix="فيلا"
+  onClick={() => setShowVillaSummary(true)}
             cardClass="
               from-[#173F68]
               via-[#123455]
@@ -2099,7 +2268,20 @@ ${error?.message ?? ""}`);
 
         </div>
       </section>
-
+      {showVillaSummary && (
+        <VillaSummaryModal
+          projectName={project?.name ?? "المشروع"}
+          groups={villaReportGroups}
+          totalVillas={villaReportRows.length}
+          totalVillaArea={villaReportTotalArea}
+          totalCost={totalProjectExpenses}
+          currentMeterPrice={currentProjectMeterPrice}
+          onClose={() => setShowVillaSummary(false)}
+          onExportExcel={exportVillaSummaryToExcel}
+          onPrint={() => window.print()}
+        
+        />
+      )}
 
       {selectedVilla && (
         <VillaDetailsModal
@@ -2130,7 +2312,393 @@ ${error?.message ?? ""}`);
     </div>
   );
 }
+type VillaReportRow = {
+  id: number;
+  villaNumber: number;
+  name: string;
+  area: number;
+  classification: string;
+  generalExpenses: number;
+  specialExpenses: number;
+  totalExpenses: number;
+};
 
+type VillaSummaryModalProps = {
+  projectName: string;
+  groups: {
+    صغيرة: VillaReportRow[];
+    متوسطة: VillaReportRow[];
+    كبيرة: VillaReportRow[];
+  };
+  totalVillas: number;
+  totalVillaArea: number;
+  totalCost: number;
+  currentMeterPrice: number;
+  onClose: () => void;
+  onExportExcel: () => void;
+  onPrint: () => void;
+};
+
+function VillaSummaryModal({
+  projectName,
+  groups,
+  totalVillas,
+  totalVillaArea,
+  totalCost,
+  currentMeterPrice,
+  onClose,
+  onExportExcel,
+  onPrint,
+}: VillaSummaryModalProps) {
+
+  const formatNumber = (value: number) =>
+    value.toLocaleString("ar-SA", {
+      maximumFractionDigits: 2,
+    });
+
+  const VillaTable = ({
+    title,
+    rows,
+  }: {
+    title: string;
+    rows: VillaReportRow[];
+  }) => (
+    <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#102947]">
+
+      <div className="border-b border-white/10 bg-[#163B5F] px-4 py-4 text-center">
+
+        <h3 className="text-xl font-extrabold text-white">
+          {title}
+        </h3>
+
+        <p className="mt-1 text-sm text-yellow-300">
+          {rows.length} فيلا
+        </p>
+
+      </div>
+
+      <div className="max-h-[430px] overflow-auto">
+
+        <table className="w-full min-w-[900px] text-sm text-white">
+
+          <thead className="sticky top-0 z-10 bg-[#0B223B]">
+
+            <tr>
+
+              <th className="p-3 text-center">
+                رقم الفيلا
+              </th>
+
+              <th className="p-3 text-center">
+                اسم الفيلا
+              </th>
+
+              <th className="p-3 text-center">
+                المساحة
+              </th>
+
+              <th className="p-3 text-center">
+                المصاريف العامة
+              </th>
+
+              <th className="p-3 text-center">
+                المصاريف الخاصة
+              </th>
+
+              <th className="p-3 text-center">
+                الإجمالي
+              </th>
+
+            </tr>
+
+          </thead>
+
+          <tbody className="divide-y divide-white/10">
+
+            {rows.length > 0 ? (
+
+              rows.map((villa) => (
+
+                <tr
+                  key={villa.id}
+                  className="transition hover:bg-white/[0.04]"
+                >
+
+                  <td className="p-3 text-center font-bold text-yellow-300">
+                    {villa.villaNumber}
+                  </td>
+
+                  <td className="p-3 text-center font-semibold">
+                    {villa.name}
+                  </td>
+
+                  <td className="p-3 text-center">
+                    {formatNumber(villa.area)} م²
+                  </td>
+
+                  <td className="p-3 text-center text-blue-300">
+                    {formatNumber(villa.generalExpenses)} ريال
+                  </td>
+
+                  <td className="p-3 text-center text-emerald-300">
+                    {formatNumber(villa.specialExpenses)} ريال
+                  </td>
+
+                  <td className="p-3 text-center font-extrabold text-yellow-400">
+                    {formatNumber(villa.totalExpenses)} ريال
+                  </td>
+
+                </tr>
+
+              ))
+
+            ) : (
+
+              <tr>
+
+                <td
+                  colSpan={6}
+                  className="p-8 text-center text-gray-400"
+                >
+                  لا توجد فلل في هذه الفئة
+                </td>
+
+              </tr>
+
+            )}
+
+          </tbody>
+
+        </table>
+
+      </div>
+
+    </div>
+  );
+
+  return (
+    <div
+      className="fixed inset-0 z-[130] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) {
+          onClose();
+        }
+      }}
+    >
+
+      <div className="flex max-h-[95vh] w-full max-w-[1800px] flex-col overflow-hidden rounded-3xl border border-white/10 bg-[#071A2E] shadow-2xl">
+
+        {/* HEADER */}
+
+        <div className="flex shrink-0 items-center justify-between border-b border-white/10 bg-[#102947] px-7 py-5">
+
+          <div>
+
+            <h2 className="text-2xl font-extrabold text-white">
+              تقرير فلل المشروع
+            </h2>
+
+            <p className="mt-1 text-sm text-gray-400">
+              {projectName}
+            </p>
+
+          </div>
+
+          <div className="flex items-center gap-2">
+
+            <button
+              type="button"
+              onClick={onPrint}
+              className="flex items-center gap-2 rounded-xl border border-sky-400/20 bg-sky-400/10 px-4 py-2 font-bold text-sky-300 hover:bg-sky-400 hover:text-[#081B33]"
+            >
+              <Printer size={17} />
+              طباعة
+            </button>
+
+            <button
+              type="button"
+              onClick={onExportExcel}
+              className="flex items-center gap-2 rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-2 font-bold text-emerald-300 hover:bg-emerald-400 hover:text-[#081B33]"
+            >
+              <FileSpreadsheet size={17} />
+              Excel
+            </button>
+
+            <button
+              type="button"
+              onClick={onPrint}
+              className="flex items-center gap-2 rounded-xl border border-rose-400/20 bg-rose-400/10 px-4 py-2 font-bold text-rose-300 hover:bg-rose-400 hover:text-white"
+            >
+              <FileText size={17} />
+              PDF
+            </button>
+
+            <button
+              type="button"
+              onClick={onClose}
+              className="mr-2 flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 text-gray-300 hover:bg-red-500/20 hover:text-red-300"
+            >
+              <X size={20} />
+            </button>
+
+          </div>
+
+        </div>
+
+        {/* BODY */}
+
+        <div className="min-h-0 flex-1 overflow-y-auto p-5 md:p-7">
+
+          <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
+
+            <VillaTable
+              title="الفلل الصغيرة"
+              rows={groups.صغيرة}
+            />
+
+            <VillaTable
+              title="الفلل المتوسطة"
+              rows={groups.متوسطة}
+            />
+
+            <VillaTable
+              title="الفلل الكبيرة"
+              rows={groups.كبيرة}
+            />
+
+          </div>
+
+          {/* CATEGORY COUNTS */}
+
+          <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
+
+            <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/5 p-5 text-center">
+
+              <p className="text-sm font-semibold text-gray-400">
+                الفلل الصغيرة
+              </p>
+
+              <p className="mt-2 text-3xl font-extrabold text-emerald-300">
+                {groups.صغيرة.length}
+              </p>
+
+              <p className="mt-1 text-xs text-gray-500">
+                فيلا
+              </p>
+
+            </div>
+
+            <div className="rounded-2xl border border-yellow-400/20 bg-yellow-400/5 p-5 text-center">
+
+              <p className="text-sm font-semibold text-gray-400">
+                الفلل المتوسطة
+              </p>
+
+              <p className="mt-2 text-3xl font-extrabold text-yellow-300">
+                {groups.متوسطة.length}
+              </p>
+
+              <p className="mt-1 text-xs text-gray-500">
+                فيلا
+              </p>
+
+            </div>
+
+            <div className="rounded-2xl border border-blue-400/20 bg-blue-400/5 p-5 text-center">
+
+              <p className="text-sm font-semibold text-gray-400">
+                الفلل الكبيرة
+              </p>
+
+              <p className="mt-2 text-3xl font-extrabold text-blue-300">
+                {groups.كبيرة.length}
+              </p>
+
+              <p className="mt-1 text-xs text-gray-500">
+                فيلا
+              </p>
+
+            </div>
+
+          </div>
+
+          {/* TOTALS */}
+
+          <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+
+            <div className="rounded-2xl border border-blue-400/20 bg-blue-400/5 p-5 text-center">
+
+              <p className="text-sm font-semibold text-gray-400">
+                إجمالي عدد الفلل
+              </p>
+
+              <p className="mt-2 text-3xl font-extrabold text-white">
+                {totalVillas}
+              </p>
+
+              <p className="text-xs text-gray-500">
+                فيلا
+              </p>
+
+            </div>
+
+            <div className="rounded-2xl border border-violet-400/20 bg-violet-400/5 p-5 text-center">
+
+              <p className="text-sm font-semibold text-gray-400">
+                إجمالي مساحة الفلل
+              </p>
+
+              <p className="mt-2 text-3xl font-extrabold text-violet-300">
+                {formatNumber(totalVillaArea)}
+              </p>
+
+              <p className="text-xs text-gray-500">
+                م²
+              </p>
+
+            </div>
+
+            <div className="rounded-2xl border border-rose-400/20 bg-rose-400/5 p-5 text-center">
+
+              <p className="text-sm font-semibold text-gray-400">
+                إجمالي التكلفة
+              </p>
+
+              <p className="mt-2 text-3xl font-extrabold text-rose-300">
+                {formatNumber(totalCost)}
+              </p>
+
+              <p className="text-xs text-gray-500">
+                ريال
+              </p>
+
+            </div>
+
+            <div className="rounded-2xl border border-amber-400/20 bg-amber-400/5 p-5 text-center">
+
+              <p className="text-sm font-semibold text-gray-400">
+                متوسط سعر المتر الحالي
+              </p>
+
+              <p className="mt-2 text-3xl font-extrabold text-amber-300">
+                {formatNumber(currentMeterPrice)}
+              </p>
+
+              <p className="text-xs text-gray-500">
+                ريال / م²
+              </p>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+  );
+}
 
 
 
