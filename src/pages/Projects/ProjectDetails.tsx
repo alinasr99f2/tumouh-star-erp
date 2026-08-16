@@ -183,6 +183,21 @@ const [savingProjectArea, setSavingProjectArea] = useState(false);
 
     setLoadingProjectData(true);
     setProjectDataError(null);
+    // تحميل إجمالي مساحة المشروع المحفوظة من Supabase
+const { data: projectRow, error: projectAreaError } = await supabase
+  .from("projects")
+  .select("total_area")
+  .eq("id", project.id)
+  .single();
+
+if (projectAreaError) {
+  console.error("خطأ في تحميل إجمالي مساحة المشروع:", projectAreaError);
+} else {
+  const savedArea = Number(projectRow?.total_area ?? 0);
+
+  setProjectTotalArea(savedArea);
+  setProjectAreaInput(savedArea > 0 ? String(savedArea) : "");
+}
 
     const [
       expensesResult,
