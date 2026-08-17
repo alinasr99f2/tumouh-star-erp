@@ -2210,25 +2210,15 @@ ${error?.message ?? ""}`);
           </div>
         ) : projectVillas.length > 0 ? (
           projectVillas.map((villa) => {
-            // المصروفات الخاصة بهذه الفيلا فقط
-            const villaExpenses = projectExpenses
-              .filter(
-                (expense) =>
-                  Number(expense.villaId ?? expense.villa_id) === Number(villa.id)
-              )
-              .reduce((sum, expense) => sum + getExpenseTotal(expense), 0);
+            // نصيب الفيلا من إجمالي المصروفات العامة للمشروع
+const villaTotalExpenses = generalProjectExpenses / 18;
 
-            // إجمالي المصروفات العامة للمشروع يتم توزيعه بالتساوي على 18 فيلا
-            const villaGeneralExpenses = generalProjectExpenses / 18;
-
-            // إجمالي مصروف الفيلا = نصيبها من المصروف العام + مصروفها الخاص
-            const villaTotalExpenses = villaGeneralExpenses + villaExpenses;
-
-            // تكلفة المتر للفيلا
-            const villaMeterPrice =
-              Number(villa.area ?? 0) > 0
-                ? villaTotalExpenses / Number(villa.area ?? 0)
-                : 0;
+// سعر المتر الحالي للفيلا
+// = إجمالي مصاريف الفيلا ÷ مساحة الفيلا
+const villaMeterPrice =
+  Number(villa.area ?? 0) > 0
+    ? villaTotalExpenses / Number(villa.area ?? 0)
+    : 0;
 
             return (
               <VillaCard
@@ -2238,10 +2228,10 @@ ${error?.message ?? ""}`);
                 projectName={project?.name ?? "المشروع"}
                 classification={villa.classification}
                 area={villa.area}
-                generalExpenseTotal={villaGeneralExpenses}
-                villaExpenseTotal={villaExpenses}
-                expenseTotal={villaTotalExpenses}
-                currentMeterPrice={villaMeterPrice}
+                generalExpenseTotal={villaTotalExpenses}
+villaExpenseTotal={0}
+expenseTotal={villaTotalExpenses}
+currentMeterPrice={villaMeterPrice}
                 onView={() => {
                   setExpenseVillaId(null);
                   setSelectedVilla(villa);
