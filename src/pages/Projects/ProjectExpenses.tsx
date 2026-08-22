@@ -87,6 +87,7 @@ export default function ProjectDetails() {
   const [categories, setCategories] = useState<any[]>([]);
   const [expenseItems, setExpenseItems] = useState<any[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
+  const [stages, setStages] = useState<any[]>([]);
 
   const expenseRows = projectExpenses;
 
@@ -165,6 +166,56 @@ export default function ProjectDetails() {
     [suppliers]
   );
 
+  const stageNameMap = useMemo(
+    () =>
+      new Map<number, string>(
+        stages.map((stage: any) => [
+          Number(stage.id),
+          String(stage.name ?? "غير محددة"),
+        ])
+      ),
+    [stages]
+  );
+
+  const getExpenseStageName = (expense: any) => {
+    const directStageId =
+      expense?.stageId ??
+      expense?.stage_id ??
+      expense?.phaseId ??
+      expense?.phase_id ??
+      null;
+
+    if (directStageId !== null && directStageId !== undefined && directStageId !== "") {
+      const directName = stageNameMap.get(Number(directStageId));
+      if (directName) return directName;
+    }
+
+    const categoryId = expense?.categoryId ?? expense?.category_id ?? null;
+    if (categoryId !== null && categoryId !== undefined && categoryId !== "") {
+      const category = categories.find(
+        (item: any) => Number(item.id) === Number(categoryId)
+      );
+      const categoryStageId = category?.stage_id ?? category?.stageId ?? null;
+      if (categoryStageId !== null && categoryStageId !== undefined && categoryStageId !== "") {
+        return stageNameMap.get(Number(categoryStageId)) ?? "غير محددة";
+      }
+    }
+
+    const storedStageName = expense?.stageName ?? expense?.stage_name ?? null;
+    if (storedStageName !== null && storedStageName !== undefined && String(storedStageName).trim() !== "") {
+      const normalizedStoredName = String(storedStageName).trim();
+      if (!/^\d+$/.test(normalizedStoredName)) {
+        return normalizedStoredName;
+      }
+
+      const numericStoredId = Number(normalizedStoredName);
+      const numericStoredName = stageNameMap.get(numericStoredId);
+      if (numericStoredName) return numericStoredName;
+    }
+
+    return "غير محددة";
+  };
+
   const loadProjectData = async () => {
     if (!project) return;
 
@@ -179,6 +230,7 @@ export default function ProjectDetails() {
       categoriesResult,
       itemsResult,
       suppliersResult,
+      stagesResult,
     ] = await Promise.all([
       supabase
         .from("expenses")
@@ -204,7 +256,7 @@ export default function ProjectDetails() {
 
       supabase
         .from("categories")
-        .select("id, name")
+        .select("id, name, stage_id")
         .order("id", { ascending: true }),
 
       supabase
@@ -215,6 +267,11 @@ export default function ProjectDetails() {
       supabase
         .from("suppliers")
         .select("id, name")
+        .order("id", { ascending: true }),
+
+      supabase
+        .from("expense_stages")
+        .select("id, name, is_active")
         .order("id", { ascending: true }),
     ]);
 
@@ -292,6 +349,13 @@ export default function ProjectDetails() {
       setSuppliers(suppliersResult.data ?? []);
     }
 
+    if (stagesResult.error) {
+      console.error("خطأ في تحميل مراحل المصروفات:", stagesResult.error);
+      setStages([]);
+    } else {
+      setStages(stagesResult.data ?? []);
+    }
+
     const normalizedExpenses = (expensesResult.data ?? []).map((row: any) => ({
       ...row,
       expenseDate: row.date ?? row.expense_date ?? row.entry_date ?? "",
@@ -299,6 +363,13 @@ export default function ProjectDetails() {
       voucherNo: row.invoice_number ?? row.voucher_no ?? "",
       villaId: row.villa_id ?? null,
       accountId: row.account_id ?? null,
+      stageId: row.stage_id ?? null,
+      stageName:
+        stagesResult.data?.find(
+          (stage: any) => Number(stage.id) === Number(row.stage_id)
+        )?.name ??
+        row.stage_name ??
+        null,
       categoryId: row.category_id ?? null,
       itemId: row.item_id ?? null,
       supplier:
@@ -661,6 +732,7 @@ export default function ProjectDetails() {
     if (!project) return false;
 
     const accountId = Number(expense?.accountId);
+    const stageId = expense?.stageId ? Number(expense.stageId) : null;
     const categoryId = expense?.categoryId ? Number(expense.categoryId) : null;
     const itemId = expense?.itemId ? Number(expense.itemId) : null;
     const villaId =
@@ -751,6 +823,7 @@ export default function ProjectDetails() {
             project_id: project.id,
             villa_id: villaId,
             account_id: accountId,
+            stage_id: stageId,
             category_id: categoryId,
             item_id: itemId,
             invoice_number: expense?.voucherNo || null,
@@ -826,6 +899,7 @@ export default function ProjectDetails() {
           project_id: project.id,
           villa_id: villaId,
           account_id: accountId,
+          stage_id: stageId,
           category_id: categoryId,
           item_id: itemId,
           invoice_number: expense?.voucherNo || null,
@@ -923,6 +997,7 @@ export default function ProjectDetails() {
             <td>${escapeHtml(expense.expenseDate || "-")}</td>
             <td>${escapeHtml(villaNameMap.get(Number(expense.villaId)) ?? "مصروف عام")}</td>
             <td>${escapeHtml(accountNameMap.get(Number(expense.accountId)) ?? "-")}</td>
+            <td>${escapeHtml(getExpenseStageName(expense))}</td>
             <td>${escapeHtml(categoryNameMap.get(Number(expense.categoryId)) ?? "-")}</td>
             <td>${escapeHtml(itemNameMap.get(Number(expense.itemId)) ?? "-")}</td>
             <td>${escapeHtml(expense.supplier || (expense.supplier_id ? supplierNameMap.get(Number(expense.supplier_id)) : "") || "-")}</td>
@@ -940,7 +1015,7 @@ export default function ProjectDetails() {
           <h2>${periodLabel} - ${escapeHtml(projectName)}</h2>
           <table border="1">
             <tr>
-              <th>#</th><th>التاريخ</th><th>الفيلا</th><th>العهدة</th>
+              <th>#</th><th>التاريخ</th><th>الفيلا</th><th>العهدة</th><th>المرحلة</th>
               <th>التصنيف</th><th>البند</th><th>المورد</th>
               <th>قبل الضريبة</th><th>الضريبة</th><th>الإجمالي</th>
             </tr>
@@ -992,6 +1067,7 @@ export default function ProjectDetails() {
             <td>${escapeHtml(expense.expenseDate || "-")}</td>
             <td>${escapeHtml(villaNameMap.get(Number(expense.villaId)) ?? "مصروف عام")}</td>
             <td>${escapeHtml(accountNameMap.get(Number(expense.accountId)) ?? "-")}</td>
+            <td>${escapeHtml(getExpenseStageName(expense))}</td>
             <td>${escapeHtml(categoryNameMap.get(Number(expense.categoryId)) ?? "-")}</td>
             <td>${escapeHtml(itemNameMap.get(Number(expense.itemId)) ?? "-")}</td>
             <td>${escapeHtml(expense.supplier || (expense.supplier_id ? supplierNameMap.get(Number(expense.supplier_id)) : "") || "-")}</td>
@@ -1025,7 +1101,7 @@ export default function ProjectDetails() {
           <div class="total">الإجمالي: ${getExpensePeriodTotal(period).toLocaleString("ar-SA")} ريال</div>
           <table>
             <tr>
-              <th>#</th><th>التاريخ</th><th>الفيلا</th><th>العهدة</th>
+              <th>#</th><th>التاريخ</th><th>الفيلا</th><th>العهدة</th><th>المرحلة</th>
               <th>التصنيف</th><th>البند</th><th>المورد</th>
               <th>قبل الضريبة</th><th>الضريبة</th><th>الإجمالي</th>
             </tr>
@@ -1177,6 +1253,7 @@ export default function ProjectDetails() {
           accountName={
             accountNameMap.get(Number(selectedExpense.accountId)) ?? "-"
           }
+          stageName={getExpenseStageName(selectedExpense)}
           categoryName={
             categoryNameMap.get(Number(selectedExpense.categoryId)) ?? "-"
           }
@@ -1314,6 +1391,7 @@ export default function ProjectDetails() {
                 <th className="p-3 text-center">رقم الفاتورة</th>
                 <th className="p-3 text-center">الفيلا</th>
                 <th className="p-3 text-center">العهدة</th>
+                <th className="p-3 text-center">المرحلة</th>
                 <th className="p-3 text-center">التصنيف</th>
                 <th className="p-3 text-center">البند</th>
                 <th className="p-3 text-center">المورد</th>
@@ -1327,9 +1405,9 @@ export default function ProjectDetails() {
 
             <tbody className="divide-y divide-white/10">
               {loadingProjectData ? (
-                <tr><td colSpan={12} className="p-10 text-center text-gray-400">جاري تحميل المصروفات...</td></tr>
+                <tr><td colSpan={13} className="p-10 text-center text-gray-400">جاري تحميل المصروفات...</td></tr>
               ) : expenseRows.length === 0 ? (
-                <tr><td colSpan={12} className="p-10 text-center text-gray-400">لا توجد مصروفات لهذا المشروع حتى الآن.</td></tr>
+                <tr><td colSpan={13} className="p-10 text-center text-gray-400">لا توجد مصروفات لهذا المشروع حتى الآن.</td></tr>
               ) : (
                 expenseRows.map((expense: any) => (
                   <tr key={String(expense.id)} className="transition hover:bg-white/[0.03]">
@@ -1337,6 +1415,7 @@ export default function ProjectDetails() {
                     <td className="p-3 text-center">{expense.voucherNo || "-"}</td>
                     <td className="p-3 text-center">{villaNameMap.get(Number(expense.villaId)) ?? "مصروف عام"}</td>
                     <td className="p-3 text-center">{accountNameMap.get(Number(expense.accountId)) ?? "-"}</td>
+                    <td className="p-3 text-center">{getExpenseStageName(expense)}</td>
                     <td className="p-3 text-center">{categoryNameMap.get(Number(expense.categoryId)) ?? "-"}</td>
                     <td className="p-3 text-center">{itemNameMap.get(Number(expense.itemId)) ?? "-"}</td>
                     <td className="p-3 text-center">{expense.supplier || "-"}</td>
@@ -1373,6 +1452,7 @@ export default function ProjectDetails() {
           accountName={accountNameMap.get(Number(selectedExpense.accountId)) ?? "-"}
           categoryName={categoryNameMap.get(Number(selectedExpense.categoryId)) ?? "-"}
           itemName={itemNameMap.get(Number(selectedExpense.itemId)) ?? "-"}
+          stageName={stageNameMap.get(Number(selectedExpense.stageId ?? selectedExpense.stage_id)) ?? "-"}
           onClose={() => setSelectedExpense(null)}
         />
       )}
@@ -2051,6 +2131,7 @@ type ExpenseDetailsModalProps = {
   projectName: string;
   villaName: string;
   accountName: string;
+  stageName: string;
   categoryName: string;
   itemName: string;
   onClose: () => void;
@@ -2061,6 +2142,7 @@ function ExpenseDetailsModal({
   projectName,
   villaName,
   accountName,
+  stageName,
   categoryName,
   itemName,
   onClose,
@@ -2102,6 +2184,7 @@ function ExpenseDetailsModal({
             <ViewBox label="المشروع" value={projectName} />
             <ViewBox label="الفيلا" value={villaName} />
             <ViewBox label="العهدة" value={accountName} />
+            <ViewBox label="المرحلة" value={stageName} />
             <ViewBox label="التصنيف" value={categoryName} />
             <ViewBox label="البند" value={itemName} />
             <ViewBox label="المورد" value={expense.supplier || "-"} />

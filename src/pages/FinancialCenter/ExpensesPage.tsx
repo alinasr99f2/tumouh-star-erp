@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Eye, Pencil, Trash2, Search, FileSpreadsheet, FileText, Printer, Download, CalendarDays, RefreshCw } from "lucide-react";
+import { Eye, Pencil, Trash2, Search, FileSpreadsheet, FileText, Printer, Download, CalendarDays, Paperclip } from "lucide-react";
 import { supabase } from "../../utils/supabase";
 import { projects } from "../../data/projects";
 
@@ -307,23 +307,9 @@ export default function ExpensesPage({
     setExpensesLoading(true);
     setExpensesError(null);
 
-    const [
-      { data, error },
-      { data: suppliersData, error: suppliersError },
-      { data: stagesData, error: stagesError },
-    ] = await Promise.all([
-      supabase
-        .from("expenses")
-        .select("*"),
-      supabase
-        .from("suppliers")
-        .select("id, name")
-        .order("id", { ascending: true }),
-      supabase
-        .from("expense_stages")
-        .select("id, name")
-        .order("id", { ascending: true }),
-    ]);
+    const { data, error } = await supabase
+      .from("expenses")
+      .select("*");
 
     if (error) {
       console.error("خطأ في تحميل المصروفات:", error);
@@ -333,81 +319,11 @@ export default function ExpensesPage({
       return;
     }
 
-    if (suppliersError) {
-      console.warn("تعذر تحميل أسماء الموردين داخل جدول المصروفات:", suppliersError);
-    }
-
-    const supplierMap = new Map<number, string>(
-      (suppliersData ?? []).map((supplier: any) => [
-        Number(supplier.id),
-        String(supplier.name ?? ""),
-      ])
-    );
-
-    const stageMap = new Map<number, string>(
-      (stagesData ?? []).map((stage: any) => [
-        Number(stage.id),
-        String(stage.name ?? ""),
-      ])
-    );
-
-    if (stagesError) {
-      console.warn("تعذر تحميل أسماء المراحل داخل جدول المصروفات:", stagesError);
-    }
-
     const rows = ((data ?? []) as RawExpense[])
-  .map((row) => {
-    const normalized = normalizeExpense(row);
-
-    const rawRow = row as RawExpense & {
-      supplier_id?: number | null;
-      supplierId?: number | null;
-    };
-
-    const supplierId =
-      rawRow.supplier_id ??
-      rawRow.supplierId ??
-      null;
-
-    const supplierName =
-      normalized.supplier ??
-      normalized.supplierName ??
-      (supplierId != null
-        ? supplierMap.get(Number(supplierId))
-        : null) ??
-      null;
-
-    const stageId =
-      normalized.stageId ??
-      rawRow.stage_id ??
-      rawRow.phase_id ??
-      null;
-
-    const stageName =
-      normalized.stageName ??
-      (stageId != null ? stageMap.get(Number(stageId)) ?? null : null);
-
-    return {
-      ...normalized,
-      supplierId,
-      supplier: supplierName,
-      supplierName,
-      stageId,
-      stageName,
-    };
-  })
+      .map(normalizeExpense)
       .sort((a, b) => {
-        // جدول expenses يستخدم date كتاريخ المصروف، مع دعم الأسماء القديمة.
-        const dateA = String(
-          a.expenseDate ??
-          a.entryDate ??
-          ""
-        );
-        const dateB = String(
-          b.expenseDate ??
-          b.entryDate ??
-          ""
-        );
+        const dateA = String(a.expenseDate ?? a.entryDate ?? "");
+        const dateB = String(b.expenseDate ?? b.entryDate ?? "");
         return dateB.localeCompare(dateA);
       });
 
@@ -431,6 +347,7 @@ export default function ExpensesPage({
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [expenseItems, setExpenseItems] = useState<ExpenseItem[]>([]);
+  const [categoryStageMap, setCategoryStageMap] = useState<Record<string, string>>({});
 
   const todayStringSafe = () => {
     const d = new Date();
@@ -495,6 +412,12 @@ export default function ExpensesPage({
     };
 
     loadCategoriesAndItems();
+    try {
+      const saved = localStorage.getItem("tumouh-category-stage-map");
+      setCategoryStageMap(saved ? JSON.parse(saved) : {});
+    } catch {
+      setCategoryStageMap({});
+    }
   }, []);
 
   // =========================================
@@ -562,18 +485,46 @@ export default function ExpensesPage({
   };
 
   const getStageName = (expense: Expense) => {
-    if (expense.stageName) return expense.stageName;
+  if (expense.stageName) return expense.stageName;
 
-    const id = String(expense.stageId ?? "").trim().toLowerCase();
+  // استرجاع اسم المرحلة المحفوظ مع المصروف
+  try {
+    const savedStageMap = JSON.parse(
+      localStorage.getItem("tumouh-expense-stage-map") || "{}"
+    );
 
-    const knownStages: Record<string, string> = {
-      structural: "إنشائي",
-      finishing: "تشطيبي",
-      decorations: "ديكورات",
-    };
+    const savedStage = savedStageMap[String(expense.id)];
 
-    return knownStages[id] ?? "-";
+    if (savedStage?.name) {
+      return savedStage.name;
+    }
+  } catch {
+    // تجاهل خطأ localStorage
+  }
+
+  const id = String(expense.stageId ?? "").trim().toLowerCase();
+
+  const knownStages: Record<string, string> = {
+    preliminary: "تمهيدي",
+    structural: "إنشائي",
+    finishing: "تشطيبي",
+    decorations: "ديكورات",
   };
+
+  const mappedStage = categoryStageMap[String(expense.categoryId ?? "")];
+
+  if (mappedStage && knownStages[mappedStage]) {
+    return knownStages[mappedStage];
+  }
+
+  return (
+    knownStages[id] ??
+    (expense.stageId &&
+    !/^\d+$/.test(String(expense.stageId))
+      ? String(expense.stageId)
+      : "غير محدد")
+  );
+};
 
   // =========================================
   // التاريخ بدون مشاكل timezone
@@ -928,70 +879,16 @@ export default function ExpensesPage({
     .replace(/'/g, "&#039;");
 
   const printRows = (title: string, rows: Expense[]) => {
-    if (!rows.length) {
-      alert("لا توجد مصروفات في الفترة المحددة للتصدير.");
-      return;
-    }
-
     const data = exportRows(rows);
     const headers = Object.keys(data[0] ?? { "تاريخ المصروف": "", "الإجمالي": "" });
-
-    // لا نستخدم window.open لأن المتصفح كان يمنع نافذة الطباعة.
-    // نستخدم iframe مخفيًا، ثم نطلب الطباعة مباشرة من نفس الصفحة.
-    const iframe = document.createElement("iframe");
-    iframe.style.position = "fixed";
-    iframe.style.right = "0";
-    iframe.style.bottom = "0";
-    iframe.style.width = "0";
-    iframe.style.height = "0";
-    iframe.style.border = "0";
-    iframe.style.visibility = "hidden";
-
-    document.body.appendChild(iframe);
-
-    const printDocument = iframe.contentDocument;
-    const printWindow = iframe.contentWindow;
-
-    if (!printDocument || !printWindow) {
-      iframe.remove();
-      alert("تعذر تجهيز نافذة الطباعة. حاول مرة أخرى.");
+    const win = window.open("", "_blank", "noopener,noreferrer,width=1200,height=800");
+    if (!win) {
+      alert("المتصفح منع نافذة الطباعة. اسمح بالنوافذ المنبثقة ثم حاول مرة أخرى.");
       return;
     }
 
-    printDocument.open();
-    printDocument.write(`<!doctype html>
-<html lang="ar" dir="rtl">
-<head>
-<meta charset="utf-8">
-<title>${escapeHtml(title)}</title>
-<style>
-body{font-family:Arial,sans-serif;padding:24px;color:#111;background:#fff}
-h1{font-size:22px;margin:0 0 18px;text-align:center}
-table{width:100%;border-collapse:collapse;font-size:12px}
-th,td{border:1px solid #aaa;padding:7px;text-align:center}
-th{background:#eee;font-weight:700}
-@media print{body{padding:8px}h1{margin-bottom:12px}}
-</style>
-</head>
-<body>
-<h1>${escapeHtml(title)}</h1>
-<table>
-<thead><tr>${headers.map((h) => `<th>${escapeHtml(h)}</th>`).join("")}</tr></thead>
-<tbody>${data.map((row) => `<tr>${headers.map((h) => `<td>${escapeHtml(String((row as any)[h] ?? ""))}</td>`).join("")}</tr>`).join("")}</tbody>
-</table>
-</body>
-</html>`);
-    printDocument.close();
-
-    const cleanup = () => {
-      window.setTimeout(() => iframe.remove(), 1000);
-    };
-
-    window.setTimeout(() => {
-      printWindow.focus();
-      printWindow.print();
-      cleanup();
-    }, 250);
+    win.document.write(`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>${escapeHtml(title)}</title><style>body{font-family:Arial,sans-serif;padding:24px;color:#111}h1{font-size:22px;margin-bottom:18px}table{width:100%;border-collapse:collapse;font-size:12px}th,td{border:1px solid #aaa;padding:7px;text-align:center}th{background:#eee;font-weight:700}@media print{body{padding:8px}}</style></head><body><h1>${escapeHtml(title)}</h1><table><thead><tr>${headers.map((h) => `<th>${escapeHtml(h)}</th>`).join("")}</tr></thead><tbody>${data.map((row) => `<tr>${headers.map((h) => `<td>${escapeHtml(String((row as any)[h] ?? ""))}</td>`).join("")}</tr>`).join("")}</tbody></table><script>window.onload=function(){window.print();}</script></body></html>`);
+    win.document.close();
   };
 
   const getPeriodRows = (type: "day" | "week" | "month" | "year") => {
@@ -1116,26 +1013,8 @@ th{background:#eee;font-weight:700}
       <div className="rounded-2xl border border-white/10 bg-[#081B33] p-4">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={onAddExpense}
-              className="flex items-center gap-2 rounded-xl bg-yellow-400 px-5 py-3 font-bold text-[#081B33] transition hover:bg-yellow-300"
-            >
+            <button type="button" onClick={onAddExpense} className="flex items-center gap-2 rounded-xl bg-yellow-400 px-5 py-3 font-bold text-[#081B33] transition hover:bg-yellow-300">
               + إضافة مصروف
-            </button>
-
-            <button
-              type="button"
-              onClick={loadExpenses}
-              disabled={expensesLoading}
-              title="تحديث بيانات المصروفات"
-              className="flex items-center gap-2 rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-5 py-3 font-bold text-emerald-300 transition hover:bg-emerald-400/20 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <RefreshCw
-                size={18}
-                className={expensesLoading ? "animate-spin" : ""}
-              />
-              {expensesLoading ? "جاري التحديث..." : "تحديث"}
             </button>
 
             <div className="relative">
@@ -1207,6 +1086,10 @@ th{background:#eee;font-weight:700}
                 <th className="p-4 text-center text-sm text-white">
                   المرحلة
                 </th>
+
+                <th className="p-4 text-center text-sm text-white">
+  المرفقات
+</th>
 
                 <th className="p-4 text-center text-sm text-white">
                   العهدة
@@ -1325,6 +1208,28 @@ th{background:#eee;font-weight:700}
                           <span>{getStageName(expense)}</span>
                         </span>
                       </td>
+                      {/* المرفقات */}
+<td className="p-3 text-center">
+  {expense.attachmentUrl || expense.attachmentPath ? (
+    <button
+      type="button"
+      onClick={() => {
+        const url =
+          expense.attachmentUrl || expense.attachmentPath;
+
+        if (url) {
+          window.open(url, "_blank");
+        }
+      }}
+      title="عرض المرفق"
+      className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-sky-500 text-white shadow-lg transition hover:scale-105 hover:bg-sky-600"
+    >
+      <Paperclip size={20} strokeWidth={2.4} />
+    </button>
+  ) : (
+    <span className="text-gray-500">—</span>
+  )}
+</td>
 
                       {/* العهدة */}
 
@@ -1392,6 +1297,7 @@ th{background:#eee;font-weight:700}
                           <button type="button" onClick={() => handleView(expense)} title="عرض المصروف" className="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-500 text-white shadow-lg transition hover:scale-105 hover:bg-sky-600">
                             <Eye size={21} strokeWidth={2.4} />
                           </button>
+                          
                           <button type="button" onClick={() => handleEdit(expense)} title="تعديل المصروف" className="flex h-10 w-10 items-center justify-center rounded-xl bg-yellow-400 text-[#081B33] shadow-lg transition hover:scale-105 hover:bg-yellow-300">
                             <Pencil size={21} strokeWidth={2.4} />
                           </button>

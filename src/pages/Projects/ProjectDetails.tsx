@@ -45,6 +45,25 @@ const getExpenseTotal = (expense: any) => {
   );
 };
 
+const getExpenseAttachment = (expense: any) => {
+  const attachmentUrl =
+    expense?.attachmentUrl ??
+    expense?.attachment_url ??
+    (typeof expense?.attachment === "string" && expense.attachment.startsWith("http")
+      ? expense.attachment
+      : null);
+  const attachmentPath =
+    expense?.attachmentPath ??
+    expense?.attachment_path ??
+    (typeof expense?.attachment === "string" && !expense.attachment.startsWith("http")
+      ? expense.attachment
+      : null);
+  return attachmentUrl || attachmentPath || null;
+};
+
+const getExpenseAttachmentName = (expense: any) =>
+  String(expense?.attachmentName ?? expense?.attachment_name ?? "المرفق");
+
 const localDateString = (date = new Date()) => {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -73,22 +92,11 @@ export default function ProjectDetails() {
   const [topCostItems, setTopCostItems] = useState<any[]>([]);
   const [showAllCostItems, setShowAllCostItems] = useState(false);
   const [showProjectExpenseOverview, setShowProjectExpenseOverview] = useState(false);
-  const [showVillaSummary, setShowVillaSummary] = useState(false);
+  const [showVillasOverview, setShowVillasOverview] = useState(false);
   const [editingVilla, setEditingVilla] = useState<ProjectVilla | null>(null);
   const [selectedVilla, setSelectedVilla] = useState<ProjectVilla | null>(null);
-  const [expenseVillaId, setExpenseVillaId] = useState<number | null>(null);
   const [loadingProjectData, setLoadingProjectData] = useState(true);
   const [projectDataError, setProjectDataError] = useState<string | null>(null);
-  // إجمالي مساحة المشروع - قيمة يدوية محفوظة مع المشروع
-const [projectTotalArea, setProjectTotalArea] = useState<number>(
-  Number((project as any)?.total_area ?? 0)
-);
-
-const [editingProjectArea, setEditingProjectArea] = useState(false);
-const [projectAreaInput, setProjectAreaInput] = useState(
-  String(Number((project as any)?.total_area ?? 0) || "")
-);
-const [savingProjectArea, setSavingProjectArea] = useState(false);
 
   // Expense management state
   const [accounts, setAccounts] = useState<any[]>([]);
@@ -96,23 +104,31 @@ const [savingProjectArea, setSavingProjectArea] = useState(false);
   const [editingExpense, setEditingExpense] = useState<any | null>(null);
   const [selectedExpense, setSelectedExpense] = useState<any | null>(null);
   const [openExpenseExport, setOpenExpenseExport] = useState<string | null>(null);
+  const [expenseReferenceDate, setExpenseReferenceDate] = useState(localDateString());
+
+  // إجمالي مساحة المشروع قابل للتعديل من كارت إجمالي المساحة.
+  const [projectTotalArea, setProjectTotalArea] = useState<number>(0);
+  const [editingProjectArea, setEditingProjectArea] = useState(false);
+  const [projectAreaInput, setProjectAreaInput] = useState("");
+  const [savingProjectArea, setSavingProjectArea] = useState(false);
 
   // Lookup data used by the project expense table.
   const [categories, setCategories] = useState<any[]>([]);
   const [expenseItems, setExpenseItems] = useState<any[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
+  const [stages, setStages] = useState<any[]>([]);
 
   const expenseRows = projectExpenses;
 
   const todayKey = localDateString();
-  const todayDate = new Date();
-  const weekStartDate = new Date(todayDate);
+  const referenceDateObject = new Date(`${expenseReferenceDate}T00:00:00`);
+  const weekStartDate = new Date(referenceDateObject);
   weekStartDate.setHours(0, 0, 0, 0);
-  weekStartDate.setDate(todayDate.getDate() - todayDate.getDay());
+  weekStartDate.setDate(referenceDateObject.getDate() - referenceDateObject.getDay());
 
   const weekStartKey = localDateString(weekStartDate);
   const monthStartKey = localDateString(
-    new Date(todayDate.getFullYear(), todayDate.getMonth(), 1)
+    new Date(referenceDateObject.getFullYear(), referenceDateObject.getMonth(), 1)
   );
 
   const getExpenseDateValue = (expense: any) =>
@@ -157,6 +173,26 @@ const [savingProjectArea, setSavingProjectArea] = useState(false);
     [categories]
   );
 
+  const stageNameMap = useMemo(
+    () =>
+      new Map<number, string>(
+        stages.map((stage: any) => [
+          Number(stage.id),
+          String(stage.name ?? "غير محدد"),
+        ])
+      ),
+    [stages]
+  );
+
+  const getExpenseStageName = (expense: any) => {
+    const directStageId = expense?.stageId ?? expense?.stage_id;
+    const category = categories.find(
+      (item: any) => Number(item.id) === Number(expense?.categoryId ?? expense?.category_id)
+    );
+    const stageId = directStageId ?? category?.stage_id ?? category?.stageId;
+    return stageId ? stageNameMap.get(Number(stageId)) ?? "غير محدد" : "غير محدد";
+  };
+
   const itemNameMap = useMemo(
     () =>
       new Map<number, string>(
@@ -184,21 +220,6 @@ const [savingProjectArea, setSavingProjectArea] = useState(false);
 
     setLoadingProjectData(true);
     setProjectDataError(null);
-    // تحميل إجمالي مساحة المشروع المحفوظة من Supabase
-const { data: projectRow, error: projectAreaError } = await supabase
-  .from("projects")
-  .select("total_area")
-  .eq("id", project.id)
-  .single();
-
-if (projectAreaError) {
-  console.error("خطأ في تحميل إجمالي مساحة المشروع:", projectAreaError);
-} else {
-  const savedArea = Number(projectRow?.total_area ?? 0);
-
-  setProjectTotalArea(savedArea);
-  setProjectAreaInput(savedArea > 0 ? String(savedArea) : "");
-}
 
     const [
       expensesResult,
@@ -208,6 +229,8 @@ if (projectAreaError) {
       categoriesResult,
       itemsResult,
       suppliersResult,
+      stagesResult,
+      projectMetaResult,
     ] = await Promise.all([
       supabase
         .from("expenses")
@@ -233,7 +256,7 @@ if (projectAreaError) {
 
       supabase
         .from("categories")
-        .select("id, name")
+        .select("id, name, stage_id")
         .order("id", { ascending: true }),
 
       supabase
@@ -245,6 +268,18 @@ if (projectAreaError) {
         .from("suppliers")
         .select("id, name")
         .order("id", { ascending: true }),
+
+      supabase
+        .from("expense_stages")
+        .select("id, name, is_active")
+        .eq("is_active", true)
+        .order("id", { ascending: true }),
+
+      supabase
+        .from("projects")
+        .select("id, total_area")
+        .eq("id", project.id)
+        .maybeSingle(),
     ]);
 
     if (expensesResult.error) {
@@ -318,6 +353,22 @@ if (projectAreaError) {
       setSuppliers(suppliersResult.data ?? []);
     }
 
+    if (stagesResult.error) {
+      console.warn("تعذر تحميل مراحل المصروفات:", stagesResult.error);
+      setStages([]);
+    } else {
+      setStages(stagesResult.data ?? []);
+    }
+
+    const fallbackArea = (villasResult.data ?? []).reduce(
+      (sum: number, villa: any) => sum + Number(villa.area ?? 0),
+      0
+    );
+    const storedArea = Number(projectMetaResult.data?.total_area ?? 0);
+    const resolvedArea = storedArea > 0 ? storedArea : fallbackArea;
+    setProjectTotalArea(resolvedArea);
+    setProjectAreaInput(String(resolvedArea || ""));
+
     const normalizedExpenses = (expensesResult.data ?? []).map((row: any) => ({
       ...row,
       expenseDate: row.date ?? row.expense_date ?? row.entry_date ?? "",
@@ -326,6 +377,7 @@ if (projectAreaError) {
       villaId: row.villa_id ?? null,
       accountId: row.account_id ?? null,
       categoryId: row.category_id ?? null,
+      stageId: row.stage_id ?? null,
       itemId: row.item_id ?? null,
       supplier:
         row.supplier_name ??
@@ -362,10 +414,6 @@ if (projectAreaError) {
         .reduce((sum, expense) => sum + getExpenseTotal(expense), 0),
     [projectExpenses]
   );
-  const GENERAL_EXPENSE_VILLAS = 18;
-
-const generalExpensePerVilla =
-  generalProjectExpenses / GENERAL_EXPENSE_VILLAS;
 
   const villaCounts = useMemo(() => ({
     صغيرة: projectVillas.filter((villa) => villa.classification === "صغيرة").length,
@@ -373,116 +421,55 @@ const generalExpensePerVilla =
     كبيرة: projectVillas.filter((villa) => villa.classification === "كبيرة").length,
   }), [projectVillas]);
 
-const totalProjectArea = projectTotalArea;
+  const totalProjectArea = projectTotalArea;
+
+  // سعر المتر الحالي للمشروع = إجمالي المصاريف ÷ إجمالي مساحة المشروع.
+  const currentProjectMeterPrice = useMemo(
+    () => (totalProjectArea > 0 ? totalProjectExpenses / totalProjectArea : 0),
+    [totalProjectExpenses, totalProjectArea]
+  );
+
+  const saveProjectTotalArea = async () => {
+    const area = Number(projectAreaInput);
+
+    if (!Number.isFinite(area) || area <= 0) {
+      alert("من فضلك أدخل إجمالي مساحة صحيحة.");
+      return;
+    }
+
+    if (!project?.id) {
+      alert("المشروع غير موجود.");
+      return;
+    }
+
+    setSavingProjectArea(true);
+    try {
+      const { error } = await supabase
+        .from("projects")
+        .update({ total_area: area })
+        .eq("id", project.id);
+
+      if (error) {
+        alert(`تعذر حفظ إجمالي المساحة:\n${error.message}`);
+        return;
+      }
+
+      setProjectTotalArea(area);
+      setProjectAreaInput(String(area));
+      setEditingProjectArea(false);
+      alert("تم حفظ إجمالي مساحة المشروع بنجاح.");
+    } catch (error: any) {
+      alert(`حدث خطأ أثناء حفظ إجمالي المساحة:\n${error?.message ?? ""}`);
+    } finally {
+      setSavingProjectArea(false);
+    }
+  };
+
   const totalCostItems = useMemo(
     () => topCostItems.reduce((sum, item) => sum + Number(item.total ?? 0), 0),
     [topCostItems]
   );
-    const villaReportRows = useMemo(() => {
-    return projectVillas.map((villa) => {
-      const villaExpenseTotal = projectExpenses
-        .filter(
-          (expense) =>
-            Number(expense.villaId ?? expense.villa_id) === Number(villa.id)
-        )
-        .reduce((sum, expense) => sum + getExpenseTotal(expense), 0);
 
-      const villaGeneralExpenses = generalProjectExpenses / 18;
-
-      const totalExpenses =
-        villaGeneralExpenses + villaExpenseTotal;
-
-      return {
-        id: villa.id,
-        villaNumber: villa.villa_number,
-        name: villa.name || `فيلا ${villa.villa_number}`,
-        area: Number(villa.area ?? 0),
-        classification: villa.classification || "غير محدد",
-        generalExpenses: villaGeneralExpenses,
-        specialExpenses: villaExpenseTotal,
-        totalExpenses,
-      };
-    });
-  }, [projectVillas, projectExpenses, generalProjectExpenses]);
-
-  const villaReportGroups = useMemo(
-    () => ({
-      صغيرة: villaReportRows.filter(
-        (villa) => villa.classification === "صغيرة"
-      ),
-      متوسطة: villaReportRows.filter(
-        (villa) => villa.classification === "متوسطة"
-      ),
-      كبيرة: villaReportRows.filter(
-        (villa) => villa.classification === "كبيرة"
-      ),
-    }),
-    [villaReportRows]
-  );
-
-  const villaReportTotalArea = useMemo(
-    () =>
-      villaReportRows.reduce(
-        (sum, villa) => sum + villa.area,
-        0
-      ),
-    [villaReportRows]
-  );
-
-  const villaReportTotalCost = useMemo(
-    () =>
-      villaReportRows.reduce(
-        (sum, villa) => sum + villa.totalExpenses,
-        0
-      ),
-    [villaReportRows]
-  );
-
-  const currentProjectMeterPrice =
-    totalProjectArea > 0
-      ? totalProjectExpenses / totalProjectArea
-      : 0;
-const saveProjectTotalArea = async () => {
-  const area = Number(projectAreaInput);
-
-  if (!Number.isFinite(area) || area <= 0) {
-    alert("من فضلك أدخل إجمالي مساحة صحيحة.");
-    return;
-  }
-
-  if (!project?.id) {
-    alert("المشروع غير موجود.");
-    return;
-  }
-
-  setSavingProjectArea(true);
-
-  try {
-    const { error } = await supabase
-      .from("projects")
-      .update({
-        total_area: area,
-      })
-      .eq("id", project.id);
-
-    if (error) {
-      console.error("خطأ في حفظ إجمالي مساحة المشروع:", error);
-      alert(`تعذر حفظ إجمالي المساحة:\n${error.message}`);
-      return;
-    }
-
-    setProjectTotalArea(area);
-    setProjectAreaInput(String(area));
-    setEditingProjectArea(false);
-
-    alert("تم حفظ إجمالي مساحة المشروع بنجاح.");
-  } catch (error: any) {
-    console.error(error);
-    alert(`حدث خطأ أثناء حفظ إجمالي المساحة:\n${error?.message ?? ""}`);
-  } finally {
-    setSavingProjectArea(false);
-  }
-};
   const formatCostItem = (item: any) => ({
     name: String(item.name ?? "غير مصنف"),
     amount: Number(item.total ?? 0),
@@ -493,7 +480,7 @@ const saveProjectTotalArea = async () => {
   });
 
   const highestCostItems = useMemo(
-    () => topCostItems.slice(0, 3).map(formatCostItem),
+    () => topCostItems.slice(0, 5).map(formatCostItem),
     [topCostItems, totalCostItems]
   );
 
@@ -504,6 +491,55 @@ const saveProjectTotalArea = async () => {
         .slice(0, 3)
         .map(formatCostItem),
     [topCostItems, totalCostItems]
+  );
+
+  const getPeriodCostSummary = (period: "day" | "week" | "month" | "all") => {
+    const periodRows = expenseRows.filter((expense: any) => {
+      const date = getExpenseDateValue(expense);
+      if (period === "all") return true;
+      if (period === "day") return date === expenseReferenceDate;
+      if (period === "week") return date >= weekStartKey && date <= expenseReferenceDate;
+      return date >= monthStartKey && date <= expenseReferenceDate;
+    });
+
+    const totals = new Map<number, { name: string; total: number }>();
+    periodRows.forEach((expense: any) => {
+      const categoryId = Number(expense?.categoryId ?? expense?.category_id ?? 0);
+      const categoryName = categoryNameMap.get(categoryId) ?? "غير مصنف";
+      const total = getExpenseTotal(expense);
+      const key = categoryId || -1;
+      const current = totals.get(key);
+      totals.set(key, {
+        name: current?.name ?? categoryName,
+        total: (current?.total ?? 0) + total,
+      });
+    });
+
+    const items = Array.from(totals.values())
+      .filter((item) => item.total > 0)
+      .sort((a, b) => b.total - a.total);
+
+    const total = items.reduce((sum, item) => sum + item.total, 0);
+    const format = (item: { name: string; total: number } | undefined) =>
+      item
+        ? {
+            name: item.name,
+            amount: item.total,
+            percentage: total > 0 ? (item.total / total) * 100 : 0,
+          }
+        : null;
+
+    return { highest: format(items[0]), lowest: format(items[items.length - 1]) };
+  };
+
+  const expensePeriodCostSummaries = useMemo(
+    () => ({
+      day: getPeriodCostSummary("day"),
+      week: getPeriodCostSummary("week"),
+      month: getPeriodCostSummary("month"),
+      all: getPeriodCostSummary("all"),
+    }),
+    [expenseRows, expenseReferenceDate, weekStartKey, monthStartKey, categoryNameMap]
   );
 
   const allCostItems = useMemo(
@@ -529,16 +565,16 @@ const saveProjectTotalArea = async () => {
       <html dir="rtl">
         <head>
           <meta charset="UTF-8" />
-          <title>بنود تكاليف ${escapeHtml(project?.name ?? "المشروع")}</title>
+          <title>تصنيفات ${escapeHtml(project?.name ?? "المشروع")}</title>
         </head>
         <body>
           <table border="1">
             <tr>
-              <th colspan="4">جميع بنود تكاليف ${escapeHtml(project?.name ?? "المشروع")}</th>
+              <th colspan="4">جميع تصنيفات ${escapeHtml(project?.name ?? "المشروع")}</th>
             </tr>
             <tr>
               <th>#</th>
-              <th>اسم البند</th>
+              <th>اسم التصنيف</th>
               <th>إجمالي التكلفة</th>
               <th>النسبة</th>
             </tr>
@@ -560,7 +596,7 @@ const saveProjectTotalArea = async () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `بنود_تكاليف_${project?.name ?? "المشروع"}.xls`;
+    link.download = `تصنيفات_تكاليف_${project?.name ?? "المشروع"}.xls`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -593,7 +629,7 @@ const saveProjectTotalArea = async () => {
       <html lang="ar" dir="rtl">
         <head>
           <meta charset="UTF-8" />
-          <title>بنود تكاليف ${escapeHtml(project?.name ?? "المشروع")}</title>
+          <title>تصنيفات ${escapeHtml(project?.name ?? "المشروع")}</title>
           <style>
             * { box-sizing: border-box; }
             body {
@@ -657,13 +693,13 @@ const saveProjectTotalArea = async () => {
         </head>
         <body>
           <div class="header">
-            <h1>جميع بنود تكاليف ${escapeHtml(project?.name ?? "المشروع")}</h1>
+            <h1>جميع تصنيفات ${escapeHtml(project?.name ?? "المشروع")}</h1>
             <div class="date">${new Date().toLocaleDateString("ar-SA")}</div>
           </div>
 
           <div class="summary">
             <div class="summary-box">
-              <div class="summary-label">عدد البنود</div>
+              <div class="summary-label">عدد التصنيفات</div>
               <div class="summary-value">${allCostItems.length}</div>
             </div>
             <div class="summary-box">
@@ -676,7 +712,7 @@ const saveProjectTotalArea = async () => {
             <thead>
               <tr>
                 <th>#</th>
-                <th>اسم البند</th>
+                <th>اسم التصنيف</th>
                 <th>إجمالي التكلفة</th>
                 <th>النسبة</th>
               </tr>
@@ -701,114 +737,11 @@ const saveProjectTotalArea = async () => {
       printWindow.print();
       if (saveAsPdf) {
         // نفس نافذة الطباعة تسمح باختيار Microsoft Print to PDF / Save as PDF.
-        printWindow.document.title = `PDF - بنود تكاليف ${project?.name ?? "المشروع"}`;
+        printWindow.document.title = `PDF - تصنيفات تكاليف ${project?.name ?? "المشروع"}`;
       }
     }, 300);
   };
-  const exportVillaSummaryToExcel = () => {
-    const createRows = (rows: typeof villaReportRows) =>
-      rows
-        .map(
-          (villa) => `
-            <tr>
-              <td>${villa.villaNumber}</td>
-              <td>${escapeHtml(villa.name)}</td>
-              <td>${villa.area}</td>
-              <td>${villa.generalExpenses.toFixed(2)}</td>
-              <td>${villa.specialExpenses.toFixed(2)}</td>
-              <td>${villa.totalExpenses.toFixed(2)}</td>
-            </tr>
-          `
-        )
-        .join("");
 
-    const html = `
-      <html dir="rtl">
-        <head>
-          <meta charset="UTF-8" />
-          <title>تقرير فلل ${escapeHtml(project?.name ?? "المشروع")}</title>
-        </head>
-
-        <body>
-          <h2>تقرير فلل ${escapeHtml(project?.name ?? "المشروع")}</h2>
-
-          <h3>الفلل الصغيرة</h3>
-          <table border="1">
-            <tr>
-              <th>رقم الفيلا</th>
-              <th>اسم الفيلا</th>
-              <th>المساحة</th>
-              <th>المصاريف العامة</th>
-              <th>المصاريف الخاصة</th>
-              <th>الإجمالي</th>
-            </tr>
-            ${createRows(villaReportGroups.صغيرة)}
-          </table>
-
-          <br />
-
-          <h3>الفلل المتوسطة</h3>
-          <table border="1">
-            <tr>
-              <th>رقم الفيلا</th>
-              <th>اسم الفيلا</th>
-              <th>المساحة</th>
-              <th>المصاريف العامة</th>
-              <th>المصاريف الخاصة</th>
-              <th>الإجمالي</th>
-            </tr>
-            ${createRows(villaReportGroups.متوسطة)}
-          </table>
-
-          <br />
-
-          <h3>الفلل الكبيرة</h3>
-          <table border="1">
-            <tr>
-              <th>رقم الفيلا</th>
-              <th>اسم الفيلا</th>
-              <th>المساحة</th>
-              <th>المصاريف العامة</th>
-              <th>المصاريف الخاصة</th>
-              <th>الإجمالي</th>
-            </tr>
-            ${createRows(villaReportGroups.كبيرة)}
-          </table>
-
-          <br />
-
-          <h3>الإجماليات</h3>
-
-          <p>عدد الفلل: ${villaReportRows.length}</p>
-          <p>إجمالي مساحة الفلل: ${villaReportTotalArea.toLocaleString("ar-SA")} م²</p>
-          <p>إجمالي المصاريف: ${totalProjectExpenses.toLocaleString("ar-SA")} ريال</p>
-          <p>سعر المتر الحالي: ${currentProjectMeterPrice.toLocaleString("ar-SA", {
-            maximumFractionDigits: 2,
-          })} ريال / م²</p>
-
-          <p>صغيرة: ${villaReportGroups.صغيرة.length}</p>
-          <p>متوسطة: ${villaReportGroups.متوسطة.length}</p>
-          <p>كبيرة: ${villaReportGroups.كبيرة.length}</p>
-        </body>
-      </html>
-    `;
-
-    const blob = new Blob([html], {
-      type: "application/vnd.ms-excel;charset=utf-8;",
-    });
-
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-
-    link.href = url;
-    link.download = `تقرير_فلل_${project?.name ?? "المشروع"}.xls`;
-
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    URL.revokeObjectURL(url);
-  };
   const refreshProjectExpenses = async () => {
     await loadProjectData();
   };
@@ -816,7 +749,6 @@ const saveProjectTotalArea = async () => {
   const closeExpenseModal = () => {
     setShowExpenseModal(false);
     setEditingExpense(null);
-    setExpenseVillaId(null);
   };
 
   const handleEditExpense = (expense: any) => {
@@ -908,10 +840,8 @@ const saveProjectTotalArea = async () => {
     const accountId = Number(expense?.accountId);
     const categoryId = expense?.categoryId ? Number(expense.categoryId) : null;
     const itemId = expense?.itemId ? Number(expense.itemId) : null;
-    const villaId =
-      expense?.villaId && expense.villaId !== "general"
-        ? Number(expense.villaId)
-        : null;
+    // مشروع فلل تبوك: جميع المصروفات عامة على المشروع ولا ترتبط بفيلا.
+    const villaId = null;
 
     const amount = Number(expense?.amount ?? 0);
     const tax = Number(expense?.tax ?? 0);
@@ -997,6 +927,7 @@ const saveProjectTotalArea = async () => {
             villa_id: villaId,
             account_id: accountId,
             category_id: categoryId,
+            stage_id: expense?.stageId ? Number(expense.stageId) : Number(categories.find((c: any) => Number(c.id) === categoryId)?.stage_id ?? 0) || null,
             item_id: itemId,
             invoice_number: expense?.voucherNo || null,
             amount_before_tax: amount,
@@ -1004,6 +935,7 @@ const saveProjectTotalArea = async () => {
             total,
             payment_method: expense?.paymentMethod || null,
             description: expense?.description || null,
+            attachment_name: expense?.attachmentName || null,
           })
           .eq("id", expenseId);
 
@@ -1072,6 +1004,7 @@ const saveProjectTotalArea = async () => {
           villa_id: villaId,
           account_id: accountId,
           category_id: categoryId,
+          stage_id: expense?.stageId ? Number(expense.stageId) : Number(categories.find((c: any) => Number(c.id) === categoryId)?.stage_id ?? 0) || null,
           item_id: itemId,
           invoice_number: expense?.voucherNo || null,
           amount_before_tax: amount,
@@ -1079,6 +1012,7 @@ const saveProjectTotalArea = async () => {
           total,
           payment_method: expense?.paymentMethod || null,
           description: expense?.description || null,
+          attachment_name: expense?.attachmentName || null,
         };
 
         const supplierText = String(expense?.supplier ?? "").trim();
@@ -1123,9 +1057,9 @@ const saveProjectTotalArea = async () => {
     return expenseRows.filter((expense: any) => {
       const date = getExpenseDateValue(expense);
       if (period === "all") return true;
-      if (period === "day") return date === todayKey;
-      if (period === "week") return date >= weekStartKey && date <= todayKey;
-      return date >= monthStartKey && date <= todayKey;
+      if (period === "day") return date === expenseReferenceDate;
+      if (period === "week") return date >= weekStartKey && date <= expenseReferenceDate;
+      return date >= monthStartKey && date <= expenseReferenceDate;
     });
   };
 
@@ -1144,13 +1078,14 @@ const saveProjectTotalArea = async () => {
       month: getExpensePeriodTotal("month"),
       all: getExpensePeriodTotal("all"),
     }),
-    [expenseRows, todayKey, weekStartKey, monthStartKey]
+    [expenseRows, expenseReferenceDate, weekStartKey, monthStartKey]
   );
 
   const exportExpensesToExcel = (
     period: "day" | "week" | "month" | "all" = "all"
   ) => {
     const rows = getPeriodExpenses(period);
+    const projectName = project?.name ?? "المشروع";
     const periodLabel =
       period === "day"
         ? "مصروفات اليوم"
@@ -1166,11 +1101,11 @@ const saveProjectTotalArea = async () => {
           <tr>
             <td>${index + 1}</td>
             <td>${escapeHtml(expense.expenseDate || "-")}</td>
-            <td>${escapeHtml(villaNameMap.get(Number(expense.villaId)) ?? "مصروف عام")}</td>
+            <td>مصروف عام على المشروع</td>
+            <td>${escapeHtml(getExpenseStageName(expense))}</td>
             <td>${escapeHtml(accountNameMap.get(Number(expense.accountId)) ?? "-")}</td>
             <td>${escapeHtml(categoryNameMap.get(Number(expense.categoryId)) ?? "-")}</td>
             <td>${escapeHtml(itemNameMap.get(Number(expense.itemId)) ?? "-")}</td>
-            <td>${escapeHtml(expense.supplier || (expense.supplier_id ? supplierNameMap.get(Number(expense.supplier_id)) : "") || "-")}</td>
             <td>${Number(expense.amount ?? 0).toLocaleString("ar-SA")}</td>
             <td>${Number(expense.tax ?? 0).toLocaleString("ar-SA")}</td>
             <td>${getExpenseTotal(expense).toLocaleString("ar-SA")}</td>
@@ -1180,13 +1115,13 @@ const saveProjectTotalArea = async () => {
 
     const html = `
       <html dir="rtl">
-        <head><meta charset="UTF-8" /><title>${periodLabel} - ${escapeHtml(project?.name ?? "")}</title>
+        <head><meta charset="UTF-8" /><title>${periodLabel} - ${escapeHtml(projectName)}</title></head>
         <body>
-         <h2>${periodLabel} - ${escapeHtml(project?.name ?? "")}</h2>
+          <h2>${periodLabel} - ${escapeHtml(projectName)}</h2>
           <table border="1">
             <tr>
-              <th>#</th><th>التاريخ</th><th>الفيلا</th><th>العهدة</th>
-              <th>التصنيف</th><th>البند</th><th>المورد</th>
+              <th>#</th><th>التاريخ</th><th>الفيلا</th><th>المرحلة</th><th>العهدة</th>
+              <th>التصنيف</th><th>البند</th>
               <th>قبل الضريبة</th><th>الضريبة</th><th>الإجمالي</th>
             </tr>
             ${body}
@@ -1201,7 +1136,7 @@ const saveProjectTotalArea = async () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `${periodLabel}_${project?.name ?? "project"}.xls`;
+    link.download = `${periodLabel}_${projectName}.xls`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -1213,6 +1148,7 @@ const saveProjectTotalArea = async () => {
     period: "day" | "week" | "month" | "all" = "all"
   ) => {
     const rows = getPeriodExpenses(period);
+    const projectName = project?.name ?? "المشروع";
     const periodLabel =
       period === "day"
         ? "مصروفات اليوم"
@@ -1235,11 +1171,11 @@ const saveProjectTotalArea = async () => {
           <tr>
             <td>${index + 1}</td>
             <td>${escapeHtml(expense.expenseDate || "-")}</td>
-            <td>${escapeHtml(villaNameMap.get(Number(expense.villaId)) ?? "مصروف عام")}</td>
+            <td>مصروف عام على المشروع</td>
+            <td>${escapeHtml(getExpenseStageName(expense))}</td>
             <td>${escapeHtml(accountNameMap.get(Number(expense.accountId)) ?? "-")}</td>
             <td>${escapeHtml(categoryNameMap.get(Number(expense.categoryId)) ?? "-")}</td>
             <td>${escapeHtml(itemNameMap.get(Number(expense.itemId)) ?? "-")}</td>
-            <td>${escapeHtml(expense.supplier || (expense.supplier_id ? supplierNameMap.get(Number(expense.supplier_id)) : "") || "-")}</td>
             <td>${Number(expense.amount ?? 0).toLocaleString("ar-SA")}</td>
             <td>${Number(expense.tax ?? 0).toLocaleString("ar-SA")}</td>
             <td>${getExpenseTotal(expense).toLocaleString("ar-SA")}</td>
@@ -1252,7 +1188,7 @@ const saveProjectTotalArea = async () => {
       <html lang="ar" dir="rtl">
         <head>
           <meta charset="UTF-8" />
-          <title>${periodLabel} - ${escapeHtml(project?.name ?? "")}</title>
+          <title>${periodLabel} - ${escapeHtml(projectName)}</title>
           <style>
             body { margin:0; padding:24px; font-family:Arial,Tahoma,sans-serif; color:#111827; }
             h1 { margin-bottom:8px; }
@@ -1265,13 +1201,13 @@ const saveProjectTotalArea = async () => {
           </style>
         </head>
         <body>
-          <h1>${periodLabel} - ${escapeHtml(project?.name ?? "")}</h1>
-          <div class="meta">مشروع ${escapeHtml(project?.name ?? "")} - ${new Date().toLocaleDateString("ar-SA")}</div>
+          <h1>${periodLabel} - ${escapeHtml(projectName)}</h1>
+          <div class="meta">مشروع ${escapeHtml(projectName)} — ${new Date().toLocaleDateString("ar-SA")}</div>
           <div class="total">الإجمالي: ${getExpensePeriodTotal(period).toLocaleString("ar-SA")} ريال</div>
           <table>
             <tr>
-              <th>#</th><th>التاريخ</th><th>الفيلا</th><th>العهدة</th>
-              <th>التصنيف</th><th>البند</th><th>المورد</th>
+              <th>#</th><th>التاريخ</th><th>الفيلا</th><th>المرحلة</th><th>العهدة</th>
+              <th>التصنيف</th><th>البند</th>
               <th>قبل الضريبة</th><th>الضريبة</th><th>الإجمالي</th>
             </tr>
             ${body}
@@ -1376,6 +1312,464 @@ ${error?.message ?? ""}`);
       </div>
     );
   }
+  if (showProjectExpenseOverview) {
+    return (
+      <div className="min-h-[70vh] space-y-6 pb-10" dir="rtl">
+
+            <div className="flex shrink-0 items-center justify-between border-b border-white/10 bg-[#102947] px-7 py-5">
+              <div className="text-right">
+                <h2 className="text-2xl font-extrabold text-white">تفاصيل إجمالي مصروفات المشروع</h2>
+                <p className="mt-1 text-sm text-gray-400">كل ملخصات المصروفات والتفاصيل وبنود التكلفة الخاصة بـ {project.name}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowProjectExpenseOverview(false)}
+                className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-gray-300 hover:bg-red-500/20 hover:text-red-300"
+                aria-label="إغلاق تفاصيل المصروفات"
+              >
+                <X size={22} />
+              </button>
+            </div>
+
+      {/* =====================================================
+          EXPENSE SUMMARY - 4 CARDS
+      ===================================================== */}
+      <section className="space-y-5">
+        <div className="flex flex-col gap-4 rounded-3xl border border-white/10 bg-[#081B33] p-5 md:flex-row md:items-center md:justify-between">
+          <div className="text-right">
+            <h2 className="text-2xl font-extrabold text-white">
+              ملخص مصروفات المشروع
+            </h2>
+            <p className="mt-1 text-sm text-gray-400">
+              اليوم والأسبوع والشهر والإجمالي الكلي
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={refreshProjectExpenses}
+            className="flex items-center justify-center gap-2 rounded-xl border border-cyan-400/20 bg-cyan-400/10 px-5 py-3 font-bold text-cyan-300 transition hover:bg-cyan-400/20"
+          >
+            <RefreshCw size={18} />
+            تحديث
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
+          <ExpensePeriodCard
+            title="إجمالي مصاريف اليوم المحدد"
+            value={expensePeriodTotals.day}
+            period="day"
+            accent="orange"
+            openExport={openExpenseExport}
+            onOpenExport={setOpenExpenseExport}
+            onExport={handleExpenseExport}
+            referenceDate={expenseReferenceDate}
+            onReferenceDateChange={setExpenseReferenceDate}
+            highestCostItem={expensePeriodCostSummaries.day.highest}
+            lowestCostItem={expensePeriodCostSummaries.day.lowest}
+          />
+          <ExpensePeriodCard
+            title="إجمالي مصاريف الأسبوع حتى التاريخ"
+            value={expensePeriodTotals.week}
+            period="week"
+            accent="violet"
+            openExport={openExpenseExport}
+            onOpenExport={setOpenExpenseExport}
+            onExport={handleExpenseExport}
+            referenceDate={expenseReferenceDate}
+            onReferenceDateChange={setExpenseReferenceDate}
+            highestCostItem={expensePeriodCostSummaries.week.highest}
+            lowestCostItem={expensePeriodCostSummaries.week.lowest}
+          />
+          <ExpensePeriodCard
+            title="إجمالي مصاريف الشهر حتى التاريخ"
+            value={expensePeriodTotals.month}
+            period="month"
+            accent="amber"
+            openExport={openExpenseExport}
+            onOpenExport={setOpenExpenseExport}
+            onExport={handleExpenseExport}
+            referenceDate={expenseReferenceDate}
+            onReferenceDateChange={setExpenseReferenceDate}
+            highestCostItem={expensePeriodCostSummaries.month.highest}
+            lowestCostItem={expensePeriodCostSummaries.month.lowest}
+          />
+          <ExpensePeriodCard
+            title="إجمالي المصاريف"
+            value={expensePeriodTotals.all}
+            period="all"
+            accent="rose"
+            openExport={openExpenseExport}
+            onOpenExport={setOpenExpenseExport}
+            onExport={handleExpenseExport}
+            referenceDate={expenseReferenceDate}
+            onReferenceDateChange={setExpenseReferenceDate}
+            highestCostItem={expensePeriodCostSummaries.all.highest}
+            lowestCostItem={expensePeriodCostSummaries.all.lowest}
+          />
+        </div>
+
+      {/* =====================================================
+          TOP 5 CATEGORIES
+      ===================================================== */}
+      <section className="overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#102A43] via-[#0E233A] to-[#081727] shadow-2xl">
+        <div className="flex flex-col gap-4 border-b border-white/10 px-6 py-5 md:flex-row md:items-center md:justify-between">
+          <div className="text-right">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-emerald-400/20 bg-emerald-400/10 text-emerald-300">
+                <WalletCards size={22} />
+              </div>
+              <div>
+                <h2 className="text-2xl font-extrabold text-white">أكثر 5 تصنيفات تكلفة</h2>
+                <p className="mt-1 text-sm text-gray-400">مرتبة من الأعلى إلى الأقل حسب إجمالي المصروفات</p>
+              </div>
+            </div>
+          </div>
+          <div className="rounded-2xl border border-yellow-400/20 bg-yellow-400/10 px-5 py-3 text-center">
+            <p className="text-xs font-semibold text-gray-400">إجمالي المصروفات</p>
+            <p className="mt-1 text-xl font-extrabold text-yellow-400">{totalProjectExpenses.toLocaleString("ar-SA")} ريال</p>
+          </div>
+        </div>
+
+        <div className="divide-y divide-white/10">
+          {highestCostItems.length > 0 ? highestCostItems.map((item: any, index: number) => (
+            <div key={`${item.name}-${index}`} className="grid grid-cols-[48px_1fr_150px_110px] items-center gap-4 px-6 py-4 transition hover:bg-white/[0.03]">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-emerald-400/20 bg-emerald-400/10 text-sm font-extrabold text-emerald-300">{index + 1}</span>
+              <div className="min-w-0">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="truncate font-bold text-white">{item.name}</span>
+                  <span className="text-xs text-gray-500">{item.percentage.toFixed(1)}%</span>
+                </div>
+                <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/10">
+                  <div className="h-full rounded-full bg-emerald-400" style={{ width: `${Math.min(100, Math.max(0, item.percentage))}%` }} />
+                </div>
+              </div>
+              <div className="text-center font-extrabold text-white">{Number(item.amount).toLocaleString("ar-SA")} <span className="text-xs text-gray-500">ريال</span></div>
+              <div className="text-center"><span className="inline-flex rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-sm font-extrabold text-emerald-300">{item.percentage.toFixed(1)}%</span></div>
+            </div>
+          )) : (
+            <div className="px-6 py-12 text-center text-gray-400">لا توجد تصنيفات مصروفة حتى الآن.</div>
+          )}
+        </div>
+
+        <div className="border-t border-white/10 p-5">
+          <button type="button" onClick={() => setShowAllCostItems(true)} className="w-full rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-5 py-3 font-bold text-cyan-300 transition hover:bg-cyan-400/20">
+            عرض جميع التصنيفات
+            <span className="mr-2">←</span>
+          </button>
+        </div>
+      </section>
+
+
+        <div className="overflow-hidden rounded-3xl border border-white/10 bg-[#081B33] shadow-xl">
+          <div className="flex flex-col gap-4 border-b border-white/10 bg-[#102947] p-5 xl:flex-row xl:items-center xl:justify-between">
+            <div className="text-right">
+              <h2 className="text-2xl font-extrabold text-white">
+                تفاصيل مصروفات المشروع
+              </h2>
+              <p className="mt-1 text-sm text-gray-400">
+                نفس تفاصيل قائمة المصروفات بالمركز المالي
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingExpense(null);
+                  setShowExpenseModal(true);
+                }}
+                className="flex items-center gap-2 rounded-xl bg-yellow-400 px-5 py-3 font-bold text-[#081B33] transition hover:bg-yellow-300"
+              >
+                <Plus size={18} />
+                إضافة مصروف
+              </button>
+
+              <button
+                type="button"
+                onClick={refreshProjectExpenses}
+                className="flex items-center gap-2 rounded-xl border border-cyan-400/20 bg-cyan-400/10 px-4 py-3 font-bold text-cyan-300 transition hover:bg-cyan-400/20"
+              >
+                <RefreshCw size={17} />
+                تحديث
+              </button>
+
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setOpenExpenseExport(
+                      openExpenseExport === "table" ? null : "table"
+                    )
+                  }
+                  className="flex items-center gap-2 rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 font-bold text-emerald-300 transition hover:bg-emerald-400/20"
+                >
+                  <Download size={17} />
+                  تصدير
+                  <ChevronDown size={15} />
+                </button>
+
+                {openExpenseExport === "table" && (
+                  <div className="absolute right-0 top-14 z-50 w-52 overflow-hidden rounded-2xl border border-white/10 bg-[#102947] p-1 shadow-2xl">
+                    <button
+                      type="button"
+                      onClick={() => handleExpenseExport("all", "pdf")}
+                      className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-right text-sm text-white hover:bg-white/10"
+                    >
+                      <FileText size={17} className="text-red-400" />
+                      PDF / حفظ PDF
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleExpenseExport("all", "excel")}
+                      className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-right text-sm text-white hover:bg-white/10"
+                    >
+                      <FileSpreadsheet size={17} className="text-green-400" />
+                      Excel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleExpenseExport("all", "print")}
+                      className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-right text-sm text-white hover:bg-white/10"
+                    >
+                      <Printer size={17} className="text-sky-400" />
+                      طباعة
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="min-w-[2200px] w-max text-sm text-white">
+              <thead className="bg-[#102947] text-gray-300">
+                <tr>
+                  <th className="p-3 text-center">التاريخ</th>
+                  <th className="p-3 text-center">رقم الفاتورة</th>
+                  <th className="p-3 text-center">الفيلا</th>
+                  <th className="p-3 text-center">المرحلة</th>
+                  <th className="p-3 text-center">العهدة</th>
+                  <th className="p-3 text-center">التصنيف</th>
+                  <th className="p-3 text-center">البند</th>
+                  <th className="p-3 text-center">طريقة الدفع</th>
+                  <th className="p-3 text-center">المرفقات</th>
+                  <th className="p-3 text-center">قبل الضريبة</th>
+                  <th className="p-3 text-center">الضريبة</th>
+                  <th className="p-3 text-center">الإجمالي</th>
+                  <th className="p-3 text-center">الإجراءات</th>
+                </tr>
+              </thead>
+
+              <tbody className="divide-y divide-white/10">
+                {loadingProjectData ? (
+                  <tr>
+                    <td colSpan={14} className="p-10 text-center text-gray-400">
+                      جاري تحميل المصروفات...
+                    </td>
+                  </tr>
+                ) : expenseRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={14} className="p-10 text-center text-gray-400">
+                      لا توجد مصروفات لهذا المشروع حتى الآن.
+                    </td>
+                  </tr>
+                ) : (
+                  expenseRows.map((expense: any) => (
+                    <tr
+                      key={String(expense.id)}
+                      className="transition hover:bg-white/[0.03]"
+                    >
+                      <td className="p-3 text-center text-gray-300">
+                        {expense.expenseDate || "-"}
+                      </td>
+                      <td className="p-3 text-center whitespace-nowrap">
+                        {expense.voucherNo || "-"}
+                      </td>
+                      <td className="p-3 text-center whitespace-nowrap">
+                        مصروف عام على المشروع
+                      </td>
+                      <td className="p-3 text-center font-semibold text-cyan-300">
+                        {getExpenseStageName(expense)}
+                      </td>
+                      <td className="p-3 text-center whitespace-nowrap">
+                        {accountNameMap.get(Number(expense.accountId)) ?? "-"}
+                      </td>
+                      <td className="p-3 text-center">
+                        {categoryNameMap.get(Number(expense.categoryId)) ?? "-"}
+                      </td>
+                      <td className="p-3 text-center whitespace-nowrap">
+                        {itemNameMap.get(Number(expense.itemId)) ?? "-"}
+                      </td>
+                      <td className="p-3 text-center whitespace-nowrap">
+  {formatPaymentMethod(expense.paymentMethod)}
+</td>
+
+<td className="p-3 text-center whitespace-nowrap">
+  {getExpenseAttachment(expense) ? (
+    <button
+      type="button"
+      onClick={async () => {
+        const { data, error } = await supabase.storage
+          .from("funding-attachments")
+          .createSignedUrl(getExpenseAttachment(expense), 300);
+
+        if (error || !data?.signedUrl) {
+          console.error("خطأ فتح المرفق:", error);
+          alert("تعذر فتح المرفق");
+          return;
+        }
+
+        window.open(
+          data.signedUrl,
+          "_blank",
+          "noopener,noreferrer"
+        );
+      }}
+      className="rounded-lg bg-sky-500 px-3 py-2 text-xs font-bold text-white hover:bg-sky-600"
+    >
+      عرض المرفق
+    </button>
+  ) : (
+    <span className="text-gray-500">لا يوجد</span>
+  )}
+</td>
+
+<td className="p-3 text-center font-semibold">
+  {Number(expense.amount ?? 0).toLocaleString("ar-SA")}
+</td>
+
+<td className="p-3 text-center whitespace-nowrap">
+  {Number(expense.tax ?? 0).toLocaleString("ar-SA")}
+</td>
+
+<td className="p-3 text-center font-bold text-yellow-400">
+  {getExpenseTotal(expense).toLocaleString("ar-SA")}
+</td>                 <td className="p-3 text-center whitespace-nowrap">
+                        {Number(expense.tax ?? 0).toLocaleString("ar-SA")}
+                      </td>
+                      <td className="p-3 text-center font-bold text-yellow-400">
+                        {getExpenseTotal(expense).toLocaleString("ar-SA")}
+                      </td>
+                     <td className="p-3 text-center whitespace-nowrap">
+                        {getExpenseAttachment(expense) ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+  const attachment = getExpenseAttachment(expense);
+  if (!attachment) return;
+
+  const attachmentString = String(attachment);
+
+  const url =
+    attachmentString.startsWith("http://") ||
+    attachmentString.startsWith("https://")
+      ? attachmentString
+      : attachmentString.startsWith("/")
+        ? attachmentString
+        : `/${attachmentString}`;
+
+  window.open(url, "_blank", "noopener,noreferrer");
+}}
+                            className="inline-flex items-center gap-1 rounded-lg bg-sky-500 px-3 py-2 text-xs font-bold text-white hover:bg-sky-600"
+                            title={getExpenseAttachmentName(expense)}
+                          >
+                            <Eye size={14} />
+                            عرض المرفق
+                          </button>
+                        ) : (
+                          <span className="text-xs text-gray-500">لا يوجد</span>
+                        )}
+                      </td>
+                      <td className="p-3">
+                        <div className="flex justify-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedExpense(expense)}
+                            className="flex items-center gap-1 rounded-lg bg-sky-500 px-3 py-2 text-xs font-bold text-white hover:bg-sky-600"
+                          >
+                            <Eye size={14} />
+                            عرض
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleEditExpense(expense)}
+                            className="flex items-center gap-1 rounded-lg bg-yellow-500 px-3 py-2 text-xs font-bold text-[#081B33] hover:bg-yellow-400"
+                          >
+                            <Pencil size={14} />
+                            تعديل
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteExpense(expense)}
+                            className="flex items-center gap-1 rounded-lg bg-red-500 px-3 py-2 text-xs font-bold text-white hover:bg-red-600"
+                          >
+                            <Trash2 size={14} />
+                            حذف
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      {selectedExpense && (
+        <ExpenseDetailsModal
+          expense={selectedExpense}
+          projectName={project.name}
+          villaName="مصروف عام على المشروع"
+          accountName={
+            accountNameMap.get(Number(selectedExpense.accountId)) ?? "-"
+          }
+          categoryName={
+            categoryNameMap.get(Number(selectedExpense.categoryId)) ?? "-"
+          }
+          stageName={getExpenseStageName(selectedExpense)}
+          itemName={itemNameMap.get(Number(selectedExpense.itemId)) ?? "-"}
+          onClose={() => setSelectedExpense(null)}
+        />
+      )}
+
+      {showExpenseModal && (
+        <ExpenseModal
+          open={showExpenseModal}
+          onClose={closeExpenseModal}
+          onSave={handleSaveExpense}
+          accounts={accounts}
+          initialExpense={editingExpense}
+          isEditing={Boolean(editingExpense)}
+          forcedProjectId={project.id}
+          hideSupplier
+          forceGeneralExpense
+        />
+      )}
+
+
+      {showAllCostItems && (
+        <AllCostItemsModal
+          projectName={project?.name ?? "المشروع"}
+          items={allCostItems}
+          total={totalCostItems}
+          onClose={() => setShowAllCostItems(false)}
+          onExportExcel={exportCostItemsToExcel}
+          onExportPdf={() => printCostItems(true)}
+          onPrint={() => printCostItems(false)}
+        />
+      )}
+
+
+
+
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8 pb-10">
 
@@ -1598,129 +1992,47 @@ ${error?.message ?? ""}`);
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-5">
 
           {/* 1 - CURRENT PRICE */}
-<ProjectKpi
-  icon={<Calculator size={46} />}
-  title="سعر المتر الحالي"
-  value={
-  totalProjectArea > 0
-    ? (totalProjectExpenses / totalProjectArea).toLocaleString("ar-SA", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      })
-    : "0"
-}
-  suffix="ريال / م²"
-  cardClass="
-    from-[#4D3D21]
-    via-[#393020]
-    to-[#222132]
-    border-amber-400/20
-  "
-/>
+          <ProjectKpi
+            icon={<Calculator size={46} />}
+            title="سعر المتر الحالي"
+            value={currentProjectMeterPrice.toLocaleString("ar-SA", { maximumFractionDigits: 2 })}
+            suffix="ريال / م²"
+            cardClass="
+              from-[#4D3D21]
+              via-[#393020]
+              to-[#222132]
+              border-amber-400/20
+            "
+          />
 
           {/* 2 - TOTAL AREA */}
-<ProjectKpi
-  icon={<Ruler size={46} />}
-  title="إجمالي المساحة"
-  value={totalProjectArea.toLocaleString("ar-SA")}
-  suffix="م²"
-  cardClass="
-    from-[#413462]
-    via-[#30284F]
-    to-[#1D203A]
-    border-violet-400/20
-  "
->
-  <div className="mt-4 flex justify-end">
-    {!editingProjectArea ? (
-      <button
-        type="button"
-        onClick={() => {
-          setProjectAreaInput(String(totalProjectArea || ""));
-          setEditingProjectArea(true);
-        }}
-        className="
-          flex items-center gap-2
-          rounded-xl
-          border border-yellow-400/20
-          bg-yellow-400/10
-          px-4 py-2
-          text-sm font-bold
-          text-yellow-300
-          transition
-          hover:bg-yellow-400
-          hover:text-[#081B33]
-        "
-      >
-        <Pencil size={16} />
-        تعديل المساحة
-      </button>
-    ) : (
-      <div className="flex w-full items-center gap-2">
-        <input
-          type="number"
-          value={projectAreaInput}
-          onChange={(e) => setProjectAreaInput(e.target.value)}
-          placeholder="أدخل إجمالي المساحة"
-          className="
-            min-w-0 flex-1
-            rounded-xl
-            border border-white/10
-            bg-black/20
-            px-3 py-2
-            text-center
-            font-bold
-            text-white
-            outline-none
-            focus:border-yellow-400/50
-          "
-          autoFocus
-        />
-
-        <button
-          type="button"
-          onClick={saveProjectTotalArea}
-          disabled={savingProjectArea}
-          className="
-            rounded-xl
-            border border-emerald-400/20
-            bg-emerald-400/10
-            px-4 py-2
-            text-sm font-bold
-            text-emerald-300
-            transition
-            hover:bg-emerald-400
-            hover:text-[#081B33]
-            disabled:opacity-50
-          "
-        >
-          {savingProjectArea ? "جاري..." : "حفظ"}
-        </button>
-
-        <button
-          type="button"
-          onClick={() => {
-            setProjectAreaInput(String(totalProjectArea || ""));
-            setEditingProjectArea(false);
-          }}
-          className="
-            rounded-xl
-            border border-rose-400/20
-            bg-rose-400/10
-            px-4 py-2
-            text-sm font-bold
-            text-rose-300
-            transition
-            hover:bg-rose-400
-            hover:text-white
-          "
-        >
-          إلغاء
-        </button>
-      </div>
-    )}
-  </div>
-</ProjectKpi>
+          <ProjectKpi
+            icon={<Ruler size={46} />}
+            title="إجمالي المساحة"
+            value={totalProjectArea.toLocaleString("ar-SA")}
+            suffix="م²"
+            cardClass="
+              from-[#413462]
+              via-[#30284F]
+              to-[#1D203A]
+              border-violet-400/20
+            "
+          >
+            <div className="mt-4 flex justify-end">
+              {!editingProjectArea ? (
+                <button type="button" onClick={() => { setProjectAreaInput(String(totalProjectArea || "")); setEditingProjectArea(true); }} className="flex items-center gap-2 rounded-xl border border-yellow-400/20 bg-yellow-400/10 px-4 py-2 text-sm font-bold text-yellow-300 transition hover:bg-yellow-400 hover:text-[#081B33]">
+                  <Pencil size={16} />
+                  تعديل المساحة
+                </button>
+              ) : (
+                <div className="flex w-full items-center gap-2">
+                  <input type="number" value={projectAreaInput} onChange={(e) => setProjectAreaInput(e.target.value)} className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-center font-bold text-white outline-none focus:border-yellow-400/50" autoFocus />
+                  <button type="button" onClick={saveProjectTotalArea} disabled={savingProjectArea} className="rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-2 text-sm font-bold text-emerald-300 transition hover:bg-emerald-400 hover:text-[#081B33] disabled:opacity-50">{savingProjectArea ? "جاري..." : "حفظ"}</button>
+                  <button type="button" onClick={() => setEditingProjectArea(false)} className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-bold text-gray-300 hover:bg-white/10">إلغاء</button>
+                </div>
+              )}
+            </div>
+          </ProjectKpi>
 
           {/* 3 - PROJECT STATUS */}
           <ProjectKpi
@@ -1737,11 +2049,11 @@ ${error?.message ?? ""}`);
 
           {/* 4 - TOTAL VILLAS */}
           <ProjectKpi
-  icon={<Building2 size={46} />}
-  title="إجمالي الفلل"
-  value={String(projectVillas.length || 18)}
-  suffix="فيلا"
-  onClick={() => setShowVillaSummary(true)}
+            icon={<Building2 size={46} />}
+            title="إجمالي الفلل"
+            value={String(projectVillas.length || 18)}
+            suffix="فيلا"
+            onClick={() => setShowVillasOverview(true)}
             cardClass="
               from-[#173F68]
               via-[#123455]
@@ -1762,7 +2074,7 @@ ${error?.message ?? ""}`);
             title="إجمالي المصاريف"
             value={totalProjectExpenses.toLocaleString("ar-SA")}
             suffix="ريال"
-            onClick={() => navigate(`/projects/${project.id}/expenses`)}
+            onClick={() => setShowProjectExpenseOverview(true)}
             cardClass="
               from-[#4C2B3B]
               via-[#362336]
@@ -1774,365 +2086,6 @@ ${error?.message ?? ""}`);
         </div>
 
       </section>
-
-      {showProjectExpenseOverview && (
-        <div
-          className="fixed inset-0 z-[95] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) setShowProjectExpenseOverview(false);
-          }}
-        >
-          <div className="flex max-h-[94vh] w-full max-w-[1600px] flex-col overflow-hidden rounded-3xl border border-white/10 bg-[#071A2E] shadow-2xl">
-            <div className="flex shrink-0 items-center justify-between border-b border-white/10 bg-[#102947] px-7 py-5">
-              <div className="text-right">
-                <h2 className="text-2xl font-extrabold text-white">تفاصيل إجمالي مصروفات المشروع</h2>
-                <p className="mt-1 text-sm text-gray-400">كل ملخصات المصروفات والتفاصيل وبنود التكلفة الخاصة بـ {project.name}</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowProjectExpenseOverview(false)}
-                className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-gray-300 hover:bg-red-500/20 hover:text-red-300"
-                aria-label="إغلاق تفاصيل المصروفات"
-              >
-                <X size={22} />
-              </button>
-            </div>
-            <div className="min-h-0 flex-1 overflow-y-auto p-5 md:p-7">
-      {/* =====================================================
-          EXPENSE SUMMARY - 4 CARDS
-      ===================================================== */}
-      <section className="space-y-5">
-        <div className="flex flex-col gap-4 rounded-3xl border border-white/10 bg-[#081B33] p-5 md:flex-row md:items-center md:justify-between">
-          <div className="text-right">
-            <h2 className="text-2xl font-extrabold text-white">
-              ملخص مصروفات المشروع
-            </h2>
-            <p className="mt-1 text-sm text-gray-400">
-              اليوم والأسبوع والشهر والإجمالي الكلي
-            </p>
-          </div>
-
-          <button
-            type="button"
-            onClick={refreshProjectExpenses}
-            className="flex items-center justify-center gap-2 rounded-xl border border-cyan-400/20 bg-cyan-400/10 px-5 py-3 font-bold text-cyan-300 transition hover:bg-cyan-400/20"
-          >
-            <RefreshCw size={18} />
-            تحديث
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
-          <ExpensePeriodCard
-            title="إجمالي مصاريف اليوم"
-            value={expensePeriodTotals.day}
-            period="day"
-            accent="orange"
-            openExport={openExpenseExport}
-            onOpenExport={setOpenExpenseExport}
-            onExport={handleExpenseExport}
-          />
-          <ExpensePeriodCard
-            title="إجمالي مصاريف الأسبوع"
-            value={expensePeriodTotals.week}
-            period="week"
-            accent="violet"
-            openExport={openExpenseExport}
-            onOpenExport={setOpenExpenseExport}
-            onExport={handleExpenseExport}
-          />
-          <ExpensePeriodCard
-            title="إجمالي مصاريف الشهر"
-            value={expensePeriodTotals.month}
-            period="month"
-            accent="amber"
-            openExport={openExpenseExport}
-            onOpenExport={setOpenExpenseExport}
-            onExport={handleExpenseExport}
-          />
-          <ExpensePeriodCard
-            title="إجمالي المصاريف"
-            value={expensePeriodTotals.all}
-            period="all"
-            accent="rose"
-            openExport={openExpenseExport}
-            onOpenExport={setOpenExpenseExport}
-            onExport={handleExpenseExport}
-          />
-        </div>
-
-        <div className="overflow-hidden rounded-3xl border border-white/10 bg-[#081B33] shadow-xl">
-          <div className="flex flex-col gap-4 border-b border-white/10 bg-[#102947] p-5 xl:flex-row xl:items-center xl:justify-between">
-            <div className="text-right">
-              <h2 className="text-2xl font-extrabold text-white">
-                تفاصيل مصروفات المشروع
-              </h2>
-              <p className="mt-1 text-sm text-gray-400">
-                نفس تفاصيل قائمة المصروفات بالمركز المالي
-              </p>
-            </div>
-
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setEditingExpense(null);
-                  setShowExpenseModal(true);
-                }}
-                className="flex items-center gap-2 rounded-xl bg-yellow-400 px-5 py-3 font-bold text-[#081B33] transition hover:bg-yellow-300"
-              >
-                <Plus size={18} />
-                إضافة مصروف
-              </button>
-
-              <button
-                type="button"
-                onClick={refreshProjectExpenses}
-                className="flex items-center gap-2 rounded-xl border border-cyan-400/20 bg-cyan-400/10 px-4 py-3 font-bold text-cyan-300 transition hover:bg-cyan-400/20"
-              >
-                <RefreshCw size={17} />
-                تحديث
-              </button>
-
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() =>
-                    setOpenExpenseExport(
-                      openExpenseExport === "table" ? null : "table"
-                    )
-                  }
-                  className="flex items-center gap-2 rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 font-bold text-emerald-300 transition hover:bg-emerald-400/20"
-                >
-                  <Download size={17} />
-                  تصدير
-                  <ChevronDown size={15} />
-                </button>
-
-                {openExpenseExport === "table" && (
-                  <div className="absolute right-0 top-14 z-50 w-52 overflow-hidden rounded-2xl border border-white/10 bg-[#102947] p-1 shadow-2xl">
-                    <button
-                      type="button"
-                      onClick={() => handleExpenseExport("all", "pdf")}
-                      className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-right text-sm text-white hover:bg-white/10"
-                    >
-                      <FileText size={17} className="text-red-400" />
-                      PDF / حفظ PDF
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleExpenseExport("all", "excel")}
-                      className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-right text-sm text-white hover:bg-white/10"
-                    >
-                      <FileSpreadsheet size={17} className="text-green-400" />
-                      Excel
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleExpenseExport("all", "print")}
-                      className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-right text-sm text-white hover:bg-white/10"
-                    >
-                      <Printer size={17} className="text-sky-400" />
-                      طباعة
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="min-w-[1500px] w-full text-sm text-white">
-              <thead className="bg-[#102947] text-gray-300">
-                <tr>
-                  <th className="p-3 text-center">التاريخ</th>
-                  <th className="p-3 text-center">رقم الفاتورة</th>
-                  <th className="p-3 text-center">الفيلا</th>
-                  <th className="p-3 text-center">العهدة</th>
-                  <th className="p-3 text-center">التصنيف</th>
-                  <th className="p-3 text-center">البند</th>
-                  <th className="p-3 text-center">المورد</th>
-                  <th className="p-3 text-center">طريقة الدفع</th>
-                  <th className="p-3 text-center">قبل الضريبة</th>
-                  <th className="p-3 text-center">الضريبة</th>
-                  <th className="p-3 text-center">الإجمالي</th>
-                  <th className="p-3 text-center">الإجراءات</th>
-                </tr>
-              </thead>
-
-              <tbody className="divide-y divide-white/10">
-                {loadingProjectData ? (
-                  <tr>
-                    <td colSpan={12} className="p-10 text-center text-gray-400">
-                      جاري تحميل المصروفات...
-                    </td>
-                  </tr>
-                ) : expenseRows.length === 0 ? (
-                  <tr>
-                    <td colSpan={12} className="p-10 text-center text-gray-400">
-                      لا توجد مصروفات لهذا المشروع حتى الآن.
-                    </td>
-                  </tr>
-                ) : (
-                  expenseRows.map((expense: any) => (
-                    <tr
-                      key={String(expense.id)}
-                      className="transition hover:bg-white/[0.03]"
-                    >
-                      <td className="p-3 text-center text-gray-300">
-                        {expense.expenseDate || "-"}
-                      </td>
-                      <td className="p-3 text-center">
-                        {expense.voucherNo || "-"}
-                      </td>
-                      <td className="p-3 text-center">
-                        {villaNameMap.get(Number(expense.villaId)) ?? "مصروف عام"}
-                      </td>
-                      <td className="p-3 text-center">
-                        {accountNameMap.get(Number(expense.accountId)) ?? "-"}
-                      </td>
-                      <td className="p-3 text-center">
-                        {categoryNameMap.get(Number(expense.categoryId)) ?? "-"}
-                      </td>
-                      <td className="p-3 text-center">
-                        {itemNameMap.get(Number(expense.itemId)) ?? "-"}
-                      </td>
-                      <td className="p-3 text-center">
-                        {expense.supplier || "-"}
-                      </td>
-                      <td className="p-3 text-center">
-                        {formatPaymentMethod(expense.paymentMethod)}
-                      </td>
-                      <td className="p-3 text-center font-semibold">
-                        {Number(expense.amount ?? 0).toLocaleString("ar-SA")}
-                      </td>
-                      <td className="p-3 text-center">
-                        {Number(expense.tax ?? 0).toLocaleString("ar-SA")}
-                      </td>
-                      <td className="p-3 text-center font-bold text-yellow-400">
-                        {getExpenseTotal(expense).toLocaleString("ar-SA")}
-                      </td>
-                      <td className="p-3">
-                        <div className="flex justify-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setSelectedExpense(expense)}
-                            className="flex items-center gap-1 rounded-lg bg-sky-500 px-3 py-2 text-xs font-bold text-white hover:bg-sky-600"
-                          >
-                            <Eye size={14} />
-                            عرض
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleEditExpense(expense)}
-                            className="flex items-center gap-1 rounded-lg bg-yellow-500 px-3 py-2 text-xs font-bold text-[#081B33] hover:bg-yellow-400"
-                          >
-                            <Pencil size={14} />
-                            تعديل
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteExpense(expense)}
-                            className="flex items-center gap-1 rounded-lg bg-red-500 px-3 py-2 text-xs font-bold text-white hover:bg-red-600"
-                          >
-                            <Trash2 size={14} />
-                            حذف
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      {selectedExpense && (
-        <ExpenseDetailsModal
-          expense={selectedExpense}
-          projectName={project.name}
-          villaName={
-            villaNameMap.get(Number(selectedExpense.villaId)) ??
-            "مصروف عام على المشروع"
-          }
-          accountName={
-            accountNameMap.get(Number(selectedExpense.accountId)) ?? "-"
-          }
-          categoryName={
-            categoryNameMap.get(Number(selectedExpense.categoryId)) ?? "-"
-          }
-          itemName={itemNameMap.get(Number(selectedExpense.itemId)) ?? "-"}
-          onClose={() => setSelectedExpense(null)}
-        />
-      )}
-
-      {showExpenseModal && (
-        <ExpenseModal
-          open={showExpenseModal}
-          onClose={closeExpenseModal}
-          onSave={handleSaveExpense}
-          accounts={accounts}
-          initialExpense={editingExpense}
-          isEditing={Boolean(editingExpense)}
-          forcedProjectId={project.id}
-          forcedVillaId={expenseVillaId}
-          forcedVillaLabel={
-            expenseVillaId != null
-              ? (projectVillas.find((villa) => Number(villa.id) === Number(expenseVillaId))?.name ||
-                `فيلا ${projectVillas.find((villa) => Number(villa.id) === Number(expenseVillaId))?.villa_number ?? ""}`)
-              : undefined
-          }
-        />
-      )}
-
-
-      {
-        
-      /* =====================================================
-          TOP COST ITEMS
-          نفس فكرة التصميم: لوحتان، 3 بنود في كل لوحة
-      ===================================================== */}
-
-      <section className="grid gap-5 xl:grid-cols-2">
-
-        {/* RIGHT - HIGHEST 3 COST ITEMS */}
-        <TopCostPanel
-          title="أكثر 3 بنود تكلفة حتى الآن"
-          items={highestCostItems}
-          accent="green"
-          onViewAll={() => setShowAllCostItems(true)}
-        />
-
-        {/* LEFT - LOWEST 3 COST ITEMS */}
-        <TopCostPanel
-          title="أقل 3 بنود تكلفة حتى الآن"
-          items={lowestCostItems}
-          accent="blue"
-          onViewAll={() => setShowAllCostItems(true)}
-        />
-
-      </section>
-
-      {showAllCostItems && (
-        <AllCostItemsModal
-          projectName={project?.name ?? "المشروع"}
-          items={allCostItems}
-          total={totalCostItems}
-          onClose={() => setShowAllCostItems(false)}
-          onExportExcel={exportCostItemsToExcel}
-          onExportPdf={() => printCostItems(true)}
-          onPrint={() => printCostItems(false)}
-        />
-      )}
-
-
-
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* =====================================================
           VILLAS
@@ -2198,100 +2151,70 @@ ${error?.message ?? ""}`);
             </div>
           </div>
         </div>
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
 
-                </div>
 
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+        {/* 3 VILLAS PER ROW */}
+        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
 
-        {loadingProjectData ? (
-          <div className="col-span-full rounded-3xl border border-white/10 bg-white/5 px-6 py-10 text-center text-gray-300">
-            جاري تحميل بيانات الفلل...
-          </div>
-        ) : projectVillas.length > 0 ? (
-          projectVillas.map((villa) => {
-            // نصيب الفيلا من إجمالي المصروفات العامة للمشروع
-const villaTotalExpenses = generalProjectExpenses / 18;
+          {loadingProjectData ? (
+            <div className="col-span-full rounded-3xl border border-white/10 bg-white/5 px-6 py-10 text-center text-gray-300">
+              جاري تحميل بيانات الفلل...
+            </div>
+          ) : projectVillas.length > 0 ? (
+            projectVillas.map((villa) => {
+              // في هذا المشروع كل المصروفات عامة، وتوزع بالتساوي على 18 فيلا.
+              const villaCount = projectVillas.length || 18;
+              const villaExpenseShare = totalProjectExpenses / villaCount;
+              const villaMeterPrice = Number(villa.area ?? 0) > 0
+                ? villaExpenseShare / Number(villa.area ?? 0)
+                : 0;
 
-// سعر المتر الحالي للفيلا
-// = إجمالي مصاريف الفيلا ÷ مساحة الفيلا
-const villaMeterPrice =
-  Number(villa.area ?? 0) > 0
-    ? villaTotalExpenses / Number(villa.area ?? 0)
-    : 0;
-
-            return (
-              <VillaCard
-                key={villa.id}
-                villaNumber={villa.villa_number}
-                villaName={villa.name || `فيلا ${villa.villa_number}`}
-                projectName={project?.name ?? "المشروع"}
-                classification={villa.classification}
-                area={villa.area}
-                generalExpenseTotal={villaTotalExpenses}
-villaExpenseTotal={0}
-expenseTotal={villaTotalExpenses}
-currentMeterPrice={villaMeterPrice}
-                onView={() => {
-                  setExpenseVillaId(null);
-                  setSelectedVilla(villa);
-                }}
-                onEdit={() => {
-                  setExpenseVillaId(null);
-                  setEditingVilla(villa);
-                }}
-                onAddExpense={() => {
-                  setEditingExpense(null);
-                  setExpenseVillaId(Number(villa.id));
-                  setSelectedVilla(null);
-                  setShowExpenseModal(true);
-                  setShowProjectExpenseOverview(true);
-                }}
-              />
-            );
-          })
-        ) : (
-          <div className="col-span-full rounded-3xl border border-rose-400/20 bg-rose-400/5 px-6 py-10 text-center text-gray-300">
-            {projectDataError || "لا توجد بيانات فلل لهذا المشروع."}
-          </div>
-        )}
+              return (
+                <VillaCard
+                  key={villa.id}
+                  villaNumber={villa.villa_number}
+                  villaName={villa.name || `فيلا ${villa.villa_number}`}
+                  projectName={project?.name ?? "المشروع"}
+                  classification={villa.classification}
+                  area={villa.area}
+                  expenseTotal={villaExpenseShare}
+                  currentMeterPrice={villaMeterPrice}
+                  onView={() => setSelectedVilla(villa)}
+                  onEdit={() => setEditingVilla(villa)}
+                />
+              );
+            })
+          ) : (
+            <div className="col-span-full rounded-3xl border border-rose-400/20 bg-rose-400/5 px-6 py-10 text-center text-gray-300">
+              {projectDataError || "لا توجد بيانات فلل لهذا المشروع."}
+            </div>
+          )}
 
         </div>
+
       </section>
-      {showVillaSummary && (
-        <VillaSummaryModal
-          projectName={project?.name ?? "المشروع"}
-          groups={villaReportGroups}
-          totalVillas={villaReportRows.length}
-          totalVillaArea={villaReportTotalArea}
-          totalCost={totalProjectExpenses}
-          currentMeterPrice={currentProjectMeterPrice}
-          onClose={() => setShowVillaSummary(false)}
-          onExportExcel={exportVillaSummaryToExcel}
-          onPrint={() => window.print()}
-        
-        />
-      )}
+
 
       {selectedVilla && (
         <VillaDetailsModal
           villa={selectedVilla}
-         generalExpenseTotal={generalExpensePerVilla}
-          villaExpenseTotal={projectExpenses
-            .filter((expense) => Number(expense.villaId ?? expense.villa_id) === Number(selectedVilla.id))
-            .reduce((sum, expense) => sum + getExpenseTotal(expense), 0)}
+          expenseTotal={projectVillas.length > 0 ? totalProjectExpenses / projectVillas.length : totalProjectExpenses / 18}
           onClose={() => setSelectedVilla(null)}
           onEdit={() => {
             setSelectedVilla(null);
             setEditingVilla(selectedVilla);
           }}
-          onAddExpense={() => {
-            setSelectedVilla(null);
-            setEditingExpense(null);
-            setExpenseVillaId(Number(selectedVilla.id));
-            setShowExpenseModal(true);
-            setShowProjectExpenseOverview(true);
-          }}
+        />
+      )}
+
+      {showVillasOverview && (
+        <VillasOverviewModal
+          projectName={project.name}
+          villas={projectVillas}
+          totalArea={totalProjectArea}
+          totalExpenses={totalProjectExpenses}
+          currentMeterPrice={currentProjectMeterPrice}
+          onClose={() => setShowVillasOverview(false)}
         />
       )}
 
@@ -2302,393 +2225,7 @@ currentMeterPrice={villaMeterPrice}
     </div>
   );
 }
-type VillaReportRow = {
-  id: number;
-  villaNumber: number;
-  name: string;
-  area: number;
-  classification: string;
-  generalExpenses: number;
-  specialExpenses: number;
-  totalExpenses: number;
-};
 
-type VillaSummaryModalProps = {
-  projectName: string;
-  groups: {
-    صغيرة: VillaReportRow[];
-    متوسطة: VillaReportRow[];
-    كبيرة: VillaReportRow[];
-  };
-  totalVillas: number;
-  totalVillaArea: number;
-  totalCost: number;
-  currentMeterPrice: number;
-  onClose: () => void;
-  onExportExcel: () => void;
-  onPrint: () => void;
-};
-
-function VillaSummaryModal({
-  projectName,
-  groups,
-  totalVillas,
-  totalVillaArea,
-  totalCost,
-  currentMeterPrice,
-  onClose,
-  onExportExcel,
-  onPrint,
-}: VillaSummaryModalProps) {
-
-  const formatNumber = (value: number) =>
-    value.toLocaleString("ar-SA", {
-      maximumFractionDigits: 2,
-    });
-
-  const VillaTable = ({
-    title,
-    rows,
-  }: {
-    title: string;
-    rows: VillaReportRow[];
-  }) => (
-    <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#102947]">
-
-      <div className="border-b border-white/10 bg-[#163B5F] px-4 py-4 text-center">
-
-        <h3 className="text-xl font-extrabold text-white">
-          {title}
-        </h3>
-
-        <p className="mt-1 text-sm text-yellow-300">
-          {rows.length} فيلا
-        </p>
-
-      </div>
-
-      <div className="max-h-[430px] overflow-auto">
-
-        <table className="w-full min-w-[900px] text-sm text-white">
-
-          <thead className="sticky top-0 z-10 bg-[#0B223B]">
-
-            <tr>
-
-              <th className="p-3 text-center">
-                رقم الفيلا
-              </th>
-
-              <th className="p-3 text-center">
-                اسم الفيلا
-              </th>
-
-              <th className="p-3 text-center">
-                المساحة
-              </th>
-
-              <th className="p-3 text-center">
-                المصاريف العامة
-              </th>
-
-              <th className="p-3 text-center">
-                المصاريف الخاصة
-              </th>
-
-              <th className="p-3 text-center">
-                الإجمالي
-              </th>
-
-            </tr>
-
-          </thead>
-
-          <tbody className="divide-y divide-white/10">
-
-            {rows.length > 0 ? (
-
-              rows.map((villa) => (
-
-                <tr
-                  key={villa.id}
-                  className="transition hover:bg-white/[0.04]"
-                >
-
-                  <td className="p-3 text-center font-bold text-yellow-300">
-                    {villa.villaNumber}
-                  </td>
-
-                  <td className="p-3 text-center font-semibold">
-                    {villa.name}
-                  </td>
-
-                  <td className="p-3 text-center">
-                    {formatNumber(villa.area)} م²
-                  </td>
-
-                  <td className="p-3 text-center text-blue-300">
-                    {formatNumber(villa.generalExpenses)} ريال
-                  </td>
-
-                  <td className="p-3 text-center text-emerald-300">
-                    {formatNumber(villa.specialExpenses)} ريال
-                  </td>
-
-                  <td className="p-3 text-center font-extrabold text-yellow-400">
-                    {formatNumber(villa.totalExpenses)} ريال
-                  </td>
-
-                </tr>
-
-              ))
-
-            ) : (
-
-              <tr>
-
-                <td
-                  colSpan={6}
-                  className="p-8 text-center text-gray-400"
-                >
-                  لا توجد فلل في هذه الفئة
-                </td>
-
-              </tr>
-
-            )}
-
-          </tbody>
-
-        </table>
-
-      </div>
-
-    </div>
-  );
-
-  return (
-    <div
-      className="fixed inset-0 z-[130] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) {
-          onClose();
-        }
-      }}
-    >
-
-      <div className="flex max-h-[95vh] w-full max-w-[1800px] flex-col overflow-hidden rounded-3xl border border-white/10 bg-[#071A2E] shadow-2xl">
-
-        {/* HEADER */}
-
-        <div className="flex shrink-0 items-center justify-between border-b border-white/10 bg-[#102947] px-7 py-5">
-
-          <div>
-
-            <h2 className="text-2xl font-extrabold text-white">
-              تقرير فلل المشروع
-            </h2>
-
-            <p className="mt-1 text-sm text-gray-400">
-              {projectName}
-            </p>
-
-          </div>
-
-          <div className="flex items-center gap-2">
-
-            <button
-              type="button"
-              onClick={onPrint}
-              className="flex items-center gap-2 rounded-xl border border-sky-400/20 bg-sky-400/10 px-4 py-2 font-bold text-sky-300 hover:bg-sky-400 hover:text-[#081B33]"
-            >
-              <Printer size={17} />
-              طباعة
-            </button>
-
-            <button
-              type="button"
-              onClick={onExportExcel}
-              className="flex items-center gap-2 rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-2 font-bold text-emerald-300 hover:bg-emerald-400 hover:text-[#081B33]"
-            >
-              <FileSpreadsheet size={17} />
-              Excel
-            </button>
-
-            <button
-              type="button"
-              onClick={onPrint}
-              className="flex items-center gap-2 rounded-xl border border-rose-400/20 bg-rose-400/10 px-4 py-2 font-bold text-rose-300 hover:bg-rose-400 hover:text-white"
-            >
-              <FileText size={17} />
-              PDF
-            </button>
-
-            <button
-              type="button"
-              onClick={onClose}
-              className="mr-2 flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 text-gray-300 hover:bg-red-500/20 hover:text-red-300"
-            >
-              <X size={20} />
-            </button>
-
-          </div>
-
-        </div>
-
-        {/* BODY */}
-
-        <div className="min-h-0 flex-1 overflow-y-auto p-5 md:p-7">
-
-          <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
-
-            <VillaTable
-              title="الفلل الصغيرة"
-              rows={groups.صغيرة}
-            />
-
-            <VillaTable
-              title="الفلل المتوسطة"
-              rows={groups.متوسطة}
-            />
-
-            <VillaTable
-              title="الفلل الكبيرة"
-              rows={groups.كبيرة}
-            />
-
-          </div>
-
-          {/* CATEGORY COUNTS */}
-
-          <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
-
-            <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/5 p-5 text-center">
-
-              <p className="text-sm font-semibold text-gray-400">
-                الفلل الصغيرة
-              </p>
-
-              <p className="mt-2 text-3xl font-extrabold text-emerald-300">
-                {groups.صغيرة.length}
-              </p>
-
-              <p className="mt-1 text-xs text-gray-500">
-                فيلا
-              </p>
-
-            </div>
-
-            <div className="rounded-2xl border border-yellow-400/20 bg-yellow-400/5 p-5 text-center">
-
-              <p className="text-sm font-semibold text-gray-400">
-                الفلل المتوسطة
-              </p>
-
-              <p className="mt-2 text-3xl font-extrabold text-yellow-300">
-                {groups.متوسطة.length}
-              </p>
-
-              <p className="mt-1 text-xs text-gray-500">
-                فيلا
-              </p>
-
-            </div>
-
-            <div className="rounded-2xl border border-blue-400/20 bg-blue-400/5 p-5 text-center">
-
-              <p className="text-sm font-semibold text-gray-400">
-                الفلل الكبيرة
-              </p>
-
-              <p className="mt-2 text-3xl font-extrabold text-blue-300">
-                {groups.كبيرة.length}
-              </p>
-
-              <p className="mt-1 text-xs text-gray-500">
-                فيلا
-              </p>
-
-            </div>
-
-          </div>
-
-          {/* TOTALS */}
-
-          <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-
-            <div className="rounded-2xl border border-blue-400/20 bg-blue-400/5 p-5 text-center">
-
-              <p className="text-sm font-semibold text-gray-400">
-                إجمالي عدد الفلل
-              </p>
-
-              <p className="mt-2 text-3xl font-extrabold text-white">
-                {totalVillas}
-              </p>
-
-              <p className="text-xs text-gray-500">
-                فيلا
-              </p>
-
-            </div>
-
-            <div className="rounded-2xl border border-violet-400/20 bg-violet-400/5 p-5 text-center">
-
-              <p className="text-sm font-semibold text-gray-400">
-                إجمالي مساحة الفلل
-              </p>
-
-              <p className="mt-2 text-3xl font-extrabold text-violet-300">
-                {formatNumber(totalVillaArea)}
-              </p>
-
-              <p className="text-xs text-gray-500">
-                م²
-              </p>
-
-            </div>
-
-            <div className="rounded-2xl border border-rose-400/20 bg-rose-400/5 p-5 text-center">
-
-              <p className="text-sm font-semibold text-gray-400">
-                إجمالي التكلفة
-              </p>
-
-              <p className="mt-2 text-3xl font-extrabold text-rose-300">
-                {formatNumber(totalCost)}
-              </p>
-
-              <p className="text-xs text-gray-500">
-                ريال
-              </p>
-
-            </div>
-
-            <div className="rounded-2xl border border-amber-400/20 bg-amber-400/5 p-5 text-center">
-
-              <p className="text-sm font-semibold text-gray-400">
-                متوسط سعر المتر الحالي
-              </p>
-
-              <p className="mt-2 text-3xl font-extrabold text-amber-300">
-                {formatNumber(currentMeterPrice)}
-              </p>
-
-              <p className="text-xs text-gray-500">
-                ريال / م²
-              </p>
-
-            </div>
-
-          </div>
-
-        </div>
-
-      </div>
-
-    </div>
-  );
-}
 
 
 
@@ -2724,6 +2261,10 @@ type ExpensePeriodCardProps = {
     period: "day" | "week" | "month" | "all",
     type: "excel" | "pdf" | "print"
   ) => void;
+  referenceDate: string;
+  onReferenceDateChange: (value: string) => void;
+  highestCostItem: { name: string; amount: number; percentage: number } | null;
+  lowestCostItem: { name: string; amount: number; percentage: number } | null;
 };
 
 function ExpensePeriodCard({
@@ -2734,6 +2275,10 @@ function ExpensePeriodCard({
   openExport,
   onOpenExport,
   onExport,
+  referenceDate,
+  onReferenceDateChange,
+  highestCostItem,
+  lowestCostItem,
 }: ExpensePeriodCardProps) {
   const styles = {
     orange: {
@@ -2775,7 +2320,38 @@ function ExpensePeriodCard({
         <span className="text-sm text-gray-500">ريال</span>
       </div>
 
-      <div className="relative mt-5 flex justify-end">
+      <div className="mt-4 rounded-2xl border border-white/10 bg-black/10 p-3">
+        <label className="mb-1 block text-[11px] font-semibold text-gray-500">التاريخ المرجعي للنتيجة</label>
+        <input
+          type="date"
+          value={referenceDate}
+          onChange={(e) => onReferenceDateChange(e.target.value)}
+          className="w-full rounded-xl border border-white/10 bg-[#102947] px-3 py-2 text-sm font-bold text-white outline-none focus:border-cyan-400/50"
+        />
+      </div>
+
+      <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/5 p-3">
+          <p className="text-[11px] font-bold text-emerald-300">أكثر بند تكلفة</p>
+          <p className="mt-1 truncate text-sm font-extrabold text-white">
+            {highestCostItem?.name ?? "لا توجد بيانات"}
+          </p>
+          <p className="mt-1 text-xs text-gray-400">
+            {highestCostItem ? `${highestCostItem.amount.toLocaleString("ar-SA")} ريال` : "-"}
+          </p>
+        </div>
+        <div className="rounded-2xl border border-sky-400/20 bg-sky-400/5 p-3">
+          <p className="text-[11px] font-bold text-sky-300">أقل بند تكلفة</p>
+          <p className="mt-1 truncate text-sm font-extrabold text-white">
+            {lowestCostItem?.name ?? "لا توجد بيانات"}
+          </p>
+          <p className="mt-1 text-xs text-gray-400">
+            {lowestCostItem ? `${lowestCostItem.amount.toLocaleString("ar-SA")} ريال` : "-"}
+          </p>
+        </div>
+      </div>
+
+      <div className="relative mt-4 flex justify-end">
         <button
           type="button"
           onClick={() => onOpenExport(openExport === key ? null : key)}
@@ -2825,6 +2401,7 @@ type ExpenseDetailsModalProps = {
   villaName: string;
   accountName: string;
   categoryName: string;
+  stageName: string;
   itemName: string;
   onClose: () => void;
 };
@@ -2835,6 +2412,7 @@ function ExpenseDetailsModal({
   villaName,
   accountName,
   categoryName,
+  stageName,
   itemName,
   onClose,
 }: ExpenseDetailsModalProps) {
@@ -2876,8 +2454,8 @@ function ExpenseDetailsModal({
             <ViewBox label="الفيلا" value={villaName} />
             <ViewBox label="العهدة" value={accountName} />
             <ViewBox label="التصنيف" value={categoryName} />
+            <ViewBox label="المرحلة" value={stageName} />
             <ViewBox label="البند" value={itemName} />
-            <ViewBox label="المورد" value={expense.supplier || "-"} />
             <ViewBox label="رقم الفاتورة" value={expense.voucherNo || "-"} />
             <ViewBox
               label="طريقة الدفع"
@@ -2908,6 +2486,32 @@ function ExpenseDetailsModal({
               </p>
             </div>
           </div>
+
+          {(() => {
+            const attachmentUrl = expense?.attachmentUrl ?? expense?.attachment_url ?? (typeof expense?.attachment === "string" && expense.attachment.startsWith("http") ? expense.attachment : null);
+            const attachmentPath = expense?.attachmentPath ?? expense?.attachment_path ?? (typeof expense?.attachment === "string" && !expense.attachment.startsWith("http") ? expense.attachment : null);
+            const attachmentName = expense?.attachmentName ?? expense?.attachment_name ?? "المرفق";
+            const attachment = attachmentUrl || attachmentPath;
+            if (!attachment) return null;
+            return (
+              <div className="mt-6 flex flex-col gap-4 rounded-2xl border border-sky-400/20 bg-sky-400/10 p-5 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <p className="text-sm font-bold text-sky-300">المرفقات</p>
+                  <p className="mt-1 text-xs text-gray-400">{attachmentName}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (String(attachment).startsWith("http")) window.open(String(attachment), "_blank", "noopener,noreferrer");
+                    else alert("المرفق محفوظ بمسار داخلي ولا يوجد رابط مباشر لفتحه.");
+                  }}
+                  className="rounded-xl bg-sky-500 px-5 py-3 font-bold text-white hover:bg-sky-600"
+                >
+                  عرض المرفق
+                </button>
+              </div>
+            );
+          })()}
 
           {expense.description && (
             <div className="mt-6 rounded-2xl border border-white/10 bg-[#102947] p-5">
@@ -3054,7 +2658,7 @@ function TopCostPanel({
         </div>
 
         <div>
-          اسم البند
+          اسم التصنيف
         </div>
 
         <div className="text-center">
@@ -3195,7 +2799,7 @@ function TopCostPanel({
             ${accentClasses.button}
           `}
         >
-          عرض جميع بنود التكاليف
+          عرض جميع التصنيفات
           <span className="mr-2">
             ←
           </span>
@@ -3259,10 +2863,10 @@ function AllCostItemsModal({
         <div className="flex items-center justify-between border-b border-white/10 px-6 py-5">
           <div className="text-right">
             <h2 className="text-2xl font-extrabold text-white">
-              جميع بنود التكاليف
+              جميع التصنيفات
             </h2>
             <p className="mt-1 text-sm text-gray-400">
-              جميع بنود مشروع {projectName} مرتبة حسب إجمالي التكلفة
+              جميع تصنيفات مشروع {projectName} مرتبة حسب إجمالي التكلفة
             </p>
           </div>
 
@@ -3293,7 +2897,7 @@ function AllCostItemsModal({
         {/* Summary */}
         <div className="grid grid-cols-1 gap-4 border-b border-white/10 bg-black/10 p-5 md:grid-cols-2">
           <div className="rounded-2xl border border-blue-400/20 bg-blue-400/5 p-4">
-            <p className="text-sm font-semibold text-gray-400">عدد البنود</p>
+            <p className="text-sm font-semibold text-gray-400">عدد التصنيفات</p>
             <p className="mt-1 text-2xl font-extrabold text-white">
               {items.length}
             </p>
@@ -3301,7 +2905,7 @@ function AllCostItemsModal({
 
           <div className="rounded-2xl border border-yellow-400/20 bg-yellow-400/5 p-4">
             <p className="text-sm font-semibold text-gray-400">
-              إجمالي تكلفة البنود
+              إجمالي تكلفة التصنيفات
             </p>
             <p className="mt-1 text-2xl font-extrabold text-yellow-400">
               {total.toLocaleString("ar-SA")} ريال
@@ -3329,7 +2933,7 @@ function AllCostItemsModal({
               "
             >
               <div className="text-center">#</div>
-              <div>اسم البند</div>
+              <div>اسم التصنيف</div>
               <div className="text-center">إجمالي التكلفة</div>
               <div className="text-center">النسبة</div>
             </div>
@@ -3388,7 +2992,7 @@ function AllCostItemsModal({
               })
             ) : (
               <div className="px-6 py-12 text-center text-gray-400">
-                لا توجد بنود تكلفة حتى الآن.
+                لا توجد تصنيفات مصروفة حتى الآن.
               </div>
             )}
 
@@ -3661,13 +3265,10 @@ type VillaCardProps = {
   projectName: string;
   classification: string | null;
   area: number | null;
-  generalExpenseTotal: number;
-  villaExpenseTotal: number;
   expenseTotal: number;
   currentMeterPrice: number;
   onView: () => void;
   onEdit: () => void;
-  onAddExpense: () => void;
 };
 
 function VillaCard({
@@ -3676,13 +3277,10 @@ function VillaCard({
   projectName,
   classification,
   area,
-  generalExpenseTotal,
-  villaExpenseTotal,
   expenseTotal,
   currentMeterPrice,
   onView,
   onEdit,
-  onAddExpense,
 }: VillaCardProps) {
   return (
     <div className="group flex min-h-[410px] flex-col overflow-hidden rounded-3xl border border-blue-400/15 bg-gradient-to-br from-[#12365D] via-[#0D2948] to-[#091C31] shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-yellow-400/30 hover:shadow-2xl">
@@ -3713,18 +3311,16 @@ function VillaCard({
         <div className="grid grid-cols-2 gap-4">
           <VillaStatBox label="المساحة" value={`${Number(area ?? 0).toLocaleString("ar-SA")} م²`} />
           <VillaStatBox label="التصنيف" value={classification || "غير محدد"} />
-          <VillaStatBox label="المصاريف الخاصة بالفيلا" value={`${villaExpenseTotal.toLocaleString("ar-SA")} ريال`} />
-          <VillaStatBox label="المصاريف العامة للمشروع" value={`${generalExpenseTotal.toLocaleString("ar-SA")} ريال`} />
         </div>
         <div className="mt-4 rounded-2xl border border-yellow-400/20 bg-yellow-400/10 px-5 py-4 text-center">
-          <p className="text-sm font-semibold text-gray-400">إجمالي المصاريف المحتسبة على سعر المتر</p>
-          <p className="mt-1 text-3xl font-extrabold text-yellow-400">{expenseTotal.toLocaleString("ar-SA")} ريال</p>
+          <p className="text-sm font-semibold text-gray-400">نصيب الفيلا من إجمالي مصاريف المشروع</p>
+          <p className="mt-1 text-3xl font-extrabold text-yellow-400">{expenseTotal.toLocaleString("ar-SA", { maximumFractionDigits: 2 })} ريال</p>
+          <p className="mt-1 text-xs text-gray-500">إجمالي المصاريف ÷ عدد الفلل</p>
         </div>
       </div>
 
-      <div className="mt-auto grid grid-cols-3 gap-3 border-t border-white/10 p-5">
+      <div className="mt-auto grid grid-cols-2 gap-3 border-t border-white/10 p-5">
         <button onClick={onView} className="flex items-center justify-center gap-2 rounded-xl border border-blue-400/20 bg-blue-500/10 py-3 font-bold text-blue-300 transition hover:bg-blue-500 hover:text-white">عرض <Eye size={18} /></button>
-        <button onClick={onAddExpense} className="flex items-center justify-center gap-2 rounded-xl border border-emerald-400/20 bg-emerald-400/10 py-3 font-bold text-emerald-300 transition hover:bg-emerald-400 hover:text-[#081B33]">مصروف <WalletCards size={18} /></button>
         <button onClick={onEdit} className="flex items-center justify-center gap-2 rounded-xl border border-yellow-400/20 bg-yellow-400/10 py-3 font-bold text-yellow-400 transition hover:bg-yellow-400 hover:text-[#081B33]">تعديل <Pencil size={18} /></button>
       </div>
     </div>
@@ -3764,28 +3360,111 @@ function VillaEditModal({ villa, onClose, onSave }: { villa: ProjectVilla; onClo
   );
 }
 
-function VillaDetailsModal({ villa, generalExpenseTotal, villaExpenseTotal, onClose, onEdit, onAddExpense }: { villa: ProjectVilla; generalExpenseTotal: number; villaExpenseTotal: number; onClose: () => void; onEdit: () => void; onAddExpense: () => void }) {
-  const totalExpenses = generalExpenseTotal + villaExpenseTotal;
+function VillasOverviewModal({
+  projectName,
+  villas,
+  totalArea,
+  totalExpenses,
+  currentMeterPrice,
+  onClose,
+}: {
+  projectName: string;
+  villas: ProjectVilla[];
+  totalArea: number;
+  totalExpenses: number;
+  currentMeterPrice: number;
+  onClose: () => void;
+}) {
+  const villaCount = villas.length || 18;
+  const villaShare = totalExpenses / villaCount;
+
+  const exportExcel = () => {
+    const rows = villas.map((villa) => {
+      const area = Number(villa.area ?? 0);
+      const meterPrice = area > 0 ? villaShare / area : 0;
+      return `<tr><td>${villa.villa_number}</td><td>${escapeHtml(villa.name || `فيلا ${villa.villa_number}`)}</td><td>${escapeHtml(villa.classification || "غير محدد")}</td><td>${area}</td><td>${villaShare.toFixed(2)}</td><td>${meterPrice.toFixed(2)}</td></tr>`;
+    }).join("");
+
+    const html = `<html dir="rtl"><head><meta charset="UTF-8"/><title>تفاصيل فلل ${escapeHtml(projectName)}</title></head><body><h2>تفاصيل فلل ${escapeHtml(projectName)}</h2><p>إجمالي الفلل: ${villaCount} — إجمالي المساحة: ${totalArea.toLocaleString("ar-SA")} م² — إجمالي المصاريف: ${totalExpenses.toLocaleString("ar-SA")} ريال — سعر المتر: ${currentMeterPrice.toFixed(2)} ريال/م²</p><table border="1"><tr><th>رقم الفيلا</th><th>اسم الفيلا</th><th>التصنيف</th><th>المساحة</th><th>نصيب الفيلا من المصاريف</th><th>سعر المتر للمصروف</th></tr>${rows}</table></body></html>`;
+    const blob = new Blob([html], { type: "application/vnd.ms-excel;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `تفاصيل_فلل_${projectName}.xls`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const printReport = () => {
+    const rows = villas.map((villa) => {
+      const area = Number(villa.area ?? 0);
+      const meterPrice = area > 0 ? villaShare / area : 0;
+      return `<tr><td>${villa.villa_number}</td><td>${escapeHtml(villa.name || `فيلا ${villa.villa_number}`)}</td><td>${escapeHtml(villa.classification || "غير محدد")}</td><td>${area.toLocaleString("ar-SA")} م²</td><td>${villaShare.toLocaleString("ar-SA", { maximumFractionDigits: 2 })} ريال</td><td>${meterPrice.toLocaleString("ar-SA", { maximumFractionDigits: 2 })} ريال/م²</td></tr>`;
+    }).join("");
+    const w = window.open("", "_blank", "width=1400,height=900");
+    if (!w) { alert("يرجى السماح بالنوافذ المنبثقة للطباعة."); return; }
+    w.document.write(`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>تفاصيل فلل ${escapeHtml(projectName)}</title><style>body{font-family:Arial,Tahoma,sans-serif;padding:24px;color:#111827}h1{margin:0 0 8px}p{color:#6b7280}table{width:100%;border-collapse:collapse;margin-top:20px}th,td{border:1px solid #d1d5db;padding:9px;text-align:center}th{background:#0f2d4d;color:#fff}</style></head><body><h1>تفاصيل فلل ${escapeHtml(projectName)}</h1><p>إجمالي الفلل: ${villaCount} — إجمالي المساحة: ${totalArea.toLocaleString("ar-SA")} م² — إجمالي المصاريف: ${totalExpenses.toLocaleString("ar-SA")} ريال — سعر المتر: ${currentMeterPrice.toFixed(2)} ريال/م²</p><table><tr><th>رقم الفيلا</th><th>اسم الفيلا</th><th>التصنيف</th><th>المساحة</th><th>نصيب الفيلا من المصاريف</th><th>سعر المتر للمصروف</th></tr>${rows}</table></body></html>`);
+    w.document.close();
+    w.focus();
+    setTimeout(() => w.print(), 250);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[105] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <div className="flex max-h-[92vh] w-full max-w-7xl flex-col overflow-hidden rounded-3xl border border-white/10 bg-[#071A2E] shadow-2xl">
+        <div className="flex items-center justify-between border-b border-white/10 bg-[#102947] px-7 py-5">
+          <div className="text-right"><h2 className="text-2xl font-extrabold text-white">تفاصيل فلل المشروع</h2><p className="mt-1 text-sm text-gray-400">جميع فلل مشروع {projectName} وحساب نصيب كل فيلا بالتساوي</p></div>
+          <button type="button" onClick={onClose} className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-gray-300 hover:bg-red-500/20 hover:text-red-300"><X size={22} /></button>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto p-6">
+          <div className="mb-5 grid grid-cols-1 gap-4 md:grid-cols-4">
+            <VillaStatBox label="إجمالي الفلل" value={`${villaCount} فيلا`} />
+            <VillaStatBox label="إجمالي المساحة" value={`${totalArea.toLocaleString("ar-SA")} م²`} />
+            <VillaStatBox label="إجمالي المصاريف" value={`${totalExpenses.toLocaleString("ar-SA")} ريال`} />
+            <VillaStatBox label="سعر المتر الحالي" value={`${currentMeterPrice.toLocaleString("ar-SA", { maximumFractionDigits: 2 })} ريال / م²`} />
+          </div>
+          <div className="overflow-x-auto rounded-2xl border border-white/10">
+            <table className="w-full min-w-[1050px] text-sm text-white">
+              <thead className="bg-[#102947] text-gray-300"><tr><th className="p-4 text-center">رقم الفيلا</th><th className="p-4 text-center">اسم الفيلا</th><th className="p-4 text-center">التصنيف</th><th className="p-4 text-center">المساحة</th><th className="p-4 text-center">نصيب الفيلا من المصاريف</th><th className="p-4 text-center">سعر المتر للمصروف</th></tr></thead>
+              <tbody className="divide-y divide-white/10">
+                {villas.map((villa) => {
+                  const area = Number(villa.area ?? 0);
+                  const meterPrice = area > 0 ? villaShare / area : 0;
+                  return <tr key={villa.id} className="hover:bg-white/[0.03]"><td className="p-4 text-center font-bold">{villa.villa_number}</td><td className="p-4 text-center">{villa.name || `فيلا ${villa.villa_number}`}</td><td className="p-4 text-center">{villa.classification || "غير محدد"}</td><td className="p-4 text-center">{area.toLocaleString("ar-SA")} م²</td><td className="p-4 text-center font-bold text-yellow-400">{villaShare.toLocaleString("ar-SA", { maximumFractionDigits: 2 })} ريال</td><td className="p-4 text-center font-bold text-amber-300">{meterPrice.toLocaleString("ar-SA", { maximumFractionDigits: 2 })} ريال/م²</td></tr>;
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 gap-3 border-t border-white/10 bg-[#102947] p-5 sm:grid-cols-3">
+          <button type="button" onClick={exportExcel} className="flex items-center justify-center gap-2 rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-6 py-3 font-bold text-emerald-300 hover:bg-emerald-400/20"><FileSpreadsheet size={17} /> تصدير Excel</button>
+          <button type="button" onClick={printReport} className="flex items-center justify-center gap-2 rounded-xl border border-red-400/20 bg-red-400/10 px-6 py-3 font-bold text-red-300 hover:bg-red-400/20"><FileText size={17} /> PDF / حفظ PDF</button>
+          <button type="button" onClick={printReport} className="flex items-center justify-center gap-2 rounded-xl border border-blue-400/20 bg-blue-400/10 px-6 py-3 font-bold text-blue-300 hover:bg-blue-400/20"><Printer size={17} /> طباعة</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function VillaDetailsModal({ villa, expenseTotal, onClose, onEdit }: { villa: ProjectVilla; expenseTotal: number; onClose: () => void; onEdit: () => void }) {
   const area = Number(villa.area ?? 0);
-  const meterPrice = area > 0 ? totalExpenses / area : 0;
+  const meterPrice = area > 0 ? expenseTotal / area : 0;
+
   return (
     <div className="fixed inset-0 z-[115] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
       <div className="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-3xl border border-white/10 bg-[#081B33] shadow-2xl">
         <div className="flex items-center justify-between border-b border-white/10 bg-[#102947] px-7 py-5">
-          <div className="flex items-center gap-4"><div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-yellow-400/20 bg-yellow-400/10 text-yellow-400"><Home size={30} /></div><div><h2 className="text-2xl font-extrabold text-white">تفاصيل {villa.name || `فيلا ${villa.villa_number}`}</h2><p className="mt-1 text-sm text-gray-400">جميع بيانات الفيلا وحساب التكلفة الحالية</p></div></div>
+          <div className="flex items-center gap-4"><div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-yellow-400/20 bg-yellow-400/10 text-yellow-400"><Home size={30} /></div><div><h2 className="text-2xl font-extrabold text-white">تفاصيل {villa.name || `فيلا ${villa.villa_number}`}</h2><p className="mt-1 text-sm text-gray-400">بيانات الفيلا ونصيبها من مصروفات المشروع</p></div></div>
           <button type="button" onClick={onClose} className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 text-gray-400 hover:bg-red-500/20 hover:text-red-300"><X size={20} /></button>
         </div>
         <div className="p-7">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-4"><VillaStatBox label="رقم الفيلا" value={String(villa.villa_number)} /><VillaStatBox label="المساحة" value={`${area.toLocaleString("ar-SA")} م²`} /><VillaStatBox label="التصنيف" value={villa.classification || "غير محدد"} /><VillaStatBox label="سعر المتر الحالي" value={`${meterPrice.toLocaleString("ar-SA", { maximumFractionDigits: 2 })} ريال`} /></div>
-          <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3">
-            <div className="rounded-2xl border border-blue-400/20 bg-blue-400/5 p-6 text-center"><p className="text-sm font-semibold text-gray-400">إجمالي المصاريف العامة للمشروع</p><p className="mt-2 text-3xl font-extrabold text-blue-300">{generalExpenseTotal.toLocaleString("ar-SA")} ريال</p></div>
-            <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/5 p-6 text-center"><p className="text-sm font-semibold text-gray-400">إجمالي المصاريف الخاصة بالفيلا</p><p className="mt-2 text-3xl font-extrabold text-emerald-300">{villaExpenseTotal.toLocaleString("ar-SA")} ريال</p></div>
-            <div className="rounded-2xl border border-yellow-400/20 bg-yellow-400/10 p-6 text-center"><p className="text-sm font-semibold text-gray-400">توتال المصاريف</p><p className="mt-2 text-3xl font-extrabold text-yellow-400">{totalExpenses.toLocaleString("ar-SA")} ريال</p></div>
-          </div>
-          <div className="mt-5 rounded-2xl border border-white/10 bg-white/5 p-5"><p className="text-sm font-semibold text-gray-400">طريقة الحساب</p><p className="mt-2 text-lg font-bold text-white">{totalExpenses.toLocaleString("ar-SA")} ÷ {area.toLocaleString("ar-SA")} = {meterPrice.toLocaleString("ar-SA", { maximumFractionDigits: 2 })} ريال / م²</p></div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-4"><VillaStatBox label="رقم الفيلا" value={String(villa.villa_number)} /><VillaStatBox label="المساحة" value={`${area.toLocaleString("ar-SA")} م²`} /><VillaStatBox label="التصنيف" value={villa.classification || "غير محدد"} /><VillaStatBox label="سعر المتر للمصروف" value={`${meterPrice.toLocaleString("ar-SA", { maximumFractionDigits: 2 })} ريال`} /></div>
+          <div className="mt-5 rounded-2xl border border-yellow-400/20 bg-yellow-400/10 p-6 text-center"><p className="text-sm font-semibold text-gray-400">نصيب الفيلا من إجمالي مصاريف المشروع</p><p className="mt-2 text-3xl font-extrabold text-yellow-400">{expenseTotal.toLocaleString("ar-SA", { maximumFractionDigits: 2 })} ريال</p></div>
+          <div className="mt-5 rounded-2xl border border-white/10 bg-white/5 p-5"><p className="text-sm font-semibold text-gray-400">طريقة الحساب</p><p className="mt-2 text-lg font-bold text-white">{expenseTotal.toLocaleString("ar-SA", { maximumFractionDigits: 2 })} ÷ {area.toLocaleString("ar-SA")} = {meterPrice.toLocaleString("ar-SA", { maximumFractionDigits: 2 })} ريال / م²</p></div>
         </div>
-        <div className="grid grid-cols-1 gap-3 border-t border-white/10 bg-[#102947] p-5 md:grid-cols-3">
-          <button type="button" onClick={onAddExpense} className="rounded-xl bg-emerald-400 px-5 py-3 font-bold text-[#081B33] hover:bg-emerald-300">+ إضافة مصروف للفيلا</button>
+        <div className="grid grid-cols-2 gap-3 border-t border-white/10 bg-[#102947] p-5">
           <button type="button" onClick={onEdit} className="rounded-xl bg-yellow-400 px-5 py-3 font-bold text-[#081B33] hover:bg-yellow-300">تعديل بيانات الفيلا</button>
           <button type="button" onClick={onClose} className="rounded-xl border border-white/10 px-5 py-3 font-bold text-white hover:bg-white/5">إغلاق</button>
         </div>

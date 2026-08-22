@@ -25,6 +25,8 @@ type Props = {
   forcedProjectId?: string | number | null;
   forcedVillaId?: string | number | null;
   forcedVillaLabel?: string;
+  hideSupplier?: boolean;
+  forceGeneralExpense?: boolean;
 };
 
 export default function ExpenseModal({
@@ -37,6 +39,8 @@ export default function ExpenseModal({
   forcedProjectId = null,
   forcedVillaId = null,
   forcedVillaLabel,
+  hideSupplier = false,
+  forceGeneralExpense = false,
 }: Props) {
 
 
@@ -58,7 +62,7 @@ const [villaCode, setVillaCode] = useState("");
 const [villaId, setVillaId] = useState("");
 const [accountId, setAccountId] = useState("");
 const [stageId, setStageId] = useState("");
-
+const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
 const [categoryId, setCategoryId] = useState("");
 const [itemId, setItemId] = useState("");
 
@@ -68,12 +72,13 @@ const [showAddAccount, setShowAddAccount] = useState(false);
 const [showAddStage, setShowAddStage] = useState(false);
 
 const [newCategoryName, setNewCategoryName] = useState("");
+const [newCategoryStageId, setNewCategoryStageId] = useState("");
 const [newItemName, setNewItemName] = useState("");
 const [newAccountName, setNewAccountName] = useState("");
 const [newStageName, setNewStageName] = useState("");
 
 const [categories, setCategories] = useState<
-  { id: number; name: string }[]
+  { id: number; name: string; stage_id?: number | null }[]
 >([]);
 
 const [expenseItems, setExpenseItems] = useState<
@@ -83,6 +88,8 @@ const [expenseItems, setExpenseItems] = useState<
 const [stages, setStages] = useState<
   { id: number; name: string; is_active?: boolean }[]
 >([]);
+const [stageCategoryMap, setStageCategoryMap] = useState<Record<string, number[]>>({});
+const [showStageCategoryManager, setShowStageCategoryManager] = useState(false);
 const [localAccounts, setLocalAccounts] = useState<Account[]>(accounts);
 
 const [voucherNo, setVoucherNo] = useState("");
@@ -130,7 +137,7 @@ useEffect(() => {
     ] = await Promise.all([
       supabase
         .from("categories")
-        .select("id, name")
+        .select("id, name, stage_id")
         .order("id", { ascending: true }),
 
       supabase
@@ -178,6 +185,10 @@ useEffect(() => {
     setExpenseItems(itemsData ?? []);
     setSuppliers(suppliersData ?? []);
     setStages(stagesData ?? []);
+    try {
+      const savedMap = JSON.parse(localStorage.getItem("tumouh-stage-category-map") || "{}");
+      setStageCategoryMap(savedMap && typeof savedMap === "object" ? savedMap : {});
+    } catch { setStageCategoryMap({}); }
   };
 
   if (open) {
@@ -193,7 +204,9 @@ useEffect(() => {
     setProjectId(String(forcedProjectId));
   }
 
-  if (forcedVillaId != null && !isEditing) {
+  if (forceGeneralExpense) {
+    setVillaId("general");
+  } else if (forcedVillaId != null && !isEditing) {
     setVillaId(String(forcedVillaId));
   } else if (!isEditing && forcedVillaId == null) {
     setVillaId("");
@@ -239,17 +252,20 @@ useEffect(() => {
     );
     setPaymentMethod(String(initialExpense.paymentMethod ?? initialExpense.payment_method ?? ""));
     setDescription(String(initialExpense.description ?? ""));
+    if (forceGeneralExpense) setVillaId("general");
   } else {
     resetForm();
     setEntryDate(today);
     if (forcedProjectId != null) {
       setProjectId(String(forcedProjectId));
     }
-    if (forcedVillaId != null) {
+    if (forceGeneralExpense) {
+      setVillaId("general");
+    } else if (forcedVillaId != null) {
       setVillaId(String(forcedVillaId));
     }
   }
-}, [open, initialExpense, isEditing, forcedProjectId, forcedVillaId]);
+}, [open, initialExpense, isEditing, forcedProjectId, forcedVillaId, forceGeneralExpense]);
 
 const handleAddSupplier = async () => {
   const name = newSupplierName.trim();
@@ -291,11 +307,41 @@ const handleAddSupplier = async () => {
   setShowAddSupplier(false);
 };
 
+const availableCategories = stageId
+  ? categories.filter(
+      (category) =>
+        category.stage_id !== null &&
+        category.stage_id !== undefined &&
+        Number(category.stage_id) === Number(stageId)
+    )
+  : [];
+
+const linkedCategoryIds = stageId
+  ? categories
+      .filter((category) => Number(category.stage_id) === Number(stageId))
+      .map((category) => Number(category.id))
+  : [];
+
+const saveStageCategoryLinks = (categoryIds: number[]) => {
+  if (!stageId) return;
+  const nextMap = { ...stageCategoryMap, [String(stageId)]: categoryIds };
+  setStageCategoryMap(nextMap);
+  try { localStorage.setItem("tumouh-stage-category-map", JSON.stringify(nextMap)); } catch {}
+  setCategoryId("");
+  setItemId("");
+  setShowStageCategoryManager(false);
+};
+
 const handleAddCategory = async () => {
   const name = newCategoryName.trim();
 
   if (!name) {
     alert("من فضلك أدخل اسم التصنيف");
+    return;
+  }
+
+  if (!newCategoryStageId) {
+    alert("من فضلك اختر المرحلة المرتبط بها التصنيف");
     return;
   }
 
@@ -308,15 +354,20 @@ const handleAddCategory = async () => {
     alert("هذا التصنيف موجود بالفعل");
     setCategoryId(String(existingCategory.id));
     setItemId("");
+    setStageId(String(existingCategory.stage_id ?? newCategoryStageId));
     setShowAddCategory(false);
     setNewCategoryName("");
+    setNewCategoryStageId("");
     return;
   }
 
   const { data, error } = await supabase
     .from("categories")
-    .insert({ name })
-    .select("id, name")
+    .insert({
+      name,
+      stage_id: Number(newCategoryStageId),
+    })
+    .select("id, name, stage_id")
     .single();
 
   if (error) {
@@ -329,9 +380,12 @@ const handleAddCategory = async () => {
     setCategories((current) => [...current, data]);
     setCategoryId(String(data.id));
     setItemId("");
+
+    setStageId(String(newCategoryStageId));
   }
 
   setNewCategoryName("");
+  setNewCategoryStageId("");
   setShowAddCategory(false);
 };
 
@@ -490,6 +544,7 @@ const resetForm = () => {
   setTaxPercent("15");
   setPaymentMethod("");
   setDescription("");
+setAttachmentFile(null);
 };
 
 const handleSave = async (addAnother = false) => {
@@ -514,6 +569,11 @@ const handleSave = async (addAnother = false) => {
     return;
   }
 
+  if (!stageId) {
+  alert("من فضلك اختر المرحلة");
+  return;
+}
+
   if (!amount || Number(amount) <= 0) {
     alert("من فضلك أدخل مبلغ المصروف");
     return;
@@ -522,17 +582,43 @@ const handleSave = async (addAnother = false) => {
   const savedVillaId =
     villaId === "general" ? null : villaId;
 
+  let attachmentPath =
+  initialExpense?.attachment ??
+  initialExpense?.attachmentPath ??
+  initialExpense?.attachment_path ??
+  null;
+
+if (attachmentFile) {
+  const safeName = attachmentFile.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+  const filePath = `expenses/${projectId}/${Date.now()}-${safeName}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("funding-attachments")
+    .upload(filePath, attachmentFile, {
+      upsert: false,
+      contentType: attachmentFile.type,
+    });
+
+  if (uploadError) {
+    alert(`تعذر رفع المرفق:\n${uploadError.message}`);
+    return;
+  }
+
+  attachmentPath = filePath;
+}
+
   const expense = {
     id: initialExpense?.id ?? crypto.randomUUID(),
 
     entryDate,
     expenseDate,
-    supplier,
+    supplier: hideSupplier ? "" : supplier,
     projectId,
-    villaId: savedVillaId,
+    villaId: forceGeneralExpense ? null : savedVillaId,
     accountId: Number(accountId),
     categoryId,
     stageId: stageId ? Number(stageId) : null,
+    stageName: stages.find((stage) => String(stage.id) === String(stageId))?.name ?? null,
 itemId: itemId ? Number(itemId) : null,
 voucherNo,
 amount: Number(amount),
@@ -540,7 +626,8 @@ amount: Number(amount),
     total,
     paymentMethod,
     description,
-    createdAt: new Date().toISOString(),
+attachment: attachmentPath,
+createdAt: new Date().toISOString(),
   };
 
  const success = await onSave(expense);
@@ -556,7 +643,9 @@ resetForm();
 if (forcedProjectId != null) {
   setProjectId(String(forcedProjectId));
 }
-if (forcedVillaId != null) {
+if (forceGeneralExpense) {
+  setVillaId("general");
+} else if (forcedVillaId != null) {
   setVillaId(String(forcedVillaId));
 }
 
@@ -610,34 +699,18 @@ return (
         />
 
         {/* المورد */}
-        <div>
-          <div className="mb-2 flex items-center justify-between">
-            <label className="text-sm text-gray-300">المورد</label>
-            <button
-              type="button"
-              onClick={() => {
-                setNewSupplierName("");
-                setShowAddSupplier(true);
-              }}
-              className="flex h-7 w-7 items-center justify-center rounded-lg bg-yellow-400 font-bold text-[#081B33] transition hover:bg-yellow-300"
-              title="إضافة مورد"
-            >
-              +
-            </button>
+        {!hideSupplier && (
+          <div>
+            <div className="mb-2 flex items-center justify-between">
+              <label className="text-sm text-gray-300">المورد</label>
+              <button type="button" onClick={() => { setNewSupplierName(""); setShowAddSupplier(true); }} className="flex h-7 w-7 items-center justify-center rounded-lg bg-yellow-400 font-bold text-[#081B33]">+</button>
+            </div>
+            <select value={supplier} onChange={(e) => setSupplier(e.target.value)} className="h-12 w-full rounded-xl border border-white/10 bg-[#102947] px-4 text-white outline-none focus:border-yellow-400">
+              <option value="">اختر المورد...</option>
+              {suppliers.map((item) => <option key={item.id} value={item.name}>{item.name}</option>)}
+            </select>
           </div>
-          <select
-            value={supplier}
-            onChange={(e) => setSupplier(e.target.value)}
-            className="h-12 w-full rounded-xl border border-white/10 bg-[#102947] px-4 text-white outline-none focus:border-yellow-400"
-          >
-            <option value="">اختر المورد...</option>
-            {suppliers.map((item) => (
-              <option key={item.id} value={item.name}>
-                {item.name}
-              </option>
-            ))}
-          </select>
-        </div>
+        )}
 
         {/* المشروع */}
         <Select
@@ -652,31 +725,21 @@ return (
         />
 
         {/* الفيلا */}
-        <Select
-          label="الفيلا"
-          value={villaId}
-          onChange={setVillaId}
-          disabled={forcedVillaId != null}
-          options={
-            forcedVillaId != null
-              ? [
-                  {
-                    value: String(forcedVillaId),
-                    label: forcedVillaLabel || `فيلا ${forcedVillaId}`,
-                  },
-                ]
-              : [
-                  {
-                    value: "general",
-                    label: "🏘️ مصروف عام على المشروع",
-                  },
-                  ...projectVillas.map((villa) => ({
-                    value: villa.code,
-                    label: `${villa.block} - فيلا ${villa.code}`,
-                  })),
-                ]
-          }
-        />
+        {forceGeneralExpense ? (
+          <Input label="الفيلا" value="مصروف عام على المشروع" readOnly />
+        ) : (
+          <Select
+            label="الفيلا"
+            value={villaId}
+            onChange={setVillaId}
+            disabled={forcedVillaId != null}
+            options={
+              forcedVillaId != null
+                ? [{ value: String(forcedVillaId), label: forcedVillaLabel || `فيلا ${forcedVillaId}` }]
+                : [{ value: "general", label: "🏘️ مصروف عام على المشروع" }, ...projectVillas.map((villa) => ({ value: villa.code, label: `${villa.block} - فيلا ${villa.code}` }))]
+            }
+          />
+        )}
 
         {/* العهدة */}
         <div>
@@ -712,7 +775,9 @@ return (
         <div>
           <div className="mb-2 flex items-center justify-between">
             <label className="text-sm text-gray-300">المرحلة</label>
-            <button
+            <div className="flex items-center gap-2">
+              <button type="button" disabled={!stageId} onClick={() => setShowStageCategoryManager(true)} className="rounded-lg border border-cyan-400/20 bg-cyan-400/10 px-2 py-1 text-[11px] font-bold text-cyan-300 disabled:opacity-40">ربط التصنيفات</button>
+              <button
               type="button"
               onClick={() => {
                 setNewStageName("");
@@ -723,10 +788,16 @@ return (
             >
               +
             </button>
+            </div>
           </div>
           <select
             value={stageId}
-            onChange={(e) => setStageId(e.target.value)}
+            onChange={(e) => {
+              const nextStageId = e.target.value;
+              setStageId(nextStageId);
+              setCategoryId("");
+              setItemId("");
+            }}
             className="h-12 w-full rounded-xl border border-white/10 bg-[#102947] px-4 text-white outline-none focus:border-yellow-400"
           >
             <option value="">اختر المرحلة...</option>
@@ -747,7 +818,11 @@ return (
 
             <button
               type="button"
-              onClick={() => setShowAddCategory(true)}
+              onClick={() => {
+              setNewCategoryName("");
+              setNewCategoryStageId(stageId || "");
+              setShowAddCategory(true);
+            }}
               className="
                 flex h-7 w-7
                 items-center justify-center
@@ -765,6 +840,7 @@ return (
 
           <select
             value={categoryId}
+            disabled={!stageId}
             onChange={(e) => {
               setCategoryId(e.target.value);
               setItemId("");
@@ -781,10 +857,10 @@ return (
             "
           >
             <option value="">
-              اختر التصنيف...
+              {stageId ? (availableCategories.length ? "اختر التصنيف..." : "لا توجد تصنيفات مرتبطة بهذه المرحلة") : "اختر المرحلة أولاً"}
             </option>
 
-            {categories.map((category) => (
+            {availableCategories.map((category) => (
               <option
                 key={category.id}
                 value={category.id}
@@ -952,18 +1028,25 @@ return (
           إرفاق فاتورة
         </label>
 
-        <input
-          type="file"
-          className="
-            block w-full
-            rounded-xl
-            border border-white/10
-            bg-[#102947]
-            p-3
-            text-white
-          "
-        />
+       <input
+  type="file"
+  accept="image/*,.pdf"
+  onChange={(e) => setAttachmentFile(e.target.files?.[0] ?? null)}
+  className="
+    block w-full
+    rounded-xl
+    border border-white/10
+    bg-[#102947]
+    p-3
+    text-white
+  "
+/>
 
+{attachmentFile && (
+  <p className="mt-2 text-sm text-green-400">
+    تم اختيار: {attachmentFile.name}
+  </p>
+)}
       </div>
 
       {/* ================= إضافة مورد جديد ================= */}
@@ -1070,6 +1153,18 @@ return (
         </div>
       )}
 
+      {showStageCategoryManager && stageId && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 p-4">
+          <div className="w-full max-w-2xl rounded-3xl border border-white/10 bg-[#081B33] p-7 shadow-2xl">
+            <div className="mb-5 flex items-center justify-between"><div><h3 className="text-2xl font-bold text-white">ربط التصنيفات بالمرحلة</h3><p className="mt-1 text-sm text-gray-400">المرحلة: {stages.find((stage) => String(stage.id) === String(stageId))?.name || "-"}</p></div><button type="button" onClick={() => setShowStageCategoryManager(false)} className="text-2xl text-gray-400">✕</button></div>
+            <div className="max-h-[50vh] space-y-2 overflow-y-auto">
+              {categories.map((category) => { const checked = linkedCategoryIds.includes(Number(category.id)); return <label key={category.id} className="flex cursor-pointer items-center justify-between rounded-xl border border-white/10 bg-[#102947] px-4 py-3 text-white"><span>{category.name}</span><input type="checkbox" checked={checked} onChange={() => { const next = checked ? linkedCategoryIds.filter((id) => id !== Number(category.id)) : [...linkedCategoryIds, Number(category.id)]; setStageCategoryMap((current) => ({ ...current, [String(stageId)]: next })); }} className="h-5 w-5 accent-yellow-400" /></label>; })}
+            </div>
+            <div className="mt-6 flex justify-end gap-3"><button type="button" onClick={() => setShowStageCategoryManager(false)} className="rounded-xl border border-white/10 px-6 py-3 font-bold text-white">إغلاق</button><button type="button" onClick={() => saveStageCategoryLinks(stageCategoryMap[String(stageId)] ?? [])} className="rounded-xl bg-yellow-400 px-6 py-3 font-bold text-[#081B33]">حفظ الربط</button></div>
+          </div>
+        </div>
+      )}
+
       {/* ================= إضافة تصنيف جديد ================= */}
       {showAddCategory && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 p-4">
@@ -1084,6 +1179,7 @@ return (
                 onClick={() => {
                   setShowAddCategory(false);
                   setNewCategoryName("");
+                  setNewCategoryStageId("");
                 }}
                 className="text-2xl text-gray-400 transition hover:text-red-400"
               >
@@ -1119,12 +1215,30 @@ return (
               "
             />
 
+            <label className="mt-5 mb-2 block text-sm text-gray-300">
+              المرحلة
+            </label>
+
+            <select
+              value={newCategoryStageId}
+              onChange={(e) => setNewCategoryStageId(e.target.value)}
+              className="h-12 w-full rounded-xl border border-white/10 bg-[#102947] px-4 text-white outline-none focus:border-yellow-400"
+            >
+              <option value="">اختر المرحلة...</option>
+              {stages.map((stage) => (
+                <option key={stage.id} value={stage.id}>
+                  {stage.name}
+                </option>
+              ))}
+            </select>
+
             <div className="mt-6 flex justify-end gap-3">
               <button
                 type="button"
                 onClick={() => {
                   setShowAddCategory(false);
                   setNewCategoryName("");
+                  setNewCategoryStageId("");
                 }}
                 className="
                   rounded-xl
