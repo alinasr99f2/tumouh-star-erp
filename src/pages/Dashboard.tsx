@@ -9,6 +9,7 @@ import AddExpenseModal from "../components/modals/AddExpenseModal";
 import ExpensesPage from "./ExpensesPage";
 import Sidebar from "../components/sidebar/Sidebar";
 
+
 import {
   villas as initialVillas,
   type Villa,
@@ -637,7 +638,7 @@ const deleteVilla = (villaToDelete: Villa) => {
       ====================================== */}
 
       <AddExpenseModal
-        isOpen={isAddExpenseOpen}
+      open={isAddExpenseOpen}
 
         villas={villas}
 
@@ -657,13 +658,16 @@ const deleteVilla = (villaToDelete: Villa) => {
           addExpense
         }
 
-        onAddCategory={
-          addExpenseCategory
-        }
+        onAddCategory={(category) => {
+          addExpenseCategory(category.name);
+        }}
 
-        onAddClassification={
-          addExpenseClassification
-        }
+        onAddClassification={(classification) => {
+          addExpenseClassification(
+            String(classification.categoryId),
+            classification.name
+          );
+        }}
       />
 
     </div>

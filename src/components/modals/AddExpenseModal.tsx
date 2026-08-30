@@ -1,6 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { createPortal } from "react-dom";
-
 import { projects } from "../../data/projects";
 import { villas } from "../../data/villas";
 import { supabase } from "../../utils/supabase";
@@ -18,8 +16,19 @@ type Account = {
 type Props = {
   open: boolean;
   onClose: () => void;
-  onSave: (expense: any) => Promise<boolean>;
-  accounts: Account[];
+
+  // دعم صفحة Dashboard الحالية
+  onAddExpense?: (expense: any) => void | Promise<void | boolean>;
+  onAddCategory?: (category: any) => void | Promise<void>;
+  onAddClassification?: (classification: any) => void | Promise<void>;
+  categories?: { id: string | number; name: string }[];
+  classifications?: any[];
+
+  // دعم صفحة المصروفات/المشروع الحالية
+  onSave?: (expense: any) => Promise<boolean>;
+  accounts?: Account[];
+  villas: any[];
+
   initialExpense?: any | null;
   isEditing?: boolean;
   forcedProjectId?: string | number | null;
@@ -29,11 +38,16 @@ type Props = {
   forceGeneralExpense?: boolean;
 };
 
-export default function ExpenseModal({
+export default function AddExpenseModal({
   open,
   onClose,
   onSave,
-  accounts,
+  onAddExpense,
+  onAddCategory,
+  onAddClassification,
+  categories: initialCategories = [],
+  accounts = [],
+  villas,
   initialExpense,
   isEditing = false,
   forcedProjectId = null,
@@ -77,8 +91,8 @@ const [newAccountName, setNewAccountName] = useState("");
 const [newStageName, setNewStageName] = useState("");
 
 const [categories, setCategories] = useState<
-  { id: number; name: string }[]
->([]);
+  { id: string | number; name: string }[]
+>(initialCategories);
 
 const [expenseItems, setExpenseItems] = useState<
   { id: number; name: string; category_id: number }[]
@@ -102,7 +116,44 @@ const [description, setDescription] =
   useState("");
 
 useEffect(() => {
-  setLocalAccounts(accounts);
+  if (accounts.length > 0) {
+    setLocalAccounts(accounts);
+    return;
+  }
+
+  let cancelled = false;
+
+  const loadAccounts = async () => {
+    const { data, error } = await supabase
+      .from("accounts")
+      .select("id, name, type, balance")
+      .order("id", { ascending: true });
+
+    if (error) {
+      console.error("خطأ في تحميل العهد:", error);
+      return;
+    }
+
+    if (cancelled) return;
+
+    setLocalAccounts(
+      (data ?? []).map((account: any) => ({
+        id: Number(account.id),
+        name: String(account.name ?? ""),
+        type: String(account.type ?? "عهدة"),
+        currentBalance: Number(account.balance ?? 0),
+        totalFunding: Number(account.totalFunding ?? 0),
+        totalExpenses: Number(account.totalExpenses ?? 0),
+        operationsCount: Number(account.operationsCount ?? 0),
+      }))
+    );
+  };
+
+  loadAccounts();
+
+  return () => {
+    cancelled = true;
+  };
 }, [accounts]);
 
 const tax = useMemo(() => {
@@ -125,7 +176,7 @@ console.log(villas);
     (v) => String(v.projectId) === String(projectId)
   );
 
-}, [projectId]);
+}, [projectId, villas]);
 useEffect(() => {
   const loadCategoriesAndItems = async () => {
     const [
@@ -180,7 +231,9 @@ useEffect(() => {
       console.error("خطأ في تحميل المراحل:", stagesError);
     }
 
-    setCategories(categoriesData ?? []);
+    setCategories(
+      initialCategories.length > 0 ? initialCategories : (categoriesData ?? [])
+    );
     setExpenseItems(itemsData ?? []);
     setSuppliers(suppliersData ?? []);
     setStages(stagesData ?? []);
@@ -357,6 +410,7 @@ const handleAddCategory = async () => {
     setCategories((current) => [...current, data]);
     setCategoryId(String(data.id));
     setItemId("");
+    await onAddCategory?.(data);
   }
 
   setNewCategoryName("");
@@ -572,7 +626,14 @@ amount: Number(amount),
     createdAt: new Date().toISOString(),
   };
 
- const success = await onSave(expense);
+ let success = true;
+
+if (onSave) {
+  success = await onSave(expense);
+} else if (onAddExpense) {
+  const result = await onAddExpense(expense);
+  success = result !== false;
+}
 
 if (!success) {
   return;
