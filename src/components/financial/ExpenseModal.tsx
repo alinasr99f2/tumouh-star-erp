@@ -184,7 +184,21 @@ useEffect(() => {
     setCategories(categoriesData ?? []);
     setExpenseItems(itemsData ?? []);
     setSuppliers(suppliersData ?? []);
-    setStages(stagesData ?? []);
+
+    // المراحل القديمة التي كانت موجودة افتراضيًا في مشروع تبوك
+    // لا نعرضها حتى لو كانت ما زالت موجودة في قاعدة البيانات.
+    const oldDefaultStageNames = new Set([
+      "تمهيدي",
+      "إنشائي",
+      "تشطيبي",
+      "ديكورات",
+    ]);
+
+    const cleanedStages = (stagesData ?? []).filter(
+      (stage) => !oldDefaultStageNames.has(stage.name.trim())
+    );
+
+    setStages(cleanedStages);
     try {
       const savedMap = JSON.parse(localStorage.getItem("tumouh-stage-category-map") || "{}");
       setStageCategoryMap(savedMap && typeof savedMap === "object" ? savedMap : {});

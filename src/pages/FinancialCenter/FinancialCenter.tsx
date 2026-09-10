@@ -92,22 +92,9 @@ const [editingAccount, setEditingAccount] =
   // ==========================================
   // إدارة المراحل والتصنيفات والبنود
   // ==========================================
-  const [stages, setStages] = useState<any[]>(() => {
-    const saved = localStorage.getItem("tumouh-expense-stages");
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch {
-        // ignore and use defaults
-      }
-    }
-    return [
-      { id: "preliminary", name: "تمهيدي" },
-      { id: "structural", name: "إنشائي" },
-      { id: "finishing", name: "تشطيبي" },
-      { id: "decorations", name: "ديكورات" },
-    ];
-  });
+  // المراحل مصدرها Supabase فقط.
+  // لا توجد مراحل افتراضية؛ إذا كانت قاعدة البيانات فارغة تظهر القائمة فارغة.
+  const [stages, setStages] = useState<any[]>([]);
 
   const [openStageModal, setOpenStageModal] = useState(false);
   const [openCategoryModal, setOpenCategoryModal] = useState(false);
@@ -149,10 +136,6 @@ const [editingAccount, setEditingAccount] =
 
     return amount + tax;
   };
-
-  useEffect(() => {
-    localStorage.setItem("tumouh-expense-stages", JSON.stringify(stages));
-  }, [stages]);
 
   useEffect(() => {
     const loadAccounts = async () => {
@@ -233,50 +216,12 @@ console.log("ACCOUNTS ERROR:", accountsError);
   setSuppliers(suppliersData ?? []);
 }
 
-  // تحميل المراحل من قاعدة البيانات حتى تكون متاحة أيضًا داخل نافذة إضافة المصروف.
-  // إذا لم توجد مراحل في قاعدة البيانات، نحتفظ بالمراحل المحلية كحل احتياطي.
+  // تحميل المراحل من قاعدة البيانات فقط.
+  // لا ننشئ أي مراحل تلقائيًا إذا كانت قاعدة البيانات فارغة.
   if (stagesError) {
     console.error("خطأ في تحميل المراحل:", stagesError);
-  } else if ((stagesData ?? []).length > 0) {
-    setStages(stagesData ?? []);
   } else {
-    // لا توجد مراحل في قاعدة البيانات؟ ننقل المراحل المحلية الحالية إليها مرة واحدة.
-    // هذا مهم لأن نافذة إضافة المصروف تحتاج ID رقمي حقيقي من expense_stages.
-    try {
-      const localStageRows = stages.filter((stage) => stage?.name?.trim());
-
-      if (localStageRows.length > 0) {
-        const migratedStages: any[] = [];
-
-        for (const localStage of localStageRows) {
-          const { data: createdStage, error: createStageError } = await supabase
-            .from("expense_stages")
-            .insert([{
-              name: String(localStage.name).trim(),
-              is_active: true,
-            }])
-            .select("id, name, is_active")
-            .single();
-
-          if (createStageError) {
-            console.error(
-              "تعذر نقل المرحلة إلى قاعدة البيانات:",
-              localStage.name,
-              createStageError
-            );
-            continue;
-          }
-
-          if (createdStage) migratedStages.push(createdStage);
-        }
-
-        if (migratedStages.length > 0) {
-          setStages(migratedStages);
-        }
-      }
-    } catch (migrationError) {
-      console.error("خطأ أثناء نقل المراحل المحلية:", migrationError);
-    }
+    setStages(stagesData ?? []);
   }
 
   const fundingRows = fundingData ?? [];

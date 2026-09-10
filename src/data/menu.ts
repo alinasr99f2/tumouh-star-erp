@@ -2,6 +2,7 @@ import {
   Home,
   LayoutDashboard,
   FolderKanban,
+  Building2,
   Receipt,
 } from "lucide-react";
 
@@ -9,7 +10,7 @@ export const sidebarMenu = [
   {
     title: "الشاشة الرئيسية",
     icon: Home,
-    path: "/home"
+    path: "/home",
   },
 
   {
@@ -22,6 +23,13 @@ export const sidebarMenu = [
     title: "المشاريع",
     icon: FolderKanban,
     path: "/projects",
+  },
+
+  {
+    title: "العمائر",
+    icon: Building2,
+    path: "/buildings",
+    isSubItem: true,
   },
 
   {

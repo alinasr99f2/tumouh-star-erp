@@ -14,7 +14,9 @@ import CompanyDashboard from "./pages/Dashboard/CompanyDashboard";
 import Projects from "./pages/Projects/Projects";
 import ProjectDetails from "./pages/Projects/ProjectDetails";
 import ProjectExpenses from "./pages/Projects/ProjectExpenses";
+import Buildings from "./pages/Buildings/Buildings";
 import FinancialCenter from "./pages/FinancialCenter/FinancialCenter";
+import BuildingDetails from "./pages/Buildings/BuildingDetails";
 
 function App() {
   const isDevMode =
@@ -78,10 +80,24 @@ function App() {
             element={<ProjectDetails />}
           />
 
+
           {/* مصروفات المشروع */}
+          <Route
+            path="/projects/:id/expenses"
+            element={<ProjectExpenses />}
+          />
+
+
+         {/* العمائر */}
 <Route
-  path="/projects/:id/expenses"
-  element={<ProjectExpenses />}
+  path="/buildings"
+  element={<Buildings />}
+/>
+
+{/* تفاصيل العمارة */}
+<Route
+  path="/buildings/:id"
+  element={<BuildingDetails />}
 />
 
 
