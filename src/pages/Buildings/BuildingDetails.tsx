@@ -25,6 +25,8 @@ import {
   AlertCircle,
   ArrowUpRight,
   Receipt,
+  Image as ImageIcon,
+  Compass,
 } from "lucide-react";
 
 type ApartmentStatus =
@@ -301,356 +303,6 @@ export default function BuildingDetails() {
 
           <div className="mt-1 text-gray-400">
             من إجمالي الشقق
-          </div>
-
-        </div>
-
-      </div>
-
-      {/* ===================================================== */}
-      {/* COLLECTION & BILLS - NEW 5 CARDS                     */}
-      {/* ===================================================== */}
-
-      <div className="mb-8 grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-5">
-
-        {/* ================================================= */}
-        {/* TOTAL COLLECTIONS                                  */}
-        {/* ================================================= */}
-
-        <div className="relative overflow-hidden rounded-3xl border border-[#f0ad18]/30 bg-gradient-to-br from-[#102b47] via-[#0b2039] to-[#071526] p-5 shadow-xl backdrop-blur-xl xl:col-span-1">
-
-          <div className="absolute -left-10 -top-10 h-32 w-32 rounded-full bg-[#f0ad18]/10 blur-3xl" />
-
-          <div className="relative">
-
-            <div className="mb-4 flex items-start justify-between">
-
-              <div>
-
-                <p className="text-sm text-gray-400">
-                  إجمالي التحصيلات
-                </p>
-
-                <h3 className="mt-1 text-lg font-bold text-white">
-                  تحصيلات الإيجار
-                </h3>
-
-              </div>
-
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-[#f0ad18]/30 bg-[#f0ad18]/10">
-
-                <Coins
-                  size={22}
-                  className="text-[#f0ad18]"
-                />
-
-              </div>
-
-            </div>
-
-            {/* DATE FILTER */}
-
-            <div className="space-y-3">
-
-              <div>
-
-                <label className="mb-1 block text-xs text-gray-500">
-                  من تاريخ
-                </label>
-
-                <input
-                  type="date"
-                  value={fromDate}
-                  onChange={(event) =>
-                    setFromDate(event.target.value)
-                  }
-                  className="w-full rounded-xl border border-white/10 bg-[#061426] px-3 py-2 text-sm text-white outline-none transition focus:border-[#f0ad18]/60"
-                />
-
-              </div>
-
-              <div>
-
-                <label className="mb-1 block text-xs text-gray-500">
-                  إلى تاريخ
-                </label>
-
-                <input
-                  type="date"
-                  value={toDate}
-                  onChange={(event) =>
-                    setToDate(event.target.value)
-                  }
-                  className="w-full rounded-xl border border-white/10 bg-[#061426] px-3 py-2 text-sm text-white outline-none transition focus:border-[#f0ad18]/60"
-                />
-
-              </div>
-
-            </div>
-
-            {/* RESULT */}
-
-            <div className="mt-4 rounded-2xl border border-[#f0ad18]/20 bg-[#f0ad18]/5 p-4">
-
-              <div className="flex items-center justify-between">
-
-                <span className="text-xs text-gray-400">
-                  نتيجة الفترة
-                </span>
-
-                <ArrowUpRight
-                  size={16}
-                  className="text-green-400"
-                />
-
-              </div>
-
-              <div className="mt-1 text-2xl font-black text-[#f6c84a]">
-                126,000
-              </div>
-
-              <div className="text-xs text-gray-500">
-                ريال
-              </div>
-
-            </div>
-
-          </div>
-
-        </div>
-
-        {/* ================================================= */}
-        {/* ADD RENT COLLECTION                               */}
-        {/* ================================================= */}
-
-        <button
-          type="button"
-          className="group relative overflow-hidden rounded-3xl border border-[#f0ad18]/50 bg-gradient-to-br from-[#f0ad18]/15 via-[#0b2039] to-[#071526] p-5 text-right shadow-xl transition duration-300 hover:-translate-y-1 hover:border-[#f6c84a] hover:shadow-[0_0_35px_rgba(240,173,24,0.15)]"
-        >
-
-          <div className="absolute -left-10 -top-10 h-32 w-32 rounded-full bg-[#f0ad18]/10 blur-3xl transition group-hover:bg-[#f0ad18]/20" />
-
-          <div className="relative">
-
-            <div className="mb-5 flex items-start justify-between">
-
-              <div>
-
-                <p className="text-sm text-gray-400">
-                  العمليات المالية
-                </p>
-
-                <h3 className="mt-1 text-xl font-bold text-white">
-                  إضافة تحصيل إيجار
-                </h3>
-
-              </div>
-
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#f0ad18] text-[#07182b] shadow-lg transition group-hover:scale-110">
-
-                <Plus
-                  size={26}
-                  strokeWidth={2.5}
-                />
-
-              </div>
-
-            </div>
-
-            <p className="text-sm leading-6 text-gray-400">
-              تسجيل دفعة إيجار جديدة وربطها بالشقة والمستأجر والعقد.
-            </p>
-
-            <div className="mt-5 flex items-center justify-between">
-
-              <span className="text-sm font-bold text-[#f6c84a]">
-                إضافة تحصيل
-              </span>
-
-              <ArrowUpRight
-                size={19}
-                className="text-[#f0ad18] transition group-hover:-translate-x-1"
-              />
-
-            </div>
-
-          </div>
-
-        </button>
-
-        {/* ================================================= */}
-        {/* WATER BILLS                                       */}
-        {/* ================================================= */}
-
-        <div className="relative overflow-hidden rounded-3xl border border-cyan-400/20 bg-gradient-to-br from-[#0d2943] via-[#0b2039] to-[#071526] p-5 shadow-xl">
-
-          <div className="absolute -left-12 -top-12 h-32 w-32 rounded-full bg-cyan-400/10 blur-3xl" />
-
-          <div className="relative">
-
-            <div className="mb-5 flex items-start justify-between">
-
-              <div>
-
-                <p className="text-sm text-gray-400">
-                  المرافق
-                </p>
-
-                <h3 className="mt-1 text-lg font-bold">
-                  فواتير المياه
-                </h3>
-
-              </div>
-
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-cyan-400/20 bg-cyan-400/10">
-
-                <Droplets
-                  size={22}
-                  className="text-cyan-400"
-                />
-
-              </div>
-
-            </div>
-
-            <div className="text-3xl font-black text-cyan-400">
-              8,450
-            </div>
-
-            <div className="mt-1 text-xs text-gray-500">
-              ريال إجمالي الفواتير
-            </div>
-
-            <div className="mt-5 flex items-center justify-between border-t border-white/5 pt-4">
-
-              <span className="text-xs text-gray-500">
-                هذا الشهر
-              </span>
-
-              <span className="text-sm font-bold text-white">
-                44 فاتورة
-              </span>
-
-            </div>
-
-          </div>
-
-        </div>
-
-        {/* ================================================= */}
-        {/* ELECTRICITY BILLS                                 */}
-        {/* ================================================= */}
-
-        <div className="relative overflow-hidden rounded-3xl border border-yellow-400/20 bg-gradient-to-br from-[#152c40] via-[#0b2039] to-[#071526] p-5 shadow-xl">
-
-          <div className="absolute -left-12 -top-12 h-32 w-32 rounded-full bg-yellow-400/10 blur-3xl" />
-
-          <div className="relative">
-
-            <div className="mb-5 flex items-start justify-between">
-
-              <div>
-
-                <p className="text-sm text-gray-400">
-                  المرافق
-                </p>
-
-                <h3 className="mt-1 text-lg font-bold">
-                  فواتير الكهرباء
-                </h3>
-
-              </div>
-
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-yellow-400/20 bg-yellow-400/10">
-
-                <Zap
-                  size={22}
-                  className="text-yellow-400"
-                />
-
-              </div>
-
-            </div>
-
-            <div className="text-3xl font-black text-yellow-400">
-              12,780
-            </div>
-
-            <div className="mt-1 text-xs text-gray-500">
-              ريال إجمالي الفواتير
-            </div>
-
-            <div className="mt-5 flex items-center justify-between border-t border-white/5 pt-4">
-
-              <span className="text-xs text-gray-500">
-                هذا الشهر
-              </span>
-
-              <span className="text-sm font-bold text-white">
-                44 فاتورة
-              </span>
-
-            </div>
-
-          </div>
-
-        </div>
-
-        {/* ================================================= */}
-        {/* LATE COLLECTIONS                                  */}
-        {/* ================================================= */}
-
-        <div className="relative overflow-hidden rounded-3xl border border-red-400/25 bg-gradient-to-br from-[#301b29] via-[#0b2039] to-[#071526] p-5 shadow-xl">
-
-          <div className="absolute -left-12 -top-12 h-32 w-32 rounded-full bg-red-500/10 blur-3xl" />
-
-          <div className="relative">
-
-            <div className="mb-5 flex items-start justify-between">
-
-              <div>
-
-                <p className="text-sm text-gray-400">
-                  متابعة التحصيل
-                </p>
-
-                <h3 className="mt-1 text-lg font-bold">
-                  التحصيلات المتأخرة
-                </h3>
-
-              </div>
-
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-red-400/20 bg-red-500/10">
-
-                <AlertCircle
-                  size={22}
-                  className="text-red-400"
-                />
-
-              </div>
-
-            </div>
-
-            <div className="text-3xl font-black text-red-400">
-              18,500
-            </div>
-
-            <div className="mt-1 text-xs text-gray-500">
-              ريال مستحق متأخر
-            </div>
-
-            <div className="mt-5 flex items-center justify-between border-t border-white/5 pt-4">
-
-              <span className="text-xs text-gray-500">
-                عدد الحالات
-              </span>
-
-              <span className="text-sm font-bold text-red-400">
-                6 حالات
-              </span>
-
-            </div>
-
           </div>
 
         </div>
@@ -1046,12 +698,12 @@ export default function BuildingDetails() {
       {selectedApartment && (
 
         <div
-          className="fixed inset-0 z-[9999] flex items-center justify-center overflow-y-auto bg-black/80 p-4 backdrop-blur-md sm:p-6 lg:p-8"
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/85 p-2 backdrop-blur-md sm:p-4"
           onClick={closeApartment}
         >
 
           <div
-            className="relative my-auto w-full max-w-[1280px] overflow-hidden rounded-[28px] border border-[#d89b18]/70 bg-[#061426]/95 shadow-[0_0_80px_rgba(216,155,24,0.18)]"
+            className="relative flex max-h-[calc(100vh-16px)] w-full max-w-[1420px] flex-col overflow-hidden rounded-[28px] border border-[#d89b18]/70 bg-[#061426]/98 shadow-[0_0_80px_rgba(216,155,24,0.18)] sm:max-h-[calc(100vh-32px)]"
             onClick={(event) =>
               event.stopPropagation()
             }
@@ -1065,244 +717,187 @@ export default function BuildingDetails() {
             {/* MODAL HEADER                                      */}
             {/* ================================================= */}
 
-            <div className="relative border-b border-white/10 bg-gradient-to-r from-[#071a30] via-[#0a2038] to-[#071a30] px-6 py-5 lg:px-8">
-
-              <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-
+            <div className="relative border-b border-white/10 bg-gradient-to-r from-[#050d18] via-[#0a2038] to-[#071a2d] px-5 py-3 lg:px-7">
+              <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
-
-                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-[#f0ad18]/40 bg-[#f0ad18]/10 shadow-[0_0_25px_rgba(240,173,24,0.12)]">
-
-                    <Building2
-                      size={30}
-                      className="text-[#f0ad18]"
-                    />
-
-                  </div>
+                  <button
+                    type="button"
+                    onClick={closeApartment}
+                    aria-label="إغلاق"
+                    className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-gray-400 transition hover:border-red-400/40 hover:bg-red-500/10 hover:text-red-400"
+                  >
+                    <X size={23} />
+                  </button>
 
                   <div>
-
-                    <h2 className="text-2xl font-bold text-[#f6c84a] lg:text-3xl">
+                    <h2 className="text-xl font-bold text-[#f6c84a] lg:text-2xl">
                       تفاصيل الشقة
                     </h2>
-
                     <p className="mt-1 text-sm text-gray-400">
                       عمارة سنتر — تبوك
                     </p>
-
                   </div>
-
                 </div>
 
-                <div className="hidden text-center lg:block">
-
-                  <div className="text-2xl font-bold tracking-wide text-white">
-                    TUMOUH STAR
+                <div className="flex items-center gap-3 text-right">
+                  <div className="hidden sm:block">
+                    <div className="text-xl font-black tracking-[0.08em] text-white lg:text-2xl">
+                      TUMOUH STAR
+                    </div>
+                    <div className="text-sm font-semibold text-[#d89b18]">
+                      طموح ستار
+                    </div>
                   </div>
-
-                  <div className="text-sm text-[#d89b18]">
-                    طموح ستار
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[#f0ad18]/40 bg-[#f0ad18]/10 shadow-[0_0_25px_rgba(240,173,24,0.12)]">
+                    <Building2 size={25} className="text-[#f0ad18]" />
                   </div>
-
                 </div>
-
-                <button
-                  type="button"
-                  onClick={closeApartment}
-                  className="absolute left-5 top-5 flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-gray-400 transition hover:border-red-400/40 hover:bg-red-500/10 hover:text-red-400 lg:static"
-                >
-                  <X size={23} />
-                </button>
-
               </div>
-
             </div>
 
             {/* ================================================= */}
             {/* MODAL HERO                                         */}
             {/* ================================================= */}
 
-            <div className="grid grid-cols-1 gap-5 border-b border-white/10 bg-[#06182c] p-5 lg:grid-cols-[310px_1fr] lg:p-6">
-
-              {/* NUMBER */}
-
-              <div className="relative min-h-[230px] overflow-hidden rounded-3xl border border-[#d89b18]/30 bg-gradient-to-br from-[#122f4b] via-[#081b31] to-[#040c17]">
-
-                <div className="absolute inset-0 opacity-20">
-
-                  <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-[#f0ad18] blur-3xl" />
-
-                  <div className="absolute -bottom-20 -left-10 h-44 w-44 rounded-full bg-blue-500 blur-3xl" />
-
-                </div>
-
-                <div className="relative flex h-full flex-col items-center justify-center">
-
-                  <div className="mb-2 text-sm font-medium text-gray-400">
-                    شقة رقم
-                  </div>
-
-                  <div className="text-[92px] font-black leading-none text-[#f6c84a] drop-shadow-[0_0_25px_rgba(246,200,74,0.2)]">
+            <div className="grid shrink-0 grid-cols-1 gap-4 border-b border-white/10 bg-[#06182c] p-4 lg:grid-cols-[330px_1fr] lg:p-5" dir="ltr">
+              <div className="relative min-h-[220px] overflow-hidden rounded-3xl border border-[#d89b18]/30 bg-[#0a1e33]">
+                <img
+                  src="https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=1000&q=85"
+                  alt="صورة الشقة"
+                  className="absolute inset-0 h-full w-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#020813]/95 via-[#061426]/35 to-transparent" />
+                <div className="absolute inset-x-0 bottom-0 p-5 text-right" dir="rtl">
+                  <div className="text-sm font-medium text-gray-300">شقة رقم</div>
+                  <div className="mt-1 text-[76px] font-black leading-none text-[#f6c84a] drop-shadow-[0_0_25px_rgba(246,200,74,0.25)]">
                     {selectedApartment.number}
                   </div>
-
-                  <div
-                    className={`mt-5 flex items-center gap-2 rounded-full border px-5 py-2 text-sm font-bold ${
-                      getStatusColor(
-                        selectedApartment.status
-                      ).badge
-                    }`}
-                  >
-
-                    <span
-                      className={`h-2.5 w-2.5 rounded-full ${
-                        getStatusColor(
-                          selectedApartment.status
-                        ).dot
-                      }`}
-                    />
-
+                  <div className={`mt-4 inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold backdrop-blur-md ${getStatusColor(selectedApartment.status).badge}`}>
+                    <span className={`h-2.5 w-2.5 rounded-full ${getStatusColor(selectedApartment.status).dot}`} />
                     {selectedApartment.status}
-
                   </div>
-
                 </div>
-
               </div>
 
-              {/* HERO CARDS */}
-
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-
-                <div className="rounded-2xl border border-[#2a5275] bg-white/[0.035] p-5 backdrop-blur-xl transition hover:border-[#f0ad18]/50">
-
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="rounded-2xl border border-[#2a5275] bg-white/[0.035] p-4 backdrop-blur-xl transition hover:border-[#f0ad18]/50">
                   <div className="mb-5 flex items-center justify-between">
-
-                    <span className="text-sm text-gray-400">
-                      نوع الشقة
-                    </span>
-
+                    <span className="text-sm text-gray-400">نوع الشقة</span>
                     <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-blue-400/20 bg-blue-400/10">
-
-                      <Home
-                        size={23}
-                        className="text-blue-400"
-                      />
-
+                      <Home size={23} className="text-blue-400" />
                     </div>
-
                   </div>
-
-                  <div className="text-xl font-bold">
-                    {selectedApartment.type}
-                  </div>
-
-                  <div className="mt-2 text-xs text-gray-500">
-                    وحدة سكنية مفروشة
-                  </div>
-
+                  <div className="text-xl font-bold">{selectedApartment.type}</div>
+                  <div className="mt-2 text-xs text-gray-500">مساحة تقريبية 95 م²</div>
                 </div>
 
-                <div className="rounded-2xl border border-[#2a5275] bg-white/[0.035] p-5 backdrop-blur-xl transition hover:border-[#f0ad18]/50">
-
+                <div className="rounded-2xl border border-[#2a5275] bg-white/[0.035] p-4 backdrop-blur-xl transition hover:border-[#f0ad18]/50">
                   <div className="mb-5 flex items-center justify-between">
-
-                    <span className="text-sm text-gray-400">
-                      قيمة الإيجار
-                    </span>
-
+                    <span className="text-sm text-gray-400">قيمة الإيجار</span>
                     <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-[#f0ad18]/20 bg-[#f0ad18]/10">
-
-                      <Wallet
-                        size={23}
-                        className="text-[#f0ad18]"
-                      />
-
+                      <Wallet size={23} className="text-[#f0ad18]" />
                     </div>
-
                   </div>
-
-                  <div className="text-2xl font-bold text-[#f6c84a]">
-                    {selectedApartment.rent.toLocaleString(
-                      "ar-SA"
-                    )}
-                  </div>
-
-                  <div className="mt-2 text-xs text-gray-500">
-                    ريال / شهريًا
-                  </div>
-
+                  <div className="text-2xl font-bold text-[#f6c84a]">{selectedApartment.rent.toLocaleString("ar-SA")}</div>
+                  <div className="mt-2 text-xs text-gray-500">ريال / شهرياً</div>
                 </div>
 
-                <div className="rounded-2xl border border-[#2a5275] bg-white/[0.035] p-5 backdrop-blur-xl transition hover:border-[#f0ad18]/50">
-
+                <div className="rounded-2xl border border-[#2a5275] bg-white/[0.035] p-4 backdrop-blur-xl transition hover:border-[#f0ad18]/50">
                   <div className="mb-5 flex items-center justify-between">
-
-                    <span className="text-sm text-gray-400">
-                      بداية العقد
-                    </span>
-
+                    <span className="text-sm text-gray-400">تاريخ بداية العقد</span>
                     <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-purple-400/20 bg-purple-400/10">
-
-                      <CalendarDays
-                        size={23}
-                        className="text-purple-400"
-                      />
-
+                      <CalendarDays size={23} className="text-purple-400" />
                     </div>
-
                   </div>
-
-                  <div className="text-lg font-bold">
-                    01 - 06 - 2025
-                  </div>
-
-                  <div className="mt-2 text-xs text-gray-500">
-                    تاريخ البداية
-                  </div>
-
+                  <div className="text-lg font-bold">01 - 06 - 2025</div>
+                  <div className="mt-2 text-xs text-gray-500">منذ بداية العقد</div>
                 </div>
 
-                <div className="rounded-2xl border border-[#2a5275] bg-white/[0.035] p-5 backdrop-blur-xl transition hover:border-[#f0ad18]/50">
-
+                <div className="rounded-2xl border border-[#2a5275] bg-white/[0.035] p-4 backdrop-blur-xl transition hover:border-[#f0ad18]/50">
                   <div className="mb-5 flex items-center justify-between">
-
-                    <span className="text-sm text-gray-400">
-                      نهاية العقد
-                    </span>
-
+                    <span className="text-sm text-gray-400">تاريخ نهاية العقد</span>
                     <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-cyan-400/20 bg-cyan-400/10">
-
-                      <CalendarDays
-                        size={23}
-                        className="text-cyan-400"
-                      />
-
+                      <CalendarDays size={23} className="text-cyan-400" />
                     </div>
-
                   </div>
+                  <div className="text-lg font-bold">31 - 05 - 2026</div>
+                  <div className="mt-2 text-xs text-red-400">يحتاج تحديث البيانات</div>
+                </div>
+              </div>
+            </div>
 
-                  <div className="text-lg font-bold">
-                    31 - 05 - 2026
+            {/* ================================================= */}
+            {/* SECONDARY FINANCIAL / UTILITY CARDS               */}
+            {/* ================================================= */}
+
+            <div className="shrink-0 border-b border-white/10 bg-[#071a2d] p-3 lg:p-4" dir="rtl">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+
+                <div className="rounded-2xl border border-[#f0ad18]/25 bg-[#0b2039] p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs text-gray-400">إجمالي التحصيلات للشهر</p>
+                      <p className="mt-1 text-xs text-gray-500">يونيو 2025</p>
+                    </div>
+                    <Coins size={21} className="text-[#f0ad18]" />
                   </div>
+                  <div className="mt-3 text-2xl font-black text-green-400">12,000 <span className="text-xs text-gray-500">ريال</span></div>
+                </div>
 
-                  <div className="mt-2 text-xs text-red-400">
-                    يحتاج تحديث البيانات
+                <button type="button" className="rounded-2xl border border-[#f0ad18]/60 bg-[#f0ad18]/10 p-4 text-right transition hover:bg-[#f0ad18]/20">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs text-gray-400">إضافة تحصيل إيجار</p>
+                      <p className="mt-1 text-xs text-gray-500">تسجيل دفعة جديدة</p>
+                    </div>
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#f0ad18] text-[#07182b]"><Plus size={22} /></div>
                   </div>
+                  <div className="mt-3 text-sm font-bold text-[#f6c84a]">إضافة تحصيل +</div>
+                </button>
 
+                <div className="rounded-2xl border border-cyan-400/20 bg-[#0b2039] p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs text-gray-400">إجمالي فواتير المياه</p>
+                      <p className="mt-1 text-xs text-gray-500">هذا الشهر</p>
+                    </div>
+                    <Droplets size={21} className="text-cyan-400" />
+                  </div>
+                  <div className="mt-3 text-2xl font-black text-cyan-400">320 <span className="text-xs text-gray-500">ريال</span></div>
+                </div>
+
+                <div className="rounded-2xl border border-yellow-400/20 bg-[#0b2039] p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs text-gray-400">إجمالي فواتير الكهرباء</p>
+                      <p className="mt-1 text-xs text-gray-500">هذا الشهر</p>
+                    </div>
+                    <Zap size={21} className="text-yellow-400" />
+                  </div>
+                  <div className="mt-3 text-2xl font-black text-yellow-400">450 <span className="text-xs text-gray-500">ريال</span></div>
+                </div>
+
+                <div className="rounded-2xl border border-red-400/25 bg-[#301b29]/70 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs text-gray-400">التحصيلات المتأخرة</p>
+                      <p className="mt-1 text-xs text-gray-500">دفعة واحدة متأخرة</p>
+                    </div>
+                    <AlertCircle size={21} className="text-red-400" />
+                  </div>
+                  <div className="mt-3 text-2xl font-black text-red-400">4,000 <span className="text-xs text-gray-500">ريال</span></div>
                 </div>
 
               </div>
-
             </div>
 
             {/* ================================================= */}
             {/* TABS                                               */}
             {/* ================================================= */}
 
-            <div className="border-b border-white/10 bg-[#071a2d] px-4 py-3 lg:px-6">
+            <div className="shrink-0 border-b border-white/10 bg-[#071a2d] px-3 py-2 lg:px-5">
 
-              <div className="flex gap-2 overflow-x-auto pb-1">
+              <div className="flex gap-2 overflow-x-auto">
 
                 {apartmentTabs.map((tab) => {
 
@@ -1319,7 +914,7 @@ export default function BuildingDetails() {
                       onClick={() =>
                         setActiveTab(tab.title)
                       }
-                      className={`flex min-w-fit items-center gap-2 rounded-xl border px-5 py-3 text-sm font-semibold transition ${
+                      className={`flex min-w-fit items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition ${
                         active
                           ? "border-[#f0ad18]/60 bg-gradient-to-r from-[#f0ad18] to-[#d99a12] text-[#07182b] shadow-[0_0_20px_rgba(240,173,24,0.18)]"
                           : "border-white/10 bg-white/[0.025] text-gray-400 hover:border-[#f0ad18]/30 hover:bg-white/[0.05] hover:text-white"
@@ -1343,7 +938,7 @@ export default function BuildingDetails() {
             {/* TAB CONTENT                                        */}
             {/* ================================================= */}
 
-            <div className="max-h-[520px] overflow-y-auto bg-[#061426] p-5 lg:p-6">
+            <div className="min-h-0 flex-1 overflow-y-auto bg-[#061426] p-4 lg:p-5">
 
               {/* BASIC */}
 
@@ -1352,7 +947,7 @@ export default function BuildingDetails() {
 
                 <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
 
-                  <div className="rounded-3xl border border-[#285273] bg-white/[0.025] p-5 backdrop-blur-xl">
+                  <div className="order-2 rounded-3xl border border-[#285273] bg-white/[0.025] p-5 backdrop-blur-xl lg:order-2">
 
                     <div className="mb-5 flex items-center justify-between">
 
@@ -1427,7 +1022,7 @@ export default function BuildingDetails() {
 
                   </div>
 
-                  <div className="rounded-3xl border border-[#285273] bg-white/[0.025] p-5 backdrop-blur-xl">
+                  <div className="order-3 rounded-3xl border border-[#285273] bg-white/[0.025] p-5 backdrop-blur-xl lg:order-1">
 
                     <div className="mb-5 flex items-center justify-between">
 
@@ -1443,6 +1038,22 @@ export default function BuildingDetails() {
                     </div>
 
                     <div className="space-y-3">
+
+                      <div className="flex items-center justify-between rounded-xl bg-[#061a2d] p-3">
+                        <span className="flex items-center gap-2 text-sm text-gray-400">
+                          <Building2 size={16} />
+                          الدور
+                        </span>
+                        <span className="font-semibold">الأول</span>
+                      </div>
+
+                      <div className="flex items-center justify-between rounded-xl bg-[#061a2d] p-3">
+                        <span className="flex items-center gap-2 text-sm text-gray-400">
+                          <Compass size={16} />
+                          الاتجاه
+                        </span>
+                        <span className="font-semibold">شمالي</span>
+                      </div>
 
                       <div className="flex items-center justify-between rounded-xl bg-[#061a2d] p-3">
 
@@ -1500,67 +1111,28 @@ export default function BuildingDetails() {
 
                   </div>
 
-                  <div className="rounded-3xl border border-[#285273] bg-white/[0.025] p-5 backdrop-blur-xl">
-
+                  <div className="order-4 rounded-3xl border border-[#285273] bg-white/[0.025] p-5 backdrop-blur-xl lg:order-3">
                     <div className="mb-5 flex items-center justify-between">
-
-                      <h3 className="text-lg font-bold">
-                        ملخص مالي
-                      </h3>
-
-                      <Receipt
-                        size={21}
-                        className="text-[#f0ad18]"
-                      />
-
+                      <h3 className="text-lg font-bold">صورة الشقة</h3>
+                      <ImageIcon size={21} className="text-cyan-400" />
                     </div>
 
-                    <div className="space-y-4">
-
-                      <div className="rounded-xl bg-[#061a2d] p-4">
-
-                        <div className="text-sm text-gray-500">
-                          الإيجار الشهري
-                        </div>
-
-                        <div className="mt-1 text-xl font-bold text-[#f0ad18]">
-                          {selectedApartment.rent.toLocaleString(
-                            "ar-SA"
-                          )}{" "}
-                          ريال
-                        </div>
-
+                    <div className="space-y-3">
+                      <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#061a2d]">
+                        <img
+                          src="https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=900&q=80"
+                          alt="غرفة الشقة"
+                          className="h-40 w-full object-cover"
+                        />
                       </div>
-
-                      <div className="rounded-xl bg-[#061a2d] p-4">
-
-                        <div className="text-sm text-gray-500">
-                          المدفوع
-                        </div>
-
-                        <div className="mt-1 text-xl font-bold text-green-400">
-                          {selectedApartment.rent.toLocaleString(
-                            "ar-SA"
-                          )}{" "}
-                          ريال
-                        </div>
-
+                      <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#061a2d]">
+                        <img
+                          src="https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?auto=format&fit=crop&w=900&q=80"
+                          alt="مطبخ الشقة"
+                          className="h-40 w-full object-cover"
+                        />
                       </div>
-
-                      <div className="rounded-xl bg-[#061a2d] p-4">
-
-                        <div className="text-sm text-gray-500">
-                          المتأخر
-                        </div>
-
-                        <div className="mt-1 text-xl font-bold text-red-400">
-                          0 ريال
-                        </div>
-
-                      </div>
-
                     </div>
-
                   </div>
 
                 </div>
