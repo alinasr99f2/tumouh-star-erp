@@ -62,7 +62,7 @@ const [villaCode, setVillaCode] = useState("");
 const [villaId, setVillaId] = useState("");
 const [accountId, setAccountId] = useState("");
 const [stageId, setStageId] = useState("");
-const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
+
 const [categoryId, setCategoryId] = useState("");
 const [itemId, setItemId] = useState("");
 
@@ -72,7 +72,6 @@ const [showAddAccount, setShowAddAccount] = useState(false);
 const [showAddStage, setShowAddStage] = useState(false);
 
 const [newCategoryName, setNewCategoryName] = useState("");
-const [newCategoryStageId, setNewCategoryStageId] = useState("");
 const [newItemName, setNewItemName] = useState("");
 const [newAccountName, setNewAccountName] = useState("");
 const [newStageName, setNewStageName] = useState("");
@@ -106,14 +105,11 @@ useEffect(() => {
   setLocalAccounts(accounts);
 }, [accounts]);
 
-const tax = useMemo(() => {
-  const value = Number(amount || 0);
-  return value * Number(taxPercent || 0) / 100;
-}, [amount, taxPercent]);
+const tax = 0;
 
 const total = useMemo(() => {
-  return Number(amount || 0) + tax;
-}, [amount, tax]);
+  return Number(amount || 0);
+}, [amount]);
 
 const projectVillas = useMemo(() => {
   console.log(projectId);
@@ -184,21 +180,7 @@ useEffect(() => {
     setCategories(categoriesData ?? []);
     setExpenseItems(itemsData ?? []);
     setSuppliers(suppliersData ?? []);
-
-    // المراحل القديمة التي كانت موجودة افتراضيًا في مشروع تبوك
-    // لا نعرضها حتى لو كانت ما زالت موجودة في قاعدة البيانات.
-    const oldDefaultStageNames = new Set([
-      "تمهيدي",
-      "إنشائي",
-      "تشطيبي",
-      "ديكورات",
-    ]);
-
-    const cleanedStages = (stagesData ?? []).filter(
-      (stage) => !oldDefaultStageNames.has(stage.name.trim())
-    );
-
-    setStages(cleanedStages);
+    setStages(stagesData ?? []);
     try {
       const savedMap = JSON.parse(localStorage.getItem("tumouh-stage-category-map") || "{}");
       setStageCategoryMap(savedMap && typeof savedMap === "object" ? savedMap : {});
@@ -254,7 +236,7 @@ useEffect(() => {
     setCategoryId(String(initialExpense.categoryId ?? initialExpense.category_id ?? ""));
     setItemId(String(initialExpense.itemId ?? initialExpense.item_id ?? ""));
     setVoucherNo(String(initialExpense.voucherNo ?? initialExpense.voucher_no ?? ""));
-    setAmount(String(initialExpense.amount ?? 0));
+    setAmount(String(initialExpense.total ?? initialExpense.amount ?? 0));
     setTaxPercent(
       Number(initialExpense.amount ?? 0) > 0
         ? String(
@@ -321,19 +303,16 @@ const handleAddSupplier = async () => {
   setShowAddSupplier(false);
 };
 
+const linkedCategoryIds = stageId
+  ? (stageCategoryMap[String(stageId)] ?? [])
+  : [];
+
 const availableCategories = stageId
   ? categories.filter(
       (category) =>
-        category.stage_id !== null &&
-        category.stage_id !== undefined &&
-        Number(category.stage_id) === Number(stageId)
+        Number(category.stage_id) === Number(stageId) ||
+        linkedCategoryIds.includes(Number(category.id))
     )
-  : [];
-
-const linkedCategoryIds = stageId
-  ? categories
-      .filter((category) => Number(category.stage_id) === Number(stageId))
-      .map((category) => Number(category.id))
   : [];
 
 const saveStageCategoryLinks = (categoryIds: number[]) => {
@@ -354,11 +333,6 @@ const handleAddCategory = async () => {
     return;
   }
 
-  if (!newCategoryStageId) {
-    alert("من فضلك اختر المرحلة المرتبط بها التصنيف");
-    return;
-  }
-
   const existingCategory = categories.find(
     (category) =>
       category.name.trim().toLowerCase() === name.toLowerCase()
@@ -368,10 +342,8 @@ const handleAddCategory = async () => {
     alert("هذا التصنيف موجود بالفعل");
     setCategoryId(String(existingCategory.id));
     setItemId("");
-    setStageId(String(existingCategory.stage_id ?? newCategoryStageId));
     setShowAddCategory(false);
     setNewCategoryName("");
-    setNewCategoryStageId("");
     return;
   }
 
@@ -379,7 +351,7 @@ const handleAddCategory = async () => {
     .from("categories")
     .insert({
       name,
-      stage_id: Number(newCategoryStageId),
+      ...(stageId ? { stage_id: Number(stageId) } : {}),
     })
     .select("id, name, stage_id")
     .single();
@@ -395,11 +367,14 @@ const handleAddCategory = async () => {
     setCategoryId(String(data.id));
     setItemId("");
 
-    setStageId(String(newCategoryStageId));
+    if (stageId) {
+      const nextMap = { ...stageCategoryMap, [String(stageId)]: Array.from(new Set([...(stageCategoryMap[String(stageId)] ?? []), Number(data.id)])) };
+      setStageCategoryMap(nextMap);
+      try { localStorage.setItem("tumouh-stage-category-map", JSON.stringify(nextMap)); } catch {}
+    }
   }
 
   setNewCategoryName("");
-  setNewCategoryStageId("");
   setShowAddCategory(false);
 };
 
@@ -558,7 +533,6 @@ const resetForm = () => {
   setTaxPercent("15");
   setPaymentMethod("");
   setDescription("");
-setAttachmentFile(null);
 };
 
 const handleSave = async (addAnother = false) => {
@@ -583,11 +557,6 @@ const handleSave = async (addAnother = false) => {
     return;
   }
 
-  if (!stageId) {
-  alert("من فضلك اختر المرحلة");
-  return;
-}
-
   if (!amount || Number(amount) <= 0) {
     alert("من فضلك أدخل مبلغ المصروف");
     return;
@@ -595,31 +564,6 @@ const handleSave = async (addAnother = false) => {
 
   const savedVillaId =
     villaId === "general" ? null : villaId;
-
-  let attachmentPath =
-  initialExpense?.attachment ??
-  initialExpense?.attachmentPath ??
-  initialExpense?.attachment_path ??
-  null;
-
-if (attachmentFile) {
-  const safeName = attachmentFile.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-  const filePath = `expenses/${projectId}/${Date.now()}-${safeName}`;
-
-  const { error: uploadError } = await supabase.storage
-    .from("funding-attachments")
-    .upload(filePath, attachmentFile, {
-      upsert: false,
-      contentType: attachmentFile.type,
-    });
-
-  if (uploadError) {
-    alert(`تعذر رفع المرفق:\n${uploadError.message}`);
-    return;
-  }
-
-  attachmentPath = filePath;
-}
 
   const expense = {
     id: initialExpense?.id ?? crypto.randomUUID(),
@@ -640,8 +584,7 @@ amount: Number(amount),
     total,
     paymentMethod,
     description,
-attachment: attachmentPath,
-createdAt: new Date().toISOString(),
+    createdAt: new Date().toISOString(),
   };
 
  const success = await onSave(expense);
@@ -832,11 +775,7 @@ return (
 
             <button
               type="button"
-              onClick={() => {
-              setNewCategoryName("");
-              setNewCategoryStageId(stageId || "");
-              setShowAddCategory(true);
-            }}
+              onClick={() => setShowAddCategory(true)}
               className="
                 flex h-7 w-7
                 items-center justify-center
@@ -963,49 +902,12 @@ return (
           onChange={setVoucherNo}
         />
 
-        {/* المبلغ قبل الضريبة */}
-        <Input
-          label="المبلغ قبل الضريبة"
-          type="number"
-          value={amount}
-          onChange={setAmount}
-        />
-
-        {/* الضريبة */}
-        <Input
-          label="الضريبة %"
-          type="number"
-          value={taxPercent}
-          onChange={setTaxPercent}
-        />
-
-        {/* إجمالي الفاتورة */}
+        {/* إجمالي الفاتورة - إدخال مباشر */}
         <Input
           label="إجمالي الفاتورة"
           type="number"
-          value={String(total)}
-          readOnly
-        />
-
-        {/* طريقة الدفع */}
-        <Select
-          label="طريقة الدفع"
-          value={paymentMethod}
-          onChange={setPaymentMethod}
-          options={[
-            {
-              value: "cash",
-              label: "💵 نقدًا",
-            },
-            {
-              value: "bank",
-              label: "🏦 تحويل بنكي",
-            },
-            {
-              value: "card",
-              label: "💳 بطاقة",
-            },
-          ]}
+          value={amount}
+          onChange={setAmount}
         />
 
       </div>
@@ -1042,25 +944,18 @@ return (
           إرفاق فاتورة
         </label>
 
-       <input
-  type="file"
-  accept="image/*,.pdf"
-  onChange={(e) => setAttachmentFile(e.target.files?.[0] ?? null)}
-  className="
-    block w-full
-    rounded-xl
-    border border-white/10
-    bg-[#102947]
-    p-3
-    text-white
-  "
-/>
+        <input
+          type="file"
+          className="
+            block w-full
+            rounded-xl
+            border border-white/10
+            bg-[#102947]
+            p-3
+            text-white
+          "
+        />
 
-{attachmentFile && (
-  <p className="mt-2 text-sm text-green-400">
-    تم اختيار: {attachmentFile.name}
-  </p>
-)}
       </div>
 
       {/* ================= إضافة مورد جديد ================= */}
@@ -1193,7 +1088,6 @@ return (
                 onClick={() => {
                   setShowAddCategory(false);
                   setNewCategoryName("");
-                  setNewCategoryStageId("");
                 }}
                 className="text-2xl text-gray-400 transition hover:text-red-400"
               >
@@ -1229,30 +1123,12 @@ return (
               "
             />
 
-            <label className="mt-5 mb-2 block text-sm text-gray-300">
-              المرحلة
-            </label>
-
-            <select
-              value={newCategoryStageId}
-              onChange={(e) => setNewCategoryStageId(e.target.value)}
-              className="h-12 w-full rounded-xl border border-white/10 bg-[#102947] px-4 text-white outline-none focus:border-yellow-400"
-            >
-              <option value="">اختر المرحلة...</option>
-              {stages.map((stage) => (
-                <option key={stage.id} value={stage.id}>
-                  {stage.name}
-                </option>
-              ))}
-            </select>
-
             <div className="mt-6 flex justify-end gap-3">
               <button
                 type="button"
                 onClick={() => {
                   setShowAddCategory(false);
                   setNewCategoryName("");
-                  setNewCategoryStageId("");
                 }}
                 className="
                   rounded-xl

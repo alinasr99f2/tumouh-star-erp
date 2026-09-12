@@ -14,9 +14,10 @@ import CompanyDashboard from "./pages/Dashboard/CompanyDashboard";
 import Projects from "./pages/Projects/Projects";
 import ProjectDetails from "./pages/Projects/ProjectDetails";
 import ProjectExpenses from "./pages/Projects/ProjectExpenses";
+import ProjectCharts from "./pages/Projects/ProjectCharts";
+import ProjectQuantities from "./pages/Projects/ProjectQuantities";
 import Buildings from "./pages/Buildings/Buildings";
 import FinancialCenter from "./pages/FinancialCenter/FinancialCenter";
-import BuildingDetails from "./pages/Buildings/BuildingDetails";
 
 function App() {
   const isDevMode =
@@ -24,24 +25,10 @@ function App() {
 
   return (
     <BrowserRouter>
-
       <Routes>
+        <Route path="/login" element={<Login />} />
 
-        {/* =========================
-            تسجيل الدخول
-        ========================= */}
-        <Route
-          path="/login"
-          element={<Login />}
-        />
-
-
-        {/* =========================
-            النظام الرئيسي
-        ========================= */}
         <Route element={<MainLayout />}>
-
-          {/* فتح الموقع لأول مرة */}
           <Route
             path="/"
             element={
@@ -52,27 +39,29 @@ function App() {
             }
           />
 
+          <Route path="/home" element={<Home />} />
 
-          {/* الشاشة الرئيسية */}
-          <Route
-            path="/home"
-            element={<Home />}
-          />
-
-
-          {/* لوحة التحكم */}
           <Route
             path="/dashboard"
             element={<CompanyDashboard />}
           />
 
-
-          {/* المشاريع */}
           <Route
             path="/projects"
             element={<Projects />}
           />
 
+          {/* الرسوم البيانية للمشروع */}
+          <Route
+            path="/projects/:id/charts"
+            element={<ProjectCharts />}
+          />
+
+          {/* الكميات المستخدمة للمشروع */}
+          <Route
+            path="/projects/:id/quantities"
+            element={<ProjectQuantities />}
+          />
 
           {/* تفاصيل المشروع */}
           <Route
@@ -80,37 +69,25 @@ function App() {
             element={<ProjectDetails />}
           />
 
-
-          {/* مصروفات المشروع */}
+          {/* مصاريف المشروع */}
           <Route
             path="/projects/:id/expenses"
             element={<ProjectExpenses />}
           />
 
-
-         {/* العمائر */}
-<Route
-  path="/buildings"
-  element={<Buildings />}
-/>
-
-{/* تفاصيل العمارة */}
-<Route
-  path="/buildings/:id"
-  element={<BuildingDetails />}
-/>
-
+          {/* العمائر */}
+          <Route
+            path="/buildings"
+            element={<Buildings />}
+          />
 
           {/* المركز المالي */}
           <Route
             path="/financial"
             element={<FinancialCenter />}
           />
-
         </Route>
 
-
-        {/* أي رابط غير معروف */}
         <Route
           path="*"
           element={
@@ -120,9 +97,7 @@ function App() {
             />
           }
         />
-
       </Routes>
-
     </BrowserRouter>
   );
 }

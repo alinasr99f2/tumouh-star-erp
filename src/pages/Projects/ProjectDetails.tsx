@@ -18,11 +18,17 @@ import {
   Download,
   ChevronDown,
   Trash2,
+  BarChart3,
+  Boxes,
 } from "lucide-react";
 
 import { projects } from "../../data/projects";
 import { supabase } from "../../utils/supabase";
 import ExpenseModal from "../../components/financial/ExpenseModal";
+
+// إجمالي المصروفات المتوقع للمشروع، ويُستخدم كأساس لحساب النسبة المحددة للتصنيفات.
+const DEFAULT_EXPECTED_PROJECT_EXPENSE_TOTAL = 7_200_000;
+const expectedProjectExpenseTotal = DEFAULT_EXPECTED_PROJECT_EXPENSE_TOTAL;
 
 type ProjectVilla = {
   id: number;
@@ -111,6 +117,20 @@ export default function ProjectDetails() {
   const [editingProjectArea, setEditingProjectArea] = useState(false);
   const [projectAreaInput, setProjectAreaInput] = useState("");
   const [savingProjectArea, setSavingProjectArea] = useState(false);
+
+  // قيمة الأرض قابلة للتعديل من كارت قيمة الأرض.
+  const [projectLandValue, setProjectLandValue] = useState<number>(0);
+  const [editingProjectLandValue, setEditingProjectLandValue] = useState(false);
+  const [projectLandValueInput, setProjectLandValueInput] = useState("");
+  const [savingProjectLandValue, setSavingProjectLandValue] = useState(false);
+
+  // إجمالي المصاريف المتوقعة للمشروع قابل للتعديل والحفظ محليًا.
+  const [expectedProjectExpenseTotal, setExpectedProjectExpenseTotal] = useState<number>(DEFAULT_EXPECTED_PROJECT_EXPENSE_TOTAL);
+  const [editingExpectedProjectExpense, setEditingExpectedProjectExpense] = useState(false);
+  const [expectedProjectExpenseInput, setExpectedProjectExpenseInput] = useState(
+    String(DEFAULT_EXPECTED_PROJECT_EXPENSE_TOTAL)
+  );
+  const [savingExpectedProjectExpense, setSavingExpectedProjectExpense] = useState(false);
 
   // Lookup data used by the project expense table.
   const [categories, setCategories] = useState<any[]>([]);
@@ -369,6 +389,25 @@ export default function ProjectDetails() {
     setProjectTotalArea(resolvedArea);
     setProjectAreaInput(String(resolvedArea || ""));
 
+    const landStorageKey = `tumouh_star_project_land_value_${project.id}`;
+    const localLandValue = Number(localStorage.getItem(landStorageKey) ?? 0);
+    const resolvedLandValue = localLandValue;
+    setProjectLandValue(Number.isFinite(resolvedLandValue) ? resolvedLandValue : 0);
+    setProjectLandValueInput(
+      resolvedLandValue > 0 ? String(resolvedLandValue) : ""
+    );
+
+    const expectedExpenseStorageKey = `tumouh_star_project_expected_expense_total_${project.id}`;
+    const localExpectedExpense = Number(
+      localStorage.getItem(expectedExpenseStorageKey) ?? DEFAULT_EXPECTED_PROJECT_EXPENSE_TOTAL
+    );
+    const resolvedExpectedExpense =
+      Number.isFinite(localExpectedExpense) && localExpectedExpense >= 0
+        ? localExpectedExpense
+        : DEFAULT_EXPECTED_PROJECT_EXPENSE_TOTAL;
+    setExpectedProjectExpenseTotal(resolvedExpectedExpense);
+    setExpectedProjectExpenseInput(String(resolvedExpectedExpense));
+
     const normalizedExpenses = (expensesResult.data ?? []).map((row: any) => ({
       ...row,
       expenseDate: row.date ?? row.expense_date ?? row.entry_date ?? "",
@@ -429,6 +468,69 @@ export default function ProjectDetails() {
     [totalProjectExpenses, totalProjectArea]
   );
 
+  // سعر المتر الخام = قيمة الأرض ÷ إجمالي مساحة المشروع.
+  const rawProjectMeterPrice = useMemo(
+    () => (totalProjectArea > 0 ? projectLandValue / totalProjectArea : 0),
+    [projectLandValue, totalProjectArea]
+  );
+
+  const saveProjectLandValue = async () => {
+    const landValue = Number(projectLandValueInput);
+
+    if (!Number.isFinite(landValue) || landValue < 0) {
+      alert("من فضلك أدخل قيمة أرض صحيحة.");
+      return;
+    }
+
+    if (!project?.id) {
+      alert("المشروع غير موجود.");
+      return;
+    }
+
+    setSavingProjectLandValue(true);
+    try {
+      // نحفظ قيمة الأرض محليًا مؤقتًا حتى يتم إنشاء عمود land_value في قاعدة البيانات.
+      const landStorageKey = `tumouh_star_project_land_value_${project.id}`;
+      localStorage.setItem(landStorageKey, String(landValue));
+
+      setProjectLandValue(landValue);
+      setProjectLandValueInput(landValue > 0 ? String(landValue) : "");
+      setEditingProjectLandValue(false);
+    } catch (error: any) {
+      alert(`تعذر حفظ قيمة الأرض:\n${error?.message ?? ""}`);
+    } finally {
+      setSavingProjectLandValue(false);
+    }
+  };
+
+  const saveExpectedProjectExpense = async () => {
+    const expectedExpense = Number(expectedProjectExpenseInput);
+
+    if (!Number.isFinite(expectedExpense) || expectedExpense <= 0) {
+      alert("من فضلك أدخل قيمة صحيحة للمصاريف المتوقعة للمشروع.");
+      return;
+    }
+
+    if (!project?.id) {
+      alert("المشروع غير موجود.");
+      return;
+    }
+
+    setSavingExpectedProjectExpense(true);
+    try {
+      const storageKey = `tumouh_star_project_expected_expense_total_${project.id}`;
+      localStorage.setItem(storageKey, String(expectedExpense));
+
+      setExpectedProjectExpenseTotal(expectedExpense);
+      setExpectedProjectExpenseInput(String(expectedExpense));
+      setEditingExpectedProjectExpense(false);
+    } catch (error: any) {
+      alert(`تعذر حفظ المصاريف المتوقعة للمشروع:\n${error?.message ?? ""}`);
+    } finally {
+      setSavingExpectedProjectExpense(false);
+    }
+  };
+
   const saveProjectTotalArea = async () => {
     const area = Number(projectAreaInput);
 
@@ -470,14 +572,23 @@ export default function ProjectDetails() {
     [topCostItems]
   );
 
-  const formatCostItem = (item: any) => ({
-    name: String(item.name ?? "غير مصنف"),
-    amount: Number(item.total ?? 0),
-    percentage:
-      totalCostItems > 0
-        ? (Number(item.total ?? 0) / totalCostItems) * 100
-        : 0,
-  });
+  const formatCostItem = (item: any) => {
+    const amount = Number(item.total ?? 0);
+    return {
+      name: String(item.name ?? "غير مصنف"),
+      amount,
+      // النسبة من المصروف الحالي = التصنيف ÷ إجمالي المصروف الحالي.
+      percentage:
+        totalCostItems > 0
+          ? (amount / totalCostItems) * 100
+          : 0,
+      // النسبة المحددة = التصنيف ÷ إجمالي المصروفات المتوقعة للمشروع.
+      expectedPercentage:
+        expectedProjectExpenseTotal > 0
+          ? (amount / expectedProjectExpenseTotal) * 100
+          : 0,
+    };
+  };
 
   const highestCostItems = useMemo(
     () => topCostItems.slice(0, 5).map(formatCostItem),
@@ -556,6 +667,7 @@ export default function ProjectDetails() {
             <td>${escapeHtml(item.name)}</td>
             <td>${item.amount}</td>
             <td>${item.percentage.toFixed(1)}%</td>
+            <td>${Number(item.expectedPercentage ?? 0).toFixed(1)}%</td>
           </tr>
         `
       )
@@ -570,19 +682,21 @@ export default function ProjectDetails() {
         <body>
           <table border="1">
             <tr>
-              <th colspan="4">جميع تصنيفات ${escapeHtml(project?.name ?? "المشروع")}</th>
+              <th colspan="5">جميع تصنيفات ${escapeHtml(project?.name ?? "المشروع")}</th>
             </tr>
             <tr>
               <th>#</th>
               <th>اسم التصنيف</th>
               <th>إجمالي التكلفة</th>
-              <th>النسبة</th>
+              <th>نسبة من المصروف الحالي</th>
+              <th>النسبة المحددة</th>
             </tr>
             ${rows}
             <tr>
               <th colspan="2">الإجمالي</th>
               <th>${totalCostItems}</th>
               <th>100%</th>
+              <th>${((totalCostItems / expectedProjectExpenseTotal) * 100).toFixed(1)}%</th>
             </tr>
           </table>
         </body>
@@ -619,6 +733,7 @@ export default function ProjectDetails() {
             <td>${escapeHtml(item.name)}</td>
             <td>${Number(item.amount).toLocaleString("ar-SA")} ريال</td>
             <td>${item.percentage.toFixed(1)}%</td>
+            <td>${Number(item.expectedPercentage ?? 0).toFixed(1)}%</td>
           </tr>
         `
       )
@@ -706,6 +821,10 @@ export default function ProjectDetails() {
               <div class="summary-label">إجمالي التكلفة</div>
               <div class="summary-value">${totalCostItems.toLocaleString("ar-SA")} ريال</div>
             </div>
+            <div class="summary-box">
+              <div class="summary-label">المصروفات المتوقعة للمشروع</div>
+              <div class="summary-value">${expectedProjectExpenseTotal.toLocaleString("ar-SA")} ريال</div>
+            </div>
           </div>
 
           <table>
@@ -714,7 +833,8 @@ export default function ProjectDetails() {
                 <th>#</th>
                 <th>اسم التصنيف</th>
                 <th>إجمالي التكلفة</th>
-                <th>النسبة</th>
+                <th>نسبة من المصروف الحالي</th>
+                <th>النسبة المحددة</th>
               </tr>
             </thead>
             <tbody>
@@ -723,6 +843,7 @@ export default function ProjectDetails() {
                 <td colspan="2">الإجمالي</td>
                 <td>${totalCostItems.toLocaleString("ar-SA")} ريال</td>
                 <td>100%</td>
+                <td>${((totalCostItems / expectedProjectExpenseTotal) * 100).toFixed(2)}%</td>
               </tr>
             </tbody>
           </table>
@@ -1434,19 +1555,55 @@ ${error?.message ?? ""}`);
 
         <div className="divide-y divide-white/10">
           {highestCostItems.length > 0 ? highestCostItems.map((item: any, index: number) => (
-            <div key={`${item.name}-${index}`} className="grid grid-cols-[48px_1fr_150px_110px] items-center gap-4 px-6 py-4 transition hover:bg-white/[0.03]">
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-emerald-400/20 bg-emerald-400/10 text-sm font-extrabold text-emerald-300">{index + 1}</span>
-              <div className="min-w-0">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="truncate font-bold text-white">{item.name}</span>
-                  <span className="text-xs text-gray-500">{item.percentage.toFixed(1)}%</span>
-                </div>
-                <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/10">
-                  <div className="h-full rounded-full bg-emerald-400" style={{ width: `${Math.min(100, Math.max(0, item.percentage))}%` }} />
-                </div>
-              </div>
-              <div className="text-center font-extrabold text-white">{Number(item.amount).toLocaleString("ar-SA")} <span className="text-xs text-gray-500">ريال</span></div>
-              <div className="text-center"><span className="inline-flex rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-sm font-extrabold text-emerald-300">{item.percentage.toFixed(1)}%</span></div>
+            <div key={`${item.name}-${index}`} className="grid grid-cols-[48px_1fr_150px_190px] items-center gap-4 px-6 py-4 transition hover:bg-white/[0.03]">
+              {(() => {
+                const expectedPercentage = Math.max(0, Number(item.expectedPercentage) || 0);
+                const expectedColor =
+                  expectedPercentage <= 10
+                    ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-300"
+                    : expectedPercentage <= 15
+                      ? "border-yellow-400/20 bg-yellow-400/10 text-yellow-300"
+                      : "border-red-400/20 bg-red-400/10 text-red-300";
+                const expectedBarColor =
+                  expectedPercentage <= 10
+                    ? "bg-emerald-400"
+                    : expectedPercentage <= 15
+                      ? "bg-yellow-400"
+                      : "bg-red-400";
+
+                return (
+                  <>
+                    <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-emerald-400/20 bg-emerald-400/10 text-sm font-extrabold text-emerald-300">{index + 1}</span>
+                    <div className="min-w-0">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="truncate font-bold text-white">{item.name}</span>
+                        <span className="text-xs text-gray-500">{item.percentage.toFixed(1)}%</span>
+                      </div>
+                      <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/10">
+                        <div
+                          className={`h-full rounded-full ${expectedBarColor}`}
+                          style={{ width: `${Math.min(100, Math.max(0, item.percentage))}%` }}
+                        />
+                      </div>
+                    </div>
+                    <div className="text-center font-extrabold text-white">{Number(item.amount).toLocaleString("ar-SA")} <span className="text-xs text-gray-500">ريال</span></div>
+                    <div className="flex items-center justify-center gap-2">
+                      <span
+                        title="نسبة من المصروف الحالي"
+                        className="inline-flex min-w-[68px] justify-center rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-1 text-sm font-extrabold text-emerald-300"
+                      >
+                        {item.percentage.toFixed(1)}%
+                      </span>
+                      <span
+                        title="النسبة المحددة"
+                        className={`inline-flex min-w-[68px] justify-center rounded-full border px-2.5 py-1 text-sm font-extrabold ${expectedColor}`}
+                      >
+                        {expectedPercentage.toFixed(2)}%
+                      </span>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           )) : (
             <div className="px-6 py-12 text-center text-gray-400">لا توجد تصنيفات مصروفة حتى الآن.</div>
@@ -1543,7 +1700,7 @@ ${error?.message ?? ""}`);
           </div>
 
           <div className="overflow-x-auto">
-            <table className="min-w-[2200px] w-max text-sm text-white">
+            <table className="min-w-[2200px] w-max text-[14px] leading-6 text-white">
               <thead className="bg-[#102947] text-gray-300">
                 <tr>
                   <th className="p-3 text-center">التاريخ</th>
@@ -1553,11 +1710,8 @@ ${error?.message ?? ""}`);
                   <th className="p-3 text-center">العهدة</th>
                   <th className="p-3 text-center">التصنيف</th>
                   <th className="p-3 text-center">البند</th>
-                  <th className="p-3 text-center">طريقة الدفع</th>
-                  <th className="p-3 text-center">المرفقات</th>
-                  <th className="p-3 text-center">قبل الضريبة</th>
-                  <th className="p-3 text-center">الضريبة</th>
                   <th className="p-3 text-center">الإجمالي</th>
+                  <th className="p-3 text-center">المرفقات</th>
                   <th className="p-3 text-center">الإجراءات</th>
                 </tr>
               </thead>
@@ -1565,13 +1719,13 @@ ${error?.message ?? ""}`);
               <tbody className="divide-y divide-white/10">
                 {loadingProjectData ? (
                   <tr>
-                    <td colSpan={14} className="p-10 text-center text-gray-400">
+                    <td colSpan={10} className="p-10 text-center text-gray-400">
                       جاري تحميل المصروفات...
                     </td>
                   </tr>
                 ) : expenseRows.length === 0 ? (
                   <tr>
-                    <td colSpan={14} className="p-10 text-center text-gray-400">
+                    <td colSpan={10} className="p-10 text-center text-gray-400">
                       لا توجد مصروفات لهذا المشروع حتى الآن.
                     </td>
                   </tr>
@@ -1602,76 +1756,32 @@ ${error?.message ?? ""}`);
                       <td className="p-3 text-center whitespace-nowrap">
                         {itemNameMap.get(Number(expense.itemId)) ?? "-"}
                       </td>
-                      <td className="p-3 text-center whitespace-nowrap">
-  {formatPaymentMethod(expense.paymentMethod)}
-</td>
 
-<td className="p-3 text-center whitespace-nowrap">
-  {getExpenseAttachment(expense) ? (
-    <button
-      type="button"
-      onClick={async () => {
-        const { data, error } = await supabase.storage
-          .from("funding-attachments")
-          .createSignedUrl(getExpenseAttachment(expense), 300);
-
-        if (error || !data?.signedUrl) {
-          console.error("خطأ فتح المرفق:", error);
-          alert("تعذر فتح المرفق");
-          return;
-        }
-
-        window.open(
-          data.signedUrl,
-          "_blank",
-          "noopener,noreferrer"
-        );
-      }}
-      className="rounded-lg bg-sky-500 px-3 py-2 text-xs font-bold text-white hover:bg-sky-600"
-    >
-      عرض المرفق
-    </button>
-  ) : (
-    <span className="text-gray-500">لا يوجد</span>
-  )}
-</td>
-
-<td className="p-3 text-center font-semibold">
-  {Number(expense.amount ?? 0).toLocaleString("ar-SA")}
-</td>
-
-<td className="p-3 text-center whitespace-nowrap">
-  {Number(expense.tax ?? 0).toLocaleString("ar-SA")}
-</td>
-
-<td className="p-3 text-center font-bold text-yellow-400">
-  {getExpenseTotal(expense).toLocaleString("ar-SA")}
-</td>                 <td className="p-3 text-center whitespace-nowrap">
-                        {Number(expense.tax ?? 0).toLocaleString("ar-SA")}
-                      </td>
+                      {/* الإجمالي */}
                       <td className="p-3 text-center font-bold text-yellow-400">
                         {getExpenseTotal(expense).toLocaleString("ar-SA")}
                       </td>
-                     <td className="p-3 text-center whitespace-nowrap">
+
+                      {/* المرفقات — تأتي مباشرة بعد الإجمالي */}
+                      <td className="p-3 text-center whitespace-nowrap">
                         {getExpenseAttachment(expense) ? (
                           <button
                             type="button"
                             onClick={() => {
-  const attachment = getExpenseAttachment(expense);
-  if (!attachment) return;
+                              const attachment = getExpenseAttachment(expense);
+                              if (!attachment) return;
 
-  const attachmentString = String(attachment);
+                              const attachmentString = String(attachment);
+                              const url =
+                                attachmentString.startsWith("http://") ||
+                                attachmentString.startsWith("https://")
+                                  ? attachmentString
+                                  : attachmentString.startsWith("/")
+                                    ? attachmentString
+                                    : `/${attachmentString}`;
 
-  const url =
-    attachmentString.startsWith("http://") ||
-    attachmentString.startsWith("https://")
-      ? attachmentString
-      : attachmentString.startsWith("/")
-        ? attachmentString
-        : `/${attachmentString}`;
-
-  window.open(url, "_blank", "noopener,noreferrer");
-}}
+                              window.open(url, "_blank", "noopener,noreferrer");
+                            }}
                             className="inline-flex items-center gap-1 rounded-lg bg-sky-500 px-3 py-2 text-xs font-bold text-white hover:bg-sky-600"
                             title={getExpenseAttachmentName(expense)}
                           >
@@ -1682,31 +1792,36 @@ ${error?.message ?? ""}`);
                           <span className="text-xs text-gray-500">لا يوجد</span>
                         )}
                       </td>
+
+                      {/* الإجراءات */}
                       <td className="p-3">
                         <div className="flex justify-center gap-2">
                           <button
                             type="button"
                             onClick={() => setSelectedExpense(expense)}
-                            className="flex items-center gap-1 rounded-lg bg-sky-500 px-3 py-2 text-xs font-bold text-white hover:bg-sky-600"
+                            className="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-500 text-white shadow-sm transition hover:bg-sky-600"
+                            title="عرض"
+                            aria-label="عرض"
                           >
-                            <Eye size={14} />
-                            عرض
+                            <Eye size={19} strokeWidth={2.5} />
                           </button>
                           <button
                             type="button"
                             onClick={() => handleEditExpense(expense)}
-                            className="flex items-center gap-1 rounded-lg bg-yellow-500 px-3 py-2 text-xs font-bold text-[#081B33] hover:bg-yellow-400"
+                            className="flex h-9 w-9 items-center justify-center rounded-xl bg-yellow-500 text-[#081B33] shadow-sm transition hover:bg-yellow-400"
+                            title="تعديل"
+                            aria-label="تعديل"
                           >
-                            <Pencil size={14} />
-                            تعديل
+                            <Pencil size={19} strokeWidth={2.5} />
                           </button>
                           <button
                             type="button"
                             onClick={() => handleDeleteExpense(expense)}
-                            className="flex items-center gap-1 rounded-lg bg-red-500 px-3 py-2 text-xs font-bold text-white hover:bg-red-600"
+                            className="flex h-9 w-9 items-center justify-center rounded-xl bg-red-500 text-white shadow-sm transition hover:bg-red-600"
+                            title="حذف"
+                            aria-label="حذف"
                           >
-                            <Trash2 size={14} />
-                            حذف
+                            <Trash2 size={19} strokeWidth={2.5} />
                           </button>
                         </div>
                       </td>
@@ -2085,6 +2200,189 @@ ${error?.message ?? ""}`);
 
         </div>
 
+        {/* =====================================================
+            SECONDARY PROJECT KPIs
+            5 CARDS - SAME DESIGN SYSTEM
+        ===================================================== */}
+        <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-5">
+
+          {/* 1 - RAW METER PRICE */}
+          <ProjectKpi
+            icon={<Ruler size={46} />}
+            title="سعر المتر الخام"
+            value={rawProjectMeterPrice.toLocaleString("ar-SA", { maximumFractionDigits: 2 })}
+            suffix="ريال / م²"
+            cardClass="
+              from-[#3D3524]
+              via-[#302B23]
+              to-[#211F25]
+              border-amber-400/20
+            "
+          />
+
+          {/* 2 - USED QUANTITIES */}
+          <ProjectKpi
+            icon={<Boxes size={46} />}
+            title="الكميات المستخدمة"
+            value="اضغط هنا"
+            suffix=""
+            onClick={() => navigate(`/projects/${id}/quantities`)}
+            cardClass="
+              from-[#234044]
+              via-[#20343E]
+              to-[#182632]
+              border-cyan-400/20
+            "
+          />
+
+          {/* 3 - LAND VALUE */}
+          <ProjectKpi
+            icon={<Calculator size={46} />}
+            title="قيمة الأرض"
+            value={projectLandValue > 0 ? projectLandValue.toLocaleString("ar-SA") : "غير محدد"}
+            suffix={projectLandValue > 0 ? "ريال" : ""}
+            cardClass="
+              from-[#49332E]
+              via-[#35282D]
+              to-[#241F2A]
+              border-orange-400/20
+            "
+          >
+            <div className="mt-4 flex justify-end">
+              {!editingProjectLandValue ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setProjectLandValueInput(
+                      projectLandValue > 0 ? String(projectLandValue) : ""
+                    );
+                    setEditingProjectLandValue(true);
+                  }}
+                  className="flex items-center gap-2 rounded-xl border border-yellow-400/20 bg-yellow-400/10 px-4 py-2 text-sm font-bold text-yellow-300 transition hover:bg-yellow-400 hover:text-[#081B33]"
+                >
+                  <Pencil size={16} />
+                  تعديل قيمة الأرض
+                </button>
+              ) : (
+                <div className="flex w-full items-center gap-2">
+                  <input
+                    type="number"
+                    min="0"
+                    value={projectLandValueInput}
+                    onChange={(e) => setProjectLandValueInput(e.target.value)}
+                    className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-center font-bold text-white outline-none focus:border-yellow-400/50"
+                    autoFocus
+                  />
+                  <button
+                    type="button"
+                    onClick={saveProjectLandValue}
+                    disabled={savingProjectLandValue}
+                    className="rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-2 text-sm font-bold text-emerald-300 transition hover:bg-emerald-400 hover:text-[#081B33] disabled:opacity-50"
+                  >
+                    {savingProjectLandValue ? "جاري..." : "حفظ"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditingProjectLandValue(false)}
+                    className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-bold text-gray-300 hover:bg-white/10"
+                  >
+                    إلغاء
+                  </button>
+                </div>
+              )}
+            </div>
+          </ProjectKpi>
+
+          {/* 4 - CHARTS */}
+          <ProjectKpi
+            icon={<BarChart3 size={46} />}
+            title="الرسوم البيانية"
+            value="اضغط هنا"
+            suffix=""
+            onClick={() => navigate(`/projects/${id}/charts`)}
+            cardClass="
+              from-[#293B5A]
+              via-[#25334D]
+              to-[#1A2439]
+              border-blue-400/20
+            "
+          />
+
+          {/* 5 - EXPECTED PROJECT EXPENSES */}
+          <ProjectKpi
+            icon={<FileText size={46} />}
+            title="المصاريف المتوقعة للمشروع"
+            value={expectedProjectExpenseTotal.toLocaleString("ar-SA")}
+            suffix="ريال"
+            cardClass="
+              from-[#30343D]
+              via-[#282C34]
+              to-[#1D212A]
+              border-white/10
+            "
+          >
+            <div className="mt-4 flex items-center justify-between gap-3 border-t border-white/10 pt-3">
+              <div className="flex items-center gap-2 text-sm font-bold text-white">
+                <span className="rounded-lg border border-emerald-400/20 bg-emerald-400/10 px-3 py-1.5 text-emerald-300">
+                  10% = {((expectedProjectExpenseTotal * 0.10)).toLocaleString("ar-SA")} ريال
+                </span>
+                <span className="rounded-lg border border-yellow-400/20 bg-yellow-400/10 px-3 py-1.5 text-yellow-300">
+                  15% = {((expectedProjectExpenseTotal * 0.15)).toLocaleString("ar-SA")} ريال
+                </span>
+              </div>
+
+              {!editingExpectedProjectExpense ? (
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setExpectedProjectExpenseInput(String(expectedProjectExpenseTotal));
+                    setEditingExpectedProjectExpense(true);
+                  }}
+                  className="shrink-0 rounded-xl border border-yellow-400/20 bg-yellow-400/10 p-2 text-yellow-300 transition hover:bg-yellow-400 hover:text-[#081B33]"
+                  title="تعديل المصاريف المتوقعة"
+                >
+                  <Pencil size={16} />
+                </button>
+              ) : (
+                <div className="flex shrink-0 items-center gap-2">
+                  <input
+                    type="number"
+                    min="1"
+                    value={expectedProjectExpenseInput}
+                    onChange={(event) => setExpectedProjectExpenseInput(event.target.value)}
+                    onClick={(event) => event.stopPropagation()}
+                    className="w-28 rounded-xl border border-white/10 bg-black/20 px-2 py-2 text-center text-sm font-bold text-white outline-none focus:border-yellow-400/50"
+                    autoFocus
+                  />
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      void saveExpectedProjectExpense();
+                    }}
+                    disabled={savingExpectedProjectExpense}
+                    className="rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-3 py-2 text-xs font-bold text-emerald-300 transition hover:bg-emerald-400 hover:text-[#081B33] disabled:opacity-50"
+                  >
+                    {savingExpectedProjectExpense ? "..." : "حفظ"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setEditingExpectedProjectExpense(false);
+                    }}
+                    className="rounded-xl border border-white/10 bg-white/5 px-2 py-2 text-xs font-bold text-gray-300 hover:bg-white/10"
+                  >
+                    إلغاء
+                  </button>
+                </div>
+              )}
+            </div>
+          </ProjectKpi>
+
+        </div>
+
       </section>
 
       {/* =====================================================
@@ -2162,12 +2460,9 @@ ${error?.message ?? ""}`);
             </div>
           ) : projectVillas.length > 0 ? (
             projectVillas.map((villa) => {
-              // في هذا المشروع كل المصروفات عامة، وتوزع بالتساوي على 18 فيلا.
-              const villaCount = projectVillas.length || 18;
-              const villaExpenseShare = totalProjectExpenses / villaCount;
-              const villaMeterPrice = Number(villa.area ?? 0) > 0
-                ? villaExpenseShare / Number(villa.area ?? 0)
-                : 0;
+              // نصيب الفيلا = سعر المتر الحالي للمشروع × مساحة الفيلا نفسها.
+              const villaExpenseShare =
+                currentProjectMeterPrice * Number(villa.area ?? 0);
 
               return (
                 <VillaCard
@@ -2178,7 +2473,6 @@ ${error?.message ?? ""}`);
                   classification={villa.classification}
                   area={villa.area}
                   expenseTotal={villaExpenseShare}
-                  currentMeterPrice={villaMeterPrice}
                   onView={() => setSelectedVilla(villa)}
                   onEdit={() => setEditingVilla(villa)}
                 />
@@ -2214,6 +2508,7 @@ ${error?.message ?? ""}`);
           totalArea={totalProjectArea}
           totalExpenses={totalProjectExpenses}
           currentMeterPrice={currentProjectMeterPrice}
+          expectedProjectExpenseTotal={expectedProjectExpenseTotal}
           onClose={() => setShowVillasOverview(false)}
         />
       )}
@@ -2544,6 +2839,7 @@ type TopCostItem = {
   name: string;
   amount: number;
   percentage: number;
+  expectedPercentage?: number;
 };
 
 type TopCostPanelProps = {
@@ -2915,11 +3211,26 @@ function AllCostItemsModal({
 
         {/* Table */}
         <div className="min-h-0 flex-1 overflow-auto p-5">
-          <div className="min-w-[760px] overflow-hidden rounded-2xl border border-white/10">
+          <div className="mb-4 rounded-2xl border border-cyan-400/20 bg-cyan-400/5 px-5 py-3 text-sm text-gray-300">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <span>
+                أساس <strong className="text-white">النسبة المحددة</strong>:
+                إجمالي المصروفات المتوقعة للمشروع ={" "}
+                <strong className="text-cyan-300">
+                  {expectedProjectExpenseTotal.toLocaleString("ar-SA")} ريال
+                </strong>
+              </span>
+              <span className="text-xs text-gray-400">
+                10% = {((expectedProjectExpenseTotal * 0.10)).toLocaleString("ar-SA")} ريال — 15% = {((expectedProjectExpenseTotal * 0.15)).toLocaleString("ar-SA")} ريال
+              </span>
+            </div>
+          </div>
+
+          <div className="min-w-[980px] overflow-hidden rounded-2xl border border-white/10">
             <div
               className="
                 grid
-                grid-cols-[70px_1fr_180px_140px]
+                grid-cols-[60px_1fr_170px_170px_170px]
                 items-center
                 gap-3
                 border-b
@@ -2935,7 +3246,8 @@ function AllCostItemsModal({
               <div className="text-center">#</div>
               <div>اسم التصنيف</div>
               <div className="text-center">إجمالي التكلفة</div>
-              <div className="text-center">النسبة</div>
+              <div className="text-center">نسبة من المصروف الحالي</div>
+              <div className="text-center">النسبة المحددة</div>
             </div>
 
             {items.length > 0 ? (
@@ -2944,11 +3256,29 @@ function AllCostItemsModal({
                   0,
                   Math.min(100, Number(item.percentage) || 0)
                 );
+                const expectedPercentage = Math.max(
+                  0,
+                  Number(item.expectedPercentage) || 0
+                );
+
+                const expectedColor =
+                  expectedPercentage <= 10
+                    ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-300"
+                    : expectedPercentage <= 15
+                      ? "border-yellow-400/20 bg-yellow-400/10 text-yellow-300"
+                      : "border-red-400/20 bg-red-400/10 text-red-300";
+
+                const expectedBarColor =
+                  expectedPercentage <= 10
+                    ? "bg-emerald-400"
+                    : expectedPercentage <= 15
+                      ? "bg-yellow-400"
+                      : "bg-red-400";
 
                 return (
                   <div
                     key={`${item.name}-${index}`}
-                    className="grid grid-cols-[70px_1fr_180px_140px] items-center gap-3 border-b border-white/10 px-5 py-5 last:border-b-0"
+                    className="grid grid-cols-[60px_1fr_170px_170px_170px] items-center gap-3 border-b border-white/10 px-5 py-5 last:border-b-0"
                   >
                     <div className="flex justify-center">
                       <span
@@ -2969,8 +3299,10 @@ function AllCostItemsModal({
 
                       <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
                         <div
-                          className="h-full rounded-full bg-blue-400"
-                          style={{ width: `${percentage}%` }}
+                          className={`h-full rounded-full ${expectedBarColor}`}
+                          style={{
+                            width: `${Math.min(100, expectedPercentage)}%`,
+                          }}
                         />
                       </div>
                     </div>
@@ -2987,6 +3319,14 @@ function AllCostItemsModal({
                         {percentage.toFixed(1)}%
                       </span>
                     </div>
+
+                    <div className="text-center">
+                      <span
+                        className={`inline-flex min-w-[82px] justify-center rounded-full border px-3 py-1 text-sm font-extrabold ${expectedColor}`}
+                      >
+                        {expectedPercentage.toFixed(2)}%
+                      </span>
+                    </div>
                   </div>
                 );
               })
@@ -2997,7 +3337,7 @@ function AllCostItemsModal({
             )}
 
             {items.length > 0 && (
-              <div className="grid grid-cols-[70px_1fr_180px_140px] items-center gap-3 border-t border-yellow-400/20 bg-yellow-400/5 px-5 py-5">
+              <div className="grid grid-cols-[60px_1fr_170px_170px_170px] items-center gap-3 border-t border-yellow-400/20 bg-yellow-400/5 px-5 py-5">
                 <div />
                 <div className="text-lg font-extrabold text-yellow-300">
                   الإجمالي
@@ -3006,8 +3346,13 @@ function AllCostItemsModal({
                   {total.toLocaleString("ar-SA")} ريال
                 </div>
                 <div className="text-center">
-                  <span className="inline-flex rounded-full border border-yellow-400/20 bg-yellow-400/10 px-3 py-1 text-sm font-extrabold text-yellow-300">
+                  <span className="inline-flex rounded-full border border-blue-400/20 bg-blue-400/10 px-3 py-1 text-sm font-extrabold text-blue-300">
                     100%
+                  </span>
+                </div>
+                <div className="text-center">
+                  <span className="inline-flex rounded-full border border-yellow-400/20 bg-yellow-400/10 px-3 py-1 text-sm font-extrabold text-yellow-300">
+                    {((total / expectedProjectExpenseTotal) * 100).toFixed(2)}%
                   </span>
                 </div>
               </div>
@@ -3266,7 +3611,6 @@ type VillaCardProps = {
   classification: string | null;
   area: number | null;
   expenseTotal: number;
-  currentMeterPrice: number;
   onView: () => void;
   onEdit: () => void;
 };
@@ -3278,7 +3622,6 @@ function VillaCard({
   classification,
   area,
   expenseTotal,
-  currentMeterPrice,
   onView,
   onEdit,
 }: VillaCardProps) {
@@ -3288,13 +3631,6 @@ function VillaCard({
         <div className="flex items-center gap-4">
           <div className="flex h-20 w-20 items-center justify-center rounded-2xl border border-yellow-400/20 bg-yellow-400/10 text-yellow-400 shadow-lg transition duration-300 group-hover:scale-105">
             <Home size={40} />
-          </div>
-          <div className="rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-center">
-            <p className="text-xs font-semibold text-gray-400">سعر المتر الحالي</p>
-            <p className="mt-1 text-xl font-extrabold text-amber-300">
-              {currentMeterPrice.toLocaleString("ar-SA", { maximumFractionDigits: 2 })}
-            </p>
-            <p className="text-[11px] text-gray-500">ريال / م²</p>
           </div>
         </div>
         <div className="text-right">
@@ -3315,7 +3651,7 @@ function VillaCard({
         <div className="mt-4 rounded-2xl border border-yellow-400/20 bg-yellow-400/10 px-5 py-4 text-center">
           <p className="text-sm font-semibold text-gray-400">نصيب الفيلا من إجمالي مصاريف المشروع</p>
           <p className="mt-1 text-3xl font-extrabold text-yellow-400">{expenseTotal.toLocaleString("ar-SA", { maximumFractionDigits: 2 })} ريال</p>
-          <p className="mt-1 text-xs text-gray-500">إجمالي المصاريف ÷ عدد الفلل</p>
+          <p className="mt-1 text-xs text-gray-500">سعر المتر الحالي × مساحة الفيلا</p>
         </div>
       </div>
 
@@ -3366,6 +3702,7 @@ function VillasOverviewModal({
   totalArea,
   totalExpenses,
   currentMeterPrice,
+  expectedProjectExpenseTotal,
   onClose,
 }: {
   projectName: string;
@@ -3373,6 +3710,7 @@ function VillasOverviewModal({
   totalArea: number;
   totalExpenses: number;
   currentMeterPrice: number;
+  expectedProjectExpenseTotal: number;
   onClose: () => void;
 }) {
   const villaCount = villas.length || 18;
