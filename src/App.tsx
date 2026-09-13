@@ -14,9 +14,10 @@ import CompanyDashboard from "./pages/Dashboard/CompanyDashboard";
 import Projects from "./pages/Projects/Projects";
 import ProjectDetails from "./pages/Projects/ProjectDetails";
 import ProjectExpenses from "./pages/Projects/ProjectExpenses";
-import ProjectCharts from "./pages/Projects/ProjectCharts";
 import ProjectQuantities from "./pages/Projects/ProjectQuantities";
+import ProjectCharts from "./pages/Projects/ProjectCharts";
 import Buildings from "./pages/Buildings/Buildings";
+import BuildingDetails from "./pages/Buildings/BuildingDetails";
 import FinancialCenter from "./pages/FinancialCenter/FinancialCenter";
 
 function App() {
@@ -79,6 +80,12 @@ function App() {
           <Route
             path="/buildings"
             element={<Buildings />}
+          />
+
+          {/* تفاصيل العمارة */}
+          <Route
+            path="/buildings/:id"
+            element={<BuildingDetails />}
           />
 
           {/* المركز المالي */}
