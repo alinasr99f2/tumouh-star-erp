@@ -26,13 +26,14 @@ import {
   ArrowUpRight,
   Receipt,
   Image as ImageIcon,
-  Compass,
 } from "lucide-react";
 
 type ApartmentStatus =
   | "مؤجرة"
   | "شاغرة"
-  | "مؤجرة للشركة";
+  | "مؤجرة للشركة"
+  | "محجوزة"
+  | "تحت الصيانة";
 
 type Apartment = {
   number: number;
@@ -40,6 +41,29 @@ type Apartment = {
   rent: number;
   status: ApartmentStatus;
   tenant: string;
+};
+
+type ApartmentExtraInfo = {
+  floor: string;
+  parking: "متوفر" | "لا يوجد" | "غير محدد";
+  electricityMeter: "مشترك" | "فردي";
+  waterMeter: "مشترك" | "فردي";
+  furnitureStatus: "مفروشة" | "نص فرش" | "مفروشة بالكامل";
+};
+
+type ApartmentTenantInfo = {
+  status: "تحت الصيانة" | "فارغة" | "محجوزة" | "مؤجرة";
+  tenantName: string;
+  phone: string;
+  identityNumber: string;
+};
+
+const DEFAULT_APARTMENT_EXTRA_INFO: ApartmentExtraInfo = {
+  floor: "",
+  parking: "غير محدد",
+  electricityMeter: "مشترك",
+  waterMeter: "مشترك",
+  furnitureStatus: "مفروشة بالكامل",
 };
 
 type ApartmentTab =
@@ -53,6 +77,37 @@ type ApartmentTab =
 export default function BuildingDetails() {
   const [selectedApartment, setSelectedApartment] =
     useState<Apartment | null>(null);
+
+  // أنواع الشقق المخصصة لكل شقة + الأنواع الجديدة المحفوظة
+  const [apartmentTypes, setApartmentTypes] =
+    useState<Record<number, string>>(() => {
+      try {
+        const saved = window.localStorage.getItem(
+          "tumouh_star_apartment_types"
+        );
+        return saved ? JSON.parse(saved) : {};
+      } catch {
+        return {};
+      }
+    });
+
+  const [customApartmentTypes, setCustomApartmentTypes] =
+    useState<string[]>(() => {
+      try {
+        const saved = window.localStorage.getItem(
+          "tumouh_star_custom_apartment_types"
+        );
+        return saved ? JSON.parse(saved) : [];
+      } catch {
+        return [];
+      }
+    });
+
+  const [apartmentExtraInfo, setApartmentExtraInfo] =
+    useState<Record<number, ApartmentExtraInfo>>({});
+
+  const [apartmentTenantInfo, setApartmentTenantInfo] =
+    useState<Record<number, ApartmentTenantInfo>>({});
 
   const [activeTab, setActiveTab] =
     useState<ApartmentTab>("البيانات الأساسية");
@@ -105,6 +160,31 @@ export default function BuildingDetails() {
     }
   );
 
+  const totalApartments = apartments.length;
+
+  const rentedApartments = apartments.filter(
+    (apartment) =>
+      apartment.status === "مؤجرة" ||
+      apartment.status === "مؤجرة للشركة"
+  ).length;
+
+  const reservedApartments = apartments.filter(
+    (apartment) => apartment.status === "محجوزة"
+  ).length;
+
+  const maintenanceApartments = apartments.filter(
+    (apartment) => apartment.status === "تحت الصيانة"
+  ).length;
+
+  const vacantApartments = apartments.filter(
+    (apartment) => apartment.status === "شاغرة"
+  ).length;
+
+  const occupancyRate =
+    totalApartments > 0
+      ? ((rentedApartments / totalApartments) * 100).toFixed(2)
+      : "0.00";
+
   const getApartmentColor = (
     status: ApartmentStatus
   ) => {
@@ -114,6 +194,14 @@ export default function BuildingDetails() {
 
     if (status === "مؤجرة للشركة") {
       return "bg-blue-700 hover:bg-blue-600";
+    }
+
+    if (status === "محجوزة") {
+      return "bg-blue-500 hover:bg-blue-400";
+    }
+
+    if (status === "تحت الصيانة") {
+      return "bg-orange-600 hover:bg-orange-500";
     }
 
     return "bg-green-700 hover:bg-green-600";
@@ -135,6 +223,22 @@ export default function BuildingDetails() {
         badge:
           "border-blue-400/30 bg-blue-500/10 text-blue-400",
         dot: "bg-blue-400",
+      };
+    }
+
+    if (status === "محجوزة") {
+      return {
+        badge:
+          "border-blue-400/30 bg-blue-500/10 text-blue-400",
+        dot: "bg-blue-400",
+      };
+    }
+
+    if (status === "تحت الصيانة") {
+      return {
+        badge:
+          "border-orange-400/30 bg-orange-500/10 text-orange-400",
+        dot: "bg-orange-400",
       };
     }
 
@@ -174,6 +278,124 @@ export default function BuildingDetails() {
       icon: MessageSquare,
     },
   ];
+
+  const getApartmentExtraInfo = (
+    apartmentNumber: number
+  ): ApartmentExtraInfo => {
+    return (
+      apartmentExtraInfo[apartmentNumber] ??
+      DEFAULT_APARTMENT_EXTRA_INFO
+    );
+  };
+
+  const getApartmentTenantInfo = (
+    apartment: Apartment
+  ): ApartmentTenantInfo => {
+    return (
+      apartmentTenantInfo[apartment.number] ??
+      {
+        status: apartment.status === "شاغرة" ? "فارغة" : "مؤجرة",
+        tenantName:
+          apartment.status === "شاغرة"
+            ? ""
+            : apartment.tenant === "اسم المستأجر غير مضاف"
+            ? ""
+            : apartment.tenant,
+        phone: "",
+        identityNumber: "",
+      }
+    );
+  };
+
+  const updateApartmentTenantInfo = <K extends keyof ApartmentTenantInfo>(
+    apartment: Apartment,
+    key: K,
+    value: ApartmentTenantInfo[K]
+  ) => {
+    setApartmentTenantInfo((current) => ({
+      ...current,
+      [apartment.number]: {
+        ...getApartmentTenantInfo(apartment),
+        [key]: value,
+      },
+    }));
+  };
+
+  const updateApartmentExtraInfo = <K extends keyof ApartmentExtraInfo>(
+    apartmentNumber: number,
+    key: K,
+    value: ApartmentExtraInfo[K]
+  ) => {
+    setApartmentExtraInfo((current) => ({
+      ...current,
+      [apartmentNumber]: {
+        ...getApartmentExtraInfo(apartmentNumber),
+        [key]: value,
+      },
+    }));
+  };
+
+  const getApartmentType = (apartment: Apartment) => {
+    return apartmentTypes[apartment.number] ?? apartment.type;
+  };
+
+  const updateApartmentType = (
+    apartment: Apartment,
+    value: string
+  ) => {
+    if (value === "__add_new__") {
+      const newType = window.prompt(
+        "اكتب اسم نوع الشقة الجديد:"
+      )?.trim();
+
+      if (!newType) {
+        return;
+      }
+
+      setCustomApartmentTypes((current) => {
+        const updated = current.includes(newType)
+          ? current
+          : [...current, newType];
+
+        window.localStorage.setItem(
+          "tumouh_star_custom_apartment_types",
+          JSON.stringify(updated)
+        );
+
+        return updated;
+      });
+
+      setApartmentTypes((current) => {
+        const updated = {
+          ...current,
+          [apartment.number]: newType,
+        };
+
+        window.localStorage.setItem(
+          "tumouh_star_apartment_types",
+          JSON.stringify(updated)
+        );
+
+        return updated;
+      });
+
+      return;
+    }
+
+    setApartmentTypes((current) => {
+      const updated = {
+        ...current,
+        [apartment.number]: value,
+      };
+
+      window.localStorage.setItem(
+        "tumouh_star_apartment_types",
+        JSON.stringify(updated)
+      );
+
+      return updated;
+    });
+  };
 
   const openApartment = (
     apartment: Apartment
@@ -230,78 +452,180 @@ export default function BuildingDetails() {
       </div>
 
       {/* ===================================================== */}
-      {/* BASIC INFO - 4 CARDS                                 */}
+      {/* BASIC INFO - 6 GLASS CARDS                            */}
       {/* ===================================================== */}
 
-      <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
 
-        {/* TOTAL APARTMENTS */}
+        {/* 1 - TOTAL APARTMENTS */}
 
-        <div className="rounded-2xl border border-[#173858] bg-[#0b2039] p-5 shadow-lg transition hover:border-[#f0ad18]/40">
+        <div className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.045] p-4 text-center shadow-[0_10px_35px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:scale-[1.03] hover:border-[#f0ad18]/70 hover:bg-white/[0.07] hover:shadow-[0_16px_45px_rgba(240,173,24,0.12)]">
 
-          <div className="text-sm text-gray-400">
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#f0ad18]/70 to-transparent opacity-60 transition-opacity duration-300 group-hover:opacity-100" />
+
+          <div className="mb-3 flex items-center justify-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#f0ad18]/25 bg-[#f0ad18]/10">
+              <Building2 size={19} className="text-[#f0ad18]" />
+            </div>
+            <span className="text-[11px] font-medium text-gray-500">
+              01
+            </span>
+          </div>
+
+          <div className="text-xs font-medium text-gray-400">
             إجمالي الشقق
           </div>
 
-          <div className="mt-2 text-4xl font-bold text-[#f0ad18]">
-            44
+          <div className="mt-1 text-2xl font-black leading-none text-[#f0ad18]">
+            {totalApartments}
           </div>
 
-          <div className="mt-1 text-gray-400">
+          <div className="mt-2 text-[11px] text-gray-500">
             شقة
           </div>
 
         </div>
 
-        {/* RENTED */}
+        {/* 2 - RENTED */}
 
-        <div className="rounded-2xl border border-[#173858] bg-[#0b2039] p-5 shadow-lg transition hover:border-green-400/40">
+        <div className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.045] p-4 text-center shadow-[0_10px_35px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:scale-[1.03] hover:border-green-400/70 hover:bg-white/[0.07] hover:shadow-[0_16px_45px_rgba(34,197,94,0.10)]">
 
-          <div className="text-sm text-gray-400">
-            الشقق المؤجرة
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-green-400/70 to-transparent opacity-60 transition-opacity duration-300 group-hover:opacity-100" />
+
+          <div className="mb-3 flex items-center justify-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-green-400/25 bg-green-400/10">
+              <User size={19} className="text-green-400" />
+            </div>
+            <span className="text-[11px] font-medium text-gray-500">
+              02
+            </span>
           </div>
 
-          <div className="mt-2 text-4xl font-bold text-green-400">
-            39
+          <div className="text-xs font-medium text-gray-400">
+            إجمالي الشقق المؤجرة
           </div>
 
-          <div className="mt-1 text-gray-400">
+          <div className="mt-1 text-2xl font-black leading-none text-green-400">
+            {rentedApartments}
+          </div>
+
+          <div className="mt-2 text-[11px] text-gray-500">
             شقة
           </div>
 
         </div>
 
-        {/* VACANT */}
+        {/* 3 - RESERVED */}
 
-        <div className="rounded-2xl border border-[#173858] bg-[#0b2039] p-5 shadow-lg transition hover:border-red-400/40">
+        <div className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.045] p-4 text-center shadow-[0_10px_35px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:scale-[1.03] hover:border-blue-400/70 hover:bg-white/[0.07] hover:shadow-[0_16px_45px_rgba(59,130,246,0.10)]">
 
-          <div className="text-sm text-gray-400">
-            الشقق الشاغرة
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-blue-400/70 to-transparent opacity-60 transition-opacity duration-300 group-hover:opacity-100" />
+
+          <div className="mb-3 flex items-center justify-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-blue-400/25 bg-blue-400/10">
+              <CalendarDays size={19} className="text-blue-400" />
+            </div>
+            <span className="text-[11px] font-medium text-gray-500">
+              03
+            </span>
           </div>
 
-          <div className="mt-2 text-4xl font-bold text-red-400">
-            5
+          <div className="text-xs font-medium text-gray-400">
+            إجمالي الشقق المحجوزة
           </div>
 
-          <div className="mt-1 text-gray-400">
-            شقق
+          <div className="mt-1 text-2xl font-black leading-none text-blue-400">
+            {reservedApartments}
+          </div>
+
+          <div className="mt-2 text-[11px] text-gray-500">
+            شقة
           </div>
 
         </div>
 
-        {/* OCCUPANCY */}
+        {/* 4 - MAINTENANCE */}
 
-        <div className="rounded-2xl border border-[#173858] bg-[#0b2039] p-5 shadow-lg transition hover:border-[#f0ad18]/40">
+        <div className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.045] p-4 text-center shadow-[0_10px_35px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:scale-[1.03] hover:border-orange-400/70 hover:bg-white/[0.07] hover:shadow-[0_16px_45px_rgba(251,146,60,0.10)]">
 
-          <div className="text-sm text-gray-400">
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-orange-400/70 to-transparent opacity-60 transition-opacity duration-300 group-hover:opacity-100" />
+
+          <div className="mb-3 flex items-center justify-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-orange-400/25 bg-orange-400/10">
+              <AlertCircle size={19} className="text-orange-400" />
+            </div>
+            <span className="text-[11px] font-medium text-gray-500">
+              04
+            </span>
+          </div>
+
+          <div className="text-xs font-medium text-gray-400">
+            إجمالي الشقق تحت الصيانة
+          </div>
+
+          <div className="mt-1 text-2xl font-black leading-none text-orange-400">
+            {maintenanceApartments}
+          </div>
+
+          <div className="mt-2 text-[11px] text-gray-500">
+            شقة
+          </div>
+
+        </div>
+
+        {/* 5 - VACANT */}
+
+        <div className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.045] p-4 text-center shadow-[0_10px_35px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:scale-[1.03] hover:border-red-400/70 hover:bg-white/[0.07] hover:shadow-[0_16px_45px_rgba(248,113,113,0.10)]">
+
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-red-400/70 to-transparent opacity-60 transition-opacity duration-300 group-hover:opacity-100" />
+
+          <div className="mb-3 flex items-center justify-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-red-400/25 bg-red-400/10">
+              <Home size={19} className="text-red-400" />
+            </div>
+            <span className="text-[11px] font-medium text-gray-500">
+              05
+            </span>
+          </div>
+
+          <div className="text-xs font-medium text-gray-400">
+            إجمالي الشقق الفارغة
+          </div>
+
+          <div className="mt-1 text-2xl font-black leading-none text-red-400">
+            {vacantApartments}
+          </div>
+
+          <div className="mt-2 text-[11px] text-gray-500">
+            شقة
+          </div>
+
+        </div>
+
+        {/* 6 - OCCUPANCY */}
+
+        <div className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.045] p-4 text-center shadow-[0_10px_35px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:scale-[1.03] hover:border-[#f6c84a]/70 hover:bg-white/[0.07] hover:shadow-[0_16px_45px_rgba(246,200,74,0.12)]">
+
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#f6c84a]/70 to-transparent opacity-60 transition-opacity duration-300 group-hover:opacity-100" />
+
+          <div className="mb-3 flex items-center justify-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#f6c84a]/25 bg-[#f6c84a]/10">
+              <CheckCircle2 size={19} className="text-[#f6c84a]" />
+            </div>
+            <span className="text-[11px] font-medium text-gray-500">
+              06
+            </span>
+          </div>
+
+          <div className="text-xs font-medium text-gray-400">
             نسبة الإشغال
           </div>
 
-          <div className="mt-2 text-4xl font-bold text-[#f0ad18]">
-            88.64%
+          <div className="mt-1 text-2xl font-black leading-none text-[#f6c84a]">
+            {occupancyRate}%
           </div>
 
-          <div className="mt-1 text-gray-400">
+          <div className="mt-2 text-[11px] text-gray-500">
             من إجمالي الشقق
           </div>
 
@@ -317,13 +641,13 @@ export default function BuildingDetails() {
 
         <div className="rounded-2xl border border-[#173858] bg-[#0b2039] p-6 xl:col-span-2">
 
-          <h2 className="mb-5 text-2xl font-bold text-[#f0ad18]">
+          <h2 className="mb-5 text-center text-2xl font-bold text-[#f0ad18]">
             بيانات الاستثمار
           </h2>
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
 
-            <div className="rounded-xl bg-[#07182b] p-4">
+            <div className="rounded-xl bg-[#07182b] p-4 text-center">
 
               <div className="text-sm text-gray-400">
                 الإيجار السنوي للمالك
@@ -335,7 +659,7 @@ export default function BuildingDetails() {
 
             </div>
 
-            <div className="rounded-xl bg-[#07182b] p-4">
+            <div className="rounded-xl bg-[#07182b] p-4 text-center">
 
               <div className="text-sm text-gray-400">
                 قيمة الأثاث
@@ -347,7 +671,7 @@ export default function BuildingDetails() {
 
             </div>
 
-            <div className="rounded-xl bg-[#07182b] p-4">
+            <div className="rounded-xl bg-[#07182b] p-4 text-center">
 
               <div className="text-sm text-gray-400">
                 الأجهزة الكهربائية
@@ -359,7 +683,7 @@ export default function BuildingDetails() {
 
             </div>
 
-            <div className="rounded-xl bg-[#07182b] p-4">
+            <div className="rounded-xl bg-[#07182b] p-4 text-center">
 
               <div className="text-sm text-gray-400">
                 إجمالي الاستثمار
@@ -379,7 +703,7 @@ export default function BuildingDetails() {
 
         <div className="rounded-2xl border border-[#173858] bg-[#0b2039] p-6">
 
-          <h2 className="mb-6 text-2xl font-bold text-[#f0ad18]">
+          <h2 className="mb-6 text-center text-2xl font-bold text-[#f0ad18]">
             حالة الإشغال
           </h2>
 
@@ -403,7 +727,7 @@ export default function BuildingDetails() {
 
           </div>
 
-          <div className="flex justify-between text-sm">
+          <div className="flex justify-center gap-8 text-center text-sm">
 
             <div>
               <span className="ml-2 inline-block h-3 w-3 rounded-full bg-green-500" />
@@ -427,17 +751,17 @@ export default function BuildingDetails() {
 
       <div className="mb-6 rounded-2xl border border-[#173858] bg-[#0b2039] p-6">
 
-        <h2 className="mb-6 text-2xl font-bold text-[#f0ad18]">
+        <h2 className="mb-6 text-center text-2xl font-bold text-[#f0ad18]">
           أنواع الشقق وأسعار الإيجار
         </h2>
 
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
 
-          <div className="rounded-2xl border border-[#173858] bg-[#07182b] p-6">
+          <div className="rounded-2xl border border-[#173858] bg-[#07182b] p-6 text-center">
 
-            <div className="mb-4 flex items-center justify-between">
+            <div className="mb-4 flex items-center justify-center">
 
-              <div>
+              <div className="text-center">
 
                 <h3 className="text-xl font-bold">
                   شقة غرفتين وصالة
@@ -459,7 +783,7 @@ export default function BuildingDetails() {
               ريال / شهريًا
             </div>
 
-            <div className="mt-5 h-2 overflow-hidden rounded-full bg-[#173858]">
+            <div className="mx-auto mt-5 h-2 max-w-[95%] overflow-hidden rounded-full bg-[#173858]">
 
               <div
                 className="h-full bg-[#f0ad18]"
@@ -470,11 +794,11 @@ export default function BuildingDetails() {
 
           </div>
 
-          <div className="rounded-2xl border border-[#173858] bg-[#07182b] p-6">
+          <div className="rounded-2xl border border-[#173858] bg-[#07182b] p-6 text-center">
 
-            <div className="mb-4 flex items-center justify-between">
+            <div className="mb-4 flex items-center justify-center">
 
-              <div>
+              <div className="text-center">
 
                 <h3 className="text-xl font-bold">
                   شقة غرفة وصالة
@@ -496,7 +820,7 @@ export default function BuildingDetails() {
               ريال / شهريًا
             </div>
 
-            <div className="mt-5 h-2 overflow-hidden rounded-full bg-[#173858]">
+            <div className="mx-auto mt-5 h-2 max-w-[95%] overflow-hidden rounded-full bg-[#173858]">
 
               <div
                 className="h-full bg-[#f0ad18]"
@@ -573,7 +897,7 @@ export default function BuildingDetails() {
 
           <div className="grid grid-cols-2 gap-4">
 
-            <div className="rounded-xl bg-[#07182b] p-5">
+            <div className="rounded-xl bg-[#07182b] p-5 text-center">
 
               <div className="text-sm text-gray-400">
                 صافي الإيراد السنوي
@@ -585,7 +909,7 @@ export default function BuildingDetails() {
 
             </div>
 
-            <div className="rounded-xl bg-[#07182b] p-5">
+            <div className="rounded-xl bg-[#07182b] p-5 text-center">
 
               <div className="text-sm text-gray-400">
                 تكلفة الإيجار السنوي
@@ -597,7 +921,7 @@ export default function BuildingDetails() {
 
             </div>
 
-            <div className="rounded-xl bg-[#07182b] p-5">
+            <div className="rounded-xl bg-[#07182b] p-5 text-center">
 
               <div className="text-sm text-gray-400">
                 الفرق السنوي
@@ -609,7 +933,7 @@ export default function BuildingDetails() {
 
             </div>
 
-            <div className="rounded-xl bg-[#07182b] p-5">
+            <div className="rounded-xl bg-[#07182b] p-5 text-center">
 
               <div className="text-sm text-gray-400">
                 مدة العقد
@@ -780,48 +1104,86 @@ export default function BuildingDetails() {
               </div>
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                <div className="rounded-2xl border border-[#2a5275] bg-white/[0.035] p-4 backdrop-blur-xl transition hover:border-[#f0ad18]/50">
-                  <div className="mb-5 flex items-center justify-between">
-                    <span className="text-sm text-gray-400">نوع الشقة</span>
+                <div className="rounded-2xl border border-[#2a5275] bg-white/[0.035] p-5 text-center backdrop-blur-xl transition hover:border-[#f0ad18]/50">
+                  <div className="mb-4 flex flex-col items-center justify-center gap-2">
+                    <span className="text-base font-semibold text-gray-300">
+                      نوع الشقة
+                    </span>
                     <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-blue-400/20 bg-blue-400/10">
                       <Home size={23} className="text-blue-400" />
                     </div>
                   </div>
-                  <div className="text-xl font-bold">{selectedApartment.type}</div>
-                  <div className="mt-2 text-xs text-gray-500">مساحة تقريبية 95 م²</div>
+
+                  <select
+                    value={getApartmentType(selectedApartment)}
+                    onChange={(event) =>
+                      updateApartmentType(
+                        selectedApartment,
+                        event.target.value
+                      )
+                    }
+                    className="mx-auto block w-full max-w-[230px] rounded-xl border border-white/10 bg-[#0b2039] px-3 py-2.5 text-center text-base font-bold text-white outline-none transition focus:border-blue-400/60"
+                  >
+                    <option value="غرفتين وصالة">
+                      غرفتين وصالة
+                    </option>
+                    <option value="غرفة وصالة">
+                      غرفة وصالة
+                    </option>
+
+                    {customApartmentTypes
+                      .filter(
+                        (type) =>
+                          type !== "غرفتين وصالة" &&
+                          type !== "غرفة وصالة"
+                      )
+                      .map((type) => (
+                        <option key={type} value={type}>
+                          {type}
+                        </option>
+                      ))}
+
+                    <option value="__add_new__">
+                      + إضافة نوع جديد
+                    </option>
+                  </select>
+
+                  <div className="mt-2 text-sm text-gray-500">
+                    مساحة تقريبية 95 م²
+                  </div>
                 </div>
 
-                <div className="rounded-2xl border border-[#2a5275] bg-white/[0.035] p-4 backdrop-blur-xl transition hover:border-[#f0ad18]/50">
-                  <div className="mb-5 flex items-center justify-between">
-                    <span className="text-sm text-gray-400">قيمة الإيجار</span>
+                <div className="rounded-2xl border border-[#2a5275] bg-white/[0.035] p-5 text-center backdrop-blur-xl transition hover:border-[#f0ad18]/50">
+                  <div className="mb-4 flex flex-col items-center justify-center gap-2">
+                    <span className="text-base font-semibold text-gray-300">قيمة الإيجار</span>
                     <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-[#f0ad18]/20 bg-[#f0ad18]/10">
                       <Wallet size={23} className="text-[#f0ad18]" />
                     </div>
                   </div>
-                  <div className="text-2xl font-bold text-[#f6c84a]">{selectedApartment.rent.toLocaleString("ar-SA")}</div>
-                  <div className="mt-2 text-xs text-gray-500">ريال / شهرياً</div>
+                  <div className="text-3xl font-black text-[#f6c84a]">{selectedApartment.rent.toLocaleString("ar-SA")}</div>
+                  <div className="mt-2 text-sm text-gray-500">ريال / شهرياً</div>
                 </div>
 
-                <div className="rounded-2xl border border-[#2a5275] bg-white/[0.035] p-4 backdrop-blur-xl transition hover:border-[#f0ad18]/50">
-                  <div className="mb-5 flex items-center justify-between">
-                    <span className="text-sm text-gray-400">تاريخ بداية العقد</span>
+                <div className="rounded-2xl border border-[#2a5275] bg-white/[0.035] p-5 text-center backdrop-blur-xl transition hover:border-[#f0ad18]/50">
+                  <div className="mb-4 flex flex-col items-center justify-center gap-2">
+                    <span className="text-base font-semibold text-gray-300">تاريخ بداية العقد</span>
                     <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-purple-400/20 bg-purple-400/10">
                       <CalendarDays size={23} className="text-purple-400" />
                     </div>
                   </div>
-                  <div className="text-lg font-bold">01 - 06 - 2025</div>
-                  <div className="mt-2 text-xs text-gray-500">منذ بداية العقد</div>
+                  <div className="text-xl font-black text-white">01 - 06 - 2025</div>
+                  <div className="mt-2 text-sm text-gray-500">منذ بداية العقد</div>
                 </div>
 
-                <div className="rounded-2xl border border-[#2a5275] bg-white/[0.035] p-4 backdrop-blur-xl transition hover:border-[#f0ad18]/50">
-                  <div className="mb-5 flex items-center justify-between">
-                    <span className="text-sm text-gray-400">تاريخ نهاية العقد</span>
+                <div className="rounded-2xl border border-[#2a5275] bg-white/[0.035] p-5 text-center backdrop-blur-xl transition hover:border-[#f0ad18]/50">
+                  <div className="mb-4 flex flex-col items-center justify-center gap-2">
+                    <span className="text-base font-semibold text-gray-300">تاريخ نهاية العقد</span>
                     <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-cyan-400/20 bg-cyan-400/10">
                       <CalendarDays size={23} className="text-cyan-400" />
                     </div>
                   </div>
-                  <div className="text-lg font-bold">31 - 05 - 2026</div>
-                  <div className="mt-2 text-xs text-red-400">يحتاج تحديث البيانات</div>
+                  <div className="text-xl font-black text-white">31 - 05 - 2026</div>
+                  <div className="mt-2 text-sm font-semibold text-red-400">يحتاج تحديث البيانات</div>
                 </div>
               </div>
             </div>
@@ -831,56 +1193,155 @@ export default function BuildingDetails() {
             {/* ================================================= */}
 
             <div className="shrink-0 border-b border-white/10 bg-[#071a2d] p-3 lg:p-4" dir="rtl">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6">
 
+                {/* إضافة فاتورة أو مستحقات */}
+                <button
+                  type="button"
+                  className="rounded-2xl border border-cyan-400/40 bg-cyan-400/[0.06] p-5 text-right transition hover:border-cyan-400/60 hover:bg-cyan-400/[0.10]"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-base font-bold text-gray-100">إضافة فاتورة أو مستحقات</p>
+                      <p className="mt-1 text-sm text-gray-400">مياه، كهرباء أو مستحقات أخرى</p>
+                    </div>
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-400 text-[#07182b]">
+                      <Receipt size={21} />
+                    </div>
+                  </div>
+                  <div className="mt-4 text-base font-bold text-cyan-300">إضافة فاتورة +</div>
+                </button>
+
+                {/* إضافة تحصيل */}
+                <button
+                  type="button"
+                  className="rounded-2xl border border-[#f0ad18]/60 bg-[#f0ad18]/10 p-5 text-right transition hover:bg-[#f0ad18]/20"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-base font-bold text-gray-100">إضافة تحصيل إيجار</p>
+                      <p className="mt-1 text-sm text-gray-400">تسجيل دفعة جديدة</p>
+                    </div>
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#f0ad18] text-[#07182b]">
+                      <Plus size={22} />
+                    </div>
+                  </div>
+                  <div className="mt-4 text-base font-bold text-[#f6c84a]">إضافة تحصيل +</div>
+                </button>
+
+                {/* إجمالي التحصيلات */}
                 <div className="rounded-2xl border border-[#f0ad18]/25 bg-[#0b2039] p-4">
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <p className="text-xs text-gray-400">إجمالي التحصيلات للشهر</p>
-                      <p className="mt-1 text-xs text-gray-500">يونيو 2025</p>
+                      <p className="text-sm font-semibold text-gray-200">إجمالي التحصيلات</p>
+                      <p className="mt-1 text-[11px] text-gray-500">من تاريخ إلى تاريخ</p>
                     </div>
                     <Coins size={21} className="text-[#f0ad18]" />
                   </div>
-                  <div className="mt-3 text-2xl font-black text-green-400">12,000 <span className="text-xs text-gray-500">ريال</span></div>
+
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <label className="text-[10px] text-gray-500">
+                      من
+                      <input
+                        type="date"
+                        value={fromDate}
+                        onChange={(event) => setFromDate(event.target.value)}
+                        className="mt-1 w-full rounded-lg border border-white/10 bg-[#07182b] px-2 py-1.5 text-[11px] text-white outline-none focus:border-[#f0ad18]/60"
+                      />
+                    </label>
+                    <label className="text-[10px] text-gray-500">
+                      إلى
+                      <input
+                        type="date"
+                        value={toDate}
+                        onChange={(event) => setToDate(event.target.value)}
+                        className="mt-1 w-full rounded-lg border border-white/10 bg-[#07182b] px-2 py-1.5 text-[11px] text-white outline-none focus:border-[#f0ad18]/60"
+                      />
+                    </label>
+                  </div>
+
+                  <div className="mt-3 text-2xl font-black text-green-400">
+                    12,000 <span className="text-xs text-gray-500">ريال</span>
+                  </div>
                 </div>
 
-                <button type="button" className="rounded-2xl border border-[#f0ad18]/60 bg-[#f0ad18]/10 p-4 text-right transition hover:bg-[#f0ad18]/20">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-xs text-gray-400">إضافة تحصيل إيجار</p>
-                      <p className="mt-1 text-xs text-gray-500">تسجيل دفعة جديدة</p>
-                    </div>
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#f0ad18] text-[#07182b]"><Plus size={22} /></div>
-                  </div>
-                  <div className="mt-3 text-sm font-bold text-[#f6c84a]">إضافة تحصيل +</div>
-                </button>
-
+                {/* فواتير المياه */}
                 <div className="rounded-2xl border border-cyan-400/20 bg-[#0b2039] p-4">
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <p className="text-xs text-gray-400">إجمالي فواتير المياه</p>
-                      <p className="mt-1 text-xs text-gray-500">هذا الشهر</p>
+                      <p className="text-sm font-semibold text-gray-200">إجمالي فواتير المياه</p>
+                      <p className="mt-1 text-xs text-cyan-300/80">تحديد الفترة</p>
                     </div>
                     <Droplets size={21} className="text-cyan-400" />
                   </div>
-                  <div className="mt-3 text-2xl font-black text-cyan-400">320 <span className="text-xs text-gray-500">ريال</span></div>
+
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <label className="text-[10px] font-semibold text-gray-400">
+                      من
+                      <input
+                        type="date"
+                        value={fromDate}
+                        onChange={(event) => setFromDate(event.target.value)}
+                        className="mt-1 w-full rounded-lg border border-white/10 bg-[#07182b] px-2 py-1.5 text-[11px] font-semibold text-white outline-none focus:border-cyan-400/60"
+                      />
+                    </label>
+                    <label className="text-[10px] font-semibold text-gray-400">
+                      إلى
+                      <input
+                        type="date"
+                        value={toDate}
+                        onChange={(event) => setToDate(event.target.value)}
+                        className="mt-1 w-full rounded-lg border border-white/10 bg-[#07182b] px-2 py-1.5 text-[11px] font-semibold text-white outline-none focus:border-cyan-400/60"
+                      />
+                    </label>
+                  </div>
+
+                  <div className="mt-3 text-2xl font-black text-cyan-400">
+                    320 <span className="text-xs font-semibold text-gray-500">ريال</span>
+                  </div>
                 </div>
 
+                {/* فواتير الكهرباء */}
                 <div className="rounded-2xl border border-yellow-400/20 bg-[#0b2039] p-4">
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <p className="text-xs text-gray-400">إجمالي فواتير الكهرباء</p>
-                      <p className="mt-1 text-xs text-gray-500">هذا الشهر</p>
+                      <p className="text-sm font-semibold text-gray-200">إجمالي فواتير الكهرباء</p>
+                      <p className="mt-1 text-xs text-yellow-300/80">تحديد الفترة</p>
                     </div>
                     <Zap size={21} className="text-yellow-400" />
                   </div>
-                  <div className="mt-3 text-2xl font-black text-yellow-400">450 <span className="text-xs text-gray-500">ريال</span></div>
+
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <label className="text-[10px] font-semibold text-gray-400">
+                      من
+                      <input
+                        type="date"
+                        value={fromDate}
+                        onChange={(event) => setFromDate(event.target.value)}
+                        className="mt-1 w-full rounded-lg border border-white/10 bg-[#07182b] px-2 py-1.5 text-[11px] font-semibold text-white outline-none focus:border-yellow-400/60"
+                      />
+                    </label>
+                    <label className="text-[10px] font-semibold text-gray-400">
+                      إلى
+                      <input
+                        type="date"
+                        value={toDate}
+                        onChange={(event) => setToDate(event.target.value)}
+                        className="mt-1 w-full rounded-lg border border-white/10 bg-[#07182b] px-2 py-1.5 text-[11px] font-semibold text-white outline-none focus:border-yellow-400/60"
+                      />
+                    </label>
+                  </div>
+
+                  <div className="mt-3 text-2xl font-black text-yellow-400">
+                    450 <span className="text-xs font-semibold text-gray-500">ريال</span>
+                  </div>
                 </div>
 
+                {/* التحصيلات المتأخرة */}
                 <div className="rounded-2xl border border-red-400/25 bg-[#301b29]/70 p-4">
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <p className="text-xs text-gray-400">التحصيلات المتأخرة</p>
+                      <p className="text-sm font-semibold text-gray-200">التحصيلات المتأخرة</p>
                       <p className="mt-1 text-xs text-gray-500">دفعة واحدة متأخرة</p>
                     </div>
                     <AlertCircle size={21} className="text-red-400" />
@@ -947,75 +1408,141 @@ export default function BuildingDetails() {
 
                 <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
 
-                  <div className="order-2 rounded-3xl border border-[#285273] bg-white/[0.025] p-5 backdrop-blur-xl lg:order-2">
+                  <div className="order-2 rounded-3xl border border-[#285273] bg-white/[0.025] p-6 backdrop-blur-xl lg:order-2">
 
-                    <div className="mb-5 flex items-center justify-between">
-
-                      <h3 className="text-lg font-bold">
+                    <div className="relative mb-7 flex items-center justify-center">
+                      <h3 className="text-2xl font-black text-white">
                         حالة الشقة والمستأجر
                       </h3>
 
                       <User
-                        size={21}
-                        className="text-blue-400"
+                        size={24}
+                        className="absolute left-0 text-blue-400"
                       />
-
                     </div>
 
-                    <div className="space-y-3">
+                    <div className="space-y-4">
 
-                      <div className="flex items-center justify-between rounded-xl bg-[#061a2d] p-3">
-
-                        <span className="text-sm text-gray-400">
+                      {/* الحالة الحالية */}
+                      <div className="flex min-h-[68px] items-center justify-between gap-5 rounded-2xl border border-white/5 bg-[#061a2d] px-5 py-4">
+                        <span className="text-lg font-bold text-gray-200">
                           الحالة الحالية
                         </span>
 
-                        <span
-                          className={`rounded-full border px-3 py-1 text-xs font-bold ${
-                            getStatusColor(
-                              selectedApartment.status
-                            ).badge
-                          }`}
+                        <select
+                          value={
+                            getApartmentTenantInfo(
+                              selectedApartment
+                            ).status
+                          }
+                          onChange={(event) =>
+                            updateApartmentTenantInfo(
+                              selectedApartment,
+                              "status",
+                              event.target.value as ApartmentTenantInfo["status"]
+                            )
+                          }
+                          className="min-w-[180px] rounded-xl border border-white/10 bg-[#0b2039] px-4 py-2.5 text-base font-bold text-white outline-none transition focus:border-[#f0ad18]/60"
                         >
-                          {selectedApartment.status}
-                        </span>
-
+                          <option value="تحت الصيانة">تحت الصيانة</option>
+                          <option value="فارغة">فارغة</option>
+                          <option value="محجوزة">محجوزة</option>
+                          <option value="مؤجرة">مؤجرة</option>
+                        </select>
                       </div>
 
-                      <div className="flex items-center justify-between rounded-xl bg-[#061a2d] p-3">
-
-                        <span className="text-sm text-gray-400">
+                      {/* اسم المستأجر */}
+                      <div className="flex min-h-[68px] items-center justify-between gap-5 rounded-2xl border border-white/5 bg-[#061a2d] px-5 py-4">
+                        <span className="shrink-0 text-lg font-bold text-gray-200">
                           اسم المستأجر
                         </span>
 
-                        <span className="font-semibold">
-                          {selectedApartment.tenant}
-                        </span>
-
+                        <div className="flex min-w-0 flex-1 items-center justify-end gap-3">
+                          <input
+                            type="text"
+                            value={
+                              getApartmentTenantInfo(
+                                selectedApartment
+                              ).tenantName
+                            }
+                            onChange={(event) =>
+                              updateApartmentTenantInfo(
+                                selectedApartment,
+                                "tenantName",
+                                event.target.value
+                              )
+                            }
+                            placeholder="اكتب اسم المستأجر"
+                            className="w-full max-w-[280px] rounded-xl border border-white/10 bg-[#0b2039] px-4 py-2.5 text-right text-base font-bold text-white outline-none transition placeholder:text-gray-600 focus:border-[#f0ad18]/60"
+                          />
+                          <Edit3
+                            size={19}
+                            className="shrink-0 text-[#f0ad18]"
+                          />
+                        </div>
                       </div>
 
-                      <div className="flex items-center justify-between rounded-xl bg-[#061a2d] p-3">
-
-                        <span className="text-sm text-gray-400">
+                      {/* رقم الجوال */}
+                      <div className="flex min-h-[68px] items-center justify-between gap-5 rounded-2xl border border-white/5 bg-[#061a2d] px-5 py-4">
+                        <span className="shrink-0 text-lg font-bold text-gray-200">
                           رقم الجوال
                         </span>
 
-                        <span className="font-semibold">
-                          05XXXXXXXX
-                        </span>
-
+                        <div className="flex min-w-0 flex-1 items-center justify-end gap-3">
+                          <input
+                            type="tel"
+                            value={
+                              getApartmentTenantInfo(
+                                selectedApartment
+                              ).phone
+                            }
+                            onChange={(event) =>
+                              updateApartmentTenantInfo(
+                                selectedApartment,
+                                "phone",
+                                event.target.value
+                              )
+                            }
+                            placeholder="05XXXXXXXX"
+                            className="w-full max-w-[280px] rounded-xl border border-white/10 bg-[#0b2039] px-4 py-2.5 text-left text-base font-bold text-white outline-none transition placeholder:text-gray-600 focus:border-[#f0ad18]/60"
+                          />
+                          <Edit3
+                            size={19}
+                            className="shrink-0 text-[#f0ad18]"
+                          />
+                        </div>
                       </div>
 
-                      <div className="flex items-center justify-between rounded-xl bg-[#061a2d] p-3">
-
-                        <span className="text-sm text-gray-400">
-                          عدد السكان
+                      {/* رقم الهوية */}
+                      <div className="flex min-h-[68px] items-center justify-between gap-5 rounded-2xl border border-white/5 bg-[#061a2d] px-5 py-4">
+                        <span className="shrink-0 text-lg font-bold text-gray-200">
+                          رقم الهوية
                         </span>
 
-                        <span className="font-semibold">
-                          4 أفراد
-                        </span>
-
+                        <div className="flex min-w-0 flex-1 items-center justify-end gap-3">
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={
+                              getApartmentTenantInfo(
+                                selectedApartment
+                              ).identityNumber
+                            }
+                            onChange={(event) =>
+                              updateApartmentTenantInfo(
+                                selectedApartment,
+                                "identityNumber",
+                                event.target.value
+                              )
+                            }
+                            placeholder="اكتب رقم الهوية"
+                            className="w-full max-w-[280px] rounded-xl border border-white/10 bg-[#0b2039] px-4 py-2.5 text-left text-base font-bold text-white outline-none transition placeholder:text-gray-600 focus:border-[#f0ad18]/60"
+                          />
+                          <Edit3
+                            size={19}
+                            className="shrink-0 text-[#f0ad18]"
+                          />
+                        </div>
                       </div>
 
                     </div>
@@ -1024,96 +1551,170 @@ export default function BuildingDetails() {
 
                   <div className="order-3 rounded-3xl border border-[#285273] bg-white/[0.025] p-5 backdrop-blur-xl lg:order-1">
 
-                    <div className="mb-5 flex items-center justify-between">
+                    <div className="relative mb-6 flex items-center justify-center">
 
-                      <h3 className="text-lg font-bold">
+                      <h3 className="text-xl font-bold text-white">
                         معلومات إضافية
                       </h3>
 
                       <Info
-                        size={21}
-                        className="text-[#f0ad18]"
+                        size={22}
+                        className="absolute left-0 text-[#f0ad18]"
                       />
 
                     </div>
 
                     <div className="space-y-3">
-
-                      <div className="flex items-center justify-between rounded-xl bg-[#061a2d] p-3">
-                        <span className="flex items-center gap-2 text-sm text-gray-400">
+                      {/* الدور */}
+                      <div className="flex min-h-[68px] items-center justify-between gap-5 rounded-2xl border border-white/5 bg-[#061a2d] px-5 py-4">
+                        <span className="flex shrink-0 items-center gap-2 text-lg font-bold text-gray-200">
                           <Building2 size={16} />
                           الدور
                         </span>
-                        <span className="font-semibold">الأول</span>
+
+                        <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
+                          <input
+                            type="text"
+                            value={
+                              getApartmentExtraInfo(
+                                selectedApartment.number
+                              ).floor
+                            }
+                            onChange={(event) =>
+                              updateApartmentExtraInfo(
+                                selectedApartment.number,
+                                "floor",
+                                event.target.value
+                              )
+                            }
+                            placeholder="اكتب الدور"
+                            className="w-full max-w-[280px] rounded-xl border border-white/10 bg-[#0b2039] px-4 py-2.5 text-right text-base font-bold text-white outline-none transition placeholder:text-gray-600 focus:border-[#f0ad18]/60"
+                          />
+                          <Edit3
+                            size={19}
+                            className="shrink-0 text-[#f0ad18]"
+                          />
+                        </div>
                       </div>
 
-                      <div className="flex items-center justify-between rounded-xl bg-[#061a2d] p-3">
-                        <span className="flex items-center gap-2 text-sm text-gray-400">
-                          <Compass size={16} />
-                          الاتجاه
-                        </span>
-                        <span className="font-semibold">شمالي</span>
-                      </div>
-
-                      <div className="flex items-center justify-between rounded-xl bg-[#061a2d] p-3">
-
-                        <span className="flex items-center gap-2 text-sm text-gray-400">
+                      {/* موقف سيارة */}
+                      <div className="flex min-h-[68px] items-center justify-between gap-5 rounded-2xl border border-white/5 bg-[#061a2d] px-5 py-4">
+                        <span className="flex items-center gap-2 text-lg font-bold text-gray-200">
                           <Car size={16} />
                           موقف سيارة
                         </span>
 
-                        <span className="font-semibold text-green-400">
-                          متوفر
-                        </span>
-
+                        <select
+                          value={
+                            getApartmentExtraInfo(
+                              selectedApartment.number
+                            ).parking
+                          }
+                          onChange={(event) =>
+                            updateApartmentExtraInfo(
+                              selectedApartment.number,
+                              "parking",
+                              event.target.value as ApartmentExtraInfo["parking"]
+                            )
+                          }
+                          className="min-w-[180px] rounded-xl border border-white/10 bg-[#0b2039] px-4 py-2.5 text-base font-bold text-white outline-none transition focus:border-[#f0ad18]/60"
+                        >
+                          <option value="غير محدد">غير محدد</option>
+                          <option value="متوفر">متوفر</option>
+                          <option value="لا يوجد">لا يوجد</option>
+                        </select>
                       </div>
 
-                      <div className="flex items-center justify-between rounded-xl bg-[#061a2d] p-3">
-
-                        <span className="flex items-center gap-2 text-sm text-gray-400">
+                      {/* عداد الكهرباء */}
+                      <div className="flex min-h-[68px] items-center justify-between gap-5 rounded-2xl border border-white/5 bg-[#061a2d] px-5 py-4">
+                        <span className="flex items-center gap-2 text-lg font-bold text-gray-200">
                           <Zap size={16} />
                           عداد الكهرباء
                         </span>
 
-                        <span className="font-semibold">
-                          مشترك
-                        </span>
-
+                        <select
+                          value={
+                            getApartmentExtraInfo(
+                              selectedApartment.number
+                            ).electricityMeter
+                          }
+                          onChange={(event) =>
+                            updateApartmentExtraInfo(
+                              selectedApartment.number,
+                              "electricityMeter",
+                              event.target.value as ApartmentExtraInfo["electricityMeter"]
+                            )
+                          }
+                          className="min-w-[180px] rounded-xl border border-white/10 bg-[#0b2039] px-4 py-2.5 text-base font-bold text-white outline-none transition focus:border-[#f0ad18]/60"
+                        >
+                          <option value="مشترك">مشترك</option>
+                          <option value="فردي">فردي</option>
+                        </select>
                       </div>
 
-                      <div className="flex items-center justify-between rounded-xl bg-[#061a2d] p-3">
-
-                        <span className="flex items-center gap-2 text-sm text-gray-400">
+                      {/* عداد المياه */}
+                      <div className="flex min-h-[68px] items-center justify-between gap-5 rounded-2xl border border-white/5 bg-[#061a2d] px-5 py-4">
+                        <span className="flex items-center gap-2 text-lg font-bold text-gray-200">
                           <Droplets size={16} />
                           عداد المياه
                         </span>
 
-                        <span className="font-semibold">
-                          مشترك
-                        </span>
-
+                        <select
+                          value={
+                            getApartmentExtraInfo(
+                              selectedApartment.number
+                            ).waterMeter
+                          }
+                          onChange={(event) =>
+                            updateApartmentExtraInfo(
+                              selectedApartment.number,
+                              "waterMeter",
+                              event.target.value as ApartmentExtraInfo["waterMeter"]
+                            )
+                          }
+                          className="min-w-[180px] rounded-xl border border-white/10 bg-[#0b2039] px-4 py-2.5 text-base font-bold text-white outline-none transition focus:border-[#f0ad18]/60"
+                        >
+                          <option value="مشترك">مشترك</option>
+                          <option value="فردي">فردي</option>
+                        </select>
                       </div>
 
-                      <div className="flex items-center justify-between rounded-xl bg-[#061a2d] p-3">
-
-                        <span className="flex items-center gap-2 text-sm text-gray-400">
+                      {/* حالة الأثاث */}
+                      <div className="flex min-h-[68px] items-center justify-between gap-5 rounded-2xl border border-white/5 bg-[#061a2d] px-5 py-4">
+                        <span className="flex items-center gap-2 text-lg font-bold text-gray-200">
                           <Sofa size={16} />
                           حالة الأثاث
                         </span>
 
-                        <span className="font-semibold">
-                          مفروشة بالكامل
-                        </span>
-
+                        <select
+                          value={
+                            getApartmentExtraInfo(
+                              selectedApartment.number
+                            ).furnitureStatus
+                          }
+                          onChange={(event) =>
+                            updateApartmentExtraInfo(
+                              selectedApartment.number,
+                              "furnitureStatus",
+                              event.target.value as ApartmentExtraInfo["furnitureStatus"]
+                            )
+                          }
+                          className="min-w-[180px] rounded-xl border border-white/10 bg-[#0b2039] px-4 py-2.5 text-base font-bold text-white outline-none transition focus:border-[#f0ad18]/60"
+                        >
+                          <option value="مفروشة">مفروشة</option>
+                          <option value="نص فرش">نص فرش</option>
+                          <option value="مفروشة بالكامل">
+                            مفروشة بالكامل
+                          </option>
+                        </select>
                       </div>
-
                     </div>
 
                   </div>
 
                   <div className="order-4 rounded-3xl border border-[#285273] bg-white/[0.025] p-5 backdrop-blur-xl lg:order-3">
                     <div className="mb-5 flex items-center justify-between">
-                      <h3 className="text-lg font-bold">صورة الشقة</h3>
+                      <h3 className="text-lg font-bold leading-relaxed">صورة الشقة</h3>
                       <ImageIcon size={21} className="text-cyan-400" />
                     </div>
 
@@ -1146,117 +1747,156 @@ export default function BuildingDetails() {
 
                 <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
 
-                  <div className="rounded-3xl border border-[#285273] bg-white/[0.025] p-6">
+                  <div className="rounded-3xl border border-[#285273] bg-white/[0.025] p-7 backdrop-blur-xl">
 
-                    <div className="mb-6 flex items-center gap-3">
-
-                      <div className="rounded-xl bg-blue-400/10 p-3 text-blue-400">
-                        <User size={23} />
+                    <div className="mb-8 flex flex-col items-center justify-center text-center">
+                      <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-blue-400/20 bg-blue-400/10 text-blue-400">
+                        <User size={28} />
                       </div>
 
-                      <div>
+                      <h3 className="text-2xl font-black text-white">
+                        بيانات المستأجر
+                      </h3>
 
-                        <h3 className="text-xl font-bold">
-                          بيانات المستأجر
-                        </h3>
-
-                        <p className="text-sm text-gray-500">
-                          المعلومات الشخصية وبيانات التواصل
-                        </p>
-
-                      </div>
-
+                      <p className="mt-2 text-base font-medium text-gray-400">
+                        المعلومات الشخصية وبيانات التواصل
+                      </p>
                     </div>
 
-                    <div className="grid gap-4 md:grid-cols-2">
+                    <div className="grid gap-5 md:grid-cols-2">
 
-                      <div className="rounded-xl bg-[#061a2d] p-4">
-                        <div className="text-sm text-gray-500">
-                          الاسم
+                      {/* الاسم */}
+                      <div className="rounded-2xl border border-white/5 bg-[#061a2d] p-5">
+                        <div className="mb-3 flex items-center justify-between gap-3">
+                          <span className="text-lg font-bold text-gray-200">
+                            اسم المستأجر
+                          </span>
+                          <Edit3 size={19} className="text-[#f0ad18]" />
                         </div>
-                        <div className="mt-2 font-bold">
-                          {selectedApartment.tenant}
-                        </div>
+
+                        <input
+                          type="text"
+                          value={
+                            getApartmentTenantInfo(
+                              selectedApartment
+                            ).tenantName
+                          }
+                          onChange={(event) =>
+                            updateApartmentTenantInfo(
+                              selectedApartment,
+                              "tenantName",
+                              event.target.value
+                            )
+                          }
+                          placeholder="اكتب اسم المستأجر"
+                          className="w-full rounded-xl border border-white/10 bg-[#0b2039] px-4 py-3 text-right text-lg font-bold text-white outline-none transition placeholder:text-gray-600 focus:border-[#f0ad18]/60"
+                        />
                       </div>
 
-                      <div className="rounded-xl bg-[#061a2d] p-4">
-                        <div className="text-sm text-gray-500">
-                          رقم الجوال
+                      {/* رقم الجوال */}
+                      <div className="rounded-2xl border border-white/5 bg-[#061a2d] p-5">
+                        <div className="mb-3 flex items-center justify-between gap-3">
+                          <span className="text-lg font-bold text-gray-200">
+                            رقم الجوال
+                          </span>
+                          <Edit3 size={19} className="text-[#f0ad18]" />
                         </div>
-                        <div className="mt-2 font-bold">
-                          05XXXXXXXX
-                        </div>
+
+                        <input
+                          type="tel"
+                          value={
+                            getApartmentTenantInfo(
+                              selectedApartment
+                            ).phone
+                          }
+                          onChange={(event) =>
+                            updateApartmentTenantInfo(
+                              selectedApartment,
+                              "phone",
+                              event.target.value
+                            )
+                          }
+                          placeholder="05XXXXXXXX"
+                          className="w-full rounded-xl border border-white/10 bg-[#0b2039] px-4 py-3 text-left text-lg font-bold text-white outline-none transition placeholder:text-gray-600 focus:border-[#f0ad18]/60"
+                        />
                       </div>
 
-                      <div className="rounded-xl bg-[#061a2d] p-4">
-                        <div className="text-sm text-gray-500">
-                          رقم الهوية
+                      {/* رقم الهوية */}
+                      <div className="rounded-2xl border border-white/5 bg-[#061a2d] p-5 md:col-span-2">
+                        <div className="mb-3 flex items-center justify-between gap-3">
+                          <span className="text-lg font-bold text-gray-200">
+                            رقم الهوية
+                          </span>
+                          <Edit3 size={19} className="text-[#f0ad18]" />
                         </div>
-                        <div className="mt-2 font-bold">
-                          10XXXXXXXX
-                        </div>
-                      </div>
 
-                      <div className="rounded-xl bg-[#061a2d] p-4">
-                        <div className="text-sm text-gray-500">
-                          عدد أفراد الأسرة
-                        </div>
-                        <div className="mt-2 font-bold">
-                          4 أفراد
-                        </div>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={
+                            getApartmentTenantInfo(
+                              selectedApartment
+                            ).identityNumber
+                          }
+                          onChange={(event) =>
+                            updateApartmentTenantInfo(
+                              selectedApartment,
+                              "identityNumber",
+                              event.target.value
+                            )
+                          }
+                          placeholder="اكتب رقم الهوية"
+                          className="w-full rounded-xl border border-white/10 bg-[#0b2039] px-4 py-3 text-left text-lg font-bold text-white outline-none transition placeholder:text-gray-600 focus:border-[#f0ad18]/60"
+                        />
                       </div>
 
                     </div>
 
                   </div>
 
-                  <div className="rounded-3xl border border-[#285273] bg-white/[0.025] p-6">
+                  <div className="rounded-3xl border border-[#285273] bg-white/[0.025] p-7 backdrop-blur-xl">
 
-                    <div className="mb-6 flex items-center gap-3">
+                    <div className="mb-8 flex flex-col items-center justify-center text-center">
 
-                      <div className="rounded-xl bg-green-400/10 p-3 text-green-400">
-                        <CheckCircle2 size={23} />
+                      <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-green-400/20 bg-green-400/10 text-green-400">
+                        <CheckCircle2 size={28} />
                       </div>
 
-                      <div>
+                      <h3 className="text-2xl font-black text-white">
+                        حالة المستأجر
+                      </h3>
 
-                        <h3 className="text-xl font-bold">
-                          حالة المستأجر
-                        </h3>
-
-                        <p className="text-sm text-gray-500">
-                          ملخص التعامل مع المستأجر
-                        </p>
-
-                      </div>
+                      <p className="mt-2 text-base font-medium text-gray-400">
+                        ملخص التعامل مع المستأجر
+                      </p>
 
                     </div>
 
                     <div className="space-y-4">
 
-                      <div className="flex items-center justify-between rounded-xl bg-[#061a2d] p-4">
-                        <span className="text-gray-400">
+                      <div className="flex min-h-[70px] items-center justify-between rounded-2xl border border-white/5 bg-[#061a2d] px-5 py-4">
+                        <span className="text-lg font-bold text-gray-300">
                           حالة الحساب
                         </span>
-                        <span className="font-bold text-green-400">
+                        <span className="text-lg font-black text-green-400">
                           نشط
                         </span>
                       </div>
 
-                      <div className="flex items-center justify-between rounded-xl bg-[#061a2d] p-4">
-                        <span className="text-gray-400">
+                      <div className="flex min-h-[70px] items-center justify-between rounded-2xl border border-white/5 bg-[#061a2d] px-5 py-4">
+                        <span className="text-lg font-bold text-gray-300">
                           الالتزام بالسداد
                         </span>
-                        <span className="font-bold text-green-400">
+                        <span className="text-lg font-black text-green-400">
                           منتظم
                         </span>
                       </div>
 
-                      <div className="flex items-center justify-between rounded-xl bg-[#061a2d] p-4">
-                        <span className="text-gray-400">
+                      <div className="flex min-h-[70px] items-center justify-between rounded-2xl border border-white/5 bg-[#061a2d] px-5 py-4">
+                        <span className="text-lg font-bold text-gray-300">
                           آخر دفعة
                         </span>
-                        <span className="font-bold">
+                        <span className="text-lg font-black text-white">
                           01 / 05 / 2026
                         </span>
                       </div>
@@ -1442,7 +2082,7 @@ export default function BuildingDetails() {
                               دفعة شهرية
                             </div>
 
-                            <div className="mt-1 text-sm text-gray-500">
+                            <div className="mt-1 text-sm leading-6 text-gray-400">
                               {date}
                             </div>
 
@@ -1589,16 +2229,23 @@ export default function BuildingDetails() {
 
                 </button>
 
-                <button
-                  type="button"
-                  className="flex items-center justify-center gap-2 rounded-xl border border-blue-400/50 bg-blue-500/5 px-5 py-3 font-bold text-blue-400 transition hover:bg-blue-500/10"
-                >
+                <div className="flex flex-col gap-2">
+                  <button
+                    type="button"
+                    className="flex items-center justify-center gap-2 rounded-xl border border-blue-400/50 bg-blue-500/5 px-5 py-3 font-bold text-blue-400 transition hover:bg-blue-500/10"
+                  >
+                    <Edit3 size={18} />
+                    تعديل البيانات
+                  </button>
 
-                  <Edit3 size={18} />
-
-                  تعديل البيانات
-
-                </button>
+                  <button
+                    type="button"
+                    className="flex items-center justify-center gap-2 rounded-xl border border-green-400/50 bg-green-500/10 px-5 py-3 font-bold text-green-400 transition hover:bg-green-500/15"
+                  >
+                    <CheckCircle2 size={18} />
+                    حفظ
+                  </button>
+                </div>
 
               </div>
 
