@@ -26,6 +26,10 @@ import {
   ArrowUpRight,
   Receipt,
   Image as ImageIcon,
+  Search,
+  Check,
+  Banknote,
+  CircleDollarSign,
 } from "lucide-react";
 
 type ApartmentStatus =
@@ -56,6 +60,14 @@ type ApartmentTenantInfo = {
   tenantName: string;
   phone: string;
   identityNumber: string;
+};
+
+type BuildingCharge = {
+  type: string;
+  amount: string;
+  date: string;
+  notes: string;
+  apartmentNumber?: number;
 };
 
 const DEFAULT_APARTMENT_EXTRA_INFO: ApartmentExtraInfo = {
@@ -103,6 +115,18 @@ export default function BuildingDetails() {
       }
     });
 
+  const [apartmentTypeRents, setApartmentTypeRents] =
+    useState<Record<string, number>>(() => {
+      try {
+        const saved = window.localStorage.getItem(
+          "tumouh_star_apartment_type_rents"
+        );
+        return saved ? JSON.parse(saved) : {};
+      } catch {
+        return {};
+      }
+    });
+
   const [apartmentExtraInfo, setApartmentExtraInfo] =
     useState<Record<number, ApartmentExtraInfo>>({});
 
@@ -114,6 +138,31 @@ export default function BuildingDetails() {
 
   const [fromDate, setFromDate] = useState("2026-09-01");
   const [toDate, setToDate] = useState("2026-09-30");
+
+  const [isChargeModalOpen, setIsChargeModalOpen] = useState(false);
+  const [chargeModalMode, setChargeModalMode] = useState<"charge" | "collection">("charge");
+  const [chargeForm, setChargeForm] = useState<BuildingCharge>({
+    type: "إيجار",
+    amount: "",
+    date: new Date().toISOString().slice(0, 10),
+    notes: "",
+  });
+
+  const [selectedChargeApartments, setSelectedChargeApartments] =
+    useState<number[]>([]);
+  const [apartmentTypeFilter, setApartmentTypeFilter] = useState("");
+  const [apartmentSearch, setApartmentSearch] = useState("");
+
+  const [isApartmentTypeModalOpen, setIsApartmentTypeModalOpen] =
+    useState(false);
+  const [selectedApartmentType, setSelectedApartmentType] =
+    useState("");
+  const [selectedTypeApartments, setSelectedTypeApartments] =
+    useState<number[]>([]);
+  const [apartmentTypeSearch, setApartmentTypeSearch] = useState("");
+  const [newApartmentType, setNewApartmentType] = useState("");
+  const [newApartmentTypeRent, setNewApartmentTypeRent] = useState("");
+
 
   const apartments: Apartment[] = Array.from(
     { length: 44 },
@@ -339,6 +388,183 @@ export default function BuildingDetails() {
     return apartmentTypes[apartment.number] ?? apartment.type;
   };
 
+  const getApartmentRent = (apartment: Apartment) => {
+    const type = getApartmentType(apartment);
+    const typeRent = apartmentTypeRents[type];
+
+    if (typeof typeRent === "number" && typeRent > 0) {
+      return typeRent;
+    }
+
+    const firstApartmentOfType = apartments.find(
+      (item) => getApartmentType(item) === type
+    );
+
+    return firstApartmentOfType?.rent ?? apartment.rent;
+  };
+
+  const updateApartmentTypeRent = (type: string, value: string) => {
+    const numericValue = Number(value);
+
+    setApartmentTypeRents((current) => {
+      const updated = {
+        ...current,
+        [type]: Number.isFinite(numericValue) ? numericValue : 0,
+      };
+
+      window.localStorage.setItem(
+        "tumouh_star_apartment_type_rents",
+        JSON.stringify(updated)
+      );
+
+      return updated;
+    });
+  };
+
+  const availableApartmentTypes = Array.from(
+    new Set([
+      "غرفتين وصالة",
+      "غرفة وصالة",
+      ...customApartmentTypes,
+      ...apartments.map((apartment) => getApartmentType(apartment)),
+    ])
+  );
+
+  const filteredTypeApartments = apartments.filter((apartment) => {
+    const search = apartmentTypeSearch.trim().toLowerCase();
+
+    if (!search) {
+      return true;
+    }
+
+    return (
+      apartment.number.toString().includes(search) ||
+      getApartmentType(apartment).toLowerCase().includes(search)
+    );
+  });
+
+  const openApartmentTypeModal = () => {
+    const firstType = availableApartmentTypes[0] ?? "غرفتين وصالة";
+    setSelectedApartmentType(firstType);
+    setSelectedTypeApartments(
+      apartments
+        .filter((apartment) => getApartmentType(apartment) === firstType)
+        .map((apartment) => apartment.number)
+    );
+    setApartmentTypeSearch("");
+    setNewApartmentType("");
+    setNewApartmentTypeRent("");
+    setIsApartmentTypeModalOpen(true);
+  };
+
+  const closeApartmentTypeModal = () => {
+    setIsApartmentTypeModalOpen(false);
+    setApartmentTypeSearch("");
+    setNewApartmentType("");
+    setNewApartmentTypeRent("");
+    setSelectedTypeApartments([]);
+  };
+
+  const selectApartmentTypeForManagement = (type: string) => {
+    setSelectedApartmentType(type);
+    setSelectedTypeApartments(
+      apartments
+        .filter((apartment) => getApartmentType(apartment) === type)
+        .map((apartment) => apartment.number)
+    );
+  };
+
+  const toggleTypeApartment = (apartmentNumber: number) => {
+    setSelectedTypeApartments((current) =>
+      current.includes(apartmentNumber)
+        ? current.filter((number) => number !== apartmentNumber)
+        : [...current, apartmentNumber]
+    );
+  };
+
+  const toggleAllTypeApartments = () => {
+    const visibleNumbers = filteredTypeApartments.map(
+      (apartment) => apartment.number
+    );
+    const allSelected = visibleNumbers.every((number) =>
+      selectedTypeApartments.includes(number)
+    );
+
+    setSelectedTypeApartments((current) =>
+      allSelected
+        ? current.filter((number) => !visibleNumbers.includes(number))
+        : Array.from(new Set([...current, ...visibleNumbers]))
+    );
+  };
+
+  const addNewApartmentTypeFromCard = () => {
+    const type = newApartmentType.trim();
+    const rent = Number(newApartmentTypeRent);
+
+    if (!type) {
+      window.alert("اكتب اسم نوع الشقة أولاً");
+      return;
+    }
+
+    if (!Number.isFinite(rent) || rent <= 0) {
+      window.alert("اكتب قيمة إيجار صحيحة لنوع الشقة");
+      return;
+    }
+
+    if (availableApartmentTypes.includes(type)) {
+      updateApartmentTypeRent(type, String(rent));
+      setSelectedApartmentType(type);
+      setSelectedTypeApartments([]);
+      setNewApartmentType("");
+      setNewApartmentTypeRent("");
+      return;
+    }
+
+    setCustomApartmentTypes((current) => {
+      const updated = [...current, type];
+      window.localStorage.setItem(
+        "tumouh_star_custom_apartment_types",
+        JSON.stringify(updated)
+      );
+      return updated;
+    });
+
+    updateApartmentTypeRent(type, String(rent));
+    setSelectedApartmentType(type);
+    setSelectedTypeApartments([]);
+    setNewApartmentType("");
+    setNewApartmentTypeRent("");
+  };
+
+  const saveApartmentTypeAssignments = () => {
+    if (!selectedApartmentType) {
+      window.alert("اختر نوع الشقة أولاً");
+      return;
+    }
+
+    setApartmentTypes((current) => {
+      const updated = { ...current };
+      const selectedSet = new Set(selectedTypeApartments);
+
+      apartments.forEach((apartment) => {
+        if (selectedSet.has(apartment.number)) {
+          updated[apartment.number] = selectedApartmentType;
+        } else if (current[apartment.number] === selectedApartmentType) {
+          delete updated[apartment.number];
+        }
+      });
+
+      window.localStorage.setItem(
+        "tumouh_star_apartment_types",
+        JSON.stringify(updated)
+      );
+
+      return updated;
+    });
+
+    closeApartmentTypeModal();
+  };
+
   const updateApartmentType = (
     apartment: Apartment,
     value: string
@@ -364,6 +590,10 @@ export default function BuildingDetails() {
 
         return updated;
       });
+
+      if (apartmentTypeRents[newType] === undefined) {
+        updateApartmentTypeRent(newType, String(apartment.rent));
+      }
 
       setApartmentTypes((current) => {
         const updated = {
@@ -409,6 +639,75 @@ export default function BuildingDetails() {
     setActiveTab("البيانات الأساسية");
   };
 
+  const openChargeModal = (
+    mode: "charge" | "collection",
+    type: string,
+    apartmentNumber?: number
+  ) => {
+    setChargeModalMode(mode);
+    setChargeForm({
+      type,
+      amount: "",
+      date: new Date().toISOString().slice(0, 10),
+      notes: "",
+    });
+    setSelectedChargeApartments(
+      apartmentNumber !== undefined ? [apartmentNumber] : []
+    );
+    setApartmentTypeFilter("");
+    setApartmentSearch("");
+    setIsChargeModalOpen(true);
+  };
+
+  const toggleChargeApartment = (apartmentNumber: number) => {
+    setSelectedChargeApartments((current) =>
+      current.includes(apartmentNumber)
+        ? current.filter((number) => number !== apartmentNumber)
+        : [...current, apartmentNumber]
+    );
+  };
+
+  const apartmentTypeOptions = Array.from(
+    new Set([
+      ...apartments.map((apartment) => getApartmentType(apartment)),
+      ...customApartmentTypes,
+    ])
+  );
+
+  const visibleChargeApartments = apartments.filter((apartment) => {
+    const search = apartmentSearch.trim().toLowerCase();
+    const apartmentType = getApartmentType(apartment);
+
+    if (apartmentTypeFilter && apartmentType !== apartmentTypeFilter) {
+      return false;
+    }
+
+    if (!search) {
+      return true;
+    }
+
+    return (
+      apartment.number.toString().includes(search) ||
+      apartmentType.toLowerCase().includes(search)
+    );
+  });
+
+  const toggleAllVisibleChargeApartments = () => {
+    const visibleNumbers = visibleChargeApartments.map(
+      (apartment) => apartment.number
+    );
+
+    const allVisibleSelected = visibleNumbers.every((number) =>
+      selectedChargeApartments.includes(number)
+    );
+
+    setSelectedChargeApartments((current) =>
+      allVisibleSelected
+        ? current.filter((number) => !visibleNumbers.includes(number))
+        : Array.from(new Set([...current, ...visibleNumbers]))
+    );
+  };
+
   return (
     <div
       dir="rtl"
@@ -421,33 +720,151 @@ export default function BuildingDetails() {
 
       <div className="mb-6 rounded-2xl border border-[#d89b18] bg-[#050505] p-6 shadow-lg">
 
-        <div className="flex items-center justify-between gap-6">
+        <div className="flex flex-col items-center justify-center gap-2 text-center">
 
-          <div>
+          <div className="flex items-center justify-center gap-5 text-center">
 
-            <h1 className="text-3xl font-bold text-[#f0ad18]">
+            <h1 className="text-4xl font-bold text-[#f0ad18]">
               عمارة سنتر
             </h1>
 
-            <p className="mt-2 text-gray-300">
-              تفاصيل الاستثمار والعقود والإيرادات
-            </p>
-
-          </div>
-
-          <div className="text-left">
-
-            <div className="text-2xl font-bold text-white">
+            <div className="text-3xl font-bold text-white">
               Tumouh Star
             </div>
 
-            <div className="text-[#d89b18]">
+          </div>
+
+          <div className="flex items-center justify-center gap-4 text-center">
+
+            <p className="text-lg text-gray-300">
+              تفاصيل الاستثمار والعقود والإيرادات
+            </p>
+
+            <div className="text-base text-[#d89b18]">
               ERP System
             </div>
 
           </div>
 
         </div>
+
+      </div>
+
+      {/* ===================================================== */}
+      {/* QUICK FINANCIAL ACTIONS - 4 LARGE GLASS CARDS            */}
+      {/* ===================================================== */}
+
+      <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5" dir="rtl">
+
+        {/* 1 - ADD INVOICE / CHARGE */}
+        <button
+          type="button"
+          onClick={() => openChargeModal("charge", "فاتورة مياه")}
+          className="group relative min-h-[155px] overflow-hidden rounded-3xl border border-cyan-400/30 bg-white/[0.055] p-4 text-center shadow-[0_12px_40px_rgba(0,0,0,0.22)] backdrop-blur-2xl transition-all duration-300 hover:-translate-y-1 hover:border-cyan-300/70 hover:bg-cyan-400/[0.08] hover:shadow-[0_18px_50px_rgba(34,211,238,0.16)]"
+        >
+          <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-cyan-300 to-transparent opacity-70 transition-opacity duration-300 group-hover:opacity-100" />
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-cyan-300/30 bg-cyan-400/10 shadow-[0_0_25px_rgba(34,211,238,0.10)]">
+            <Receipt size={30} className="text-cyan-300" />
+          </div>
+          <div className="mt-4 text-2xl font-black text-white">
+            إضافة فاتورة أو مستحقات
+          </div>
+          <div className="mt-2 text-base font-semibold text-cyan-200/75">
+            مياه، كهرباء، نظافة أو مستحقات أخرى
+          </div>
+          <div className="mx-auto mt-4 inline-flex items-center gap-2 rounded-full border border-cyan-300/20 bg-cyan-400/10 px-3 py-1.5 text-sm font-black text-cyan-200">
+            <Users size={15} />
+            اختيار الشقق
+          </div>
+        </button>
+
+        {/* 2 - COLLECT INVOICE / CHARGE */}
+        <button
+          type="button"
+          onClick={() => openChargeModal("collection", "فاتورة مياه")}
+          className="group relative min-h-[155px] overflow-hidden rounded-3xl border border-green-400/30 bg-white/[0.055] p-4 text-center shadow-[0_12px_40px_rgba(0,0,0,0.22)] backdrop-blur-2xl transition-all duration-300 hover:-translate-y-1 hover:border-green-300/70 hover:bg-green-400/[0.08] hover:shadow-[0_18px_50px_rgba(34,197,94,0.14)]"
+        >
+          <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-green-300 to-transparent opacity-70 transition-opacity duration-300 group-hover:opacity-100" />
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-green-300/30 bg-green-400/10 shadow-[0_0_25px_rgba(34,197,94,0.10)]">
+            <Coins size={30} className="text-green-300" />
+          </div>
+          <div className="mt-4 text-2xl font-black text-white">
+            تحصيل فاتورة أو مستحقات
+          </div>
+          <div className="mt-2 text-base font-semibold text-green-200/75">
+            تسجيل تحصيل المياه، الكهرباء أو مستحقات أخرى
+          </div>
+          <div className="mx-auto mt-4 inline-flex items-center gap-2 rounded-full border border-green-300/20 bg-green-400/10 px-3 py-1.5 text-sm font-black text-green-200">
+            <Users size={15} />
+            اختيار الشقق
+          </div>
+        </button>
+
+        {/* 3 - ADD RENT */}
+        <button
+          type="button"
+          onClick={() => openChargeModal("charge", "إيجار")}
+          className="group relative min-h-[155px] overflow-hidden rounded-3xl border border-[#f0ad18]/35 bg-white/[0.055] p-4 text-center shadow-[0_12px_40px_rgba(0,0,0,0.22)] backdrop-blur-2xl transition-all duration-300 hover:-translate-y-1 hover:border-[#f6c84a]/80 hover:bg-[#f0ad18]/[0.08] hover:shadow-[0_18px_50px_rgba(240,173,24,0.16)]"
+        >
+          <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-[#f6c84a] to-transparent opacity-70 transition-opacity duration-300 group-hover:opacity-100" />
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-[#f6c84a]/30 bg-[#f0ad18]/10 shadow-[0_0_25px_rgba(240,173,24,0.10)]">
+            <Wallet size={30} className="text-[#f6c84a]" />
+          </div>
+          <div className="mt-4 text-2xl font-black text-white">
+            إضافة إيجار
+          </div>
+          <div className="mt-2 text-base font-semibold text-[#f6c84a]/75">
+            تسجيل استحقاق إيجار جديد
+          </div>
+          <div className="mx-auto mt-4 inline-flex items-center gap-2 rounded-full border border-[#f6c84a]/20 bg-[#f0ad18]/10 px-3 py-1.5 text-sm font-black text-[#f6c84a]">
+            <Users size={15} />
+            اختيار الشقق
+          </div>
+        </button>
+
+        {/* 4 - COLLECT RENT */}
+        <button
+          type="button"
+          onClick={() => openChargeModal("collection", "إيجار")}
+          className="group relative min-h-[155px] overflow-hidden rounded-3xl border border-purple-400/30 bg-white/[0.055] p-4 text-center shadow-[0_12px_40px_rgba(0,0,0,0.22)] backdrop-blur-2xl transition-all duration-300 hover:-translate-y-1 hover:border-purple-300/70 hover:bg-purple-400/[0.08] hover:shadow-[0_18px_50px_rgba(168,85,247,0.15)]"
+        >
+          <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-purple-300 to-transparent opacity-70 transition-opacity duration-300 group-hover:opacity-100" />
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-purple-300/30 bg-purple-400/10 shadow-[0_0_25px_rgba(168,85,247,0.10)]">
+            <ArrowUpRight size={30} className="text-purple-300" />
+          </div>
+          <div className="mt-4 text-2xl font-black text-white">
+            تحصيل إيجار
+          </div>
+          <div className="mt-2 text-base font-semibold text-purple-200/75">
+            تسجيل دفعة إيجار محصلة
+          </div>
+          <div className="mx-auto mt-4 inline-flex items-center gap-2 rounded-full border border-purple-300/20 bg-purple-400/10 px-3 py-1.5 text-sm font-black text-purple-200">
+            <Users size={15} />
+            اختيار الشقق
+          </div>
+        </button>
+
+        {/* 5 - APARTMENT TYPES */}
+        <button
+          type="button"
+          onClick={openApartmentTypeModal}
+          className="group relative min-h-[155px] overflow-hidden rounded-3xl border border-blue-400/30 bg-white/[0.055] p-4 text-center shadow-[0_12px_40px_rgba(0,0,0,0.22)] backdrop-blur-2xl transition-all duration-300 hover:-translate-y-1 hover:border-blue-300/70 hover:bg-blue-400/[0.08] hover:shadow-[0_18px_50px_rgba(59,130,246,0.16)]"
+        >
+          <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-blue-300 to-transparent opacity-70 transition-opacity duration-300 group-hover:opacity-100" />
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-blue-300/30 bg-blue-400/10 shadow-[0_0_25px_rgba(59,130,246,0.10)]">
+            <Building2 size={30} className="text-blue-300" />
+          </div>
+          <div className="mt-4 text-2xl font-black text-white">
+            أنواع الشقق
+          </div>
+          <div className="mt-2 text-base font-semibold text-blue-200/75">
+            إضافة أنواع الشقق وتحديد أرقامها داخل العمارة
+          </div>
+          <div className="mx-auto mt-4 inline-flex items-center gap-2 rounded-full border border-blue-300/20 bg-blue-400/10 px-3 py-1.5 text-sm font-black text-blue-200">
+            <Plus size={15} />
+            إدارة الأنواع
+          </div>
+        </button>
 
       </div>
 
@@ -472,15 +889,15 @@ export default function BuildingDetails() {
             </span>
           </div>
 
-          <div className="text-xs font-medium text-gray-400">
+          <div className="text-sm font-medium text-gray-300">
             إجمالي الشقق
           </div>
 
-          <div className="mt-1 text-2xl font-black leading-none text-[#f0ad18]">
+          <div className="mt-1 text-3xl font-black leading-none text-[#f0ad18]">
             {totalApartments}
           </div>
 
-          <div className="mt-2 text-[11px] text-gray-500">
+          <div className="mt-2 text-xs text-gray-400">
             شقة
           </div>
 
@@ -501,15 +918,15 @@ export default function BuildingDetails() {
             </span>
           </div>
 
-          <div className="text-xs font-medium text-gray-400">
+          <div className="text-sm font-medium text-gray-300">
             إجمالي الشقق المؤجرة
           </div>
 
-          <div className="mt-1 text-2xl font-black leading-none text-green-400">
+          <div className="mt-1 text-3xl font-black leading-none text-green-400">
             {rentedApartments}
           </div>
 
-          <div className="mt-2 text-[11px] text-gray-500">
+          <div className="mt-2 text-xs text-gray-400">
             شقة
           </div>
 
@@ -530,15 +947,15 @@ export default function BuildingDetails() {
             </span>
           </div>
 
-          <div className="text-xs font-medium text-gray-400">
+          <div className="text-sm font-medium text-gray-300">
             إجمالي الشقق المحجوزة
           </div>
 
-          <div className="mt-1 text-2xl font-black leading-none text-blue-400">
+          <div className="mt-1 text-3xl font-black leading-none text-blue-400">
             {reservedApartments}
           </div>
 
-          <div className="mt-2 text-[11px] text-gray-500">
+          <div className="mt-2 text-xs text-gray-400">
             شقة
           </div>
 
@@ -559,15 +976,15 @@ export default function BuildingDetails() {
             </span>
           </div>
 
-          <div className="text-xs font-medium text-gray-400">
+          <div className="text-sm font-medium text-gray-300">
             إجمالي الشقق تحت الصيانة
           </div>
 
-          <div className="mt-1 text-2xl font-black leading-none text-orange-400">
+          <div className="mt-1 text-3xl font-black leading-none text-orange-400">
             {maintenanceApartments}
           </div>
 
-          <div className="mt-2 text-[11px] text-gray-500">
+          <div className="mt-2 text-xs text-gray-400">
             شقة
           </div>
 
@@ -588,15 +1005,15 @@ export default function BuildingDetails() {
             </span>
           </div>
 
-          <div className="text-xs font-medium text-gray-400">
+          <div className="text-sm font-medium text-gray-300">
             إجمالي الشقق الفارغة
           </div>
 
-          <div className="mt-1 text-2xl font-black leading-none text-red-400">
+          <div className="mt-1 text-3xl font-black leading-none text-red-400">
             {vacantApartments}
           </div>
 
-          <div className="mt-2 text-[11px] text-gray-500">
+          <div className="mt-2 text-xs text-gray-400">
             شقة
           </div>
 
@@ -617,20 +1034,214 @@ export default function BuildingDetails() {
             </span>
           </div>
 
-          <div className="text-xs font-medium text-gray-400">
+          <div className="text-sm font-medium text-gray-300">
             نسبة الإشغال
           </div>
 
-          <div className="mt-1 text-2xl font-black leading-none text-[#f6c84a]">
+          <div className="mt-1 text-3xl font-black leading-none text-[#f6c84a]">
             {occupancyRate}%
           </div>
 
-          <div className="mt-2 text-[11px] text-gray-500">
+          <div className="mt-2 text-xs text-gray-400">
             من إجمالي الشقق
           </div>
 
         </div>
 
+      </div>
+
+
+      {/* ===================================================== */}
+      {/* MONTHLY FINANCIAL SUMMARY - 8 LARGE GLASS CARDS        */}
+      {/* ===================================================== */}
+
+      <div className="mb-6 rounded-3xl border border-white/10 bg-white/[0.025] p-4 shadow-[0_14px_45px_rgba(0,0,0,0.18)] backdrop-blur-xl sm:p-5">
+        <div className="mb-5 flex flex-col items-center justify-between gap-4 lg:flex-row">
+          <div className="text-center lg:text-right">
+            <h2 className="text-xl font-black text-[#f6c84a]">
+              الملخص المالي للفترة
+            </h2>
+            <p className="mt-1 text-sm font-semibold text-gray-400">
+              إجماليات المستحقات والتحصيلات حسب الفترة المحددة
+            </p>
+          </div>
+
+          <div className="grid w-full max-w-[560px] grid-cols-2 gap-3">
+            <label className="text-center text-xs font-bold text-gray-400">
+              من تاريخ
+              <input
+                type="date"
+                value={fromDate}
+                onChange={(event) => setFromDate(event.target.value)}
+                className="mt-1.5 w-full rounded-xl border border-white/10 bg-[#07182b] px-3 py-2.5 text-center text-sm font-bold text-white outline-none transition focus:border-[#f0ad18]/60"
+              />
+            </label>
+
+            <label className="text-center text-xs font-bold text-gray-400">
+              إلى تاريخ
+              <input
+                type="date"
+                value={toDate}
+                onChange={(event) => setToDate(event.target.value)}
+                className="mt-1.5 w-full rounded-xl border border-white/10 bg-[#07182b] px-3 py-2.5 text-center text-sm font-bold text-white outline-none transition focus:border-[#f0ad18]/60"
+              />
+            </label>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {/* 1 - TOTAL CHARGES */}
+          <div className="group relative min-h-[150px] overflow-hidden rounded-3xl border border-orange-400/25 bg-white/[0.045] p-5 text-center shadow-[0_10px_35px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-orange-300/60 hover:bg-orange-400/[0.06]">
+            <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-orange-400 to-transparent opacity-70" />
+            <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl border border-orange-400/25 bg-orange-400/10">
+              <FileText size={23} className="text-orange-300" />
+            </div>
+            <div className="mt-3 text-base font-black text-gray-100">
+              إجمالي المستحقات للشهر
+            </div>
+            <div className="mt-3 text-3xl font-black text-orange-300">
+              0 <span className="text-xs font-bold text-gray-500">ريال</span>
+            </div>
+            <div className="mt-2 text-xs font-semibold text-gray-400">
+              حسب الفترة المحددة
+            </div>
+          </div>
+
+          {/* 2 - TOTAL RENT DUE */}
+          <div className="group relative min-h-[150px] overflow-hidden rounded-3xl border border-[#f0ad18]/30 bg-white/[0.045] p-5 text-center shadow-[0_10px_35px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-[#f6c84a]/70 hover:bg-[#f0ad18]/[0.06]">
+            <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-[#f6c84a] to-transparent opacity-70" />
+            <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl border border-[#f6c84a]/25 bg-[#f0ad18]/10">
+              <Wallet size={23} className="text-[#f6c84a]" />
+            </div>
+            <div className="mt-3 text-base font-black text-gray-100">
+              إجمالي الإيجارات المستحقة للشهر
+            </div>
+            <div className="mt-3 text-3xl font-black text-[#f6c84a]">
+              0 <span className="text-xs font-bold text-gray-500">ريال</span>
+            </div>
+            <div className="mt-2 text-xs font-semibold text-gray-400">
+              حسب الفترة المحددة
+            </div>
+          </div>
+
+          {/* 3 - ELECTRICITY BILLS */}
+          <div className="group relative min-h-[150px] overflow-hidden rounded-3xl border border-yellow-400/25 bg-white/[0.045] p-5 text-center shadow-[0_10px_35px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-yellow-300/60 hover:bg-yellow-400/[0.06]">
+            <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-yellow-300 to-transparent opacity-70" />
+            <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl border border-yellow-400/25 bg-yellow-400/10">
+              <Zap size={23} className="text-yellow-300" />
+            </div>
+            <div className="mt-3 text-base font-black text-gray-100">
+              إجمالي فواتير الكهرباء للشهر
+            </div>
+            <div className="mt-3 text-3xl font-black text-yellow-300">
+              0 <span className="text-xs font-bold text-gray-500">ريال</span>
+            </div>
+            <div className="mt-2 text-xs font-semibold text-gray-400">
+              حسب الفترة المحددة
+            </div>
+          </div>
+
+          {/* 4 - WATER BILLS */}
+          <div className="group relative min-h-[150px] overflow-hidden rounded-3xl border border-cyan-400/25 bg-white/[0.045] p-5 text-center shadow-[0_10px_35px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-cyan-300/60 hover:bg-cyan-400/[0.06]">
+            <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-cyan-300 to-transparent opacity-70" />
+            <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl border border-cyan-400/25 bg-cyan-400/10">
+              <Droplets size={23} className="text-cyan-300" />
+            </div>
+            <div className="mt-3 text-base font-black text-gray-100">
+              إجمالي فواتير المياه للشهر
+            </div>
+            <div className="mt-3 text-3xl font-black text-cyan-300">
+              0 <span className="text-xs font-bold text-gray-500">ريال</span>
+            </div>
+            <div className="mt-2 text-xs font-semibold text-gray-400">
+              حسب الفترة المحددة
+            </div>
+          </div>
+
+          {/* 5 - CHARGE COLLECTIONS */}
+          <div className="group relative min-h-[150px] overflow-hidden rounded-3xl border border-green-400/25 bg-white/[0.045] p-5 text-center shadow-[0_10px_35px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-green-300/60 hover:bg-green-400/[0.06]">
+            <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-green-300 to-transparent opacity-70" />
+            <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl border border-green-400/25 bg-green-400/10">
+              <Coins size={23} className="text-green-300" />
+            </div>
+            <div className="mt-3 text-base font-black text-gray-100">
+              إجمالي تحصيلات المستحقات للشهر
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <div className="rounded-xl border border-green-400/15 bg-green-400/[0.06] p-2">
+                <div className="text-xs font-bold text-gray-400">المحصل</div>
+                <div className="mt-1 text-xl font-black text-green-300">0</div>
+              </div>
+              <div className="rounded-xl border border-red-400/15 bg-red-400/[0.06] p-2">
+                <div className="text-xs font-bold text-gray-400">المتبقي</div>
+                <div className="mt-1 text-xl font-black text-red-300">0</div>
+              </div>
+            </div>
+          </div>
+
+          {/* 6 - RENT COLLECTIONS */}
+          <div className="group relative min-h-[150px] overflow-hidden rounded-3xl border border-purple-400/25 bg-white/[0.045] p-5 text-center shadow-[0_10px_35px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-purple-300/60 hover:bg-purple-400/[0.06]">
+            <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-purple-300 to-transparent opacity-70" />
+            <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl border border-purple-400/25 bg-purple-400/10">
+              <Banknote size={23} className="text-purple-300" />
+            </div>
+            <div className="mt-3 text-base font-black text-gray-100">
+              إجمالي تحصيلات الإيجارات للشهر
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <div className="rounded-xl border border-green-400/15 bg-green-400/[0.06] p-2">
+                <div className="text-xs font-bold text-gray-400">المحصل</div>
+                <div className="mt-1 text-xl font-black text-green-300">0</div>
+              </div>
+              <div className="rounded-xl border border-red-400/15 bg-red-400/[0.06] p-2">
+                <div className="text-xs font-bold text-gray-400">المتبقي</div>
+                <div className="mt-1 text-xl font-black text-red-300">0</div>
+              </div>
+            </div>
+          </div>
+
+          {/* 7 - ELECTRICITY COLLECTIONS / REMAINING */}
+          <div className="group relative min-h-[150px] overflow-hidden rounded-3xl border border-amber-400/25 bg-white/[0.045] p-5 text-center shadow-[0_10px_35px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-amber-300/60 hover:bg-amber-400/[0.06]">
+            <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-amber-300 to-transparent opacity-70" />
+            <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl border border-amber-400/25 bg-amber-400/10">
+              <Zap size={23} className="text-amber-300" />
+            </div>
+            <div className="mt-3 text-base font-black text-gray-100">
+              تحصيلات فواتير الكهرباء والمتبقي
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <div className="rounded-xl border border-green-400/15 bg-green-400/[0.06] p-2">
+                <div className="text-xs font-bold text-gray-400">المحصل</div>
+                <div className="mt-1 text-xl font-black text-green-300">0</div>
+              </div>
+              <div className="rounded-xl border border-red-400/15 bg-red-400/[0.06] p-2">
+                <div className="text-xs font-bold text-gray-400">المتبقي</div>
+                <div className="mt-1 text-xl font-black text-red-300">0</div>
+              </div>
+            </div>
+          </div>
+
+          {/* 8 - WATER COLLECTIONS / REMAINING */}
+          <div className="group relative min-h-[150px] overflow-hidden rounded-3xl border border-blue-400/25 bg-white/[0.045] p-5 text-center shadow-[0_10px_35px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-blue-300/60 hover:bg-blue-400/[0.06]">
+            <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-blue-300 to-transparent opacity-70" />
+            <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl border border-blue-400/25 bg-blue-400/10">
+              <Droplets size={23} className="text-blue-300" />
+            </div>
+            <div className="mt-3 text-base font-black text-gray-100">
+              تحصيلات فواتير المياه والمتبقي
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <div className="rounded-xl border border-green-400/15 bg-green-400/[0.06] p-2">
+                <div className="text-xs font-bold text-gray-400">المحصل</div>
+                <div className="mt-1 text-xl font-black text-green-300">0</div>
+              </div>
+              <div className="rounded-xl border border-red-400/15 bg-red-400/[0.06] p-2">
+                <div className="text-xs font-bold text-gray-400">المتبقي</div>
+                <div className="mt-1 text-xl font-black text-red-300">0</div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* ===================================================== */}
@@ -649,11 +1260,11 @@ export default function BuildingDetails() {
 
             <div className="rounded-xl bg-[#07182b] p-4 text-center">
 
-              <div className="text-sm text-gray-400">
+              <div className="text-base text-gray-300">
                 الإيجار السنوي للمالك
               </div>
 
-              <div className="mt-2 text-2xl font-bold">
+              <div className="mt-2 text-3xl font-bold">
                 950,000 ريال
               </div>
 
@@ -661,11 +1272,11 @@ export default function BuildingDetails() {
 
             <div className="rounded-xl bg-[#07182b] p-4 text-center">
 
-              <div className="text-sm text-gray-400">
+              <div className="text-base text-gray-300">
                 قيمة الأثاث
               </div>
 
-              <div className="mt-2 text-2xl font-bold">
+              <div className="mt-2 text-3xl font-bold">
                 228,000 ريال
               </div>
 
@@ -673,11 +1284,11 @@ export default function BuildingDetails() {
 
             <div className="rounded-xl bg-[#07182b] p-4 text-center">
 
-              <div className="text-sm text-gray-400">
+              <div className="text-base text-gray-300">
                 الأجهزة الكهربائية
               </div>
 
-              <div className="mt-2 text-2xl font-bold">
+              <div className="mt-2 text-3xl font-bold">
                 130,000 ريال
               </div>
 
@@ -685,11 +1296,11 @@ export default function BuildingDetails() {
 
             <div className="rounded-xl bg-[#07182b] p-4 text-center">
 
-              <div className="text-sm text-gray-400">
+              <div className="text-base text-gray-300">
                 إجمالي الاستثمار
               </div>
 
-              <div className="mt-2 text-2xl font-bold text-[#f0ad18]">
+              <div className="mt-2 text-3xl font-bold text-[#f0ad18]">
                 1,308,000 ريال
               </div>
 
@@ -713,11 +1324,11 @@ export default function BuildingDetails() {
 
               <div className="absolute inset-4 flex flex-col items-center justify-center rounded-full bg-[#0b2039]">
 
-                <span className="text-3xl font-bold">
+                <span className="text-4xl font-bold">
                   88.64%
                 </span>
 
-                <span className="text-sm text-gray-400">
+                <span className="text-base text-gray-300">
                   نسبة الإشغال
                 </span>
 
@@ -727,7 +1338,7 @@ export default function BuildingDetails() {
 
           </div>
 
-          <div className="flex justify-center gap-8 text-center text-sm">
+          <div className="flex justify-center gap-8 text-center text-base">
 
             <div>
               <span className="ml-2 inline-block h-3 w-3 rounded-full bg-green-500" />
@@ -763,23 +1374,23 @@ export default function BuildingDetails() {
 
               <div className="text-center">
 
-                <h3 className="text-xl font-bold">
+                <h3 className="text-2xl font-bold">
                   شقة غرفتين وصالة
                 </h3>
 
-                <p className="mt-1 text-gray-400">
+                <p className="mt-1 text-base text-gray-300">
                   20 شقة
                 </p>
 
               </div>
 
-              <div className="text-2xl font-bold text-[#f0ad18]">
+              <div className="text-3xl font-bold text-[#f0ad18]">
                 4,000
               </div>
 
             </div>
 
-            <div className="text-gray-400">
+            <div className="text-base text-gray-300">
               ريال / شهريًا
             </div>
 
@@ -800,23 +1411,23 @@ export default function BuildingDetails() {
 
               <div className="text-center">
 
-                <h3 className="text-xl font-bold">
+                <h3 className="text-2xl font-bold">
                   شقة غرفة وصالة
                 </h3>
 
-                <p className="mt-1 text-gray-400">
+                <p className="mt-1 text-base text-gray-300">
                   24 شقة
                 </p>
 
               </div>
 
-              <div className="text-2xl font-bold text-[#f0ad18]">
+              <div className="text-3xl font-bold text-[#f0ad18]">
                 3,000
               </div>
 
             </div>
 
-            <div className="text-gray-400">
+            <div className="text-base text-gray-300">
               ريال / شهريًا
             </div>
 
@@ -851,11 +1462,11 @@ export default function BuildingDetails() {
 
             <div className="flex items-center justify-between border-b border-[#173858] pb-4">
 
-              <span className="text-gray-300">
+              <span className="text-base text-gray-200">
                 إيرادات الشقق المؤجرة
               </span>
 
-              <span className="text-xl font-bold">
+              <span className="text-2xl font-bold">
                 126,000 ريال
               </span>
 
@@ -863,7 +1474,7 @@ export default function BuildingDetails() {
 
             <div className="flex items-center justify-between border-b border-[#173858] pb-4">
 
-              <span className="text-gray-300">
+              <span className="text-base text-gray-200">
                 متوسط الإيراد الشهري
               </span>
 
@@ -875,7 +1486,7 @@ export default function BuildingDetails() {
 
             <div className="flex items-center justify-between">
 
-              <span className="text-gray-300">
+              <span className="text-base text-gray-200">
                 الإيراد السنوي المتوقع
               </span>
 
@@ -899,11 +1510,11 @@ export default function BuildingDetails() {
 
             <div className="rounded-xl bg-[#07182b] p-5 text-center">
 
-              <div className="text-sm text-gray-400">
+              <div className="text-base text-gray-300">
                 صافي الإيراد السنوي
               </div>
 
-              <div className="mt-2 text-2xl font-bold text-green-400">
+              <div className="mt-2 text-3xl font-bold text-green-400">
                 1,512,000
               </div>
 
@@ -911,11 +1522,11 @@ export default function BuildingDetails() {
 
             <div className="rounded-xl bg-[#07182b] p-5 text-center">
 
-              <div className="text-sm text-gray-400">
+              <div className="text-base text-gray-300">
                 تكلفة الإيجار السنوي
               </div>
 
-              <div className="mt-2 text-2xl font-bold text-red-400">
+              <div className="mt-2 text-3xl font-bold text-red-400">
                 950,000
               </div>
 
@@ -923,11 +1534,11 @@ export default function BuildingDetails() {
 
             <div className="rounded-xl bg-[#07182b] p-5 text-center">
 
-              <div className="text-sm text-gray-400">
+              <div className="text-base text-gray-300">
                 الفرق السنوي
               </div>
 
-              <div className="mt-2 text-2xl font-bold text-[#f0ad18]">
+              <div className="mt-2 text-3xl font-bold text-[#f0ad18]">
                 562,000
               </div>
 
@@ -935,11 +1546,11 @@ export default function BuildingDetails() {
 
             <div className="rounded-xl bg-[#07182b] p-5 text-center">
 
-              <div className="text-sm text-gray-400">
+              <div className="text-base text-gray-300">
                 مدة العقد
               </div>
 
-              <div className="mt-2 text-2xl font-bold">
+              <div className="mt-2 text-3xl font-bold">
                 5 سنوات
               </div>
 
@@ -961,17 +1572,17 @@ export default function BuildingDetails() {
 
           <div>
 
-            <h2 className="text-2xl font-bold text-[#f0ad18]">
+            <h2 className="text-3xl font-bold text-[#f0ad18]">
               خريطة الشقق
             </h2>
 
-            <p className="mt-1 text-gray-400">
+            <p className="mt-1 text-base text-gray-300">
               اضغط على رقم الشقة لعرض تفاصيلها
             </p>
 
           </div>
 
-          <div className="flex flex-wrap gap-4 text-sm">
+          <div className="flex flex-wrap gap-4 text-base">
 
             <span>
               <span className="ml-2 inline-block h-3 w-3 rounded-full bg-green-500" />
@@ -1058,7 +1669,7 @@ export default function BuildingDetails() {
                       تفاصيل الشقة
                     </h2>
                     <p className="mt-1 text-sm text-gray-400">
-                      عمارة سنتر — تبوك
+                      عمارة سنتر
                     </p>
                   </div>
                 </div>
@@ -1149,7 +1760,7 @@ export default function BuildingDetails() {
                   </select>
 
                   <div className="mt-2 text-sm text-gray-500">
-                    مساحة تقريبية 95 م²
+                  
                   </div>
                 </div>
 
@@ -1160,7 +1771,7 @@ export default function BuildingDetails() {
                       <Wallet size={23} className="text-[#f0ad18]" />
                     </div>
                   </div>
-                  <div className="text-3xl font-black text-[#f6c84a]">{selectedApartment.rent.toLocaleString("ar-SA")}</div>
+                  <div className="text-3xl font-black text-[#f6c84a]">{getApartmentRent(selectedApartment).toLocaleString("ar-SA")}</div>
                   <div className="mt-2 text-sm text-gray-500">ريال / شهرياً</div>
                 </div>
 
@@ -1198,6 +1809,10 @@ export default function BuildingDetails() {
                 {/* إضافة فاتورة أو مستحقات */}
                 <button
                   type="button"
+                  onClick={() => {
+                    if (!selectedApartment) return;
+                    openChargeModal("charge", "فاتورة مياه", selectedApartment.number);
+                  }}
                   className="rounded-2xl border border-cyan-400/40 bg-cyan-400/[0.06] p-5 text-right transition hover:border-cyan-400/60 hover:bg-cyan-400/[0.10]"
                 >
                   <div className="flex items-center justify-between gap-3">
@@ -1215,6 +1830,10 @@ export default function BuildingDetails() {
                 {/* إضافة تحصيل */}
                 <button
                   type="button"
+                  onClick={() => {
+                    if (!selectedApartment) return;
+                    openChargeModal("collection", "إيجار", selectedApartment.number);
+                  }}
                   className="rounded-2xl border border-[#f0ad18]/60 bg-[#f0ad18]/10 p-5 text-right transition hover:bg-[#f0ad18]/20"
                 >
                   <div className="flex items-center justify-between gap-3">
@@ -1701,8 +2320,8 @@ export default function BuildingDetails() {
                           }
                           className="min-w-[180px] rounded-xl border border-white/10 bg-[#0b2039] px-4 py-2.5 text-base font-bold text-white outline-none transition focus:border-[#f0ad18]/60"
                         >
-                          <option value="مفروشة">مفروشة</option>
-                          <option value="نص فرش">نص فرش</option>
+                          <option value="مفروشة">فارغة</option>
+                          <option value="نص فرش">نص مفروش</option>
                           <option value="مفروشة بالكامل">
                             مفروشة بالكامل
                           </option>
@@ -2089,7 +2708,7 @@ export default function BuildingDetails() {
                           </div>
 
                           <div className="font-bold text-green-400">
-                            {selectedApartment.rent.toLocaleString(
+                            {getApartmentRent(selectedApartment).toLocaleString(
                               "ar-SA"
                             )}{" "}
                             ريال
@@ -2267,6 +2886,836 @@ export default function BuildingDetails() {
 
         </div>
 
+      )}
+
+      {/* ===================================================== */}
+      {/* APARTMENT TYPES MANAGEMENT MODAL                        */}
+      {/* ===================================================== */}
+
+      {isApartmentTypeModalOpen && (
+        <div
+          className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/85 p-3 backdrop-blur-xl sm:p-5"
+          onClick={closeApartmentTypeModal}
+        >
+          <div
+            dir="rtl"
+            className="relative flex max-h-[calc(100vh-24px)] w-full max-w-[1120px] flex-col overflow-hidden rounded-[30px] border border-blue-400/55 bg-[#061426]/[0.97] shadow-[0_0_100px_rgba(0,0,0,0.55)]"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-blue-300 to-transparent" />
+
+            <div className="shrink-0 border-b border-white/10 bg-gradient-to-r from-[#050d18] via-[#09213a] to-[#061426] px-5 py-4 sm:px-7">
+              <div className="flex items-center justify-center gap-4">
+                <div className="flex min-w-0 items-center justify-center gap-4 text-center">
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-blue-300/40 bg-blue-400/10 text-blue-300">
+                    <Building2 size={29} />
+                  </div>
+                  <div className="min-w-0 text-center">
+                    <h2 className="text-xl font-black text-blue-300 sm:text-2xl lg:text-3xl">
+                      أنواع الشقق
+                    </h2>
+                    <p className="mt-1 text-sm font-semibold text-gray-400">
+                      أضف أنواع الشقق وحدد أرقام الشقق التابعة لكل نوع
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={closeApartmentTypeModal}
+                  aria-label="إغلاق"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-gray-400 transition hover:border-red-400/40 hover:bg-red-500/10 hover:text-red-400"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5 lg:p-6">
+              <div className="grid min-h-0 grid-cols-1 gap-5 lg:grid-cols-[0.8fr_1.2fr]">
+                <div className="rounded-3xl border border-blue-400/20 bg-[#081c31]/80 p-4 backdrop-blur-2xl sm:p-5">
+                  <div className="mb-4 flex items-center justify-between gap-3">
+                    <div>
+                      <h3 className="text-xl font-black text-white">أنواع الشقق المتاحة</h3>
+                      <p className="mt-1 text-sm font-semibold text-gray-500">اختر النوع لإدارة أرقام الشقق</p>
+                    </div>
+                    <span className="rounded-full border border-blue-400/25 bg-blue-400/10 px-3 py-1.5 text-xs font-black text-blue-300">
+                      {availableApartmentTypes.length} أنواع
+                    </span>
+                  </div>
+
+                  <div className="mb-4 space-y-2">
+                    <div className="flex gap-2">
+                      <input
+                        value={newApartmentType}
+                        onChange={(event) => setNewApartmentType(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
+                            addNewApartmentTypeFromCard();
+                          }
+                        }}
+                        placeholder="اكتب نوع شقة جديد"
+                        className="h-11 min-w-0 flex-1 rounded-xl border border-white/10 bg-[#07182b] px-3 text-sm font-bold text-white outline-none transition placeholder:text-gray-600 focus:border-blue-400/60"
+                      />
+                      <button
+                        type="button"
+                        onClick={addNewApartmentTypeFromCard}
+                        className="flex h-11 shrink-0 items-center gap-2 rounded-xl border border-blue-400/30 bg-blue-400/10 px-4 text-sm font-black text-blue-300 transition hover:bg-blue-400/20"
+                      >
+                        <Plus size={17} />
+                        إضافة
+                      </button>
+                    </div>
+
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={newApartmentTypeRent}
+                      onChange={(event) => setNewApartmentTypeRent(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          addNewApartmentTypeFromCard();
+                        }
+                      }}
+                      placeholder="قيمة الإيجار الشهري للنوع (ريال)"
+                      className="h-11 w-full rounded-xl border border-[#f0ad18]/20 bg-[#07182b] px-3 text-sm font-bold text-white outline-none transition placeholder:text-gray-600 focus:border-[#f0ad18]/60"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    {availableApartmentTypes.map((type) => {
+                      const count = apartments.filter(
+                        (apartment) => getApartmentType(apartment) === type
+                      ).length;
+                      const active = selectedApartmentType === type;
+                      const rent = apartmentTypeRents[type] ??
+                        apartments.find((apartment) => getApartmentType(apartment) === type)?.rent ?? 0;
+
+                      return (
+                        <div
+                          key={type}
+                          className={`rounded-2xl border p-3 text-right transition ${
+                            active
+                              ? "border-blue-400/40 bg-blue-400/10"
+                              : "border-white/5 bg-white/[0.02] hover:border-white/10 hover:bg-white/[0.05]"
+                          }`}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => selectApartmentTypeForManagement(type)}
+                            className="flex w-full items-center justify-between gap-3 text-right"
+                          >
+                            <span className={`font-black ${active ? "text-blue-300" : "text-white"}`}>
+                              {type}
+                            </span>
+                            <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs font-bold text-gray-400">
+                              {count} شقة
+                            </span>
+                          </button>
+
+                          <div className="mt-2 flex items-center gap-2">
+                            <span className="shrink-0 text-xs font-bold text-gray-500">
+                              قيمة الإيجار
+                            </span>
+                            <div className="relative min-w-0 flex-1">
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={rent || ""}
+                                onChange={(event) =>
+                                  updateApartmentTypeRent(type, event.target.value)
+                                }
+                                placeholder="ريال / شهرياً"
+                                className="h-9 w-full rounded-lg border border-white/10 bg-[#07182b] px-3 pl-14 text-sm font-black text-[#f6c84a] outline-none transition placeholder:text-gray-600 focus:border-[#f0ad18]/60"
+                              />
+                              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[11px] font-bold text-gray-500">
+                                ريال
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="rounded-3xl border border-white/10 bg-white/[0.025] p-4 backdrop-blur-2xl sm:p-5">
+                  <div className="mb-4 flex items-start justify-between gap-3">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <Home size={22} className="text-blue-300" />
+                        <h3 className="text-xl font-black text-white">
+                          تحديد شقق: {selectedApartmentType || "-"}
+                        </h3>
+                      </div>
+                      <p className="mt-1 text-sm font-semibold text-gray-500">
+                        حدد أرقام الشقق التي تنتمي إلى النوع المختار
+                      </p>
+                    </div>
+                    <div className="rounded-full border border-blue-400/30 bg-blue-400/10 px-3 py-1.5 text-xs font-black text-blue-300">
+                      {selectedTypeApartments.length} محددة
+                    </div>
+                  </div>
+
+                  <div className="mb-3 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={toggleAllTypeApartments}
+                      className="flex h-10 flex-1 items-center justify-center gap-2 rounded-xl border border-blue-400/30 bg-blue-400/10 text-sm font-black text-blue-300 transition hover:bg-blue-400/15"
+                    >
+                      <Check size={17} />
+                      {filteredTypeApartments.length > 0 &&
+                      filteredTypeApartments.every((apartment) =>
+                        selectedTypeApartments.includes(apartment.number)
+                      )
+                        ? "إلغاء تحديد الكل"
+                        : "تحديد الكل"}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setSelectedTypeApartments([])}
+                      className="flex h-10 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 text-sm font-bold text-gray-400 transition hover:bg-white/10 hover:text-white"
+                    >
+                      إلغاء التحديد
+                    </button>
+                  </div>
+
+                  <div className="relative mb-3">
+                    <Search size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                    <input
+                      value={apartmentTypeSearch}
+                      onChange={(event) => setApartmentTypeSearch(event.target.value)}
+                      placeholder="ابحث عن رقم الشقة أو النوع..."
+                      className="h-11 w-full rounded-xl border border-white/10 bg-[#07182b] pl-4 pr-10 text-sm font-semibold text-white outline-none transition placeholder:text-gray-600 focus:border-blue-400/50"
+                    />
+                  </div>
+
+                  <div className="max-h-[420px] overflow-y-auto rounded-2xl border border-white/5 bg-[#061426]/60 p-2 scrollbar-thin">
+                    <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+                      {filteredTypeApartments.map((apartment) => {
+                        const isSelected = selectedTypeApartments.includes(apartment.number);
+
+                        return (
+                          <button
+                            key={apartment.number}
+                            type="button"
+                            onClick={() => toggleTypeApartment(apartment.number)}
+                            className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 text-right transition ${
+                              isSelected
+                                ? "border-blue-400/30 bg-blue-400/10"
+                                : "border-transparent bg-white/[0.02] hover:border-white/10 hover:bg-white/[0.045]"
+                            }`}
+                          >
+                            <span
+                              className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition ${
+                                isSelected
+                                  ? "border-blue-300 bg-blue-300 text-[#07182b]"
+                                  : "border-gray-600 bg-transparent text-transparent"
+                              }`}
+                            >
+                              <Check size={15} strokeWidth={3} />
+                            </span>
+                            <span className="flex-1">
+                              <span className="flex items-center justify-between gap-3">
+                                <span className="text-base font-black text-white">
+                                  شقة {apartment.number}
+                                </span>
+                                <span className="text-sm font-bold text-gray-300">
+                                  {getApartmentType(apartment)}
+                                </span>
+                              </span>
+                            </span>
+                          </button>
+                        );
+                      })}
+
+                      {filteredTypeApartments.length === 0 && (
+                        <div className="col-span-full py-10 text-center text-sm font-semibold text-gray-500">
+                          لا توجد شقق مطابقة للبحث
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="mt-3 rounded-2xl border border-blue-400/20 bg-blue-400/[0.05] px-4 py-3 text-sm font-bold text-gray-300">
+                    سيتم حفظ أرقام الشقق المحددة تحت النوع: <span className="font-black text-blue-300">{selectedApartmentType || "-"}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="shrink-0 border-t border-white/10 bg-[#061426] p-4 sm:p-5">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={saveApartmentTypeAssignments}
+                  className="flex h-14 items-center justify-center gap-2 rounded-2xl border border-blue-400/40 bg-gradient-to-r from-blue-700 to-blue-500 px-5 text-base font-black text-white shadow-[0_8px_30px_rgba(59,130,246,0.16)] transition hover:brightness-110 sm:text-lg"
+                >
+                  <CheckCircle2 size={21} />
+                  حفظ توزيع النوع
+                </button>
+
+                <button
+                  type="button"
+                  onClick={closeApartmentTypeModal}
+                  className="flex h-14 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-5 text-base font-black text-gray-300 transition hover:bg-white/10 hover:text-white sm:text-lg"
+                >
+                  <X size={21} />
+                  إغلاق
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===================================================== */}
+      {/* ADD CHARGE / COLLECTION MODAL                          */}
+      {/* ===================================================== */}
+
+      {isChargeModalOpen && (
+        <div
+          className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/85 p-3 backdrop-blur-xl sm:p-5"
+          onClick={() => setIsChargeModalOpen(false)}
+        >
+          <div
+            dir="rtl"
+            className={`relative flex max-h-[calc(100vh-24px)] w-full ${
+              selectedApartment ? "max-w-[720px]" : "max-w-[1120px]"
+            } flex-col overflow-hidden rounded-[30px] border bg-[#061426]/[0.97] shadow-[0_0_100px_rgba(0,0,0,0.55)] ${
+              chargeModalMode === "collection"
+                ? "border-[#f0ad18]/55 shadow-[0_0_70px_rgba(240,173,24,0.12)]"
+                : "border-cyan-400/55 shadow-[0_0_70px_rgba(34,211,238,0.12)]"
+            }`}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div
+              className={`absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent ${
+                chargeModalMode === "collection"
+                  ? "via-[#f6c84a]"
+                  : "via-cyan-300"
+              } to-transparent`}
+            />
+
+            {/* MODAL HEADER */}
+            <div className="shrink-0 border-b border-white/10 bg-gradient-to-r from-[#050d18] via-[#09213a] to-[#061426] px-5 py-4 sm:px-7">
+              <div className="flex items-center justify-center gap-4">
+                <div className="flex min-w-0 items-center justify-center gap-4 text-center">
+                  <div
+                    className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border shadow-[0_0_28px_rgba(34,211,238,0.10)] ${
+                      chargeModalMode === "collection"
+                        ? "border-[#f6c84a]/40 bg-[#f0ad18]/10 text-[#f6c84a]"
+                        : "border-cyan-300/40 bg-cyan-400/10 text-cyan-300"
+                    }`}
+                  >
+                    {chargeModalMode === "collection" ? (
+                      <Coins size={29} />
+                    ) : (
+                      <Receipt size={29} />
+                    )}
+                  </div>
+
+                  <div className="min-w-0 text-center">
+                    <h2
+                      className={`truncate text-xl font-black sm:text-2xl lg:text-3xl ${
+                        chargeModalMode === "collection"
+                          ? "text-[#f6c84a]"
+                          : "text-cyan-300"
+                      }`}
+                    >
+                      {chargeModalMode === "collection"
+                        ? chargeForm.type === "إيجار"
+                          ? "تحصيل إيجار"
+                          : "تحصيل فاتورة أو مستحقات"
+                        : chargeForm.type === "إيجار"
+                        ? "إضافة إيجار"
+                        : "إضافة فاتورة أو مستحقات"}
+                    </h2>
+                    <p className="mt-1 text-sm font-semibold text-gray-400">
+                      {selectedApartment
+                        ? `تسجيل العملية للشقة رقم ${selectedApartment.number} فقط`
+                        : chargeModalMode === "collection"
+                        ? "تسجيل تحصيل جديد للشقق المحددة"
+                        : chargeForm.type === "إيجار"
+                        ? "تسجيل استحقاق إيجار جديد للشقق المحددة"
+                        : "تسجيل مستحق جديد للشقق المحددة"}
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setIsChargeModalOpen(false)}
+                  aria-label="إغلاق"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-gray-400 transition hover:border-red-400/40 hover:bg-red-500/10 hover:text-red-400"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+            </div>
+
+            {/* MODAL BODY */}
+            <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5 lg:p-6">
+              <div
+                className={`grid min-h-0 grid-cols-1 gap-5 ${
+                  selectedApartment ? "lg:grid-cols-1" : "lg:grid-cols-[1fr_1.08fr]"
+                }`}
+                dir="ltr"
+              >
+                {selectedApartment ? (
+                  <div
+                    className={`rounded-3xl border bg-[#081c31]/80 p-4 backdrop-blur-2xl sm:p-5 ${
+                      chargeModalMode === "collection"
+                        ? "border-[#f0ad18]/25"
+                        : "border-cyan-400/25"
+                    }`}
+                    dir="rtl"
+                  >
+                    <div className="relative flex min-h-[88px] items-center justify-center px-14 py-2 text-center">
+                      <div
+                        className={`absolute right-3 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-xl border ${
+                          chargeModalMode === "collection"
+                            ? "border-[#f6c84a]/30 bg-[#f0ad18]/10 text-[#f6c84a]"
+                            : "border-cyan-300/30 bg-cyan-400/10 text-cyan-300"
+                        }`}
+                      >
+                        <Home size={22} />
+                      </div>
+
+                      <div className="text-center">
+                        <p className="text-xs font-bold text-gray-400">الشقة المحددة</p>
+                        <h3 className="text-xl font-black text-white">
+                          شقة {selectedApartment.number}
+                        </h3>
+                        <div className="mt-1 text-lg font-black text-[#f6c84a]">
+                          {getApartmentRent(selectedApartment).toLocaleString("ar-SA")} ريال
+                        </div>
+                        <div className="text-[11px] font-semibold text-gray-500">
+                          {getApartmentType(selectedApartment)} • {selectedApartment.status}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                <div
+                  className={`min-h-0 overflow-hidden rounded-3xl border bg-[#081c31]/80 p-4 backdrop-blur-2xl sm:p-5 ${
+                    chargeModalMode === "collection"
+                      ? "border-[#f0ad18]/25"
+                      : "border-cyan-400/25"
+                  }`}
+                  dir="rtl"
+                >
+                  <div className="mb-4 flex items-start justify-between gap-3">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <Home
+                          size={22}
+                          className={
+                            chargeModalMode === "collection"
+                              ? "text-[#f6c84a]"
+                              : "text-cyan-300"
+                          }
+                        />
+                        <h3 className="text-xl font-black text-white">
+                          اختر الشقق
+                        </h3>
+                      </div>
+                      <p className="mt-1 text-sm font-semibold text-gray-500">
+                        يمكنك اختيار شقة واحدة أو أكثر أو الكل
+                      </p>
+                    </div>
+
+                    <div
+                      className={`rounded-full border px-3 py-1.5 text-xs font-black ${
+                        selectedChargeApartments.length > 0
+                          ? chargeModalMode === "collection"
+                            ? "border-[#f0ad18]/30 bg-[#f0ad18]/10 text-[#f6c84a]"
+                            : "border-cyan-400/30 bg-cyan-400/10 text-cyan-300"
+                          : "border-white/10 bg-white/5 text-gray-500"
+                      }`}
+                    >
+                      {selectedChargeApartments.length} محددة
+                    </div>
+                  </div>
+
+                  <div className="mb-3 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={toggleAllVisibleChargeApartments}
+                      className={`flex h-10 flex-1 items-center justify-center gap-2 rounded-xl border text-sm font-black transition ${
+                        chargeModalMode === "collection"
+                          ? "border-[#f0ad18]/30 bg-[#f0ad18]/10 text-[#f6c84a] hover:bg-[#f0ad18]/15"
+                          : "border-cyan-400/30 bg-cyan-400/10 text-cyan-300 hover:bg-cyan-400/15"
+                      }`}
+                    >
+                      <Check size={17} />
+                      {visibleChargeApartments.length > 0 &&
+                      visibleChargeApartments.every((apartment) =>
+                        selectedChargeApartments.includes(apartment.number)
+                      )
+                        ? "إلغاء تحديد الكل"
+                        : "تحديد الكل"}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setSelectedChargeApartments([])}
+                      className="flex h-10 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 text-sm font-bold text-gray-400 transition hover:bg-white/10 hover:text-white"
+                    >
+                      إلغاء التحديد
+                    </button>
+                  </div>
+
+                  <div className="relative mb-3">
+                    <select
+                      value={apartmentTypeFilter}
+                      onChange={(event) =>
+                        setApartmentTypeFilter(event.target.value)
+                      }
+                      className="h-11 w-full appearance-none rounded-xl border border-white/10 bg-[#07182b] px-4 text-sm font-bold text-white outline-none transition focus:border-cyan-400/50"
+                    >
+                      <option value="">كل أنواع الشقق</option>
+                      {apartmentTypeOptions.map((type) => (
+                        <option key={type} value={type}>
+                          {type}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="relative mb-3">
+                    <Search
+                      size={18}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
+                    />
+                    <input
+                      value={apartmentSearch}
+                      onChange={(event) =>
+                        setApartmentSearch(event.target.value)
+                      }
+                      placeholder="ابحث عن رقم الشقة..."
+                      className="h-11 w-full rounded-xl border border-white/10 bg-[#07182b] pl-4 pr-10 text-sm font-semibold text-white outline-none transition placeholder:text-gray-600 focus:border-cyan-400/50"
+                    />
+                  </div>
+
+                  <div className="max-h-[390px] overflow-y-auto rounded-2xl border border-white/5 bg-[#061426]/60 p-2 scrollbar-thin">
+                    <div className="space-y-1.5">
+                      {visibleChargeApartments.map((apartment) => {
+                        const isSelected =
+                          selectedChargeApartments.includes(apartment.number);
+
+                        return (
+                          <button
+                            key={apartment.number}
+                            type="button"
+                            onClick={() =>
+                              toggleChargeApartment(apartment.number)
+                            }
+                            className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-right transition ${
+                              isSelected
+                                ? chargeModalMode === "collection"
+                                  ? "border-[#f0ad18]/30 bg-[#f0ad18]/10"
+                                  : "border-cyan-400/30 bg-cyan-400/10"
+                                : "border-transparent bg-white/[0.02] hover:border-white/10 hover:bg-white/[0.045]"
+                            }`}
+                          >
+                            <span
+                              className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition ${
+                                isSelected
+                                  ? chargeModalMode === "collection"
+                                    ? "border-[#f0ad18] bg-[#f0ad18] text-[#07182b]"
+                                    : "border-cyan-300 bg-cyan-300 text-[#07182b]"
+                                  : "border-gray-600 bg-transparent text-transparent"
+                              }`}
+                            >
+                              <Check size={15} strokeWidth={3} />
+                            </span>
+
+                            <span className="flex-1">
+                              <span className="flex items-center justify-between gap-3">
+                                <span className="text-base font-black text-white">
+                                  شقة {apartment.number}
+                                </span>
+                                <span className="text-sm font-bold text-white">
+                                  {getApartmentRent(apartment).toLocaleString("ar-SA")} ريال
+                                </span>
+                              </span>
+                              <span className="mt-0.5 block text-xs font-semibold text-gray-500">
+                                {getApartmentType(apartment)} •{" "}
+                                {apartment.status}
+                              </span>
+                            </span>
+                          </button>
+                        );
+                      })}
+
+                      {visibleChargeApartments.length === 0 && (
+                        <div className="py-10 text-center text-sm font-semibold text-gray-500">
+                          لا توجد شقق مطابقة للبحث
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div
+                    className={`mt-3 flex items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm font-black ${
+                      chargeModalMode === "collection"
+                        ? "border-[#f0ad18]/25 bg-[#f0ad18]/[0.06] text-[#f6c84a]"
+                        : "border-cyan-400/25 bg-cyan-400/[0.06] text-cyan-300"
+                    }`}
+                  >
+                    <Users size={18} />
+                    تم اختيار {selectedChargeApartments.length} شقة
+                  </div>
+                </div>
+                )}
+
+                {/* CHARGE FORM */}
+                <div
+                  className="rounded-3xl border border-white/10 bg-white/[0.025] p-4 text-center backdrop-blur-2xl sm:p-5"
+                  dir="rtl"
+                >
+                  <div className="relative mb-4 flex min-h-[58px] items-center justify-center px-12 text-center">
+                    <div
+                      className={`absolute right-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-xl border ${
+                        chargeModalMode === "collection"
+                          ? "border-[#f0ad18]/30 bg-[#f0ad18]/10 text-[#f6c84a]"
+                          : "border-cyan-400/30 bg-cyan-400/10 text-cyan-300"
+                      }`}
+                    >
+                      <FileText size={20} />
+                    </div>
+                    <div className="text-center">
+                      <h3 className="text-lg font-black text-white">
+                        بيانات المستحق
+                      </h3>
+                      <p className="mt-1 text-sm font-semibold text-gray-500">
+                        {selectedApartment
+                          ? `العملية مخصصة للشقة رقم ${selectedApartment.number} فقط`
+                          : "نفس البيانات ستطبق على كل الشقق المحددة"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <label className="block text-center">
+                      <span className="mb-2 block text-sm font-black text-gray-300 text-center">
+                        نوع المستحق
+                      </span>
+                      <select
+                        value={chargeForm.type}
+                        onChange={(event) =>
+                          setChargeForm((current) => ({
+                            ...current,
+                            type: event.target.value,
+                          }))
+                        }
+                        className={`h-13 w-full rounded-xl border bg-[#0b2039] px-4 text-center text-base font-bold text-white outline-none transition ${
+                          chargeModalMode === "collection"
+                            ? "border-[#f0ad18]/25 focus:border-[#f0ad18]/70"
+                            : "border-cyan-400/20 focus:border-cyan-400/70"
+                        }`}
+                      >
+                        <option value="إيجار">إيجار</option>
+                        <option value="فاتورة مياه">فاتورة مياه</option>
+                        <option value="فاتورة كهرباء">فاتورة كهرباء</option>
+                        <option value="مصاريف نظافة">مصاريف نظافة</option>
+                        <option value="مستحقات أخرى">مستحقات أخرى</option>
+                      </select>
+                    </label>
+
+                    <label className="block text-center">
+                      <span className="mb-2 block text-sm font-black text-gray-300 text-center">
+                        المبلغ لكل شقة (ريال)
+                      </span>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={chargeForm.amount}
+                          onChange={(event) =>
+                            setChargeForm((current) => ({
+                              ...current,
+                              amount: event.target.value,
+                            }))
+                          }
+                          placeholder="اكتب المبلغ"
+                          className={`h-14 w-full rounded-xl border bg-[#0b2039] px-4 pl-16 text-center text-xl font-black text-white outline-none transition placeholder:text-gray-600 ${
+                            chargeModalMode === "collection"
+                              ? "border-[#f0ad18]/25 focus:border-[#f0ad18]/70"
+                              : "border-cyan-400/20 focus:border-cyan-400/70"
+                          }`}
+                        />
+                        <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm font-black text-gray-500">
+                          ريال
+                        </span>
+                      </div>
+                    </label>
+
+                    <label className="block text-center">
+                      <span className="mb-2 block text-sm font-black text-gray-300 text-center">
+                        التاريخ
+                      </span>
+                      <input
+                        type="date"
+                        value={chargeForm.date}
+                        onChange={(event) =>
+                          setChargeForm((current) => ({
+                            ...current,
+                            date: event.target.value,
+                          }))
+                        }
+                        className={`h-14 w-full rounded-xl border bg-[#0b2039] px-4 text-center text-base font-bold text-white outline-none transition ${
+                          chargeModalMode === "collection"
+                            ? "border-[#f0ad18]/25 focus:border-[#f0ad18]/70"
+                            : "border-cyan-400/20 focus:border-cyan-400/70"
+                        }`}
+                      />
+                    </label>
+
+                    <label className="block text-center">
+                      <span className="mb-2 block text-sm font-black text-gray-300 text-center">
+                        ملاحظات
+                      </span>
+                      <textarea
+                        rows={3}
+                        value={chargeForm.notes}
+                        onChange={(event) =>
+                          setChargeForm((current) => ({
+                            ...current,
+                            notes: event.target.value,
+                          }))
+                        }
+                        placeholder="اكتب أي ملاحظات إضافية..."
+                        className={`min-h-[90px] w-full resize-none rounded-xl border bg-[#0b2039] px-4 py-2.5 text-center text-base font-semibold text-white outline-none transition placeholder:text-gray-600 ${
+                          chargeModalMode === "collection"
+                            ? "border-[#f0ad18]/25 focus:border-[#f0ad18]/70"
+                            : "border-cyan-400/20 focus:border-cyan-400/70"
+                        }`}
+                      />
+                    </label>
+
+                    <div
+                      className={`rounded-2xl border px-4 py-3 text-center text-sm font-bold ${
+                        chargeModalMode === "collection"
+                          ? "border-[#f0ad18]/20 bg-[#f0ad18]/[0.06] text-gray-300"
+                          : "border-cyan-400/20 bg-cyan-400/[0.05] text-gray-300"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <span>عدد الشقق المحددة</span>
+                        <span
+                          className={`text-lg font-black ${
+                            chargeModalMode === "collection"
+                              ? "text-[#f6c84a]"
+                              : "text-cyan-300"
+                          }`}
+                        >
+                          {selectedChargeApartments.length}
+                        </span>
+                      </div>
+                      <div className="mt-1 flex items-center justify-between gap-3">
+                        <span>إجمالي العملية</span>
+                        <span className="text-base font-black text-white">
+                          {selectedChargeApartments.length > 0 &&
+                          Number(chargeForm.amount) > 0
+                            ? (
+                                selectedChargeApartments.length *
+                                Number(chargeForm.amount)
+                              ).toLocaleString("ar-SA")
+                            : "0"}{" "}
+                          ريال
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* MODAL FOOTER */}
+            <div className="shrink-0 border-t border-white/10 bg-[#061426] p-4 sm:p-5">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (selectedChargeApartments.length === 0) {
+                      window.alert("من فضلك اختر شقة واحدة على الأقل");
+                      return;
+                    }
+
+                    if (!chargeForm.amount.trim() || Number(chargeForm.amount) <= 0) {
+                      window.alert("من فضلك اكتب مبلغًا صحيحًا أولاً");
+                      return;
+                    }
+
+                    try {
+                      const storageKey =
+                        chargeModalMode === "collection"
+                          ? "tumouh_star_building_collections"
+                          : "tumouh_star_building_charges";
+
+                      const saved = window.localStorage.getItem(storageKey);
+                      const currentCharges: BuildingCharge[] = saved
+                        ? JSON.parse(saved)
+                        : [];
+
+                      const newCharges = selectedChargeApartments.map(
+                        (apartmentNumber) => ({
+                          ...chargeForm,
+                          apartmentNumber,
+                        })
+                      );
+
+                      window.localStorage.setItem(
+                        storageKey,
+                        JSON.stringify([...currentCharges, ...newCharges])
+                      );
+                    } catch {
+                      // تجاهل خطأ التخزين المحلي مع إغلاق النموذج.
+                    }
+
+                    setChargeForm({
+                      type: "إيجار",
+                      amount: "",
+                      date: new Date().toISOString().slice(0, 10),
+                      notes: "",
+                    });
+                    setSelectedChargeApartments([]);
+                    setApartmentSearch("");
+                    setIsChargeModalOpen(false);
+                  }}
+                  className={`flex h-14 items-center justify-center gap-2 rounded-2xl border px-5 text-base font-black transition sm:text-lg ${
+                    chargeModalMode === "collection"
+                      ? "border-[#f0ad18]/50 bg-gradient-to-r from-[#d89b18] to-[#f6c84a] text-[#07182b] shadow-[0_8px_30px_rgba(240,173,24,0.18)] hover:brightness-110"
+                      : "border-green-400/40 bg-gradient-to-r from-emerald-600 to-green-500 text-white shadow-[0_8px_30px_rgba(34,197,94,0.16)] hover:brightness-110"
+                  }`}
+                >
+                  <CheckCircle2 size={21} />
+                  <span>
+                    حفظ{" "}
+                    {selectedChargeApartments.length > 0
+                      ? `للشقق المحددة (${selectedChargeApartments.length})`
+                      : ""}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsChargeModalOpen(false)}
+                  className="flex h-14 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-5 text-base font-black text-gray-300 transition hover:bg-white/10 hover:text-white sm:text-lg"
+                >
+                  <X size={21} />
+                  إغلاق
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ===================================================== */}
