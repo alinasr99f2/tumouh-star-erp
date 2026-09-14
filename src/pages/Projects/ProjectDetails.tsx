@@ -297,7 +297,7 @@ export default function ProjectDetails() {
 
       supabase
         .from("projects")
-        .select("id, total_area")
+        .select("id, total_area, land_value")
         .eq("id", project.id)
         .maybeSingle(),
     ]);
@@ -391,7 +391,8 @@ export default function ProjectDetails() {
 
     const landStorageKey = `tumouh_star_project_land_value_${project.id}`;
     const localLandValue = Number(localStorage.getItem(landStorageKey) ?? 0);
-    const resolvedLandValue = localLandValue;
+    const databaseLandValue = Number(projectMetaResult.data?.land_value ?? 0);
+    const resolvedLandValue = databaseLandValue > 0 ? databaseLandValue : localLandValue;
     setProjectLandValue(Number.isFinite(resolvedLandValue) ? resolvedLandValue : 0);
     setProjectLandValueInput(
       resolvedLandValue > 0 ? String(resolvedLandValue) : ""
@@ -489,7 +490,16 @@ export default function ProjectDetails() {
 
     setSavingProjectLandValue(true);
     try {
-      // نحفظ قيمة الأرض محليًا مؤقتًا حتى يتم إنشاء عمود land_value في قاعدة البيانات.
+      const { error } = await supabase
+        .from("projects")
+        .update({ land_value: landValue })
+        .eq("id", project.id);
+
+      if (error) {
+        alert(`تعذر حفظ قيمة الأرض:\n${error.message}`);
+        return;
+      }
+
       const landStorageKey = `tumouh_star_project_land_value_${project.id}`;
       localStorage.setItem(landStorageKey, String(landValue));
 
