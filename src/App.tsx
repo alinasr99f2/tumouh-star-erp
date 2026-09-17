@@ -18,6 +18,8 @@ import ProjectQuantities from "./pages/Projects/ProjectQuantities";
 import ProjectCharts from "./pages/Projects/ProjectCharts";
 import Buildings from "./pages/Buildings/Buildings";
 import BuildingDetails from "./pages/Buildings/BuildingDetails";
+import FinancialDetails from "./pages/Buildings/FinancialDetails";
+import TenantDetails from "./pages/Buildings/TenantDetails";
 import FinancialCenter from "./pages/FinancialCenter/FinancialCenter";
 
 function App() {
@@ -80,6 +82,18 @@ function App() {
           <Route
             path="/buildings"
             element={<Buildings />}
+          />
+
+          {/* تفاصيل الحركات المالية للعمارة */}
+          <Route
+            path="/buildings/financial-details"
+            element={<FinancialDetails />}
+          />
+
+          {/* تفاصيل المستأجرين للعمارة */}
+          <Route
+            path="/buildings/tenant-details"
+            element={<TenantDetails />}
           />
 
           {/* تفاصيل العمارة */}

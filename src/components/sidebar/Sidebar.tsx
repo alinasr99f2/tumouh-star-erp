@@ -1,7 +1,9 @@
-import { NavLink } from "react-router-dom";
+import { useState } from "react";
+import { NavLink, useLocation } from "react-router-dom";
 import {
   LogOut,
   Circle,
+  ChevronDown,
 } from "lucide-react";
 
 import { sidebarMenu } from "../../data/menu";
@@ -11,6 +13,11 @@ type SidebarProps = {
 };
 
 function Sidebar({ onLogout }: SidebarProps) {
+  const location = useLocation();
+  const [openBuildings, setOpenBuildings] = useState(
+    location.pathname.startsWith("/buildings")
+  );
+
   return (
     <aside
       className="
@@ -172,49 +179,222 @@ function Sidebar({ onLogout }: SidebarProps) {
 
         <div className="space-y-2">
 
-          {sidebarMenu.map((item) => (
+          {sidebarMenu.map((item) => {
 
-            <NavLink
-              key={item.title}
-              to={item.path}
-              end={item.path === "/"}
-              className={({ isActive }) =>
-                `
-                group
-                relative
-                flex
-                items-center
-                gap-4
-                rounded-2xl
-                px-4
-                py-3.5
-                transition-all
-                duration-300
-                ${
-                  isActive
-                    ? "bg-gradient-to-r from-yellow-400 to-yellow-500 text-[#081B33] font-bold shadow-xl scale-[1.02]"
-                    : "text-gray-200 hover:bg-white/5 hover:text-white hover:translate-x-1"
-                }
-              `
-              }
-            >
+            const hasChildren =
+              Array.isArray(item.children) &&
+              item.children.length > 0;
 
-              <item.icon
-                size={21}
-                className="
-                  transition-transform
+            if (hasChildren) {
+              const isBuildingsSection =
+                item.path === "/buildings";
+
+              const isChildActive =
+                item.children?.some((child) =>
+                  location.pathname.startsWith(child.path)
+                ) ?? false;
+
+              return (
+                <div key={item.title} className="space-y-1">
+
+                  <div className="flex items-center gap-1">
+
+                    <NavLink
+                      to={item.path}
+                      end
+                      className={({ isActive }) =>
+                        `
+                        group
+                        relative
+                        flex
+                        flex-1
+                        items-center
+                        gap-4
+                        rounded-2xl
+                        px-4
+                        py-3.5
+                        transition-all
+                        duration-300
+                        ${
+                          isActive || isChildActive
+                            ? "bg-gradient-to-r from-yellow-400 to-yellow-500 text-[#081B33] font-bold shadow-xl scale-[1.02]"
+                            : "text-gray-200 hover:bg-white/5 hover:text-white hover:translate-x-1"
+                        }
+                      `
+                      }
+                    >
+
+                      <item.icon
+                        size={21}
+                        className="
+                          transition-transform
+                          duration-300
+                          group-hover:scale-110
+                        "
+                      />
+
+                      <span className="flex-1">
+                        {item.title}
+                      </span>
+
+                    </NavLink>
+
+                    {isBuildingsSection && (
+                      <button
+                        type="button"
+                        aria-label={
+                          openBuildings
+                            ? "إخفاء قائمة العمائر الفرعية"
+                            : "إظهار قائمة العمائر الفرعية"
+                        }
+                        aria-expanded={openBuildings}
+                        onClick={() =>
+                          setOpenBuildings((current) => !current)
+                        }
+                        className="
+                          flex
+                          h-11
+                          w-10
+                          shrink-0
+                          items-center
+                          justify-center
+                          rounded-2xl
+                          border
+                          border-white/10
+                          bg-white/5
+                          text-gray-400
+                          transition-all
+                          duration-300
+                          hover:bg-white/10
+                          hover:text-white
+                        "
+                      >
+
+                        <ChevronDown
+                          size={18}
+                          className={`
+                            transition-transform
+                            duration-300
+                            ${
+                              openBuildings
+                                ? "rotate-180"
+                                : ""
+                            }
+                          `}
+                        />
+
+                      </button>
+                    )}
+
+                  </div>
+
+                  {isBuildingsSection &&
+                    openBuildings && (
+                      <div
+                        className="
+                          mr-5
+                          space-y-1
+                          border-r
+                          border-white/10
+                          pr-2
+                        "
+                      >
+
+                        {item.children?.map((child) => (
+
+                          <NavLink
+                            key={child.title}
+                            to={child.path}
+                            className={({ isActive }) =>
+                              `
+                              group
+                              flex
+                              items-center
+                              gap-3
+                              rounded-xl
+                              px-3
+                              py-2.5
+                              text-sm
+                              transition-all
+                              duration-300
+                              ${
+                                isActive
+                                  ? "bg-yellow-400/15 text-yellow-400 font-bold"
+                                  : "text-gray-400 hover:bg-white/5 hover:text-white"
+                              }
+                            `
+                            }
+                          >
+
+                            <child.icon
+                              size={17}
+                              className="
+                                transition-transform
+                                duration-300
+                                group-hover:scale-110
+                              "
+                            />
+
+                            <span>
+                              {child.title}
+                            </span>
+
+                          </NavLink>
+
+                        ))}
+
+                      </div>
+                    )}
+
+                </div>
+              );
+            }
+
+            return (
+
+              <NavLink
+                key={item.title}
+                to={item.path}
+                end={item.path === "/"}
+                className={({ isActive }) =>
+                  `
+                  group
+                  relative
+                  flex
+                  items-center
+                  gap-4
+                  rounded-2xl
+                  px-4
+                  py-3.5
+                  transition-all
                   duration-300
-                  group-hover:scale-110
-                "
-              />
+                  ${
+                    isActive
+                      ? "bg-gradient-to-r from-yellow-400 to-yellow-500 text-[#081B33] font-bold shadow-xl scale-[1.02]"
+                      : "text-gray-200 hover:bg-white/5 hover:text-white hover:translate-x-1"
+                  }
+                `
+                }
+              >
 
-              <span className="flex-1">
-                {item.title}
-              </span>
+                <item.icon
+                  size={21}
+                  className="
+                    transition-transform
+                    duration-300
+                    group-hover:scale-110
+                  "
+                />
 
-            </NavLink>
+                <span className="flex-1">
+                  {item.title}
+                </span>
 
-          ))}
+              </NavLink>
+
+            );
+
+          })}
 
         </div>
 
