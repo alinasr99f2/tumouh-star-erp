@@ -11,7 +11,7 @@ import { sidebarMenu } from "../../data/menu";
 type SidebarProps = {
   onLogout: () => void;
 };
-
+a
 function Sidebar({ onLogout }: SidebarProps) {
   const location = useLocation();
   const [openBuildings, setOpenBuildings] = useState(
@@ -21,7 +21,7 @@ function Sidebar({ onLogout }: SidebarProps) {
   return (
     <aside
       className="
-        w-[270px]
+        w-[240px] lg:w-[270px]
         shrink-0
         h-screen
         flex
@@ -34,14 +34,14 @@ function Sidebar({ onLogout }: SidebarProps) {
     >
 
       {/* Header */}
-      <div className="px-6 pt-8 pb-6 border-b border-white/10">
+      <div className="px-4 sm:px-5 lg:px-6 pt-6 sm:pt-7 lg:pt-8 pb-5 sm:pb-6 border-b border-white/10">
 
         <div className="flex items-center gap-4">
 
           <div
             className="
-              w-16
-              h-16
+              w-12 h-12 sm:w-14 sm:h-14 lg:w-16
+              lg:h-16
               rounded-3xl
               bg-gradient-to-br
               from-yellow-300
@@ -56,8 +56,8 @@ function Sidebar({ onLogout }: SidebarProps) {
 
             <div
               className="
-                w-12
-                h-12
+                w-10 h-10 sm:w-11 sm:h-11 lg:w-12
+                lg:h-12
                 rounded-2xl
                 bg-black
                 shadow-xl
@@ -67,7 +67,7 @@ function Sidebar({ onLogout }: SidebarProps) {
               "
             >
 
-              <span className="text-yellow-400 text-2xl font-black">
+              <span className="text-yellow-400 text-xl sm:text-2xl font-black">
                 ★
               </span>
 
@@ -77,11 +77,11 @@ function Sidebar({ onLogout }: SidebarProps) {
 
           <div>
 
-            <h1 className="text-2xl font-extrabold tracking-wide">
+            <h1 className="text-xl sm:text-2xl font-extrabold tracking-wide">
               Tumouh Star
             </h1>
 
-            <p className="text-gray-400 text-sm">
+            <p className="text-gray-400 text-xs sm:text-sm">
               ERP System
             </p>
 
@@ -93,7 +93,7 @@ function Sidebar({ onLogout }: SidebarProps) {
 
 
       {/* User */}
-      <div className="px-5 pt-5">
+      <div className="px-3 sm:px-4 lg:px-5 pt-4 sm:pt-5">
 
         <div
           className="
@@ -102,7 +102,7 @@ function Sidebar({ onLogout }: SidebarProps) {
             border
             border-white/10
             backdrop-blur-md
-            p-5
+            p-4 sm:p-5
           "
         >
 
@@ -110,8 +110,8 @@ function Sidebar({ onLogout }: SidebarProps) {
 
             <div
               className="
-                w-14
-                h-14
+                w-11 h-11 sm:w-12 sm:h-12 lg:w-14
+                lg:h-14
                 rounded-full
                 bg-gradient-to-br
                 from-yellow-400
@@ -134,7 +134,7 @@ function Sidebar({ onLogout }: SidebarProps) {
                 Ali Nasr
               </h3>
 
-              <p className="text-gray-400 text-sm">
+              <p className="text-gray-400 text-xs sm:text-sm">
                 Supervisor
               </p>
 
@@ -142,7 +142,7 @@ function Sidebar({ onLogout }: SidebarProps) {
 
           </div>
 
-          <div className="mt-4 flex items-center gap-2">
+          <div className="mt-3 sm:mt-4 flex items-center gap-2">
 
             <Circle
               size={10}
@@ -167,17 +167,17 @@ function Sidebar({ onLogout }: SidebarProps) {
           flex-1
           overflow-y-auto
           overflow-x-hidden
-          mt-6
-          px-4
-          pb-5
+          mt-4 sm:mt-5 lg:mt-6
+          px-3 sm:px-4
+          pb-4 sm:pb-5
         "
       >
 
-        <p className="text-xs text-gray-500 px-3 mb-4 uppercase tracking-widest">
+        <p className="text-xs text-gray-500 px-2 sm:px-3 mb-3 sm:mb-4 uppercase tracking-widest">
           MAIN MENU
         </p>
 
-        <div className="space-y-2">
+        <div className="space-y-1.5 sm:space-y-2">
 
           {sidebarMenu.map((item) => {
 
@@ -209,10 +209,10 @@ function Sidebar({ onLogout }: SidebarProps) {
                         flex
                         flex-1
                         items-center
-                        gap-4
+                        gap-3 sm:gap-4
                         rounded-2xl
-                        px-4
-                        py-3.5
+                        px-3 sm:px-4
+                        py-3 sm:py-3.5
                         transition-all
                         duration-300
                         ${
@@ -310,10 +310,10 @@ function Sidebar({ onLogout }: SidebarProps) {
                               group
                               flex
                               items-center
-                              gap-3
+                              gap-2 sm:gap-3
                               rounded-xl
-                              px-3
-                              py-2.5
+                              px-2.5 sm:px-3
+                              py-2 sm:py-2.5
                               text-sm
                               transition-all
                               duration-300
@@ -406,8 +406,8 @@ function Sidebar({ onLogout }: SidebarProps) {
         className="
           border-t
           border-white/10
-          p-5
-          space-y-4
+          p-3 sm:p-4 lg:p-5
+          space-y-3 sm:space-y-4
         "
       >
 
@@ -417,7 +417,7 @@ function Sidebar({ onLogout }: SidebarProps) {
             bg-white/5
             border
             border-white/10
-            p-4
+            p-3 sm:p-4
           "
         >
 
@@ -447,7 +447,7 @@ function Sidebar({ onLogout }: SidebarProps) {
             hover:bg-red-500
             border
             border-red-500/20
-            py-3
+            py-2.5 sm:py-3
             flex
             items-center
             justify-center

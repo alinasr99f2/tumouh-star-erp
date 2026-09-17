@@ -75,7 +75,7 @@ function MainLayout() {
 
   return (
     <div
-      className="flex h-screen overflow-hidden"
+      className="flex h-screen min-w-0 overflow-hidden"
       dir="rtl"
     >
 
@@ -85,15 +85,15 @@ function MainLayout() {
       />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
 
         {/* Top Navigation */}
         <Topbar />
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto bg-[#071321] p-6">
+        <main className="min-w-0 flex-1 overflow-y-auto overflow-x-hidden bg-[#071321] p-3 sm:p-4 lg:p-6">
 
-          <div className="mx-auto h-full max-w-[1700px]">
+          <div className="mx-auto min-h-full w-full max-w-[1700px]">
             <Outlet />
           </div>
 
@@ -116,7 +116,8 @@ function MainLayout() {
             items-center
             justify-center
             bg-black/60
-            p-6
+            p-3
+            sm:p-6
             backdrop-blur-md
           "
           onClick={() => {
@@ -135,7 +136,8 @@ function MainLayout() {
               border
               border-white/10
               bg-[#081B33]
-              p-8
+              p-5
+              sm:p-8
               text-center
               shadow-2xl
             "
@@ -150,8 +152,10 @@ function MainLayout() {
                 mx-auto
                 mb-5
                 flex
-                h-20
-                w-20
+                h-16
+                w-16
+                sm:h-20
+                sm:w-20
                 items-center
                 justify-center
                 rounded-3xl
@@ -183,7 +187,8 @@ function MainLayout() {
             {/* Title */}
             <h2
               className="
-                text-2xl
+                text-xl
+                sm:text-2xl
                 font-black
                 text-white
               "
@@ -197,6 +202,8 @@ function MainLayout() {
               className="
                 mt-3
                 leading-7
+                text-sm
+                sm:text-base
                 text-gray-400
               "
             >
@@ -207,10 +214,12 @@ function MainLayout() {
             {/* Buttons */}
             <div
               className="
-                mt-8
+                mt-6
+                sm:mt-8
                 grid
                 grid-cols-2
-                gap-4
+                gap-3
+                sm:gap-4
               "
             >
 
@@ -226,8 +235,11 @@ function MainLayout() {
                   border
                   border-white/10
                   bg-white/5
-                  px-5
+                  px-3
                   py-3
+                  text-sm
+                  sm:px-5
+                  sm:text-base
                   font-bold
                   text-gray-300
                   transition-all
@@ -250,8 +262,11 @@ function MainLayout() {
                 className="
                   rounded-2xl
                   bg-red-500
-                  px-5
+                  px-3
                   py-3
+                  text-sm
+                  sm:px-5
+                  sm:text-base
                   font-bold
                   text-white
                   transition-all
