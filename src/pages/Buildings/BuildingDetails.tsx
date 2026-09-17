@@ -30,14 +30,11 @@ import {
   Check,
   Banknote,
   CircleDollarSign,
+  Download,
+  Printer,
 } from "lucide-react";
 
-type ApartmentStatus =
-  | "مؤجرة"
-  | "شاغرة"
-  | "مؤجرة للشركة"
-  | "محجوزة"
-  | "تحت الصيانة";
+type ApartmentStatus = string;
 
 type Apartment = {
   number: number;
@@ -56,10 +53,20 @@ type ApartmentExtraInfo = {
 };
 
 type ApartmentTenantInfo = {
-  status: "تحت الصيانة" | "فارغة" | "محجوزة" | "مؤجرة";
+  status: ApartmentStatus;
   tenantName: string;
   phone: string;
   identityNumber: string;
+};
+
+type ApartmentContractInfo = {
+  contractNumber: string;
+  startDate: string;
+  endDate: string;
+  durationUnit: "day" | "month" | "year";
+  durationValue: number;
+  insuranceAmount: number;
+  insuranceNotes: string;
 };
 
 type BuildingCharge = {
@@ -68,6 +75,7 @@ type BuildingCharge = {
   date: string;
   notes: string;
   apartmentNumber?: number;
+  rentMonths?: number;
 };
 
 const DEFAULT_APARTMENT_EXTRA_INFO: ApartmentExtraInfo = {
@@ -77,6 +85,175 @@ const DEFAULT_APARTMENT_EXTRA_INFO: ApartmentExtraInfo = {
   waterMeter: "مشترك",
   furnitureStatus: "مفروشة بالكامل",
 };
+
+const DEFAULT_APARTMENT_CONTRACT_START_DATE = "2025-06-01";
+
+const formatContractDate = (value: string) => {
+  if (!value) {
+    return "غير محدد";
+  }
+
+  const [year, month, day] = value.split("-");
+  if (!year || !month || !day) {
+    return value;
+  }
+
+  return `${day}/${month}/${year}`;
+};
+
+const getTodayLocalDateString = () => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const getAccruedRentMonths = (startDate: string, endDate: string) => {
+  if (!startDate) {
+    return 0;
+  }
+
+  const [startYear, startMonth, startDay] = startDate.split("-").map(Number);
+
+  if (
+    !startYear ||
+    !startMonth ||
+    !startDay
+  ) {
+    return 0;
+  }
+
+  const start = new Date(startYear, startMonth - 1, startDay);
+  start.setHours(0, 0, 0, 0);
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  if (today.getTime() < start.getTime()) {
+    return 0;
+  }
+
+  let effectiveDate = today;
+
+  if (endDate) {
+    const [endYear, endMonth, endDay] = endDate.split("-").map(Number);
+
+    if (endYear && endMonth && endDay) {
+      const end = new Date(endYear, endMonth - 1, endDay);
+      end.setHours(0, 0, 0, 0);
+
+      if (end.getTime() < effectiveDate.getTime()) {
+        effectiveDate = end;
+      }
+    }
+  }
+
+  if (effectiveDate.getTime() < start.getTime()) {
+    return 0;
+  }
+
+  let months =
+    (effectiveDate.getFullYear() - start.getFullYear()) * 12 +
+    (effectiveDate.getMonth() - start.getMonth());
+
+  if (effectiveDate.getDate() >= start.getDate()) {
+    months += 1;
+  }
+
+  return Math.max(months, 0);
+};
+
+const getContractDaysRemaining = (endDate: string) => {
+  if (!endDate) {
+    return null;
+  }
+
+  const [year, month, day] = endDate.split("-").map(Number);
+  if (!year || !month || !day) {
+    return null;
+  }
+
+  const end = new Date(year, month - 1, day);
+  end.setHours(0, 0, 0, 0);
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const diff = end.getTime() - today.getTime();
+  return Math.ceil(diff / (1000 * 60 * 60 * 24));
+};
+
+const addContractDuration = (
+  startDate: string,
+  durationUnit: "day" | "month" | "year",
+  durationValue: number
+) => {
+  const [year, month, day] = startDate.split("-").map(Number);
+
+  if (!year || !month || !day || !Number.isFinite(durationValue) || durationValue < 1) {
+    return "";
+  }
+
+  const start = new Date(year, month - 1, day);
+  const end = new Date(start);
+
+  if (durationUnit === "year") {
+    end.setFullYear(end.getFullYear() + durationValue);
+  } else if (durationUnit === "month") {
+    end.setMonth(end.getMonth() + durationValue);
+  } else {
+    end.setDate(end.getDate() + durationValue);
+  }
+
+  end.setDate(end.getDate() - 1);
+
+  const endYear = end.getFullYear();
+  const endMonth = String(end.getMonth() + 1).padStart(2, "0");
+  const endDay = String(end.getDate()).padStart(2, "0");
+
+  return `${endYear}-${endMonth}-${endDay}`;
+};
+
+const formatContractDuration = (
+  unit: "day" | "month" | "year",
+  value: number
+) => {
+  const count = Math.max(1, Number(value) || 1);
+
+  if (unit === "year") {
+    if (count === 1) return "سنة واحدة";
+    if (count === 2) return "سنتان";
+    if (count >= 3 && count <= 10) return `${count} سنوات`;
+    return `${count} سنة`;
+  }
+
+  if (unit === "day") {
+    if (count === 1) return "يوم واحد";
+    if (count === 2) return "يومان";
+    if (count >= 3 && count <= 10) return `${count} أيام`;
+    return `${count} يوم`;
+  }
+
+  if (count === 1) return "شهر واحد";
+  if (count === 2) return "شهران";
+  if (count >= 3 && count <= 10) return `${count} أشهر`;
+  return `${count} شهر`;
+};
+
+const createDefaultApartmentContractInfo = (apartmentNumber: number): ApartmentContractInfo => ({
+  contractNumber: `CNT-001-${apartmentNumber}`,
+  startDate: DEFAULT_APARTMENT_CONTRACT_START_DATE,
+  endDate: addContractDuration(
+    DEFAULT_APARTMENT_CONTRACT_START_DATE,
+    "year",
+    1
+  ),
+  durationUnit: "year",
+  durationValue: 1,
+  insuranceAmount: 0,
+  insuranceNotes: "",
+});
 
 type ApartmentTab =
   | "البيانات الأساسية"
@@ -115,6 +292,19 @@ export default function BuildingDetails() {
       }
     });
 
+  // حالات الشقق المخصصة + الحالات الجديدة المحفوظة
+  const [customApartmentStatuses, setCustomApartmentStatuses] =
+    useState<string[]>(() => {
+      try {
+        const saved = window.localStorage.getItem(
+          "tumouh_star_custom_apartment_statuses"
+        );
+        return saved ? JSON.parse(saved) : [];
+      } catch {
+        return [];
+      }
+    });
+
   const [apartmentTypeRents, setApartmentTypeRents] =
     useState<Record<string, number>>(() => {
       try {
@@ -128,10 +318,40 @@ export default function BuildingDetails() {
     });
 
   const [apartmentExtraInfo, setApartmentExtraInfo] =
-    useState<Record<number, ApartmentExtraInfo>>({});
+    useState<Record<number, ApartmentExtraInfo>>(() => {
+      try {
+        const saved = window.localStorage.getItem(
+          "tumouh_star_apartment_extra_info"
+        );
+        return saved ? JSON.parse(saved) : {};
+      } catch {
+        return {};
+      }
+    });
 
   const [apartmentTenantInfo, setApartmentTenantInfo] =
-    useState<Record<number, ApartmentTenantInfo>>({});
+    useState<Record<number, ApartmentTenantInfo>>(() => {
+      try {
+        const saved = window.localStorage.getItem(
+          "tumouh_star_apartment_tenant_info"
+        );
+        return saved ? JSON.parse(saved) : {};
+      } catch {
+        return {};
+      }
+    });
+
+  const [apartmentContractInfo, setApartmentContractInfo] =
+    useState<Record<number, ApartmentContractInfo>>(() => {
+      try {
+        const saved = window.localStorage.getItem(
+          "tumouh_star_apartment_contract_info"
+        );
+        return saved ? JSON.parse(saved) : {};
+      } catch {
+        return {};
+      }
+    });
 
   const [activeTab, setActiveTab] =
     useState<ApartmentTab>("البيانات الأساسية");
@@ -151,7 +371,27 @@ export default function BuildingDetails() {
   const [selectedChargeApartments, setSelectedChargeApartments] =
     useState<number[]>([]);
   const [apartmentTypeFilter, setApartmentTypeFilter] = useState("");
+  const [apartmentStatusFilter, setApartmentStatusFilter] = useState("");
   const [apartmentSearch, setApartmentSearch] = useState("");
+  const [rentCollectionMonths, setRentCollectionMonths] = useState(1);
+
+  const [apartmentReportType, setApartmentReportType] = useState<
+    "total" | "rented" | "reserved" | "maintenance" | "vacant" | "occupancy" | null
+  >(null);
+
+  const [isPaymentExportMenuOpen, setIsPaymentExportMenuOpen] = useState(false);
+  const [isMonthlyDueReportOpen, setIsMonthlyDueReportOpen] = useState(false);
+  const [monthlyReportType, setMonthlyReportType] = useState<
+    "total" | "rent" | "electricity" | "water"
+  >("total");
+
+  const [isMonthlyCollectionReportOpen, setIsMonthlyCollectionReportOpen] =
+    useState(false);
+  const [monthlyCollectionReportType, setMonthlyCollectionReportType] =
+    useState<"total" | "rent" | "electricity" | "water">("total");
+
+  const [selectedApartmentFinancialReport, setSelectedApartmentFinancialReport] =
+    useState<"collections" | "water" | "electricity" | "late" | null>(null);
 
   const [isApartmentTypeModalOpen, setIsApartmentTypeModalOpen] =
     useState(false);
@@ -159,55 +399,102 @@ export default function BuildingDetails() {
     useState("");
   const [selectedTypeApartments, setSelectedTypeApartments] =
     useState<number[]>([]);
+  const [selectedApartmentTypeReport, setSelectedApartmentTypeReport] =
+    useState<string | null>(null);
   const [apartmentTypeSearch, setApartmentTypeSearch] = useState("");
   const [newApartmentType, setNewApartmentType] = useState("");
   const [newApartmentTypeRent, setNewApartmentTypeRent] = useState("");
 
+  const [isDeleteApartmentModalOpen, setIsDeleteApartmentModalOpen] =
+    useState(false);
+  const [selectedDeleteApartments, setSelectedDeleteApartments] =
+    useState<number[]>([]);
+  const [deleteApartmentSearch, setDeleteApartmentSearch] = useState("");
 
-  const apartments: Apartment[] = Array.from(
-    { length: 44 },
-    (_, index) => {
-      const number = index + 1;
+  const [apartments, setApartments] = useState<Apartment[]>(() => {
+    const createDefaultApartments = (): Apartment[] =>
+      Array.from(
+        { length: 44 },
+        (_, index) => {
+          const number = index + 1;
 
-      const vacant = number >= 40;
+          const vacant = number >= 40;
 
-      const company = [
-        5,
-        6,
-        7,
-        8,
-        9,
-        15,
-        16,
-        17,
-        18,
-        19,
-        20,
-      ].includes(number);
+          const company = [
+            5,
+            6,
+            7,
+            8,
+            9,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+          ].includes(number);
 
-      return {
-        number,
-        type:
-          number <= 20
-            ? "غرفتين وصالة"
-            : "غرفة وصالة",
-        rent:
-          number <= 20
-            ? 4000
-            : 3000,
-        status: vacant
-          ? "شاغرة"
-          : company
-          ? "مؤجرة للشركة"
-          : "مؤجرة",
-        tenant: vacant
-          ? "لا يوجد مستأجر"
-          : company
-          ? "شركة طموح ستار"
-          : "اسم المستأجر غير مضاف",
-      };
+          return {
+            number,
+            type:
+              number <= 20
+                ? "غرفتين وصالة"
+                : "غرفة وصالة",
+            rent:
+              number <= 20
+                ? 4000
+                : 3000,
+            status: vacant
+              ? "شاغرة"
+              : company
+              ? "مؤجرة للشركة"
+              : "مؤجرة",
+            tenant: vacant
+              ? "لا يوجد مستأجر"
+              : company
+              ? "شركة طموح ستار"
+              : "اسم المستأجر غير مضاف",
+          };
+        }
+      );
+
+    try {
+      const saved = window.localStorage.getItem(
+        "tumouh_star_building_apartments"
+      );
+
+      return saved ? JSON.parse(saved) : createDefaultApartments();
+    } catch {
+      return createDefaultApartments();
     }
-  );
+  });
+
+  const addApartment = () => {
+    setApartments((current) => {
+      const nextNumber =
+        current.length > 0
+          ? Math.max(...current.map((apartment) => apartment.number)) + 1
+          : 1;
+
+      const updated = [
+        ...current,
+        {
+          number: nextNumber,
+          type: "غرفة وصالة",
+          rent: 3000,
+          status: "شاغرة" as ApartmentStatus,
+          tenant: "لا يوجد مستأجر",
+        },
+      ];
+
+      window.localStorage.setItem(
+        "tumouh_star_building_apartments",
+        JSON.stringify(updated)
+      );
+
+      return updated;
+    });
+  };
 
   const totalApartments = apartments.length;
 
@@ -241,19 +528,19 @@ export default function BuildingDetails() {
       return "bg-red-600 hover:bg-red-500";
     }
 
-    if (status === "مؤجرة للشركة") {
-      return "bg-blue-700 hover:bg-blue-600";
+    if (status === "تحت الصيانة") {
+      return "bg-yellow-500 hover:bg-yellow-400";
     }
 
     if (status === "محجوزة") {
-      return "bg-blue-500 hover:bg-blue-400";
+      return "bg-blue-600 hover:bg-blue-500";
     }
 
-    if (status === "تحت الصيانة") {
-      return "bg-orange-600 hover:bg-orange-500";
+    if (status === "مؤجرة للشركة") {
+      return "bg-emerald-700 hover:bg-emerald-600";
     }
 
-    return "bg-green-700 hover:bg-green-600";
+    return "bg-green-600 hover:bg-green-500";
   };
 
   const getStatusColor = (
@@ -270,8 +557,8 @@ export default function BuildingDetails() {
     if (status === "مؤجرة للشركة") {
       return {
         badge:
-          "border-blue-400/30 bg-blue-500/10 text-blue-400",
-        dot: "bg-blue-400",
+          "border-emerald-400/30 bg-emerald-500/10 text-emerald-300",
+        dot: "bg-emerald-400",
       };
     }
 
@@ -295,6 +582,63 @@ export default function BuildingDetails() {
       badge:
         "border-green-400/30 bg-green-500/10 text-green-400",
       dot: "bg-green-400",
+    };
+  };
+
+  const getApartmentStatusCard = (
+    status: ApartmentStatus
+  ) => {
+    if (status === "شاغرة") {
+      return {
+        label: "فارغة",
+        icon: Home,
+        iconClass: "text-red-400",
+        iconBorder: "border-red-400/20",
+        iconBg: "bg-red-400/10",
+        valueClass: "text-red-400",
+      };
+    }
+
+    if (status === "مؤجرة للشركة") {
+      return {
+        label: "مؤجرة للشركة",
+        icon: User,
+        iconClass: "text-emerald-300",
+        iconBorder: "border-emerald-400/20",
+        iconBg: "bg-emerald-500/10",
+        valueClass: "text-emerald-300",
+      };
+    }
+
+    if (status === "محجوزة") {
+      return {
+        label: "محجوزة",
+        icon: CalendarDays,
+        iconClass: "text-blue-400",
+        iconBorder: "border-blue-400/20",
+        iconBg: "bg-blue-400/10",
+        valueClass: "text-blue-400",
+      };
+    }
+
+    if (status === "تحت الصيانة") {
+      return {
+        label: "تحت الصيانة",
+        icon: AlertCircle,
+        iconClass: "text-yellow-400",
+        iconBorder: "border-yellow-400/20",
+        iconBg: "bg-yellow-400/10",
+        valueClass: "text-yellow-400",
+      };
+    }
+
+    return {
+      label: status,
+      icon: User,
+      iconClass: "text-green-300",
+      iconBorder: "border-green-400/20",
+      iconBg: "bg-green-400/10",
+      valueClass: "text-green-300",
     };
   };
 
@@ -343,7 +687,7 @@ export default function BuildingDetails() {
     return (
       apartmentTenantInfo[apartment.number] ??
       {
-        status: apartment.status === "شاغرة" ? "فارغة" : "مؤجرة",
+        status: apartment.status,
         tenantName:
           apartment.status === "شاغرة"
             ? ""
@@ -401,6 +745,130 @@ export default function BuildingDetails() {
     );
 
     return firstApartmentOfType?.rent ?? apartment.rent;
+  };
+
+  const openDeleteApartmentModal = () => {
+    setSelectedDeleteApartments([]);
+    setDeleteApartmentSearch("");
+    setIsDeleteApartmentModalOpen(true);
+  };
+
+  const closeDeleteApartmentModal = () => {
+    setIsDeleteApartmentModalOpen(false);
+    setSelectedDeleteApartments([]);
+    setDeleteApartmentSearch("");
+  };
+
+  const toggleDeleteApartment = (apartmentNumber: number) => {
+    setSelectedDeleteApartments((current) =>
+      current.includes(apartmentNumber)
+        ? current.filter((number) => number !== apartmentNumber)
+        : [...current, apartmentNumber]
+    );
+  };
+
+  const filteredDeleteApartments = apartments.filter((apartment) => {
+    const search = deleteApartmentSearch.trim().toLowerCase();
+
+    if (!search) {
+      return true;
+    }
+
+    return (
+      apartment.number.toString().includes(search) ||
+      getApartmentType(apartment).toLowerCase().includes(search)
+    );
+  });
+
+  const toggleAllDeleteApartments = () => {
+    const visibleNumbers = filteredDeleteApartments.map(
+      (apartment) => apartment.number
+    );
+
+    const allVisibleSelected =
+      visibleNumbers.length > 0 &&
+      visibleNumbers.every((number) =>
+        selectedDeleteApartments.includes(number)
+      );
+
+    setSelectedDeleteApartments((current) =>
+      allVisibleSelected
+        ? current.filter((number) => !visibleNumbers.includes(number))
+        : Array.from(new Set([...current, ...visibleNumbers]))
+    );
+  };
+
+  const deleteSelectedApartments = () => {
+    if (selectedDeleteApartments.length === 0) {
+      window.alert("اختر شقة واحدة على الأقل للحذف.");
+      return;
+    }
+
+    const selectedNumbers = new Set(selectedDeleteApartments);
+    const confirmed = window.confirm(
+      `هل أنت متأكد من حذف ${selectedDeleteApartments.length} شقة محددة؟`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setApartments((current) => {
+      const updated = current.filter(
+        (apartment) => !selectedNumbers.has(apartment.number)
+      );
+
+      window.localStorage.setItem(
+        "tumouh_star_building_apartments",
+        JSON.stringify(updated)
+      );
+
+      return updated;
+    });
+
+    setApartmentTypes((current) => {
+      const updated = { ...current };
+
+      selectedNumbers.forEach((apartmentNumber) => {
+        delete updated[apartmentNumber];
+      });
+
+      window.localStorage.setItem(
+        "tumouh_star_apartment_types",
+        JSON.stringify(updated)
+      );
+
+      return updated;
+    });
+
+    setApartmentExtraInfo((current) => {
+      const updated = { ...current };
+
+      selectedNumbers.forEach((apartmentNumber) => {
+        delete updated[apartmentNumber];
+      });
+
+      return updated;
+    });
+
+    setApartmentTenantInfo((current) => {
+      const updated = { ...current };
+
+      selectedNumbers.forEach((apartmentNumber) => {
+        delete updated[apartmentNumber];
+      });
+
+      return updated;
+    });
+
+    if (
+      selectedApartment &&
+      selectedNumbers.has(selectedApartment.number)
+    ) {
+      closeApartment();
+    }
+
+    closeDeleteApartmentModal();
   };
 
   const updateApartmentTypeRent = (type: string, value: string) => {
@@ -627,6 +1095,88 @@ export default function BuildingDetails() {
     });
   };
 
+  const availableApartmentStatuses: ApartmentStatus[] = [
+    "مؤجرة",
+    "شاغرة",
+    "تحت الصيانة",
+    "محجوزة",
+    "مؤجرة للشركة",
+    ...customApartmentStatuses,
+  ];
+
+  const addNewApartmentStatus = (apartment?: Apartment) => {
+    const newStatus = window.prompt("اكتب اسم حالة الشقة الجديدة:")?.trim();
+
+    if (!newStatus) {
+      return;
+    }
+
+    if (availableApartmentStatuses.includes(newStatus)) {
+      if (apartment) {
+        updateApartmentStatus(apartment, newStatus);
+      }
+      return;
+    }
+
+    setCustomApartmentStatuses((current) => {
+      const updated = [...current, newStatus];
+      window.localStorage.setItem(
+        "tumouh_star_custom_apartment_statuses",
+        JSON.stringify(updated)
+      );
+      return updated;
+    });
+
+    if (apartment) {
+      updateApartmentStatus(apartment, newStatus);
+    }
+  };
+
+  const handleApartmentStatusChange = (
+    apartment: Apartment,
+    value: string
+  ) => {
+    if (value === "__add_new_status__") {
+      addNewApartmentStatus(apartment);
+      return;
+    }
+
+    updateApartmentStatus(apartment, value as ApartmentStatus);
+  };
+
+  const updateApartmentStatus = (
+    apartment: Apartment,
+    status: ApartmentStatus
+  ) => {
+    const updatedApartment = {
+      ...apartment,
+      status,
+    };
+
+    setApartments((current) => {
+      const updated = current.map((item) =>
+        item.number === apartment.number ? updatedApartment : item
+      );
+
+      window.localStorage.setItem(
+        "tumouh_star_building_apartments",
+        JSON.stringify(updated)
+      );
+
+      return updated;
+    });
+
+    setApartmentTenantInfo((current) => ({
+      ...current,
+      [apartment.number]: {
+        ...getApartmentTenantInfo(apartment),
+        status,
+      },
+    }));
+
+    setSelectedApartment(updatedApartment);
+  };
+
   const openApartment = (
     apartment: Apartment
   ) => {
@@ -637,6 +1187,220 @@ export default function BuildingDetails() {
   const closeApartment = () => {
     setSelectedApartment(null);
     setActiveTab("البيانات الأساسية");
+    setIsPaymentExportMenuOpen(false);
+  };
+
+  const saveApartmentTenantField = <
+    K extends keyof Pick<
+      ApartmentTenantInfo,
+      "tenantName" | "phone" | "identityNumber"
+    >
+  >(
+    apartment: Apartment,
+    key: K
+  ) => {
+    const tenantInfo = getApartmentTenantInfo(apartment);
+
+    const updatedTenantInfo = {
+      ...tenantInfo,
+      [key]: tenantInfo[key],
+    };
+
+    setApartmentTenantInfo((current) => {
+      const updated = {
+        ...current,
+        [apartment.number]: updatedTenantInfo,
+      };
+
+      window.localStorage.setItem(
+        "tumouh_star_apartment_tenant_info",
+        JSON.stringify(updated)
+      );
+
+      return updated;
+    });
+
+    if (key === "tenantName") {
+      setApartments((current) => {
+        const updated = current.map((item) =>
+          item.number === apartment.number
+            ? {
+                ...item,
+                tenant:
+                  tenantInfo.tenantName || "اسم المستأجر غير مضاف",
+              }
+            : item
+        );
+
+        window.localStorage.setItem(
+          "tumouh_star_building_apartments",
+          JSON.stringify(updated)
+        );
+
+        return updated;
+      });
+
+      setSelectedApartment((current) =>
+        current && current.number === apartment.number
+          ? {
+              ...current,
+              tenant:
+                tenantInfo.tenantName || "اسم المستأجر غير مضاف",
+            }
+          : current
+      );
+    }
+  };
+
+  const saveApartmentFloor = (apartmentNumber: number) => {
+    const extraInfo = getApartmentExtraInfo(apartmentNumber);
+
+    setApartmentExtraInfo((current) => {
+      const updated = {
+        ...current,
+        [apartmentNumber]: extraInfo,
+      };
+
+      window.localStorage.setItem(
+        "tumouh_star_apartment_extra_info",
+        JSON.stringify(updated)
+      );
+
+      return updated;
+    });
+  };
+
+  const getApartmentContractInfo = (apartmentNumber: number) => {
+    return (
+      apartmentContractInfo[apartmentNumber] ??
+      createDefaultApartmentContractInfo(apartmentNumber)
+    );
+  };
+
+  const updateApartmentContractField = <
+    K extends keyof ApartmentContractInfo
+  >(
+    apartmentNumber: number,
+    key: K,
+    value: ApartmentContractInfo[K]
+  ) => {
+    setApartmentContractInfo((current) => ({
+      ...current,
+      [apartmentNumber]: {
+        ...getApartmentContractInfo(apartmentNumber),
+        [key]: value,
+      },
+    }));
+  };
+
+  const updateApartmentContractStartDate = (
+    apartmentNumber: number,
+    startDate: string
+  ) => {
+    const currentInfo = getApartmentContractInfo(apartmentNumber);
+    const endDate = addContractDuration(
+      startDate,
+      currentInfo.durationUnit,
+      currentInfo.durationValue
+    );
+
+    setApartmentContractInfo((current) => ({
+      ...current,
+      [apartmentNumber]: {
+        ...currentInfo,
+        startDate,
+        endDate: endDate || currentInfo.endDate,
+      },
+    }));
+  };
+
+  const updateApartmentContractDuration = (
+    apartmentNumber: number,
+    durationUnit: "day" | "month" | "year",
+    durationValue: number
+  ) => {
+    const currentInfo = getApartmentContractInfo(apartmentNumber);
+    const safeValue = Math.max(1, Number(durationValue) || 1);
+    const endDate = addContractDuration(
+      currentInfo.startDate,
+      durationUnit,
+      safeValue
+    );
+
+    setApartmentContractInfo((current) => ({
+      ...current,
+      [apartmentNumber]: {
+        ...currentInfo,
+        durationUnit,
+        durationValue: safeValue,
+        endDate: endDate || currentInfo.endDate,
+      },
+    }));
+  };
+
+  const saveApartmentContractInfo = (apartmentNumber: number) => {
+    const contractInfo = getApartmentContractInfo(apartmentNumber);
+
+    setApartmentContractInfo((current) => {
+      const updated = {
+        ...current,
+        [apartmentNumber]: contractInfo,
+      };
+
+      window.localStorage.setItem(
+        "tumouh_star_apartment_contract_info",
+        JSON.stringify(updated)
+      );
+
+      return updated;
+    });
+  };
+
+  const saveApartmentDetails = () => {
+    if (!selectedApartment) {
+      return;
+    }
+
+    const updatedApartments = apartments.map((apartment) => {
+      const tenantInfo = apartmentTenantInfo[apartment.number];
+
+      return tenantInfo
+        ? {
+            ...apartment,
+            tenant:
+              tenantInfo.tenantName || "اسم المستأجر غير مضاف",
+            status: tenantInfo.status,
+          }
+        : apartment;
+    });
+
+    window.localStorage.setItem(
+      "tumouh_star_building_apartments",
+      JSON.stringify(updatedApartments)
+    );
+
+    window.localStorage.setItem(
+      "tumouh_star_apartment_types",
+      JSON.stringify(apartmentTypes)
+    );
+
+    window.localStorage.setItem(
+      "tumouh_star_apartment_extra_info",
+      JSON.stringify(apartmentExtraInfo)
+    );
+
+    window.localStorage.setItem(
+      "tumouh_star_apartment_tenant_info",
+      JSON.stringify(apartmentTenantInfo)
+    );
+
+    window.localStorage.setItem(
+      "tumouh_star_apartment_contract_info",
+      JSON.stringify(apartmentContractInfo)
+    );
+
+    setApartments(updatedApartments);
+    closeApartment();
   };
 
   const openChargeModal = (
@@ -655,7 +1419,9 @@ export default function BuildingDetails() {
       apartmentNumber !== undefined ? [apartmentNumber] : []
     );
     setApartmentTypeFilter("");
+    setApartmentStatusFilter("");
     setApartmentSearch("");
+    setRentCollectionMonths(1);
     setIsChargeModalOpen(true);
   };
 
@@ -679,6 +1445,10 @@ export default function BuildingDetails() {
     const apartmentType = getApartmentType(apartment);
 
     if (apartmentTypeFilter && apartmentType !== apartmentTypeFilter) {
+      return false;
+    }
+
+    if (apartmentStatusFilter && apartment.status !== apartmentStatusFilter) {
       return false;
     }
 
@@ -707,6 +1477,2464 @@ export default function BuildingDetails() {
         : Array.from(new Set([...current, ...visibleNumbers]))
     );
   };
+
+  const selectedRentTotal = selectedChargeApartments.reduce(
+    (total, apartmentNumber) => {
+      const apartment = apartments.find(
+        (item) => item.number === apartmentNumber
+      );
+
+      return total + (apartment ? getApartmentRent(apartment) : 0);
+    },
+    0
+  );
+
+  const getContractDurationMonths = (contractInfo: ApartmentContractInfo) => {
+    const value = Math.max(1, Number(contractInfo.durationValue) || 1);
+
+    if (contractInfo.durationUnit === "year") {
+      return value * 12;
+    }
+
+    if (contractInfo.durationUnit === "month") {
+      return value;
+    }
+
+    return Math.max(1, Math.ceil(value / 30));
+  };
+
+  const getApartmentRentCollected = (apartmentNumber: number) => {
+    return getApartmentPayments(apartmentNumber)
+      .filter((payment) => payment.type?.trim() === "إيجار")
+      .reduce((sum, payment) => sum + (Number(payment.amount) || 0), 0);
+  };
+
+  const getApartmentRemainingRentMonths = (apartment: Apartment) => {
+    const contractInfo = getApartmentContractInfo(apartment.number);
+    const contractMonths = getContractDurationMonths(contractInfo);
+    const monthlyRent = getApartmentRent(apartment);
+
+    if (monthlyRent <= 0) {
+      return 0;
+    }
+
+    const contractTotal = contractMonths * monthlyRent;
+    const collectedRent = getApartmentRentCollected(apartment.number);
+    const remainingValue = Math.max(contractTotal - collectedRent, 0);
+
+    return Math.min(
+      contractMonths,
+      Math.max(0, Math.floor((remainingValue + 0.000001) / monthlyRent))
+    );
+  };
+
+  const selectedRentCollectionTotal =
+    chargeModalMode === "collection" && chargeForm.type === "إيجار"
+      ? selectedRentTotal * Math.max(1, rentCollectionMonths)
+      : selectedRentTotal;
+
+  const selectedRentCollectionMaxMonths = selectedChargeApartments.length
+    ? Math.min(
+        ...selectedChargeApartments.map((apartmentNumber) => {
+          const apartment = apartments.find(
+            (item) => item.number === apartmentNumber
+          );
+          return apartment ? getApartmentRemainingRentMonths(apartment) : 0;
+        })
+      )
+    : 0;
+
+  const getApartmentReport = () => {
+    if (!apartmentReportType) {
+      return {
+        title: "",
+        subtitle: "",
+        data: [] as Apartment[],
+      };
+    }
+
+    if (apartmentReportType === "total") {
+      return {
+        title: "تقرير إجمالي الشقق",
+        subtitle: `جميع الشقق المسجلة في عمارة سنتر (${totalApartments} شقة)`,
+        data: apartments,
+      };
+    }
+
+    if (apartmentReportType === "rented") {
+      return {
+        title: "تقرير الشقق المؤجرة",
+        subtitle: `الشقق المؤجرة سكنيًا أو المؤجرة للشركة (${rentedApartments} شقة)`,
+        data: apartments.filter(
+          (apartment) =>
+            apartment.status === "مؤجرة" ||
+            apartment.status === "مؤجرة للشركة"
+        ),
+      };
+    }
+
+    if (apartmentReportType === "reserved") {
+      return {
+        title: "تقرير الشقق المحجوزة",
+        subtitle: `الشقق التي حالتها محجوزة (${reservedApartments} شقة)`,
+        data: apartments.filter(
+          (apartment) => apartment.status === "محجوزة"
+        ),
+      };
+    }
+
+    if (apartmentReportType === "maintenance") {
+      return {
+        title: "تقرير الشقق تحت الصيانة",
+        subtitle: `الشقق التي حالتها تحت الصيانة (${maintenanceApartments} شقة)`,
+        data: apartments.filter(
+          (apartment) => apartment.status === "تحت الصيانة"
+        ),
+      };
+    }
+
+    if (apartmentReportType === "vacant") {
+      return {
+        title: "تقرير الشقق الفارغة",
+        subtitle: `الشقق الفارغة (${vacantApartments} شقة)`,
+        data: apartments.filter(
+          (apartment) => apartment.status === "شاغرة"
+        ),
+      };
+    }
+
+    return {
+      title: "تقرير نسبة الإشغال",
+      subtitle: `نسبة الإشغال الحالية ${occupancyRate}% — ${rentedApartments} مؤجرة من أصل ${totalApartments} شقة`,
+      data: apartments,
+    };
+  };
+
+  const openApartmentReport = (
+    type:
+      | "total"
+      | "rented"
+      | "reserved"
+      | "maintenance"
+      | "vacant"
+      | "occupancy"
+  ) => {
+    setApartmentReportType(type);
+  };
+
+  const closeApartmentReport = () => {
+    setApartmentReportType(null);
+  };
+
+  const getBuildingChargesForPeriod = (): BuildingCharge[] => {
+    try {
+      const saved = window.localStorage.getItem(
+        "tumouh_star_building_charges"
+      );
+
+      if (!saved) {
+        return [];
+      }
+
+      const charges = JSON.parse(saved) as BuildingCharge[];
+
+      return charges
+        .filter((charge) => {
+          if (!charge.date) {
+            return false;
+          }
+
+          return charge.date >= fromDate && charge.date <= toDate;
+        })
+        .sort((a, b) => {
+          if (a.date !== b.date) {
+            return b.date.localeCompare(a.date);
+          }
+
+          return Number(a.apartmentNumber ?? 0) - Number(b.apartmentNumber ?? 0);
+        });
+    } catch {
+      return [];
+    }
+  };
+
+  const getMonthlyDueTotal = () => {
+    return getBuildingChargesForPeriod().reduce(
+      (sum, charge) => sum + (Number(charge.amount) || 0),
+      0
+    );
+  };
+
+  const getMonthlyRentRows = () => {
+    return apartments
+      .filter(
+        (apartment) =>
+          apartment.status === "مؤجرة" ||
+          apartment.status === "مؤجرة للشركة"
+      )
+      .map((apartment) => {
+        const tenantInfo = getApartmentTenantInfo(apartment);
+
+        return {
+          apartmentNumber: apartment.number,
+          tenant:
+            tenantInfo.tenantName ||
+            apartment.tenant ||
+            "غير مضاف",
+          date: fromDate,
+          type: "إيجار",
+          amount: getApartmentRent(apartment),
+          notes: `إيجار مستحق عن الفترة من ${formatContractDate(
+            fromDate
+          )} إلى ${formatContractDate(toDate)}`,
+        };
+      });
+  };
+
+  const getMonthlyReportData = () => {
+    const charges = getBuildingChargesForPeriod();
+
+    if (monthlyReportType === "rent") {
+      const rows = getMonthlyRentRows();
+      return {
+        title: "تقرير إجمالي الإيجارات المستحقة للشهر",
+        subtitle: "تفاصيل الإيجارات المستحقة على جميع الشقق المؤجرة خلال الفترة المحددة",
+        rows,
+        total: rows.reduce((sum, row) => sum + row.amount, 0),
+      };
+    }
+
+    if (monthlyReportType === "electricity") {
+      const rows = charges
+        .filter((charge) => charge.type?.trim() === "فاتورة كهرباء")
+        .map((charge) => {
+          const apartment = apartments.find(
+            (item) =>
+              Number(item.number) === Number(charge.apartmentNumber)
+          );
+          const tenantInfo = apartment
+            ? getApartmentTenantInfo(apartment)
+            : null;
+
+          return {
+            apartmentNumber: charge.apartmentNumber,
+            tenant:
+              tenantInfo?.tenantName ||
+              apartment?.tenant ||
+              "غير مضاف",
+            date: charge.date,
+            type: charge.type || "فاتورة كهرباء",
+            amount: Number(charge.amount) || 0,
+            notes: charge.notes || "لا توجد تفاصيل",
+          };
+        });
+
+      return {
+        title: "تقرير إجمالي فواتير الكهرباء للشهر",
+        subtitle: "تفاصيل فواتير الكهرباء المستحقة والمدخلة خلال الفترة المحددة",
+        rows,
+        total: rows.reduce((sum, row) => sum + row.amount, 0),
+      };
+    }
+
+    if (monthlyReportType === "water") {
+      const rows = charges
+        .filter((charge) => charge.type?.trim() === "فاتورة مياه")
+        .map((charge) => {
+          const apartment = apartments.find(
+            (item) =>
+              Number(item.number) === Number(charge.apartmentNumber)
+          );
+          const tenantInfo = apartment
+            ? getApartmentTenantInfo(apartment)
+            : null;
+
+          return {
+            apartmentNumber: charge.apartmentNumber,
+            tenant:
+              tenantInfo?.tenantName ||
+              apartment?.tenant ||
+              "غير مضاف",
+            date: charge.date,
+            type: charge.type || "فاتورة مياه",
+            amount: Number(charge.amount) || 0,
+            notes: charge.notes || "لا توجد تفاصيل",
+          };
+        });
+
+      return {
+        title: "تقرير إجمالي فواتير المياه للشهر",
+        subtitle: "تفاصيل فواتير المياه المستحقة والمدخلة خلال الفترة المحددة",
+        rows,
+        total: rows.reduce((sum, row) => sum + row.amount, 0),
+      };
+    }
+
+    const rows = charges.map((charge) => {
+      const apartment = apartments.find(
+        (item) =>
+          Number(item.number) === Number(charge.apartmentNumber)
+      );
+      const tenantInfo = apartment
+        ? getApartmentTenantInfo(apartment)
+        : null;
+
+      return {
+        apartmentNumber: charge.apartmentNumber,
+        tenant:
+          tenantInfo?.tenantName ||
+          apartment?.tenant ||
+          "غير مضاف",
+        date: charge.date,
+        type: charge.type || "غير محدد",
+        amount: Number(charge.amount) || 0,
+        notes: charge.notes || "لا توجد تفاصيل",
+      };
+    });
+
+    return {
+      title: "تقرير إجمالي المستحقات للشهر",
+      subtitle: "تفاصيل جميع المستحقات المسجلة على الشقق خلال الفترة المحددة",
+      rows,
+      total: rows.reduce((sum, row) => sum + row.amount, 0),
+    };
+  };
+
+  const getBuildingCollectionsForPeriod = (): BuildingCharge[] => {
+    try {
+      const saved = window.localStorage.getItem(
+        "tumouh_star_building_collections"
+      );
+
+      if (!saved) {
+        return [];
+      }
+
+      const parsed = JSON.parse(saved);
+      const collections = Array.isArray(parsed) ? (parsed as BuildingCharge[]) : [];
+
+      return collections
+        .filter((collection) => {
+          if (!collection.date) {
+            return false;
+          }
+
+          return collection.date >= fromDate && collection.date <= toDate;
+        })
+        .sort((a, b) => {
+          if (a.date !== b.date) {
+            return b.date.localeCompare(a.date);
+          }
+
+          return (
+            Number(a.apartmentNumber ?? 0) -
+            Number(b.apartmentNumber ?? 0)
+          );
+        });
+    } catch {
+      return [];
+    }
+  };
+
+  const getMonthlyCollectionReportData = () => {
+    const charges = getBuildingChargesForPeriod();
+    const collections = getBuildingCollectionsForPeriod();
+
+    const monthlyRentRows = getMonthlyRentRows();
+
+    const getTenantForApartment = (apartmentNumber?: number) => {
+      const apartment = apartments.find(
+        (item) => Number(item.number) === Number(apartmentNumber)
+      );
+
+      if (!apartment) {
+        return "غير مضاف";
+      }
+
+      const tenantInfo = getApartmentTenantInfo(apartment);
+
+      return tenantInfo.tenantName || apartment.tenant || "غير مضاف";
+    };
+
+    const getDueRows = (
+      type: "total" | "rent" | "electricity" | "water"
+    ) => {
+      if (type === "rent") {
+        return monthlyRentRows.map((row) => ({
+          apartmentNumber: row.apartmentNumber,
+          tenant: row.tenant,
+          date: row.date,
+          type: "إيجار",
+          transactionType: "مستحق",
+          amount: row.amount,
+          notes: row.notes,
+        }));
+      }
+
+      const filteredCharges =
+        type === "electricity"
+          ? charges.filter((charge) => charge.type?.trim() === "فاتورة كهرباء")
+          : type === "water"
+          ? charges.filter((charge) => charge.type?.trim() === "فاتورة مياه")
+          : charges.filter((charge) => charge.type?.trim() !== "إيجار");
+
+      return filteredCharges.map((charge) => ({
+        apartmentNumber: charge.apartmentNumber,
+        tenant: getTenantForApartment(charge.apartmentNumber),
+        date: charge.date,
+        type: charge.type || "غير محدد",
+        transactionType: "مستحق",
+        amount: Number(charge.amount) || 0,
+        notes: charge.notes || "لا توجد تفاصيل",
+      }));
+    };
+
+    const getCollectionRows = (
+      type: "total" | "rent" | "electricity" | "water"
+    ) => {
+      const filteredCollections =
+        type === "rent"
+          ? collections.filter((collection) => collection.type?.trim() === "إيجار")
+          : type === "electricity"
+          ? collections.filter(
+              (collection) => collection.type?.trim() === "فاتورة كهرباء"
+            )
+          : type === "water"
+          ? collections.filter(
+              (collection) => collection.type?.trim() === "فاتورة مياه"
+            )
+          : collections;
+
+      return filteredCollections.map((collection) => ({
+        apartmentNumber: collection.apartmentNumber,
+        tenant: getTenantForApartment(collection.apartmentNumber),
+        date: collection.date,
+        type: collection.type || "غير محدد",
+        transactionType: "تحصيل",
+        amount: Number(collection.amount) || 0,
+        notes: collection.notes || "لا توجد تفاصيل",
+      }));
+    };
+
+    const dueRows = getDueRows(monthlyCollectionReportType);
+    const collectionRows = getCollectionRows(monthlyCollectionReportType);
+
+    const dueTotal = dueRows.reduce((sum, row) => sum + row.amount, 0);
+    const collectedTotal = collectionRows.reduce(
+      (sum, row) => sum + row.amount,
+      0
+    );
+
+    return {
+      title:
+        monthlyCollectionReportType === "total"
+          ? "تقرير إجمالي تحصيلات المستحقات للشهر"
+          : monthlyCollectionReportType === "rent"
+          ? "تقرير إجمالي تحصيلات الإيجارات للشهر"
+          : monthlyCollectionReportType === "electricity"
+          ? "تقرير تحصيلات فواتير الكهرباء والمتبقي"
+          : "تقرير تحصيلات فواتير المياه والمتبقي",
+      subtitle:
+        monthlyCollectionReportType === "total"
+          ? "تفاصيل جميع المستحقات والتحصيلات المسجلة خلال الفترة المحددة"
+          : monthlyCollectionReportType === "rent"
+          ? "تفاصيل إيجارات الشقق والتحصيلات المسجلة خلال الفترة المحددة"
+          : monthlyCollectionReportType === "electricity"
+          ? "تفاصيل فواتير الكهرباء والتحصيلات المسجلة خلال الفترة المحددة"
+          : "تفاصيل فواتير المياه والتحصيلات المسجلة خلال الفترة المحددة",
+      rows: [...dueRows, ...collectionRows].sort((a, b) => {
+        if (a.date !== b.date) {
+          return b.date.localeCompare(a.date);
+        }
+
+        return (
+          Number(a.apartmentNumber ?? 0) -
+          Number(b.apartmentNumber ?? 0)
+        );
+      }),
+      dueTotal,
+      collectedTotal,
+      remainingTotal: Math.max(dueTotal - collectedTotal, 0),
+    };
+  };
+
+  const getMonthlyCollectionReportHtml = () => {
+    const report = getMonthlyCollectionReportData();
+
+    const rows = report.rows.length
+      ? report.rows
+          .map(
+            (row, index) => `
+              <tr>
+                <td>${index + 1}</td>
+                <td>${row.apartmentNumber ?? "غير محدد"}</td>
+                <td>${escapeReportHtml(row.tenant)}</td>
+                <td>${escapeReportHtml(formatContractDate(row.date))}</td>
+                <td>${escapeReportHtml(row.type)}</td>
+                <td>${escapeReportHtml(row.transactionType)}</td>
+                <td>${row.amount.toLocaleString("en-US")} ريال</td>
+                <td>${escapeReportHtml(row.notes)}</td>
+              </tr>
+            `
+          )
+          .join("")
+      : `
+          <tr>
+            <td colspan="8">لا توجد بيانات مسجلة خلال الفترة المحددة.</td>
+          </tr>
+        `;
+
+    return `
+      <div class="report-header">
+        <div class="report-brand">TUMOUH STAR</div>
+        <h1>${escapeReportHtml(report.title)}</h1>
+        <div class="report-subtitle">
+          ${escapeReportHtml(report.subtitle)}
+        </div>
+        <div class="report-period">
+          من ${escapeReportHtml(formatContractDate(fromDate))}
+          إلى ${escapeReportHtml(formatContractDate(toDate))}
+        </div>
+      </div>
+
+      <div class="tenant-info">
+        <div class="info-box">
+          <span>إجمالي المستحق</span>
+          <strong>${report.dueTotal.toLocaleString("en-US")} ريال</strong>
+        </div>
+        <div class="info-box">
+          <span>إجمالي المحصل</span>
+          <strong>${report.collectedTotal.toLocaleString("en-US")} ريال</strong>
+        </div>
+        <div class="info-box">
+          <span>المتبقي</span>
+          <strong>${report.remainingTotal.toLocaleString("en-US")} ريال</strong>
+        </div>
+        <div class="info-box">
+          <span>عدد العمليات</span>
+          <strong>${report.rows.length}</strong>
+        </div>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>رقم الشقة</th>
+            <th>المستأجر / الجهة</th>
+            <th>التاريخ</th>
+            <th>نوع المستحق</th>
+            <th>نوع العملية</th>
+            <th>المبلغ</th>
+            <th>تفاصيل / ملاحظات</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+
+      <div class="report-footer">
+        تاريخ إصدار التقرير: ${new Date().toLocaleDateString("ar-SA")}
+      </div>
+    `;
+  };
+
+  const getMonthlyCollectionExportDocument = () => {
+    return `
+      <!doctype html>
+      <html dir="rtl">
+        <head>
+          <meta charset="UTF-8" />
+          <title>تقرير التحصيلات</title>
+          <style>
+            * { box-sizing: border-box; }
+            body {
+              margin: 0;
+              padding: 28px;
+              font-family: Arial, Tahoma, sans-serif;
+              color: #111827;
+              direction: rtl;
+              background: #ffffff;
+            }
+            .report-header {
+              text-align: center;
+              margin-bottom: 22px;
+            }
+            .report-brand {
+              font-size: 22px;
+              font-weight: 900;
+              letter-spacing: 2px;
+              margin-bottom: 8px;
+            }
+            h1 {
+              margin: 0;
+              font-size: 28px;
+            }
+            .report-subtitle {
+              margin-top: 7px;
+              color: #6b7280;
+              font-size: 14px;
+            }
+            .report-period {
+              margin-top: 10px;
+              font-size: 14px;
+              font-weight: 800;
+              color: #374151;
+            }
+            .tenant-info {
+              display: grid;
+              grid-template-columns: repeat(4, 1fr);
+              gap: 10px;
+              margin-bottom: 16px;
+            }
+            .info-box {
+              border: 1px solid #d1d5db;
+              border-radius: 10px;
+              padding: 11px;
+              text-align: center;
+              background: #f9fafb;
+            }
+            .info-box span {
+              display: block;
+              color: #6b7280;
+              font-size: 12px;
+              margin-bottom: 5px;
+            }
+            .info-box strong {
+              display: block;
+              font-size: 17px;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+            }
+            th, td {
+              border: 1px solid #9ca3af;
+              padding: 9px 7px;
+              text-align: center;
+              font-size: 12px;
+              vertical-align: middle;
+            }
+            th {
+              background: #e5e7eb;
+              font-weight: 900;
+            }
+            .report-footer {
+              margin-top: 18px;
+              text-align: center;
+              color: #6b7280;
+              font-size: 12px;
+            }
+            @media print {
+              body { padding: 10mm; }
+              .no-print { display: none !important; }
+            }
+          </style>
+        </head>
+        <body>
+          ${getMonthlyCollectionReportHtml()}
+        </body>
+      </html>
+    `;
+  };
+
+  const printMonthlyCollectionReport = () => {
+    const report = getMonthlyCollectionReportData();
+
+    if (!report.rows.length) {
+      window.alert("لا توجد بيانات تحصيل أو مستحقات خلال الفترة المحددة.");
+      return;
+    }
+
+    const printWindow = window.open(
+      "",
+      "_blank",
+      "width=1200,height=850"
+    );
+
+    if (!printWindow) {
+      window.alert(
+        "تعذر فتح نافذة التقرير. اسمح بالنوافذ المنبثقة ثم حاول مرة أخرى."
+      );
+      return;
+    }
+
+    printWindow.document.write(getMonthlyCollectionExportDocument());
+    printWindow.document.close();
+    printWindow.focus();
+
+    setTimeout(() => {
+      printWindow.print();
+    }, 250);
+  };
+
+  const exportMonthlyCollectionPdf = () => {
+    printMonthlyCollectionReport();
+  };
+
+  const exportMonthlyCollectionExcel = () => {
+    const report = getMonthlyCollectionReportData();
+
+    if (!report.rows.length) {
+      window.alert("لا توجد بيانات تحصيل أو مستحقات خلال الفترة المحددة لتصديرها.");
+      return;
+    }
+
+    const rows = report.rows
+      .map(
+        (row, index) => `
+          <tr>
+            <td>${index + 1}</td>
+            <td>${row.apartmentNumber ?? "غير محدد"}</td>
+            <td>${escapeReportHtml(row.tenant)}</td>
+            <td>${escapeReportHtml(formatContractDate(row.date))}</td>
+            <td>${escapeReportHtml(row.type)}</td>
+            <td>${escapeReportHtml(row.transactionType)}</td>
+            <td>${row.amount.toLocaleString("en-US")}</td>
+            <td>${escapeReportHtml(row.notes)}</td>
+          </tr>
+        `
+      )
+      .join("");
+
+    const html = `
+      <html dir="rtl">
+        <head>
+          <meta charset="UTF-8" />
+          <style>
+            body { font-family: Arial, Tahoma, sans-serif; direction: rtl; }
+            h1, p { text-align: center; }
+            .summary {
+              width: 100%;
+              border-collapse: collapse;
+              margin: 15px 0;
+            }
+            .summary td {
+              border: 1px solid #999;
+              padding: 8px;
+              text-align: center;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-top: 15px;
+            }
+            th, td {
+              border: 1px solid #999;
+              padding: 8px;
+              text-align: center;
+            }
+            th { background: #e9ecef; }
+          </style>
+        </head>
+        <body>
+          <h1>${escapeReportHtml(report.title)}</h1>
+          <p>Tumouh Star</p>
+          <p>
+            الفترة من ${escapeReportHtml(formatContractDate(fromDate))}
+            إلى ${escapeReportHtml(formatContractDate(toDate))}
+          </p>
+
+          <table class="summary">
+            <tr>
+              <td><strong>إجمالي المستحق</strong><br />${report.dueTotal.toLocaleString("en-US")} ريال</td>
+              <td><strong>إجمالي المحصل</strong><br />${report.collectedTotal.toLocaleString("en-US")} ريال</td>
+              <td><strong>المتبقي</strong><br />${report.remainingTotal.toLocaleString("en-US")} ريال</td>
+              <td><strong>عدد العمليات</strong><br />${report.rows.length}</td>
+            </tr>
+          </table>
+
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>رقم الشقة</th>
+                <th>المستأجر / الجهة</th>
+                <th>التاريخ</th>
+                <th>نوع المستحق</th>
+                <th>نوع العملية</th>
+                <th>المبلغ</th>
+                <th>تفاصيل / ملاحظات</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </body>
+      </html>
+    `;
+
+    const blob = new Blob([html], {
+      type: "application/vnd.ms-excel;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${report.title.replace(/\s+/g, "_")}_${fromDate}_${toDate}.xls`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const getMonthlyDueReportHtml = () => {
+    const report = getMonthlyReportData();
+
+    const rows = report.rows.length
+      ? report.rows
+          .map(
+            (row, index) => `
+              <tr>
+                <td>${index + 1}</td>
+                <td>${row.apartmentNumber ?? "غير محدد"}</td>
+                <td>${escapeReportHtml(row.tenant)}</td>
+                <td>${escapeReportHtml(formatContractDate(row.date))}</td>
+                <td>${escapeReportHtml(row.type)}</td>
+                <td>${row.amount.toLocaleString("en-US")} ريال</td>
+                <td>${escapeReportHtml(row.notes)}</td>
+              </tr>
+            `
+          )
+          .join("")
+      : `
+          <tr>
+            <td colspan="7">لا توجد بيانات مسجلة خلال الفترة المحددة.</td>
+          </tr>
+        `;
+
+    return `
+      <div class="report-header">
+        <div class="report-brand">TUMOUH STAR</div>
+        <h1>${escapeReportHtml(report.title)}</h1>
+        <div class="report-subtitle">
+          ${escapeReportHtml(report.subtitle)}
+        </div>
+        <div class="report-period">
+          من ${escapeReportHtml(formatContractDate(fromDate))}
+          إلى ${escapeReportHtml(formatContractDate(toDate))}
+        </div>
+      </div>
+
+      <div class="summary">
+        <div class="summary-box">
+          <span>عدد العمليات</span>
+          <strong>${report.rows.length}</strong>
+        </div>
+        <div class="summary-box total">
+          <span>الإجمالي</span>
+          <strong>${report.total.toLocaleString("en-US")} ريال</strong>
+        </div>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>رقم الشقة</th>
+            <th>المستأجر / الجهة</th>
+            <th>التاريخ</th>
+            <th>نوع المستحق</th>
+            <th>المبلغ</th>
+            <th>تفاصيل / ملاحظات</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+
+      <div class="report-footer">
+        تاريخ إصدار التقرير: ${new Date().toLocaleDateString("ar-SA")}
+      </div>
+    `;
+  };
+
+  const getMonthlyDueExportDocument = () => {
+    const report = getMonthlyReportData();
+
+    return `
+      <!doctype html>
+      <html dir="rtl">
+        <head>
+          <meta charset="UTF-8" />
+          <title>${escapeReportHtml(report.title)}</title>
+          <style>
+            * { box-sizing: border-box; }
+            body {
+              margin: 0;
+              padding: 28px;
+              font-family: Arial, Tahoma, sans-serif;
+              color: #111827;
+              direction: rtl;
+              background: #ffffff;
+            }
+            .report-header {
+              text-align: center;
+              margin-bottom: 22px;
+            }
+            .report-brand {
+              font-size: 22px;
+              font-weight: 900;
+              letter-spacing: 2px;
+              margin-bottom: 8px;
+            }
+            h1 {
+              margin: 0;
+              font-size: 28px;
+            }
+            .report-subtitle {
+              margin-top: 7px;
+              color: #6b7280;
+              font-size: 14px;
+            }
+            .report-period {
+              margin-top: 10px;
+              font-size: 14px;
+              font-weight: 800;
+              color: #374151;
+            }
+            .summary {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 12px;
+              margin-bottom: 16px;
+            }
+            .summary-box {
+              border: 1px solid #d1d5db;
+              border-radius: 10px;
+              padding: 12px;
+              text-align: center;
+              background: #f9fafb;
+            }
+            .summary-box span {
+              display: block;
+              color: #6b7280;
+              font-size: 12px;
+              margin-bottom: 5px;
+            }
+            .summary-box strong {
+              display: block;
+              font-size: 20px;
+            }
+            .summary-box.total strong {
+              font-size: 24px;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+            }
+            th, td {
+              border: 1px solid #9ca3af;
+              padding: 9px 7px;
+              text-align: center;
+              font-size: 12px;
+              vertical-align: middle;
+            }
+            th {
+              background: #e5e7eb;
+              font-weight: 900;
+            }
+            .report-footer {
+              margin-top: 18px;
+              text-align: center;
+              color: #6b7280;
+              font-size: 12px;
+            }
+            @media print {
+              body { padding: 10mm; }
+              .no-print { display: none !important; }
+            }
+          </style>
+        </head>
+        <body>
+          ${getMonthlyDueReportHtml()}
+        </body>
+      </html>
+    `;
+  };
+
+  const printMonthlyDueReport = () => {
+    const report = getMonthlyReportData();
+
+    if (!report.rows.length) {
+      window.alert("لا توجد بيانات مسجلة خلال الفترة المحددة للطباعة أو التصدير.");
+      return;
+    }
+
+    const printWindow = window.open(
+      "",
+      "_blank",
+      "width=1200,height=850"
+    );
+
+    if (!printWindow) {
+      window.alert(
+        "تعذر فتح نافذة التقرير. اسمح بالنوافذ المنبثقة ثم حاول مرة أخرى."
+      );
+      return;
+    }
+
+    printWindow.document.write(getMonthlyDueExportDocument());
+    printWindow.document.close();
+    printWindow.focus();
+
+    setTimeout(() => {
+      printWindow.print();
+    }, 250);
+  };
+
+  const exportMonthlyDuePdf = () => {
+    printMonthlyDueReport();
+  };
+
+  const exportMonthlyDueExcel = () => {
+    const report = getMonthlyReportData();
+
+    if (!report.rows.length) {
+      window.alert("لا توجد بيانات مسجلة خلال الفترة المحددة لتصديرها.");
+      return;
+    }
+
+    const rows = report.rows
+      .map(
+        (row, index) => `
+          <tr>
+            <td>${index + 1}</td>
+            <td>${row.apartmentNumber ?? "غير محدد"}</td>
+            <td>${escapeReportHtml(row.tenant)}</td>
+            <td>${escapeReportHtml(formatContractDate(row.date))}</td>
+            <td>${escapeReportHtml(row.type)}</td>
+            <td>${row.amount.toLocaleString("en-US")}</td>
+            <td>${escapeReportHtml(row.notes)}</td>
+          </tr>
+        `
+      )
+      .join("");
+
+    const html = `
+      <html dir="rtl">
+        <head>
+          <meta charset="UTF-8" />
+          <style>
+            body { font-family: Arial, Tahoma, sans-serif; direction: rtl; }
+            h1, p { text-align: center; }
+            .info {
+              width: 100%;
+              border-collapse: collapse;
+              margin: 15px 0;
+            }
+            .info td {
+              border: 1px solid #999;
+              padding: 8px;
+              text-align: center;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-top: 15px;
+            }
+            th, td {
+              border: 1px solid #999;
+              padding: 8px;
+              text-align: center;
+            }
+            th { background: #e9ecef; }
+          </style>
+        </head>
+        <body>
+          <h1>${escapeReportHtml(report.title)}</h1>
+          <p>Tumouh Star</p>
+          <p>
+            الفترة من ${escapeReportHtml(
+              formatContractDate(fromDate)
+            )} إلى ${escapeReportHtml(formatContractDate(toDate))}
+          </p>
+
+          <table class="info">
+            <tr>
+              <td><strong>عدد العمليات</strong><br />${
+                report.rows.length
+              }</td>
+              <td><strong>الإجمالي</strong><br />${report.total.toLocaleString(
+                "en-US"
+              )} ريال</td>
+            </tr>
+          </table>
+
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>رقم الشقة</th>
+                <th>المستأجر / الجهة</th>
+                <th>التاريخ</th>
+                <th>نوع المستحق</th>
+                <th>المبلغ</th>
+                <th>تفاصيل / ملاحظات</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </body>
+      </html>
+    `;
+
+    const blob = new Blob([html], {
+      type: "application/vnd.ms-excel;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${report.title.replace(/\s+/g, "_")}_${fromDate}_${toDate}.xls`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const escapeReportHtml = (value: string) =>
+    value
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+
+  function getApartmentPayments(apartmentNumber: number): BuildingCharge[] {
+    try {
+      const saved = window.localStorage.getItem(
+        "tumouh_star_building_collections"
+      );
+
+      if (!saved) {
+        return [];
+      }
+
+      const collections = JSON.parse(saved) as BuildingCharge[];
+
+      return collections
+        .filter(
+          (payment) =>
+            payment &&
+            Number(payment.apartmentNumber) === Number(apartmentNumber)
+        )
+        .sort((a, b) => String(b.date ?? "").localeCompare(String(a.date ?? "")));
+    } catch {
+      return [];
+    }
+  }
+
+  const formatPaymentDate = (value: string) => {
+    return formatContractDate(value);
+  };
+
+  const getSelectedApartmentPeriodPayments = (): BuildingCharge[] => {
+    if (!selectedApartment) {
+      return [];
+    }
+
+    return getApartmentPayments(selectedApartment.number).filter(
+      (payment) =>
+        Boolean(payment.date) &&
+        payment.date >= fromDate &&
+        payment.date <= toDate
+    );
+  };
+
+  const getSelectedApartmentPeriodCharges = (): BuildingCharge[] => {
+    if (!selectedApartment) {
+      return [];
+    }
+
+    try {
+      const saved = window.localStorage.getItem(
+        "tumouh_star_building_charges"
+      );
+
+      if (!saved) {
+        return [];
+      }
+
+      const charges = JSON.parse(saved) as BuildingCharge[];
+
+      return charges.filter(
+        (charge) =>
+          Number(charge.apartmentNumber) === Number(selectedApartment.number) &&
+          Boolean(charge.date) &&
+          charge.date >= fromDate &&
+          charge.date <= toDate
+      );
+    } catch {
+      return [];
+    }
+  };
+
+  const getSelectedApartmentLateRemaining = () => {
+    if (!selectedApartment) {
+      return 0;
+    }
+
+    const contractInfo = getApartmentContractInfo(selectedApartment.number);
+    const apartmentRent = getApartmentRent(selectedApartment);
+    const today = getTodayLocalDateString();
+
+    // إجمالي الإيجارات المستحقة من بداية العقد حتى اليوم.
+    const accruedRentMonths =
+      selectedApartment.status === "مؤجرة" ||
+      selectedApartment.status === "مؤجرة للشركة"
+        ? getAccruedRentMonths(contractInfo.startDate, contractInfo.endDate)
+        : 0;
+    const rentDue = accruedRentMonths * apartmentRent;
+
+    // إجمالي المستحقات الأخرى المسجلة على الشقة من بداية العقد حتى اليوم
+    // (مع استبعاد الإيجار حتى لا يتم احتسابه مرتين).
+    const otherDue = getApartmentCharges(
+      selectedApartment.number,
+      contractInfo.startDate
+    ).reduce((sum, charge) => sum + (Number(charge.amount) || 0), 0);
+
+    // كل التحصيلات الفعلية المسجلة على الشقة حتى اليوم، بما فيها الإيجارات
+    // والمدفوعات الخاصة بالفواتير والمستحقات الأخرى.
+    const contractPayments = getApartmentPayments(selectedApartment.number).filter(
+      (payment) => Boolean(payment.date) && payment.date <= today
+    );
+    const collected = contractPayments.reduce(
+      (sum, payment) => sum + (Number(payment.amount) || 0),
+      0
+    );
+
+    // المتبقي الفعلي على الشقة = كل المستحقات حتى اليوم - كل ما تم تحصيله.
+    const totalDue = rentDue + otherDue;
+    return Math.max(totalDue - collected, 0);
+  };
+
+  const getSelectedApartmentFinancialReport = () => {
+    if (!selectedApartment || !selectedApartmentFinancialReport) {
+      return { title: "", rows: [], total: 0 };
+    }
+
+    const payments = getSelectedApartmentPeriodPayments();
+    const charges = getSelectedApartmentPeriodCharges();
+
+    if (selectedApartmentFinancialReport === "collections") {
+      return {
+        title: "تقرير تحصيلات الشقة",
+        rows: payments,
+        total: payments.reduce(
+          (sum, payment) => sum + (Number(payment.amount) || 0),
+          0
+        ),
+      };
+    }
+
+    if (selectedApartmentFinancialReport === "water") {
+      const rows = charges.filter(
+        (charge) => charge.type?.trim() === "فاتورة مياه"
+      );
+      return {
+        title: "تقرير فواتير المياه للشقة",
+        rows,
+        total: rows.reduce(
+          (sum, charge) => sum + (Number(charge.amount) || 0),
+          0
+        ),
+      };
+    }
+
+    if (selectedApartmentFinancialReport === "electricity") {
+      const rows = charges.filter(
+        (charge) => charge.type?.trim() === "فاتورة كهرباء"
+      );
+      return {
+        title: "تقرير فواتير الكهرباء للشقة",
+        rows,
+        total: rows.reduce(
+          (sum, charge) => sum + (Number(charge.amount) || 0),
+          0
+        ),
+      };
+    }
+
+    const contractInfo = getApartmentContractInfo(selectedApartment.number);
+    const apartmentRent = getApartmentRent(selectedApartment);
+    const today = getTodayLocalDateString();
+
+    // إجمالي الإيجارات المستحقة من بداية العقد حتى اليوم.
+    const accruedRentMonths =
+      selectedApartment.status === "مؤجرة" ||
+      selectedApartment.status === "مؤجرة للشركة"
+        ? getAccruedRentMonths(contractInfo.startDate, contractInfo.endDate)
+        : 0;
+    const rentDue = accruedRentMonths * apartmentRent;
+
+    // إجمالي المستحقات الأخرى المسجلة على الشقة من بداية العقد حتى اليوم
+    // (مع استبعاد الإيجار حتى لا يتم احتسابه مرتين).
+    const otherDue = getApartmentCharges(
+      selectedApartment.number,
+      contractInfo.startDate
+    ).reduce((sum, charge) => sum + (Number(charge.amount) || 0), 0);
+
+    // كل التحصيلات الفعلية المسجلة على الشقة حتى اليوم، بما فيها الإيجارات
+    // والمدفوعات الخاصة بالفواتير والمستحقات الأخرى.
+    const contractPayments = getApartmentPayments(selectedApartment.number).filter(
+      (payment) => Boolean(payment.date) && payment.date <= today
+    );
+    const collected = contractPayments.reduce(
+      (sum, payment) => sum + (Number(payment.amount) || 0),
+      0
+    );
+
+    // المتبقي الفعلي على الشقة = كل المستحقات حتى اليوم - كل ما تم تحصيله.
+    const totalDue = rentDue + otherDue;
+    const remaining = Math.max(totalDue - collected, 0);
+
+    return {
+      title: "تقرير التحصيلات المتأخرة للشقة",
+      rows: [
+        {
+          type: "إجمالي الإيجارات المستحقة",
+          amount: String(rentDue),
+          date: today,
+          notes: `من بداية العقد حتى اليوم — عدد أشهر الإيجار المستحقة: ${accruedRentMonths} × ${apartmentRent.toLocaleString("ar-SA")} ريال`,
+          apartmentNumber: selectedApartment.number,
+        },
+        {
+          type: "إجمالي المستحقات الأخرى",
+          amount: String(otherDue),
+          date: today,
+          notes: "إجمالي المستحقات والفواتير المسجلة على الشقة حتى اليوم",
+          apartmentNumber: selectedApartment.number,
+        },
+        {
+          type: "إجمالي المستحقات حتى اليوم",
+          amount: String(totalDue),
+          date: today,
+          notes: "الإيجارات المستحقة + المستحقات والفواتير الأخرى",
+          apartmentNumber: selectedApartment.number,
+        },
+        {
+          type: "إجمالي المحصل",
+          amount: String(collected),
+          date: today,
+          notes: "إجمالي جميع التحصيلات الفعلية المسجلة على الشقة حتى اليوم",
+          apartmentNumber: selectedApartment.number,
+        },
+        {
+          type: "إجمالي المتبقي",
+          amount: String(remaining),
+          date: today,
+          notes: "المبلغ المتبقي فعليًا بعد خصم جميع التحصيلات من إجمالي المستحقات",
+          apartmentNumber: selectedApartment.number,
+        },
+      ],
+      total: remaining,
+    };
+  };
+
+  const getSelectedApartmentFinancialReportExportDocument = () => {
+    if (!selectedApartment || !selectedApartmentFinancialReport) {
+      return "";
+    }
+
+    const report = getSelectedApartmentFinancialReport();
+    const rows = report.rows
+      .map(
+        (row, index) => `
+          <tr>
+            <td>${index + 1}</td>
+            <td>${escapeReportHtml(formatContractDate(row.date))}</td>
+            <td>${escapeReportHtml(row.type || "غير محدد")}</td>
+            <td>${(Number(row.amount) || 0).toLocaleString("en-US")} ريال</td>
+            <td>${escapeReportHtml(row.notes || "لا توجد تفاصيل")}</td>
+          </tr>
+        `
+      )
+      .join("");
+
+    return `
+      <!doctype html>
+      <html lang="ar" dir="rtl">
+        <head>
+          <meta charset="utf-8" />
+          <title>${escapeReportHtml(report.title)}</title>
+          <style>
+            body { font-family: Arial, Tahoma, sans-serif; direction: rtl; padding: 28px; color: #111827; }
+            .header { text-align: center; margin-bottom: 24px; }
+            .brand { font-size: 18px; font-weight: 900; letter-spacing: 2px; color: #b77900; }
+            h1 { margin: 8px 0; font-size: 25px; }
+            .subtitle { color: #6b7280; font-size: 13px; }
+            .summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 20px 0; }
+            .box { border: 1px solid #d1d5db; border-radius: 10px; padding: 12px; text-align: center; }
+            .label { color: #6b7280; font-size: 11px; margin-bottom: 5px; }
+            .value { font-size: 18px; font-weight: 900; }
+            table { width: 100%; border-collapse: collapse; margin-top: 18px; }
+            th, td { border: 1px solid #d1d5db; padding: 9px; text-align: center; font-size: 12px; }
+            th { background: #eef2f7; font-weight: 900; }
+            .total { margin-top: 18px; padding: 14px; border: 1px solid #d1d5db; text-align: center; font-weight: 900; }
+            @media print { body { padding: 10mm; } }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="brand">TUMOUH STAR</div>
+            <h1>${escapeReportHtml(report.title)}</h1>
+            <div class="subtitle">شقة رقم ${selectedApartment.number} — ${formatContractDate(fromDate)} إلى ${formatContractDate(toDate)}</div>
+          </div>
+
+          <div class="summary">
+            <div class="box"><div class="label">إجمالي التقرير</div><div class="value">${report.total.toLocaleString("en-US")} ريال</div></div>
+            <div class="box"><div class="label">عدد العمليات</div><div class="value">${report.rows.length}</div></div>
+            <div class="box"><div class="label">الفترة</div><div class="value">${formatContractDate(fromDate)} — ${formatContractDate(toDate)}</div></div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>التاريخ</th>
+                <th>نوع العملية</th>
+                <th>المبلغ</th>
+                <th>التفاصيل</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows || '<tr><td colspan="5">لا توجد بيانات خلال الفترة المحددة.</td></tr>'}
+            </tbody>
+          </table>
+
+          <div class="total">إجمالي التقرير: ${report.total.toLocaleString("en-US")} ريال</div>
+        </body>
+      </html>
+    `;
+  };
+
+  const exportSelectedApartmentFinancialReportExcel = () => {
+    if (!selectedApartment || !selectedApartmentFinancialReport) {
+      return;
+    }
+
+    const report = getSelectedApartmentFinancialReport();
+    if (!report.rows.length) {
+      window.alert("لا توجد بيانات خلال الفترة المحددة لتصديرها.");
+      return;
+    }
+
+    const html = getSelectedApartmentFinancialReportExportDocument();
+    const blob = new Blob([html], {
+      type: "application/vnd.ms-excel;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `تقرير_${report.title.replace(/\s+/g, "_")}_شقة_${selectedApartment.number}.xls`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const printSelectedApartmentFinancialReport = () => {
+    if (!selectedApartment || !selectedApartmentFinancialReport) {
+      return;
+    }
+
+    const report = getSelectedApartmentFinancialReport();
+    if (!report.rows.length) {
+      window.alert("لا توجد بيانات خلال الفترة المحددة للطباعة أو التصدير.");
+      return;
+    }
+
+    const printWindow = window.open("", "_blank", "width=1100,height=800");
+
+    if (!printWindow) {
+      window.alert("تعذر فتح نافذة التقرير. اسمح بالنوافذ المنبثقة ثم حاول مرة أخرى.");
+      return;
+    }
+
+    printWindow.document.write(getSelectedApartmentFinancialReportExportDocument());
+    printWindow.document.close();
+    printWindow.focus();
+
+    setTimeout(() => {
+      printWindow.print();
+    }, 250);
+  };
+
+  const exportSelectedApartmentFinancialReportPdf = () => {
+    printSelectedApartmentFinancialReport();
+  };
+
+  const getApartmentCharges = (
+    apartmentNumber: number,
+    fromDate?: string
+  ): BuildingCharge[] => {
+    try {
+      const saved = window.localStorage.getItem(
+        "tumouh_star_building_charges"
+      );
+
+      if (!saved) {
+        return [];
+      }
+
+      const charges = JSON.parse(saved) as BuildingCharge[];
+      const today = getTodayLocalDateString();
+
+      return charges.filter(
+        (charge) =>
+          Number(charge.apartmentNumber) === Number(apartmentNumber) &&
+          Boolean(charge.date) &&
+          charge.date <= today &&
+          (!fromDate || charge.date >= fromDate) &&
+          charge.type?.trim() !== "إيجار"
+      );
+    } catch {
+      return [];
+    }
+  };
+
+
+  const getApartmentPaymentReportHtml = () => {
+    if (!selectedApartment) {
+      return "";
+    }
+
+    const tenantInfo = getApartmentTenantInfo(selectedApartment);
+    const payments = getApartmentPayments(selectedApartment.number);
+    const totalPaid = payments.reduce(
+      (sum, payment) => sum + (Number(payment.amount) || 0),
+      0
+    );
+
+    const paymentRows = payments.length
+      ? payments
+          .map(
+            (payment, index) => `
+              <tr>
+                <td>${index + 1}</td>
+                <td>${escapeReportHtml(formatPaymentDate(payment.date))}</td>
+                <td>${escapeReportHtml(payment.type || "غير محدد")}</td>
+                <td>${(Number(payment.amount) || 0).toLocaleString("en-US")} ريال</td>
+                <td>${escapeReportHtml(payment.notes || "لا توجد تفاصيل")}</td>
+              </tr>
+            `
+          )
+          .join("")
+      : `
+          <tr>
+            <td colspan="5">لا توجد دفعات مسجلة لهذه الشقة.</td>
+          </tr>
+        `;
+
+    return `
+      <div class="report-header">
+        <div class="report-brand">TUMOUH STAR</div>
+        <h1>تقرير سجل دفعات الشقة</h1>
+        <div class="report-subtitle">تفاصيل جميع عمليات الدفع والتحصيل المسجلة للشقة</div>
+      </div>
+
+      <div class="tenant-info">
+        <div class="info-box">
+          <span>رقم الشقة</span>
+          <strong>${selectedApartment.number}</strong>
+        </div>
+        <div class="info-box">
+          <span>اسم المستأجر</span>
+          <strong>${escapeReportHtml(tenantInfo.tenantName || "غير مضاف")}</strong>
+        </div>
+        <div class="info-box">
+          <span>رقم الجوال</span>
+          <strong>${escapeReportHtml(tenantInfo.phone || "غير مضاف")}</strong>
+        </div>
+        <div class="info-box">
+          <span>رقم الهوية / الإقامة</span>
+          <strong>${escapeReportHtml(
+            tenantInfo.identityNumber || "غير مضاف"
+          )}</strong>
+        </div>
+      </div>
+
+      <div class="report-total">
+        <span>إجمالي المدفوعات</span>
+        <strong>${totalPaid.toLocaleString("en-US")} ريال</strong>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>تاريخ الدفع</th>
+            <th>نوع المستحق</th>
+            <th>المبلغ</th>
+            <th>تفاصيل / ملاحظات</th>
+          </tr>
+        </thead>
+        <tbody>${paymentRows}</tbody>
+      </table>
+
+      <div class="report-footer">
+        تاريخ إصدار التقرير: ${new Date().toLocaleDateString("ar-SA")}
+      </div>
+    `;
+  };
+
+  const getApartmentPaymentExportDocument = () => {
+    return `
+      <!doctype html>
+      <html dir="rtl">
+        <head>
+          <meta charset="UTF-8" />
+          <title>تقرير دفعات الشقة ${selectedApartment?.number ?? ""}</title>
+          <style>
+            * { box-sizing: border-box; }
+            body {
+              margin: 0;
+              padding: 28px;
+              font-family: Arial, Tahoma, sans-serif;
+              color: #111827;
+              direction: rtl;
+              background: #ffffff;
+            }
+            .report-header {
+              text-align: center;
+              margin-bottom: 22px;
+            }
+            .report-brand {
+              font-size: 22px;
+              font-weight: 900;
+              letter-spacing: 2px;
+              margin-bottom: 8px;
+            }
+            h1 {
+              margin: 0;
+              font-size: 28px;
+            }
+            .report-subtitle {
+              margin-top: 7px;
+              color: #6b7280;
+              font-size: 14px;
+            }
+            .tenant-info {
+              display: grid;
+              grid-template-columns: repeat(4, 1fr);
+              gap: 10px;
+              margin-bottom: 16px;
+            }
+            .info-box {
+              border: 1px solid #d1d5db;
+              border-radius: 10px;
+              padding: 11px;
+              text-align: center;
+              background: #f9fafb;
+            }
+            .info-box span {
+              display: block;
+              color: #6b7280;
+              font-size: 12px;
+              margin-bottom: 5px;
+            }
+            .info-box strong {
+              display: block;
+              font-size: 15px;
+              word-break: break-word;
+            }
+            .report-total {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              border: 1px solid #d1d5db;
+              border-radius: 10px;
+              padding: 12px 15px;
+              margin-bottom: 16px;
+              background: #f9fafb;
+              font-weight: 800;
+            }
+            .report-total strong {
+              font-size: 20px;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+            }
+            th, td {
+              border: 1px solid #9ca3af;
+              padding: 10px 8px;
+              text-align: center;
+              font-size: 13px;
+              vertical-align: middle;
+            }
+            th {
+              background: #e5e7eb;
+              font-weight: 900;
+            }
+            .report-footer {
+              margin-top: 18px;
+              text-align: center;
+              color: #6b7280;
+              font-size: 12px;
+            }
+            @media print {
+              body { padding: 10mm; }
+              .no-print { display: none !important; }
+            }
+          </style>
+        </head>
+        <body>
+          ${getApartmentPaymentReportHtml()}
+        </body>
+      </html>
+    `;
+  };
+
+  const exportApartmentPaymentsExcel = () => {
+    if (!selectedApartment) {
+      return;
+    }
+
+    const payments = getApartmentPayments(selectedApartment.number);
+
+    if (!payments.length) {
+      window.alert("لا توجد دفعات مسجلة لهذه الشقة لتصديرها.");
+      return;
+    }
+
+    const tenantInfo = getApartmentTenantInfo(selectedApartment);
+    const totalPaid = payments.reduce(
+      (sum, payment) => sum + (Number(payment.amount) || 0),
+      0
+    );
+
+    const rows = payments
+      .map(
+        (payment, index) => `
+          <tr>
+            <td>${index + 1}</td>
+            <td>${escapeReportHtml(formatPaymentDate(payment.date))}</td>
+            <td>${escapeReportHtml(payment.type || "غير محدد")}</td>
+            <td>${(Number(payment.amount) || 0).toLocaleString("en-US")}</td>
+            <td>${escapeReportHtml(payment.notes || "لا توجد تفاصيل")}</td>
+          </tr>
+        `
+      )
+      .join("");
+
+    const html = `
+      <html dir="rtl">
+        <head>
+          <meta charset="UTF-8" />
+          <style>
+            body { font-family: Arial, Tahoma, sans-serif; direction: rtl; }
+            h1, h2, p { text-align: center; }
+            .info {
+              width: 100%;
+              border-collapse: collapse;
+              margin: 15px 0;
+            }
+            .info td {
+              border: 1px solid #999;
+              padding: 8px;
+              text-align: center;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-top: 15px;
+            }
+            th, td {
+              border: 1px solid #999;
+              padding: 8px;
+              text-align: center;
+            }
+            th { background: #e9ecef; }
+          </style>
+        </head>
+        <body>
+          <h1>تقرير سجل دفعات الشقة</h1>
+          <p>Tumouh Star</p>
+          <table class="info">
+            <tr>
+              <td><strong>رقم الشقة</strong><br />${selectedApartment.number}</td>
+              <td><strong>اسم المستأجر</strong><br />${escapeReportHtml(
+                tenantInfo.tenantName || "غير مضاف"
+              )}</td>
+              <td><strong>رقم الجوال</strong><br />${escapeReportHtml(
+                tenantInfo.phone || "غير مضاف"
+              )}</td>
+              <td><strong>رقم الهوية / الإقامة</strong><br />${escapeReportHtml(
+                tenantInfo.identityNumber || "غير مضاف"
+              )}</td>
+            </tr>
+            <tr>
+              <td colspan="4"><strong>إجمالي المدفوعات: ${totalPaid.toLocaleString(
+                "en-US"
+              )} ريال</strong></td>
+            </tr>
+          </table>
+
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>تاريخ الدفع</th>
+                <th>نوع المستحق</th>
+                <th>المبلغ</th>
+                <th>تفاصيل / ملاحظات</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </body>
+      </html>
+    `;
+
+    const blob = new Blob([html], {
+      type: "application/vnd.ms-excel;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `سجل_دفعات_الشقة_${selectedApartment.number}.xls`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    setIsPaymentExportMenuOpen(false);
+  };
+
+  const printApartmentPayments = () => {
+    if (!selectedApartment) {
+      return;
+    }
+
+    const payments = getApartmentPayments(selectedApartment.number);
+
+    if (!payments.length) {
+      window.alert("لا توجد دفعات مسجلة لهذه الشقة للطباعة أو التصدير.");
+      return;
+    }
+
+    const printWindow = window.open(
+      "",
+      "_blank",
+      "width=1100,height=800"
+    );
+
+    if (!printWindow) {
+      window.alert(
+        "تعذر فتح نافذة التقرير. اسمح بالنوافذ المنبثقة ثم حاول مرة أخرى."
+      );
+      return;
+    }
+
+    printWindow.document.write(getApartmentPaymentExportDocument());
+    printWindow.document.close();
+    printWindow.focus();
+
+    setTimeout(() => {
+      printWindow.print();
+    }, 250);
+
+    setIsPaymentExportMenuOpen(false);
+  };
+
+  const exportApartmentPaymentsPdf = () => {
+    printApartmentPayments();
+  };
+
+  const getApartmentTypeReportData = () => {
+    if (!selectedApartmentTypeReport) {
+      return [];
+    }
+
+    return apartments
+      .filter(
+        (apartment) =>
+          getApartmentType(apartment) === selectedApartmentTypeReport
+      )
+      .map((apartment) => {
+        const extraInfo = getApartmentExtraInfo(apartment.number);
+        const tenantInfo = getApartmentTenantInfo(apartment);
+        const contractInfo = getApartmentContractInfo(apartment.number);
+        const payments = getApartmentPayments(apartment.number);
+
+        return {
+          apartment,
+          extraInfo,
+          tenantInfo,
+          contractInfo,
+          paymentCount: payments.length,
+          totalPaid: payments.reduce(
+            (sum, payment) => sum + (Number(payment.amount) || 0),
+            0
+          ),
+        };
+      });
+  };
+
+  const getApartmentTypeReportTitle = () =>
+    selectedApartmentTypeReport
+      ? `تقرير شقق ${selectedApartmentTypeReport}`
+      : "";
+
+  const exportApartmentTypeReportExcel = () => {
+    const rows = getApartmentTypeReportData();
+
+    if (!rows.length) {
+      window.alert("لا توجد شقق مسجلة لهذا النوع لتصديرها.");
+      return;
+    }
+
+    const bodyRows = rows
+      .map(
+        ({
+          apartment,
+          extraInfo,
+          tenantInfo,
+          contractInfo,
+          paymentCount,
+          totalPaid,
+        }) => `
+          <tr>
+            <td>${apartment.number}</td>
+            <td>${escapeReportHtml(getApartmentType(apartment))}</td>
+            <td>${escapeReportHtml(
+              apartment.status === "شاغرة" ? "فارغة" : apartment.status
+            )}</td>
+            <td>${getApartmentRent(apartment).toLocaleString("en-US")}</td>
+            <td>${escapeReportHtml(tenantInfo.tenantName || apartment.tenant || "غير مضاف")}</td>
+            <td>${escapeReportHtml(tenantInfo.phone || "غير مضاف")}</td>
+            <td>${escapeReportHtml(tenantInfo.identityNumber || "غير مضاف")}</td>
+            <td>${escapeReportHtml(extraInfo.floor || "غير محدد")}</td>
+            <td>${escapeReportHtml(extraInfo.parking)}</td>
+            <td>${escapeReportHtml(extraInfo.electricityMeter)}</td>
+            <td>${escapeReportHtml(extraInfo.waterMeter)}</td>
+            <td>${escapeReportHtml(extraInfo.furnitureStatus)}</td>
+            <td>${escapeReportHtml(contractInfo.contractNumber || "غير محدد")}</td>
+            <td>${escapeReportHtml(formatContractDate(contractInfo.startDate))}</td>
+            <td>${escapeReportHtml(formatContractDate(contractInfo.endDate))}</td>
+            <td>${escapeReportHtml(
+              formatContractDuration(
+                contractInfo.durationUnit,
+                contractInfo.durationValue
+              )
+            )}</td>
+            <td>${Number(contractInfo.insuranceAmount || 0).toLocaleString("en-US")}</td>
+            <td>${escapeReportHtml(contractInfo.insuranceNotes || "لا توجد ملاحظات")}</td>
+            <td>${paymentCount}</td>
+            <td>${totalPaid.toLocaleString("en-US")}</td>
+          </tr>
+        `
+      )
+      .join("");
+
+    const html = `
+      <!doctype html>
+      <html dir="rtl">
+        <head>
+          <meta charset="UTF-8" />
+          <title>${escapeReportHtml(getApartmentTypeReportTitle())}</title>
+          <style>
+            * { box-sizing: border-box; }
+            body {
+              margin: 0;
+              padding: 24px;
+              font-family: Arial, "Tahoma", sans-serif;
+              direction: rtl;
+              color: #111827;
+            }
+            h1 { margin: 0 0 8px; text-align: center; font-size: 26px; }
+            p { margin: 0 0 18px; text-align: center; color: #4b5563; }
+            .summary {
+              display: grid;
+              grid-template-columns: repeat(4, 1fr);
+              gap: 10px;
+              margin-bottom: 18px;
+            }
+            .summary div {
+              border: 1px solid #d1d5db;
+              border-radius: 10px;
+              padding: 10px;
+              text-align: center;
+              background: #f9fafb;
+              font-weight: 700;
+            }
+            .table-wrap { overflow-x: auto; }
+            table { width: 100%; min-width: 2400px; border-collapse: collapse; }
+            th, td {
+              border: 1px solid #9ca3af;
+              padding: 7px 6px;
+              text-align: center;
+              font-size: 10px;
+              white-space: nowrap;
+            }
+            th { background: #e5e7eb; }
+            @media print {
+              @page { size: A3 landscape; margin: 8mm; }
+              body { padding: 0; }
+            }
+          </style>
+        </head>
+        <body>
+          <h1>${escapeReportHtml(getApartmentTypeReportTitle())}</h1>
+          <p>تفاصيل جميع الشقق المسجلة تحت هذا النوع</p>
+          <div class="summary">
+            <div>عدد الشقق: ${rows.length}</div>
+            <div>إيجار الشقة: ${getApartmentRent(rows[0].apartment).toLocaleString("en-US")} ريال</div>
+            <div>إجمالي الإيجار الشهري: ${rows
+              .reduce(
+                (sum, row) => sum + getApartmentRent(row.apartment),
+                0
+              )
+              .toLocaleString("en-US")} ريال</div>
+            <div>إجمالي المدفوعات: ${rows
+              .reduce((sum, row) => sum + row.totalPaid, 0)
+              .toLocaleString("en-US")} ريال</div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>رقم الشقة</th>
+                  <th>النوع</th>
+                  <th>الحالة</th>
+                  <th>الإيجار الشهري</th>
+                  <th>اسم المستأجر / الجهة</th>
+                  <th>الجوال</th>
+                  <th>رقم الهوية</th>
+                  <th>الدور</th>
+                  <th>المواقف</th>
+                  <th>عداد الكهرباء</th>
+                  <th>عداد المياه</th>
+                  <th>حالة الفرش</th>
+                  <th>رقم العقد</th>
+                  <th>بداية العقد</th>
+                  <th>نهاية العقد</th>
+                  <th>مدة العقد</th>
+                  <th>التأمين</th>
+                  <th>ملاحظات التأمين</th>
+                  <th>عدد الدفعات</th>
+                  <th>إجمالي المدفوع</th>
+                </tr>
+              </thead>
+              <tbody>${bodyRows}</tbody>
+            </table>
+          </div>
+        </body>
+      </html>
+    `;
+
+    const blob = new Blob([html], {
+      type: "application/vnd.ms-excel;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${getApartmentTypeReportTitle().replace(/\s+/g, "_")}.xls`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const printApartmentTypeReport = () => {
+    const rows = getApartmentTypeReportData();
+
+    if (!rows.length) {
+      window.alert("لا توجد شقق مسجلة لهذا النوع للطباعة.");
+      return;
+    }
+
+    const bodyRows = rows
+      .map(
+        ({
+          apartment,
+          extraInfo,
+          tenantInfo,
+          contractInfo,
+          paymentCount,
+          totalPaid,
+        }) => `
+          <tr>
+            <td>${apartment.number}</td>
+            <td>${escapeReportHtml(getApartmentType(apartment))}</td>
+            <td>${escapeReportHtml(
+              apartment.status === "شاغرة" ? "فارغة" : apartment.status
+            )}</td>
+            <td>${getApartmentRent(apartment).toLocaleString("en-US")} ريال</td>
+            <td>${escapeReportHtml(tenantInfo.tenantName || apartment.tenant || "غير مضاف")}</td>
+            <td>${escapeReportHtml(tenantInfo.phone || "غير مضاف")}</td>
+            <td>${escapeReportHtml(tenantInfo.identityNumber || "غير مضاف")}</td>
+            <td>${escapeReportHtml(extraInfo.floor || "غير محدد")}</td>
+            <td>${escapeReportHtml(extraInfo.parking)}</td>
+            <td>${escapeReportHtml(extraInfo.electricityMeter)}</td>
+            <td>${escapeReportHtml(extraInfo.waterMeter)}</td>
+            <td>${escapeReportHtml(extraInfo.furnitureStatus)}</td>
+            <td>${escapeReportHtml(contractInfo.contractNumber || "غير محدد")}</td>
+            <td>${escapeReportHtml(formatContractDate(contractInfo.startDate))}</td>
+            <td>${escapeReportHtml(formatContractDate(contractInfo.endDate))}</td>
+            <td>${escapeReportHtml(
+              formatContractDuration(
+                contractInfo.durationUnit,
+                contractInfo.durationValue
+              )
+            )}</td>
+            <td>${Number(contractInfo.insuranceAmount || 0).toLocaleString("en-US")} ريال</td>
+            <td>${escapeReportHtml(contractInfo.insuranceNotes || "لا توجد ملاحظات")}</td>
+            <td>${paymentCount}</td>
+            <td>${totalPaid.toLocaleString("en-US")} ريال</td>
+          </tr>
+        `
+      )
+      .join("");
+
+    const totalRent = rows.reduce(
+      (sum, row) => sum + getApartmentRent(row.apartment),
+      0
+    );
+    const totalPaid = rows.reduce((sum, row) => sum + row.totalPaid, 0);
+
+    const printWindow = window.open("", "_blank", "width=1500,height=900");
+
+    if (!printWindow) {
+      window.alert(
+        "تعذر فتح نافذة التقرير. اسمح بالنوافذ المنبثقة ثم حاول مرة أخرى."
+      );
+      return;
+    }
+
+    printWindow.document.write(`
+      <!doctype html>
+      <html dir="rtl">
+        <head>
+          <meta charset="UTF-8" />
+          <title>${escapeReportHtml(getApartmentTypeReportTitle())}</title>
+          <style>
+            * { box-sizing: border-box; }
+            body {
+              margin: 0;
+              padding: 20px;
+              font-family: Arial, "Tahoma", sans-serif;
+              color: #111827;
+              direction: rtl;
+            }
+            h1 { margin: 0 0 8px; text-align: center; font-size: 26px; }
+            p { margin: 0 0 16px; text-align: center; color: #4b5563; }
+            .summary {
+              display: grid;
+              grid-template-columns: repeat(4, 1fr);
+              gap: 8px;
+              margin-bottom: 16px;
+            }
+            .summary div {
+              border: 1px solid #d1d5db;
+              border-radius: 8px;
+              padding: 8px;
+              text-align: center;
+              background: #f9fafb;
+              font-weight: 700;
+              font-size: 12px;
+            }
+            table { width: 100%; border-collapse: collapse; }
+            th, td {
+              border: 1px solid #9ca3af;
+              padding: 6px 5px;
+              text-align: center;
+              font-size: 9px;
+              white-space: nowrap;
+            }
+            th { background: #e5e7eb; }
+            @media print {
+              @page { size: A3 landscape; margin: 8mm; }
+              body { padding: 0; }
+            }
+          </style>
+        </head>
+        <body>
+          <h1>${escapeReportHtml(getApartmentTypeReportTitle())}</h1>
+          <p>تفاصيل جميع الشقق المسجلة تحت هذا النوع</p>
+          <div class="summary">
+            <div>عدد الشقق: ${rows.length}</div>
+            <div>إيجار الشقة: ${getApartmentRent(rows[0].apartment).toLocaleString("ar-SA")} ريال</div>
+            <div>إجمالي الإيجار الشهري: ${totalRent.toLocaleString("ar-SA")} ريال</div>
+            <div>إجمالي المدفوعات: ${totalPaid.toLocaleString("ar-SA")} ريال</div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>رقم الشقة</th>
+                <th>النوع</th>
+                <th>الحالة</th>
+                <th>الإيجار الشهري</th>
+                <th>اسم المستأجر / الجهة</th>
+                <th>الجوال</th>
+                <th>رقم الهوية</th>
+                <th>الدور</th>
+                <th>المواقف</th>
+                <th>عداد الكهرباء</th>
+                <th>عداد المياه</th>
+                <th>حالة الفرش</th>
+                <th>رقم العقد</th>
+                <th>بداية العقد</th>
+                <th>نهاية العقد</th>
+                <th>مدة العقد</th>
+                <th>التأمين</th>
+                <th>ملاحظات التأمين</th>
+                <th>عدد الدفعات</th>
+                <th>إجمالي المدفوع</th>
+              </tr>
+            </thead>
+            <tbody>${bodyRows}</tbody>
+          </table>
+        </body>
+      </html>
+    `);
+
+    printWindow.document.close();
+    printWindow.focus();
+
+    setTimeout(() => {
+      printWindow.print();
+    }, 250);
+  };
+
+  const exportApartmentTypeReportPdf = () => {
+    printApartmentTypeReport();
+  };
+
+  const exportApartmentReportExcel = () => {
+    const report = getApartmentReport();
+    if (!report.data.length) {
+      window.alert("لا توجد بيانات لتصديرها.");
+      return;
+    }
+
+    const rows = report.data
+      .map(
+        (apartment) => `
+          <tr>
+            <td>${apartment.number}</td>
+            <td>${escapeReportHtml(getApartmentType(apartment))}</td>
+            <td>${escapeReportHtml(
+              apartment.status === "شاغرة" ? "فارغة" : apartment.status
+            )}</td>
+            <td>${getApartmentRent(apartment).toLocaleString("en-US")}</td>
+            <td>${escapeReportHtml(apartment.tenant || "غير مضاف")}</td>
+          </tr>
+        `
+      )
+      .join("");
+
+    const html = `
+      <html dir="rtl">
+        <head>
+          <meta charset="UTF-8" />
+          <style>
+            body { font-family: Arial, sans-serif; direction: rtl; }
+            h1, p { text-align: center; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th, td { border: 1px solid #999; padding: 8px; text-align: center; }
+            th { background: #e9ecef; }
+          </style>
+        </head>
+        <body>
+          <h1>${escapeReportHtml(report.title)}</h1>
+          <p>${escapeReportHtml(report.subtitle)}</p>
+          <table>
+            <thead>
+              <tr>
+                <th>رقم الشقة</th>
+                <th>نوع الشقة</th>
+                <th>الحالة</th>
+                <th>الإيجار الشهري</th>
+                <th>المستأجر / الجهة</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </body>
+      </html>
+    `;
+
+    const blob = new Blob([html], {
+      type: "application/vnd.ms-excel;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${report.title.replace(/\s+/g, "_")}.xls`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const printApartmentReport = () => {
+    const report = getApartmentReport();
+    if (!report.data.length) {
+      window.alert("لا توجد بيانات للطباعة.");
+      return;
+    }
+
+    const rows = report.data
+      .map(
+        (apartment) => `
+          <tr>
+            <td>${apartment.number}</td>
+            <td>${escapeReportHtml(getApartmentType(apartment))}</td>
+            <td>${escapeReportHtml(
+              apartment.status === "شاغرة" ? "فارغة" : apartment.status
+            )}</td>
+            <td>${getApartmentRent(apartment).toLocaleString("en-US")} ريال</td>
+            <td>${escapeReportHtml(apartment.tenant || "غير مضاف")}</td>
+          </tr>
+        `
+      )
+      .join("");
+
+    const printWindow = window.open("", "_blank", "width=1100,height=800");
+    if (!printWindow) {
+      window.alert("تعذر فتح نافذة الطباعة. اسمح بالنوافذ المنبثقة ثم حاول مرة أخرى.");
+      return;
+    }
+
+    printWindow.document.write(`
+      <!doctype html>
+      <html dir="rtl">
+        <head>
+          <meta charset="UTF-8" />
+          <title>${escapeReportHtml(report.title)}</title>
+          <style>
+            * { box-sizing: border-box; }
+            body {
+              margin: 0;
+              padding: 30px;
+              font-family: Arial, "Tahoma", sans-serif;
+              color: #111827;
+              direction: rtl;
+            }
+            h1 { margin: 0 0 8px; text-align: center; font-size: 28px; }
+            p { margin: 0 0 22px; text-align: center; color: #4b5563; }
+            .summary {
+              display: grid;
+              grid-template-columns: repeat(3, 1fr);
+              gap: 10px;
+              margin-bottom: 20px;
+            }
+            .summary div {
+              border: 1px solid #d1d5db;
+              border-radius: 10px;
+              padding: 10px;
+              text-align: center;
+              background: #f9fafb;
+              font-weight: 700;
+            }
+            table { width: 100%; border-collapse: collapse; }
+            th, td {
+              border: 1px solid #9ca3af;
+              padding: 9px 7px;
+              text-align: center;
+              font-size: 13px;
+            }
+            th { background: #e5e7eb; }
+            @media print {
+              body { padding: 10mm; }
+              .no-print { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <h1>${escapeReportHtml(report.title)}</h1>
+          <p>${escapeReportHtml(report.subtitle)}</p>
+          <div class="summary">
+            <div>عدد الشقق: ${report.data.length}</div>
+            <div>الإيجار الشهري: ${report.data
+              .reduce((sum, apartment) => sum + getApartmentRent(apartment), 0)
+              .toLocaleString("en-US")} ريال</div>
+            <div>تاريخ التقرير: ${new Date().toLocaleDateString("ar-SA")}</div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>رقم الشقة</th>
+                <th>نوع الشقة</th>
+                <th>الحالة</th>
+                <th>الإيجار الشهري</th>
+                <th>المستأجر / الجهة</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+    }, 250);
+  };
+
+  const exportApartmentReportPdf = () => {
+    printApartmentReport();
+  };
+
+  const openFinancialMovementsDetails = () => {
+    window.location.href = "/buildings/financial-details";
+  };
+
+  const openTenantDetails = () => {
+    window.location.href = "/buildings/tenant-details";
+  };
+
+  const isFinancialMovementsPage =
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("view") ===
+      "financial-movements";
+
+  if (isFinancialMovementsPage) {
+    return (
+      <div
+        dir="rtl"
+        className="min-h-screen bg-[#061426] p-6 text-white"
+      >
+        <div className="mx-auto min-h-[calc(100vh-3rem)] max-w-7xl rounded-3xl border border-[#d89b18]/40 bg-[#07182b] p-6 shadow-[0_20px_80px_rgba(0,0,0,0.35)]">
+          <div className="flex items-center justify-between border-b border-white/10 pb-5">
+            <button
+              type="button"
+              onClick={() => window.close()}
+              className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-black text-gray-300 transition hover:border-[#f0ad18]/50 hover:bg-[#f0ad18]/10 hover:text-[#f6c84a]"
+            >
+              <X size={18} />
+              إغلاق الصفحة
+            </button>
+
+            <div className="text-center">
+              <h1 className="text-2xl font-black text-[#f6c84a] sm:text-3xl">
+                تفاصيل الحركات المالية
+              </h1>
+              <p className="mt-1 text-sm font-semibold text-gray-400">
+                تقارير المستحقات والتحصيلات وعمليات الإضافة والتعديل والحذف
+              </p>
+            </div>
+
+            <div className="w-[110px]" />
+          </div>
+
+          <div className="flex min-h-[70vh] items-center justify-center">
+            <div className="rounded-3xl border border-white/10 bg-white/[0.025] px-8 py-10 text-center">
+              <FileText
+                size={46}
+                className="mx-auto text-[#f0ad18]"
+              />
+              <h2 className="mt-5 text-xl font-black text-gray-200">
+                صفحة تقارير الحركات
+              </h2>
+              <p className="mt-2 max-w-xl text-sm leading-7 text-gray-500">
+                سيتم تجهيز جداول المستحقات والتحصيلات هنا مع إمكانية عرض
+                تفاصيل العملية وتعديلها أو حذفها.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -876,7 +4104,9 @@ export default function BuildingDetails() {
 
         {/* 1 - TOTAL APARTMENTS */}
 
-        <div className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.045] p-4 text-center shadow-[0_10px_35px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:scale-[1.03] hover:border-[#f0ad18]/70 hover:bg-white/[0.07] hover:shadow-[0_16px_45px_rgba(240,173,24,0.12)]">
+        <div
+          onClick={() => openApartmentReport("total")}
+          className="group relative cursor-pointer overflow-hidden rounded-2xl border border-white/10 bg-white/[0.045] p-4 text-center shadow-[0_10px_35px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:scale-[1.03] hover:border-[#f0ad18]/70 hover:bg-white/[0.07] hover:shadow-[0_16px_45px_rgba(240,173,24,0.12)]">
 
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#f0ad18]/70 to-transparent opacity-60 transition-opacity duration-300 group-hover:opacity-100" />
 
@@ -905,7 +4135,9 @@ export default function BuildingDetails() {
 
         {/* 2 - RENTED */}
 
-        <div className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.045] p-4 text-center shadow-[0_10px_35px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:scale-[1.03] hover:border-green-400/70 hover:bg-white/[0.07] hover:shadow-[0_16px_45px_rgba(34,197,94,0.10)]">
+        <div
+          onClick={() => openApartmentReport("rented")}
+          className="group relative cursor-pointer overflow-hidden rounded-2xl border border-white/10 bg-white/[0.045] p-4 text-center shadow-[0_10px_35px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:scale-[1.03] hover:border-green-400/70 hover:bg-white/[0.07] hover:shadow-[0_16px_45px_rgba(34,197,94,0.10)]">
 
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-green-400/70 to-transparent opacity-60 transition-opacity duration-300 group-hover:opacity-100" />
 
@@ -934,7 +4166,9 @@ export default function BuildingDetails() {
 
         {/* 3 - RESERVED */}
 
-        <div className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.045] p-4 text-center shadow-[0_10px_35px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:scale-[1.03] hover:border-blue-400/70 hover:bg-white/[0.07] hover:shadow-[0_16px_45px_rgba(59,130,246,0.10)]">
+        <div
+          onClick={() => openApartmentReport("reserved")}
+          className="group relative cursor-pointer overflow-hidden rounded-2xl border border-white/10 bg-white/[0.045] p-4 text-center shadow-[0_10px_35px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:scale-[1.03] hover:border-blue-400/70 hover:bg-white/[0.07] hover:shadow-[0_16px_45px_rgba(59,130,246,0.10)]">
 
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-blue-400/70 to-transparent opacity-60 transition-opacity duration-300 group-hover:opacity-100" />
 
@@ -963,7 +4197,9 @@ export default function BuildingDetails() {
 
         {/* 4 - MAINTENANCE */}
 
-        <div className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.045] p-4 text-center shadow-[0_10px_35px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:scale-[1.03] hover:border-orange-400/70 hover:bg-white/[0.07] hover:shadow-[0_16px_45px_rgba(251,146,60,0.10)]">
+        <div
+          onClick={() => openApartmentReport("maintenance")}
+          className="group relative cursor-pointer overflow-hidden rounded-2xl border border-white/10 bg-white/[0.045] p-4 text-center shadow-[0_10px_35px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:scale-[1.03] hover:border-orange-400/70 hover:bg-white/[0.07] hover:shadow-[0_16px_45px_rgba(251,146,60,0.10)]">
 
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-orange-400/70 to-transparent opacity-60 transition-opacity duration-300 group-hover:opacity-100" />
 
@@ -992,7 +4228,9 @@ export default function BuildingDetails() {
 
         {/* 5 - VACANT */}
 
-        <div className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.045] p-4 text-center shadow-[0_10px_35px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:scale-[1.03] hover:border-red-400/70 hover:bg-white/[0.07] hover:shadow-[0_16px_45px_rgba(248,113,113,0.10)]">
+        <div
+          onClick={() => openApartmentReport("vacant")}
+          className="group relative cursor-pointer overflow-hidden rounded-2xl border border-white/10 bg-white/[0.045] p-4 text-center shadow-[0_10px_35px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:scale-[1.03] hover:border-red-400/70 hover:bg-white/[0.07] hover:shadow-[0_16px_45px_rgba(248,113,113,0.10)]">
 
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-red-400/70 to-transparent opacity-60 transition-opacity duration-300 group-hover:opacity-100" />
 
@@ -1021,7 +4259,9 @@ export default function BuildingDetails() {
 
         {/* 6 - OCCUPANCY */}
 
-        <div className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.045] p-4 text-center shadow-[0_10px_35px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:scale-[1.03] hover:border-[#f6c84a]/70 hover:bg-white/[0.07] hover:shadow-[0_16px_45px_rgba(246,200,74,0.12)]">
+        <div
+          onClick={() => openApartmentReport("occupancy")}
+          className="group relative cursor-pointer overflow-hidden rounded-2xl border border-white/10 bg-white/[0.045] p-4 text-center shadow-[0_10px_35px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:scale-[1.03] hover:border-[#f6c84a]/70 hover:bg-white/[0.07] hover:shadow-[0_16px_45px_rgba(246,200,74,0.12)]">
 
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#f6c84a]/70 to-transparent opacity-60 transition-opacity duration-300 group-hover:opacity-100" />
 
@@ -1056,17 +4296,40 @@ export default function BuildingDetails() {
       {/* ===================================================== */}
 
       <div className="mb-6 rounded-3xl border border-white/10 bg-white/[0.025] p-4 shadow-[0_14px_45px_rgba(0,0,0,0.18)] backdrop-blur-xl sm:p-5">
-        <div className="mb-5 flex flex-col items-center justify-between gap-4 lg:flex-row">
-          <div className="text-center lg:text-right">
-            <h2 className="text-xl font-black text-[#f6c84a]">
-              الملخص المالي للفترة
-            </h2>
-            <p className="mt-1 text-sm font-semibold text-gray-400">
-              إجماليات المستحقات والتحصيلات حسب الفترة المحددة
-            </p>
+        <div className="relative mb-5 min-h-[76px]">
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-32 text-center">
+            <div>
+              <h2 className="text-xl font-black text-[#f6c84a]">
+                إجماليات المستحقات والتحصيلات حسب الفترة المحددة
+              </h2>
+              <p className="mt-1 text-sm font-semibold text-gray-400">
+                الملخص المالي للفترة
+              </p>
+            </div>
           </div>
 
-          <div className="grid w-full max-w-[560px] grid-cols-2 gap-3">
+          <div className="relative z-10 flex items-center justify-between gap-3">
+            <div className="flex shrink-0 items-center gap-3">
+              <button
+                type="button"
+                onClick={openFinancialMovementsDetails}
+                className="flex min-h-[46px] items-center gap-2 rounded-2xl border border-[#f0ad18]/45 bg-[#f0ad18]/10 px-5 py-3 text-sm font-black text-[#f6c84a] shadow-[0_8px_24px_rgba(240,173,24,0.08)] transition-all duration-200 hover:-translate-y-0.5 hover:border-[#f6c84a]/80 hover:bg-[#f0ad18]/20 hover:shadow-[0_10px_28px_rgba(240,173,24,0.14)]"
+              >
+                <ArrowUpRight size={19} />
+                عرض التفاصيل المالية
+              </button>
+
+              <button
+                type="button"
+                onClick={openTenantDetails}
+                className="flex min-h-[46px] items-center gap-2 rounded-2xl border border-cyan-400/40 bg-cyan-400/10 px-5 py-3 text-sm font-black text-cyan-300 shadow-[0_8px_24px_rgba(34,211,238,0.08)] transition-all duration-200 hover:-translate-y-0.5 hover:border-cyan-300/80 hover:bg-cyan-400/20 hover:shadow-[0_10px_28px_rgba(34,211,238,0.14)]"
+              >
+                <Users size={19} />
+                تفاصيل المستأجرين
+              </button>
+            </div>
+
+            <div className="w-full max-w-[560px] ml-auto grid grid-cols-2 gap-3">
             <label className="text-center text-xs font-bold text-gray-400">
               من تاريخ
               <input
@@ -1086,12 +4349,19 @@ export default function BuildingDetails() {
                 className="mt-1.5 w-full rounded-xl border border-white/10 bg-[#07182b] px-3 py-2.5 text-center text-sm font-bold text-white outline-none transition focus:border-[#f0ad18]/60"
               />
             </label>
+            </div>
           </div>
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {/* 1 - TOTAL CHARGES */}
-          <div className="group relative min-h-[150px] overflow-hidden rounded-3xl border border-orange-400/25 bg-white/[0.045] p-5 text-center shadow-[0_10px_35px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-orange-300/60 hover:bg-orange-400/[0.06]">
+          <div
+            onClick={() => {
+              setMonthlyReportType("total");
+              setIsMonthlyDueReportOpen(true);
+            }}
+            className="group relative min-h-[150px] cursor-pointer overflow-hidden rounded-3xl border border-orange-400/25 bg-white/[0.045] p-5 text-center shadow-[0_10px_35px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-orange-300/60 hover:bg-orange-400/[0.06]"
+          >
             <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-orange-400 to-transparent opacity-70" />
             <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl border border-orange-400/25 bg-orange-400/10">
               <FileText size={23} className="text-orange-300" />
@@ -1100,7 +4370,8 @@ export default function BuildingDetails() {
               إجمالي المستحقات للشهر
             </div>
             <div className="mt-3 text-3xl font-black text-orange-300">
-              0 <span className="text-xs font-bold text-gray-500">ريال</span>
+              {getMonthlyDueTotal().toLocaleString("ar-SA")}{" "}
+              <span className="text-xs font-bold text-gray-500">ريال</span>
             </div>
             <div className="mt-2 text-xs font-semibold text-gray-400">
               حسب الفترة المحددة
@@ -1108,7 +4379,13 @@ export default function BuildingDetails() {
           </div>
 
           {/* 2 - TOTAL RENT DUE */}
-          <div className="group relative min-h-[150px] overflow-hidden rounded-3xl border border-[#f0ad18]/30 bg-white/[0.045] p-5 text-center shadow-[0_10px_35px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-[#f6c84a]/70 hover:bg-[#f0ad18]/[0.06]">
+          <div
+            onClick={() => {
+              setMonthlyReportType("rent");
+              setIsMonthlyDueReportOpen(true);
+            }}
+            className="group relative min-h-[150px] cursor-pointer overflow-hidden rounded-3xl border border-[#f0ad18]/30 bg-white/[0.045] p-5 text-center shadow-[0_10px_35px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-[#f6c84a]/70 hover:bg-[#f0ad18]/[0.06]"
+          >
             <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-[#f6c84a] to-transparent opacity-70" />
             <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl border border-[#f6c84a]/25 bg-[#f0ad18]/10">
               <Wallet size={23} className="text-[#f6c84a]" />
@@ -1117,15 +4394,32 @@ export default function BuildingDetails() {
               إجمالي الإيجارات المستحقة للشهر
             </div>
             <div className="mt-3 text-3xl font-black text-[#f6c84a]">
-              0 <span className="text-xs font-bold text-gray-500">ريال</span>
+              {apartments
+                .filter(
+                  (apartment) =>
+                    apartment.status === "مؤجرة" ||
+                    apartment.status === "مؤجرة للشركة"
+                )
+                .reduce(
+                  (sum, apartment) => sum + getApartmentRent(apartment),
+                  0
+                )
+                .toLocaleString("ar-SA")}{" "}
+              <span className="text-xs font-bold text-gray-500">ريال</span>
             </div>
             <div className="mt-2 text-xs font-semibold text-gray-400">
-              حسب الفترة المحددة
+              حسب الشقق المؤجرة والفترة المحددة
             </div>
           </div>
 
           {/* 3 - ELECTRICITY BILLS */}
-          <div className="group relative min-h-[150px] overflow-hidden rounded-3xl border border-yellow-400/25 bg-white/[0.045] p-5 text-center shadow-[0_10px_35px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-yellow-300/60 hover:bg-yellow-400/[0.06]">
+          <div
+            onClick={() => {
+              setMonthlyReportType("electricity");
+              setIsMonthlyDueReportOpen(true);
+            }}
+            className="group relative min-h-[150px] cursor-pointer overflow-hidden rounded-3xl border border-yellow-400/25 bg-white/[0.045] p-5 text-center shadow-[0_10px_35px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-yellow-300/60 hover:bg-yellow-400/[0.06]"
+          >
             <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-yellow-300 to-transparent opacity-70" />
             <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl border border-yellow-400/25 bg-yellow-400/10">
               <Zap size={23} className="text-yellow-300" />
@@ -1134,15 +4428,28 @@ export default function BuildingDetails() {
               إجمالي فواتير الكهرباء للشهر
             </div>
             <div className="mt-3 text-3xl font-black text-yellow-300">
-              0 <span className="text-xs font-bold text-gray-500">ريال</span>
+              {getBuildingChargesForPeriod()
+                .filter((charge) => charge.type?.trim() === "فاتورة كهرباء")
+                .reduce(
+                  (sum, charge) => sum + (Number(charge.amount) || 0),
+                  0
+                )
+                .toLocaleString("ar-SA")}{" "}
+              <span className="text-xs font-bold text-gray-500">ريال</span>
             </div>
             <div className="mt-2 text-xs font-semibold text-gray-400">
-              حسب الفترة المحددة
+              الفواتير المدخلة والمستحقة خلال الفترة المحددة
             </div>
           </div>
 
           {/* 4 - WATER BILLS */}
-          <div className="group relative min-h-[150px] overflow-hidden rounded-3xl border border-cyan-400/25 bg-white/[0.045] p-5 text-center shadow-[0_10px_35px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-cyan-300/60 hover:bg-cyan-400/[0.06]">
+          <div
+            onClick={() => {
+              setMonthlyReportType("water");
+              setIsMonthlyDueReportOpen(true);
+            }}
+            className="group relative min-h-[150px] cursor-pointer overflow-hidden rounded-3xl border border-cyan-400/25 bg-white/[0.045] p-5 text-center shadow-[0_10px_35px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-cyan-300/60 hover:bg-cyan-400/[0.06]"
+          >
             <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-cyan-300 to-transparent opacity-70" />
             <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl border border-cyan-400/25 bg-cyan-400/10">
               <Droplets size={23} className="text-cyan-300" />
@@ -1151,15 +4458,28 @@ export default function BuildingDetails() {
               إجمالي فواتير المياه للشهر
             </div>
             <div className="mt-3 text-3xl font-black text-cyan-300">
-              0 <span className="text-xs font-bold text-gray-500">ريال</span>
+              {getBuildingChargesForPeriod()
+                .filter((charge) => charge.type?.trim() === "فاتورة مياه")
+                .reduce(
+                  (sum, charge) => sum + (Number(charge.amount) || 0),
+                  0
+                )
+                .toLocaleString("ar-SA")}{" "}
+              <span className="text-xs font-bold text-gray-500">ريال</span>
             </div>
             <div className="mt-2 text-xs font-semibold text-gray-400">
-              حسب الفترة المحددة
+              الفواتير المدخلة والمستحقة خلال الفترة المحددة
             </div>
           </div>
 
           {/* 5 - CHARGE COLLECTIONS */}
-          <div className="group relative min-h-[150px] overflow-hidden rounded-3xl border border-green-400/25 bg-white/[0.045] p-5 text-center shadow-[0_10px_35px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-green-300/60 hover:bg-green-400/[0.06]">
+          <div
+            onClick={() => {
+              setMonthlyCollectionReportType("total");
+              setIsMonthlyCollectionReportOpen(true);
+            }}
+            className="group relative min-h-[150px] cursor-pointer overflow-hidden rounded-3xl border border-green-400/25 bg-white/[0.045] p-5 text-center shadow-[0_10px_35px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-green-300/60 hover:bg-green-400/[0.06]"
+          >
             <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-green-300 to-transparent opacity-70" />
             <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl border border-green-400/25 bg-green-400/10">
               <Coins size={23} className="text-green-300" />
@@ -1170,17 +4490,27 @@ export default function BuildingDetails() {
             <div className="mt-3 grid grid-cols-2 gap-2">
               <div className="rounded-xl border border-green-400/15 bg-green-400/[0.06] p-2">
                 <div className="text-xs font-bold text-gray-400">المحصل</div>
-                <div className="mt-1 text-xl font-black text-green-300">0</div>
+                <div className="mt-1 text-xl font-black text-green-300">
+                  {getMonthlyCollectionReportData().collectedTotal.toLocaleString("ar-SA")}
+                </div>
               </div>
               <div className="rounded-xl border border-red-400/15 bg-red-400/[0.06] p-2">
                 <div className="text-xs font-bold text-gray-400">المتبقي</div>
-                <div className="mt-1 text-xl font-black text-red-300">0</div>
+                <div className="mt-1 text-xl font-black text-red-300">
+                  {getMonthlyCollectionReportData().remainingTotal.toLocaleString("ar-SA")}
+                </div>
               </div>
             </div>
           </div>
 
           {/* 6 - RENT COLLECTIONS */}
-          <div className="group relative min-h-[150px] overflow-hidden rounded-3xl border border-purple-400/25 bg-white/[0.045] p-5 text-center shadow-[0_10px_35px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-purple-300/60 hover:bg-purple-400/[0.06]">
+          <div
+            onClick={() => {
+              setMonthlyCollectionReportType("rent");
+              setIsMonthlyCollectionReportOpen(true);
+            }}
+            className="group relative min-h-[150px] cursor-pointer overflow-hidden rounded-3xl border border-purple-400/25 bg-white/[0.045] p-5 text-center shadow-[0_10px_35px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-purple-300/60 hover:bg-purple-400/[0.06]"
+          >
             <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-purple-300 to-transparent opacity-70" />
             <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl border border-purple-400/25 bg-purple-400/10">
               <Banknote size={23} className="text-purple-300" />
@@ -1191,17 +4521,39 @@ export default function BuildingDetails() {
             <div className="mt-3 grid grid-cols-2 gap-2">
               <div className="rounded-xl border border-green-400/15 bg-green-400/[0.06] p-2">
                 <div className="text-xs font-bold text-gray-400">المحصل</div>
-                <div className="mt-1 text-xl font-black text-green-300">0</div>
+                <div className="mt-1 text-xl font-black text-green-300">
+                  {(() => {
+                    const collections = getBuildingCollectionsForPeriod()
+                      .filter((collection) => collection.type?.trim() === "إيجار");
+                    return collections
+                      .reduce((sum, collection) => sum + (Number(collection.amount) || 0), 0)
+                      .toLocaleString("ar-SA");
+                  })()}
+                </div>
               </div>
               <div className="rounded-xl border border-red-400/15 bg-red-400/[0.06] p-2">
                 <div className="text-xs font-bold text-gray-400">المتبقي</div>
-                <div className="mt-1 text-xl font-black text-red-300">0</div>
+                <div className="mt-1 text-xl font-black text-red-300">
+                  {Math.max(
+                    getMonthlyRentRows().reduce((sum, row) => sum + row.amount, 0) -
+                      getBuildingCollectionsForPeriod()
+                        .filter((collection) => collection.type?.trim() === "إيجار")
+                        .reduce((sum, collection) => sum + (Number(collection.amount) || 0), 0),
+                    0
+                  ).toLocaleString("ar-SA")}
+                </div>
               </div>
             </div>
           </div>
 
           {/* 7 - ELECTRICITY COLLECTIONS / REMAINING */}
-          <div className="group relative min-h-[150px] overflow-hidden rounded-3xl border border-amber-400/25 bg-white/[0.045] p-5 text-center shadow-[0_10px_35px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-amber-300/60 hover:bg-amber-400/[0.06]">
+          <div
+            onClick={() => {
+              setMonthlyCollectionReportType("electricity");
+              setIsMonthlyCollectionReportOpen(true);
+            }}
+            className="group relative min-h-[150px] cursor-pointer overflow-hidden rounded-3xl border border-amber-400/25 bg-white/[0.045] p-5 text-center shadow-[0_10px_35px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-amber-300/60 hover:bg-amber-400/[0.06]"
+          >
             <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-amber-300 to-transparent opacity-70" />
             <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl border border-amber-400/25 bg-amber-400/10">
               <Zap size={23} className="text-amber-300" />
@@ -1212,17 +4564,38 @@ export default function BuildingDetails() {
             <div className="mt-3 grid grid-cols-2 gap-2">
               <div className="rounded-xl border border-green-400/15 bg-green-400/[0.06] p-2">
                 <div className="text-xs font-bold text-gray-400">المحصل</div>
-                <div className="mt-1 text-xl font-black text-green-300">0</div>
+                <div className="mt-1 text-xl font-black text-green-300">
+                  {getBuildingCollectionsForPeriod()
+                    .filter((collection) => collection.type?.trim() === "فاتورة كهرباء")
+                    .reduce((sum, collection) => sum + (Number(collection.amount) || 0), 0)
+                    .toLocaleString("ar-SA")}
+                </div>
               </div>
               <div className="rounded-xl border border-red-400/15 bg-red-400/[0.06] p-2">
                 <div className="text-xs font-bold text-gray-400">المتبقي</div>
-                <div className="mt-1 text-xl font-black text-red-300">0</div>
+                <div className="mt-1 text-xl font-black text-red-300">
+                  {Math.max(
+                    getBuildingChargesForPeriod()
+                      .filter((charge) => charge.type?.trim() === "فاتورة كهرباء")
+                      .reduce((sum, charge) => sum + (Number(charge.amount) || 0), 0) -
+                      getBuildingCollectionsForPeriod()
+                        .filter((collection) => collection.type?.trim() === "فاتورة كهرباء")
+                        .reduce((sum, collection) => sum + (Number(collection.amount) || 0), 0),
+                    0
+                  ).toLocaleString("ar-SA")}
+                </div>
               </div>
             </div>
           </div>
 
           {/* 8 - WATER COLLECTIONS / REMAINING */}
-          <div className="group relative min-h-[150px] overflow-hidden rounded-3xl border border-blue-400/25 bg-white/[0.045] p-5 text-center shadow-[0_10px_35px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-blue-300/60 hover:bg-blue-400/[0.06]">
+          <div
+            onClick={() => {
+              setMonthlyCollectionReportType("water");
+              setIsMonthlyCollectionReportOpen(true);
+            }}
+            className="group relative min-h-[150px] cursor-pointer overflow-hidden rounded-3xl border border-blue-400/25 bg-white/[0.045] p-5 text-center shadow-[0_10px_35px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-blue-300/60 hover:bg-blue-400/[0.06]"
+          >
             <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-blue-300 to-transparent opacity-70" />
             <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl border border-blue-400/25 bg-blue-400/10">
               <Droplets size={23} className="text-blue-300" />
@@ -1233,127 +4606,30 @@ export default function BuildingDetails() {
             <div className="mt-3 grid grid-cols-2 gap-2">
               <div className="rounded-xl border border-green-400/15 bg-green-400/[0.06] p-2">
                 <div className="text-xs font-bold text-gray-400">المحصل</div>
-                <div className="mt-1 text-xl font-black text-green-300">0</div>
+                <div className="mt-1 text-xl font-black text-green-300">
+                  {getBuildingCollectionsForPeriod()
+                    .filter((collection) => collection.type?.trim() === "فاتورة مياه")
+                    .reduce((sum, collection) => sum + (Number(collection.amount) || 0), 0)
+                    .toLocaleString("ar-SA")}
+                </div>
               </div>
               <div className="rounded-xl border border-red-400/15 bg-red-400/[0.06] p-2">
                 <div className="text-xs font-bold text-gray-400">المتبقي</div>
-                <div className="mt-1 text-xl font-black text-red-300">0</div>
+                <div className="mt-1 text-xl font-black text-red-300">
+                  {Math.max(
+                    getBuildingChargesForPeriod()
+                      .filter((charge) => charge.type?.trim() === "فاتورة مياه")
+                      .reduce((sum, charge) => sum + (Number(charge.amount) || 0), 0) -
+                      getBuildingCollectionsForPeriod()
+                        .filter((collection) => collection.type?.trim() === "فاتورة مياه")
+                        .reduce((sum, collection) => sum + (Number(collection.amount) || 0), 0),
+                    0
+                  ).toLocaleString("ar-SA")}
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
-
-      {/* ===================================================== */}
-      {/* BUILDING INFORMATION                                  */}
-      {/* ===================================================== */}
-
-      <div className="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-3">
-
-        <div className="rounded-2xl border border-[#173858] bg-[#0b2039] p-6 xl:col-span-2">
-
-          <h2 className="mb-5 text-center text-2xl font-bold text-[#f0ad18]">
-            بيانات الاستثمار
-          </h2>
-
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-
-            <div className="rounded-xl bg-[#07182b] p-4 text-center">
-
-              <div className="text-base text-gray-300">
-                الإيجار السنوي للمالك
-              </div>
-
-              <div className="mt-2 text-3xl font-bold">
-                950,000 ريال
-              </div>
-
-            </div>
-
-            <div className="rounded-xl bg-[#07182b] p-4 text-center">
-
-              <div className="text-base text-gray-300">
-                قيمة الأثاث
-              </div>
-
-              <div className="mt-2 text-3xl font-bold">
-                228,000 ريال
-              </div>
-
-            </div>
-
-            <div className="rounded-xl bg-[#07182b] p-4 text-center">
-
-              <div className="text-base text-gray-300">
-                الأجهزة الكهربائية
-              </div>
-
-              <div className="mt-2 text-3xl font-bold">
-                130,000 ريال
-              </div>
-
-            </div>
-
-            <div className="rounded-xl bg-[#07182b] p-4 text-center">
-
-              <div className="text-base text-gray-300">
-                إجمالي الاستثمار
-              </div>
-
-              <div className="mt-2 text-3xl font-bold text-[#f0ad18]">
-                1,308,000 ريال
-              </div>
-
-            </div>
-
-          </div>
-
-        </div>
-
-        {/* OCCUPANCY */}
-
-        <div className="rounded-2xl border border-[#173858] bg-[#0b2039] p-6">
-
-          <h2 className="mb-6 text-center text-2xl font-bold text-[#f0ad18]">
-            حالة الإشغال
-          </h2>
-
-          <div className="mb-6 flex justify-center">
-
-            <div className="relative flex h-44 w-44 items-center justify-center rounded-full bg-[#173858]">
-
-              <div className="absolute inset-4 flex flex-col items-center justify-center rounded-full bg-[#0b2039]">
-
-                <span className="text-4xl font-bold">
-                  88.64%
-                </span>
-
-                <span className="text-base text-gray-300">
-                  نسبة الإشغال
-                </span>
-
-              </div>
-
-            </div>
-
-          </div>
-
-          <div className="flex justify-center gap-8 text-center text-base">
-
-            <div>
-              <span className="ml-2 inline-block h-3 w-3 rounded-full bg-green-500" />
-              مؤجرة: 39
-            </div>
-
-            <div>
-              <span className="ml-2 inline-block h-3 w-3 rounded-full bg-red-500" />
-              شاغرة: 5
-            </div>
-
-          </div>
-
-        </div>
-
       </div>
 
       {/* ===================================================== */}
@@ -1366,211 +4642,231 @@ export default function BuildingDetails() {
           أنواع الشقق وأسعار الإيجار
         </h2>
 
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        {(() => {
+          const apartmentTypeGroups = availableApartmentTypes
+            .map((type) => {
+              const typeApartments = apartments.filter(
+                (apartment) => getApartmentType(apartment) === type
+              );
 
-          <div className="rounded-2xl border border-[#173858] bg-[#07182b] p-6 text-center">
+              if (typeApartments.length === 0) {
+                return null;
+              }
 
-            <div className="mb-4 flex items-center justify-center">
+              const rent = getApartmentRent(typeApartments[0]);
+              const totalRent = typeApartments.reduce(
+                (sum, apartment) => sum + getApartmentRent(apartment),
+                0
+              );
 
-              <div className="text-center">
+              const statuses = Array.from(
+                new Set([
+                  ...availableApartmentStatuses,
+                  ...typeApartments.map((apartment) => apartment.status),
+                ])
+              )
+                .map((status) => ({
+                  status,
+                  count: typeApartments.filter(
+                    (apartment) => apartment.status === status
+                  ).length,
+                }))
+                .filter((item) => item.count > 0);
 
-                <h3 className="text-2xl font-bold">
-                  شقة غرفتين وصالة
-                </h3>
+              return {
+                type,
+                apartments: typeApartments,
+                rent,
+                totalRent,
+                statuses,
+              };
+            })
+            .filter(
+              (
+                group
+              ): group is {
+                type: string;
+                apartments: Apartment[];
+                rent: number;
+                totalRent: number;
+                statuses: { status: string; count: number }[];
+              } => group !== null
+            );
 
-                <p className="mt-1 text-base text-gray-300">
-                  20 شقة
-                </p>
+          return (
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+              {apartmentTypeGroups.map((group) => {
+                const percentage =
+                  totalApartments > 0
+                    ? Math.min(
+                        (group.apartments.length / totalApartments) * 100,
+                        100
+                      )
+                    : 0;
 
-              </div>
+                return (
+                  <div
+                    key={group.type}
+                    onClick={() => setSelectedApartmentTypeReport(group.type)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        setSelectedApartmentTypeReport(group.type);
+                      }
+                    }}
+                    className="cursor-pointer rounded-2xl border border-[#173858] bg-[#07182b] p-5 shadow-lg transition-all duration-300 hover:-translate-y-0.5 hover:border-[#f0ad18]/60 hover:shadow-[0_15px_45px_rgba(0,0,0,0.25)] focus:outline-none focus:ring-2 focus:ring-[#f0ad18]/60"
+                  >
+                    <div className="mb-5 rounded-2xl border border-[#173858] bg-[#0b2039] p-5 text-center">
+                      <h3 className="text-2xl font-black text-white">
+                        {group.type}
+                      </h3>
 
-              <div className="text-3xl font-bold text-[#f0ad18]">
-                4,000
-              </div>
+                      <p className="mt-2 text-sm font-semibold text-gray-400">
+                        تفاصيل النوع
+                      </p>
+                    </div>
 
+                    <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                      <div className="rounded-xl border border-white/5 bg-[#0b2039] p-4 text-center">
+                        <p className="text-sm font-semibold text-gray-400">
+                          عدد الشقق
+                        </p>
+
+                        <p className="mt-2 text-2xl font-black text-white">
+                          {group.apartments.length.toLocaleString("en-US")}
+                        </p>
+
+                        <p className="mt-1 text-xs text-gray-500">
+                          شقة
+                        </p>
+                      </div>
+
+                      <div className="rounded-xl border border-[#f0ad18]/20 bg-[#0b2039] p-4 text-center">
+                        <p className="text-sm font-semibold text-gray-400">
+                          إيجار الشقة
+                        </p>
+
+                        <p className="mt-2 text-2xl font-black text-[#f0ad18]">
+                          {group.rent.toLocaleString("en-US")}
+                        </p>
+
+                        <p className="mt-1 text-xs text-gray-500">
+                          ريال / شهريًا
+                        </p>
+                      </div>
+
+                      <div className="rounded-xl border border-green-400/20 bg-[#0b2039] p-4 text-center">
+                        <p className="text-sm font-semibold text-gray-400">
+                          إجمالي إيجار النوع
+                        </p>
+
+                        <p className="mt-2 text-2xl font-black text-green-400">
+                          {group.totalRent.toLocaleString("en-US")}
+                        </p>
+
+                        <p className="mt-1 text-xs text-gray-500">
+                          ريال / شهريًا
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      <h4 className="text-base font-black text-white">
+                        توزيع الشقق حسب الحالة
+                      </h4>
+
+                      <span className="rounded-full border border-[#f0ad18]/20 bg-[#f0ad18]/10 px-3 py-1 text-xs font-bold text-[#f0ad18]">
+                        {percentage.toFixed(1)}% من إجمالي الشقق
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2.5 md:grid-cols-4">
+                      {group.statuses.map((item) => {
+                        const isVacant = item.status === "شاغرة";
+                        const isCompany = item.status === "مؤجرة للشركة";
+                        const isReserved = item.status === "محجوزة";
+                        const isMaintenance = item.status === "تحت الصيانة";
+
+                        const statusLabel = isVacant
+                          ? "فارغة"
+                          : item.status;
+
+                        const statusClass = isVacant
+                          ? "border-red-400/20 bg-red-500/10 text-red-300"
+                          : isCompany
+                          ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-300"
+                          : isReserved
+                          ? "border-blue-400/20 bg-blue-500/10 text-blue-300"
+                          : isMaintenance
+                          ? "border-yellow-400/20 bg-yellow-500/10 text-yellow-300"
+                          : "border-green-400/20 bg-green-500/10 text-green-300";
+
+                        return (
+                          <div
+                            key={`${group.type}-${item.status}`}
+                            className={`flex min-h-[48px] items-center justify-between gap-3 rounded-xl border px-4 py-3 ${statusClass}`}
+                          >
+                            <span className="font-bold">
+                              {statusLabel}
+                            </span>
+
+                            <span className="font-black">
+                              {item.count.toLocaleString("en-US")} شقة
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <div className="mt-5 h-2.5 overflow-hidden rounded-full bg-[#173858]">
+                      <div
+                        className="h-full rounded-full bg-[#f0ad18] transition-all duration-500"
+                        style={{ width: `${percentage}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-
-            <div className="text-base text-gray-300">
-              ريال / شهريًا
-            </div>
-
-            <div className="mx-auto mt-5 h-2 max-w-[95%] overflow-hidden rounded-full bg-[#173858]">
-
-              <div
-                className="h-full bg-[#f0ad18]"
-                style={{ width: "45.45%" }}
-              />
-
-            </div>
-
-          </div>
-
-          <div className="rounded-2xl border border-[#173858] bg-[#07182b] p-6 text-center">
-
-            <div className="mb-4 flex items-center justify-center">
-
-              <div className="text-center">
-
-                <h3 className="text-2xl font-bold">
-                  شقة غرفة وصالة
-                </h3>
-
-                <p className="mt-1 text-base text-gray-300">
-                  24 شقة
-                </p>
-
-              </div>
-
-              <div className="text-3xl font-bold text-[#f0ad18]">
-                3,000
-              </div>
-
-            </div>
-
-            <div className="text-base text-gray-300">
-              ريال / شهريًا
-            </div>
-
-            <div className="mx-auto mt-5 h-2 max-w-[95%] overflow-hidden rounded-full bg-[#173858]">
-
-              <div
-                className="h-full bg-[#f0ad18]"
-                style={{ width: "54.55%" }}
-              />
-
-            </div>
-
-          </div>
-
-        </div>
+          );
+        })()}
 
       </div>
 
       {/* ===================================================== */}
-      {/* REVENUE + FINANCIAL                                   */}
-      {/* ===================================================== */}
 
-      <div className="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
-
-        <div className="rounded-2xl border border-[#173858] bg-[#0b2039] p-6">
-
-          <h2 className="mb-6 text-2xl font-bold text-[#f0ad18]">
-            الإيرادات الشهرية
-          </h2>
-
-          <div className="space-y-4">
-
-            <div className="flex items-center justify-between border-b border-[#173858] pb-4">
-
-              <span className="text-base text-gray-200">
-                إيرادات الشقق المؤجرة
-              </span>
-
-              <span className="text-2xl font-bold">
-                126,000 ريال
-              </span>
-
-            </div>
-
-            <div className="flex items-center justify-between border-b border-[#173858] pb-4">
-
-              <span className="text-base text-gray-200">
-                متوسط الإيراد الشهري
-              </span>
-
-              <span className="text-xl font-bold text-[#f0ad18]">
-                126,000 ريال
-              </span>
-
-            </div>
-
-            <div className="flex items-center justify-between">
-
-              <span className="text-base text-gray-200">
-                الإيراد السنوي المتوقع
-              </span>
-
-              <span className="text-xl font-bold text-green-400">
-                1,512,000 ريال
-              </span>
-
-            </div>
-
-          </div>
-
-        </div>
-
-        <div className="rounded-2xl border border-[#173858] bg-[#0b2039] p-6">
-
-          <h2 className="mb-6 text-2xl font-bold text-[#f0ad18]">
-            المؤشرات المالية
-          </h2>
-
-          <div className="grid grid-cols-2 gap-4">
-
-            <div className="rounded-xl bg-[#07182b] p-5 text-center">
-
-              <div className="text-base text-gray-300">
-                صافي الإيراد السنوي
-              </div>
-
-              <div className="mt-2 text-3xl font-bold text-green-400">
-                1,512,000
-              </div>
-
-            </div>
-
-            <div className="rounded-xl bg-[#07182b] p-5 text-center">
-
-              <div className="text-base text-gray-300">
-                تكلفة الإيجار السنوي
-              </div>
-
-              <div className="mt-2 text-3xl font-bold text-red-400">
-                950,000
-              </div>
-
-            </div>
-
-            <div className="rounded-xl bg-[#07182b] p-5 text-center">
-
-              <div className="text-base text-gray-300">
-                الفرق السنوي
-              </div>
-
-              <div className="mt-2 text-3xl font-bold text-[#f0ad18]">
-                562,000
-              </div>
-
-            </div>
-
-            <div className="rounded-xl bg-[#07182b] p-5 text-center">
-
-              <div className="text-base text-gray-300">
-                مدة العقد
-              </div>
-
-              <div className="mt-2 text-3xl font-bold">
-                5 سنوات
-              </div>
-
-            </div>
-
-          </div>
-
-        </div>
-
-      </div>
-
-      {/* ===================================================== */}
       {/* APARTMENT MAP                                         */}
       {/* ===================================================== */}
 
       <div className="rounded-2xl border border-[#173858] bg-[#0b2039] p-6">
 
-        <div className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-center">
+        <div className="mb-6 grid grid-cols-1 items-center gap-4 md:grid-cols-3">
 
-          <div>
+          <div className="flex flex-wrap items-center justify-center gap-2 md:justify-start">
+
+            <button
+              type="button"
+              onClick={addApartment}
+              className="inline-flex items-center gap-2 rounded-xl border border-green-400/30 bg-green-500/10 px-6 py-3 text-base font-bold text-green-300 transition hover:border-green-300/70 hover:bg-green-500/20"
+            >
+              <Plus size={20} />
+              إضافة شقة
+            </button>
+
+            <button
+              type="button"
+              onClick={openDeleteApartmentModal}
+              className="inline-flex items-center gap-2 rounded-xl border border-red-400/30 bg-red-500/10 px-6 py-3 text-base font-bold text-red-300 transition hover:border-red-300/70 hover:bg-red-500/20"
+            >
+              <Trash2 size={20} />
+              حذف شقة
+            </button>
+
+          </div>
+
+          <div className="text-center">
 
             <h2 className="text-3xl font-bold text-[#f0ad18]">
               خريطة الشقق
@@ -1582,7 +4878,7 @@ export default function BuildingDetails() {
 
           </div>
 
-          <div className="flex flex-wrap gap-4 text-base">
+          <div className="flex flex-wrap justify-center gap-4 text-base md:justify-end">
 
             <span>
               <span className="ml-2 inline-block h-3 w-3 rounded-full bg-green-500" />
@@ -1590,13 +4886,23 @@ export default function BuildingDetails() {
             </span>
 
             <span>
-              <span className="ml-2 inline-block h-3 w-3 rounded-full bg-blue-500" />
-              مؤجرة للشركة
+              <span className="ml-2 inline-block h-3 w-3 rounded-full bg-yellow-400" />
+              تحت الصيانة
             </span>
 
             <span>
               <span className="ml-2 inline-block h-3 w-3 rounded-full bg-red-500" />
-              شاغرة
+              فارغة
+            </span>
+
+            <span>
+              <span className="ml-2 inline-block h-3 w-3 rounded-full bg-blue-500" />
+              محجوزة
+            </span>
+
+            <span>
+              <span className="ml-2 inline-block h-3 w-3 rounded-full bg-emerald-500" />
+              مؤجرة للشركة
             </span>
 
           </div>
@@ -1627,6 +4933,172 @@ export default function BuildingDetails() {
       </div>
 
       {/* ===================================================== */}
+      {/* DELETE APARTMENTS MODAL                                */}
+      {/* ===================================================== */}
+
+      {isDeleteApartmentModalOpen && (
+        <div
+          className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/85 p-3 backdrop-blur-xl sm:p-5"
+          onClick={closeDeleteApartmentModal}
+        >
+          <div
+            dir="rtl"
+            className="relative flex max-h-[calc(100vh-24px)] w-full max-w-[760px] flex-col overflow-hidden rounded-[30px] border border-red-400/55 bg-[#061426]/[0.97] shadow-[0_0_100px_rgba(0,0,0,0.55)]"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-red-400 to-transparent" />
+
+            <div className="shrink-0 border-b border-white/10 bg-gradient-to-r from-[#050d18] via-[#25131b] to-[#061426] px-5 py-4 sm:px-7">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex min-w-0 items-center gap-4">
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-red-400/40 bg-red-400/10 text-red-300">
+                    <Trash2 size={29} />
+                  </div>
+                  <div className="min-w-0">
+                    <h2 className="text-xl font-black text-red-300 sm:text-2xl">
+                      حذف الشقق
+                    </h2>
+                    <p className="mt-1 text-sm font-semibold text-gray-400">
+                      اختر شقة أو أكثر ثم اضغط تأكيد الحذف
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={closeDeleteApartmentModal}
+                  aria-label="إغلاق"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-gray-400 transition hover:border-red-400/40 hover:bg-red-500/10 hover:text-red-400"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
+              <div className="mb-4 flex flex-col gap-3 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={toggleAllDeleteApartments}
+                  className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl border border-red-400/30 bg-red-400/10 text-sm font-black text-red-300 transition hover:bg-red-400/20"
+                >
+                  <Check size={18} />
+                  {filteredDeleteApartments.length > 0 &&
+                  filteredDeleteApartments.every((apartment) =>
+                    selectedDeleteApartments.includes(apartment.number)
+                  )
+                    ? "إلغاء تحديد الكل"
+                    : "تحديد الكل"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedDeleteApartments([])}
+                  className="flex h-12 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-5 text-sm font-bold text-gray-400 transition hover:bg-white/10 hover:text-white"
+                >
+                  إلغاء التحديد
+                </button>
+
+                <div className="flex h-12 items-center justify-center rounded-xl border border-red-400/20 bg-red-400/[0.05] px-5 text-sm font-black text-red-300">
+                  {selectedDeleteApartments.length} محددة
+                </div>
+              </div>
+
+              <div className="relative mb-4">
+                <Search
+                  size={19}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
+                />
+                <input
+                  value={deleteApartmentSearch}
+                  onChange={(event) =>
+                    setDeleteApartmentSearch(event.target.value)
+                  }
+                  placeholder="ابحث برقم الشقة أو نوعها..."
+                  className="h-12 w-full rounded-xl border border-white/10 bg-[#07182b] pl-4 pr-11 text-sm font-semibold text-white outline-none transition placeholder:text-gray-600 focus:border-red-400/50"
+                />
+              </div>
+
+              <div className="max-h-[480px] overflow-y-auto rounded-2xl border border-white/5 bg-[#061426]/60 p-2 scrollbar-thin">
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {filteredDeleteApartments.map((apartment) => {
+                    const isSelected = selectedDeleteApartments.includes(
+                      apartment.number
+                    );
+
+                    return (
+                      <button
+                        key={apartment.number}
+                        type="button"
+                        onClick={() => toggleDeleteApartment(apartment.number)}
+                        className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-right transition ${
+                          isSelected
+                            ? "border-red-400/40 bg-red-400/10"
+                            : "border-transparent bg-white/[0.02] hover:border-white/10 hover:bg-white/[0.045]"
+                        }`}
+                      >
+                        <span
+                          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md border transition ${
+                            isSelected
+                              ? "border-red-300 bg-red-300 text-[#07182b]"
+                              : "border-gray-600 bg-transparent text-transparent"
+                          }`}
+                        >
+                          <Check size={16} strokeWidth={3} />
+                        </span>
+
+                        <span className="flex-1">
+                          <span className="flex items-center justify-between gap-3">
+                            <span className="text-base font-black text-white">
+                              شقة {apartment.number}
+                            </span>
+                            <span className="text-sm font-bold text-gray-300">
+                              {getApartmentType(apartment)}
+                            </span>
+                          </span>
+                          <span className="mt-1 block text-xs font-semibold text-gray-500">
+                            إيجار {getApartmentRent(apartment).toLocaleString("ar-SA")} ريال
+                          </span>
+                        </span>
+                      </button>
+                    );
+                  })}
+
+                  {filteredDeleteApartments.length === 0 && (
+                    <div className="col-span-full py-10 text-center text-sm font-semibold text-gray-500">
+                      لا توجد شقق مطابقة للبحث
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="shrink-0 border-t border-white/10 bg-[#061426] p-4 sm:p-5">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={deleteSelectedApartments}
+                  className="flex h-14 items-center justify-center gap-2 rounded-2xl border border-red-400/40 bg-gradient-to-r from-red-700 to-red-500 px-5 text-base font-black text-white shadow-[0_8px_30px_rgba(239,68,68,0.16)] transition hover:brightness-110 sm:text-lg"
+                >
+                  <Trash2 size={21} />
+                  تأكيد حذف الشقق المحددة
+                </button>
+
+                <button
+                  type="button"
+                  onClick={closeDeleteApartmentModal}
+                  className="flex h-14 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-5 text-base font-black text-gray-300 transition hover:bg-white/10 hover:text-white sm:text-lg"
+                >
+                  <X size={21} />
+                  إغلاق
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===================================================== */}
       {/* APARTMENT DETAILS MODAL                               */}
       {/* ===================================================== */}
 
@@ -1653,28 +5125,26 @@ export default function BuildingDetails() {
             {/* ================================================= */}
 
             <div className="relative border-b border-white/10 bg-gradient-to-r from-[#050d18] via-[#0a2038] to-[#071a2d] px-5 py-3 lg:px-7">
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-4">
-                  <button
-                    type="button"
-                    onClick={closeApartment}
-                    aria-label="إغلاق"
-                    className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-gray-400 transition hover:border-red-400/40 hover:bg-red-500/10 hover:text-red-400"
-                  >
-                    <X size={23} />
-                  </button>
+              <div className="relative flex min-h-[58px] items-center justify-between gap-4">
+                <button
+                  type="button"
+                  onClick={closeApartment}
+                  aria-label="إغلاق"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-gray-400 transition hover:border-red-400/40 hover:bg-red-500/10 hover:text-red-400"
+                >
+                  <X size={25} />
+                </button>
 
-                  <div>
-                    <h2 className="text-xl font-bold text-[#f6c84a] lg:text-2xl">
-                      تفاصيل الشقة
-                    </h2>
-                    <p className="mt-1 text-sm text-gray-400">
-                      عمارة سنتر
-                    </p>
-                  </div>
+                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
+                  <h2 className="text-2xl font-bold text-[#f6c84a] lg:text-3xl">
+                    تفاصيل الشقة
+                  </h2>
+                  <p className="mt-1 text-base font-semibold text-gray-300 lg:text-lg">
+                    عمارة سنتر
+                  </p>
                 </div>
 
-                <div className="flex items-center gap-3 text-right">
+                <div className="mr-auto flex items-center gap-3 text-right">
                   <div className="hidden sm:block">
                     <div className="text-xl font-black tracking-[0.08em] text-white lg:text-2xl">
                       TUMOUH STAR
@@ -1715,53 +5185,112 @@ export default function BuildingDetails() {
               </div>
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                <div className="rounded-2xl border border-[#2a5275] bg-white/[0.035] p-5 text-center backdrop-blur-xl transition hover:border-[#f0ad18]/50">
-                  <div className="mb-4 flex flex-col items-center justify-center gap-2">
-                    <span className="text-base font-semibold text-gray-300">
-                      نوع الشقة
-                    </span>
-                    <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-blue-400/20 bg-blue-400/10">
-                      <Home size={23} className="text-blue-400" />
+                <div className="flex h-full min-h-0 flex-col gap-3">
+                  <div className="flex flex-1 flex-col justify-between rounded-2xl border border-[#2a5275] bg-white/[0.035] p-3 text-center backdrop-blur-xl transition hover:border-[#f0ad18]/50">
+                    <div className="mb-2 flex flex-col items-center justify-center gap-1.5">
+                      <span className="text-sm font-semibold text-gray-300">
+                        نوع الشقة
+                      </span>
+                      <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-blue-400/20 bg-blue-400/10">
+                        <Home size={19} className="text-blue-400" />
+                      </div>
+                    </div>
+
+                    <select
+                      value={getApartmentType(selectedApartment)}
+                      onChange={(event) =>
+                        updateApartmentType(
+                          selectedApartment,
+                          event.target.value
+                        )
+                      }
+                      className="mx-auto block w-full max-w-[230px] rounded-xl border border-white/10 bg-[#0b2039] px-3 py-2 text-center text-sm font-bold text-white outline-none transition focus:border-blue-400/60"
+                    >
+                      <option value="غرفتين وصالة">
+                        غرفتين وصالة
+                      </option>
+                      <option value="غرفة وصالة">
+                        غرفة وصالة
+                      </option>
+
+                      {customApartmentTypes
+                        .filter(
+                          (type) =>
+                            type !== "غرفتين وصالة" &&
+                            type !== "غرفة وصالة"
+                        )
+                        .map((type) => (
+                          <option key={type} value={type}>
+                            {type}
+                          </option>
+                        ))}
+
+                      <option value="__add_new__">
+                        + إضافة نوع جديد
+                      </option>
+                    </select>
+
+                    <div className="mt-1 text-xs text-gray-500">
+
                     </div>
                   </div>
 
-                  <select
-                    value={getApartmentType(selectedApartment)}
-                    onChange={(event) =>
-                      updateApartmentType(
-                        selectedApartment,
-                        event.target.value
-                      )
-                    }
-                    className="mx-auto block w-full max-w-[230px] rounded-xl border border-white/10 bg-[#0b2039] px-3 py-2.5 text-center text-base font-bold text-white outline-none transition focus:border-blue-400/60"
-                  >
-                    <option value="غرفتين وصالة">
-                      غرفتين وصالة
-                    </option>
-                    <option value="غرفة وصالة">
-                      غرفة وصالة
-                    </option>
+                  {(() => {
+                    const statusCard = getApartmentStatusCard(
+                      selectedApartment.status
+                    );
+                    const StatusIcon = statusCard.icon;
 
-                    {customApartmentTypes
-                      .filter(
-                        (type) =>
-                          type !== "غرفتين وصالة" &&
-                          type !== "غرفة وصالة"
-                      )
-                      .map((type) => (
-                        <option key={type} value={type}>
-                          {type}
-                        </option>
-                      ))}
+                    return (
+                      <div className="flex flex-1 flex-col justify-between rounded-2xl border border-[#2a5275] bg-white/[0.035] p-3 text-center backdrop-blur-xl transition hover:border-[#f0ad18]/50">
+                        <div className="flex items-center justify-center gap-3">
+                          <div
+                            className={`flex h-9 w-9 items-center justify-center rounded-xl border ${statusCard.iconBorder} ${statusCard.iconBg}`}
+                          >
+                            <StatusIcon
+                              size={19}
+                              className={statusCard.iconClass}
+                            />
+                          </div>
+                          <span className="text-sm font-semibold text-gray-300">
+                            حالة الشقة
+                          </span>
+                        </div>
 
-                    <option value="__add_new__">
-                      + إضافة نوع جديد
-                    </option>
-                  </select>
-
-                  <div className="mt-2 text-sm text-gray-500">
-                  
-                  </div>
+                        <select
+                          value={selectedApartment.status}
+                          onChange={(event) =>
+                            handleApartmentStatusChange(
+                              selectedApartment,
+                              event.target.value
+                            )
+                          }
+                          className={`mx-auto mt-2 block w-full max-w-[230px] rounded-xl border bg-[#071a2d] px-3 py-2 text-center text-sm font-black outline-none transition ${statusCard.iconBorder} ${statusCard.valueClass}`}
+                        >
+                          <option className="bg-[#071a2d] text-white" value="مؤجرة">مؤجرة</option>
+                          <option className="bg-[#071a2d] text-white" value="شاغرة">فارغة</option>
+                          <option className="bg-[#071a2d] text-white" value="تحت الصيانة">تحت الصيانة</option>
+                          <option className="bg-[#071a2d] text-white" value="محجوزة">محجوزة</option>
+                          <option className="bg-[#071a2d] text-white" value="مؤجرة للشركة">مؤجرة للشركة</option>
+                          {customApartmentStatuses.map((status) => (
+                            <option
+                              key={status}
+                              className="bg-[#071a2d] text-white"
+                              value={status}
+                            >
+                              {status}
+                            </option>
+                          ))}
+                          <option
+                            className="bg-[#071a2d] text-[#f0ad18] font-black"
+                            value="__add_new_status__"
+                          >
+                            + إضافة حالة جديدة
+                          </option>
+                        </select>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 <div className="rounded-2xl border border-[#2a5275] bg-white/[0.035] p-5 text-center backdrop-blur-xl transition hover:border-[#f0ad18]/50">
@@ -1782,8 +5311,8 @@ export default function BuildingDetails() {
                       <CalendarDays size={23} className="text-purple-400" />
                     </div>
                   </div>
-                  <div className="text-xl font-black text-white">01 - 06 - 2025</div>
-                  <div className="mt-2 text-sm text-gray-500">منذ بداية العقد</div>
+                  <div className="text-xl font-black text-white">{formatContractDate(getApartmentContractInfo(selectedApartment.number).startDate)}</div>
+                  <div className="mt-2 text-base font-semibold text-gray-400">منذ بداية العقد</div>
                 </div>
 
                 <div className="rounded-2xl border border-[#2a5275] bg-white/[0.035] p-5 text-center backdrop-blur-xl transition hover:border-[#f0ad18]/50">
@@ -1793,8 +5322,30 @@ export default function BuildingDetails() {
                       <CalendarDays size={23} className="text-cyan-400" />
                     </div>
                   </div>
-                  <div className="text-xl font-black text-white">31 - 05 - 2026</div>
-                  <div className="mt-2 text-sm font-semibold text-red-400">يحتاج تحديث البيانات</div>
+                  <div className="text-xl font-black text-white">{formatContractDate(getApartmentContractInfo(selectedApartment.number).endDate)}</div>
+                  {(() => {
+                    const daysRemaining = getContractDaysRemaining(
+                      getApartmentContractInfo(selectedApartment.number).endDate
+                    );
+
+                    if (daysRemaining !== null && daysRemaining >= 46 && daysRemaining <= 90) {
+                      return (
+                        <div className="mt-2 text-base font-black text-yellow-400">
+                          متبقي {daysRemaining} يوم على انتهاء العقد
+                        </div>
+                      );
+                    }
+
+                    if (daysRemaining !== null && daysRemaining <= 45) {
+                      return (
+                        <div className="mt-2 text-base font-black text-red-400">
+                          متبقي {Math.max(0, daysRemaining)} يوم — يحتاج إلى تحديث
+                        </div>
+                      );
+                    }
+
+                    return null;
+                  })()}
                 </div>
               </div>
             </div>
@@ -1849,7 +5400,18 @@ export default function BuildingDetails() {
                 </button>
 
                 {/* إجمالي التحصيلات */}
-                <div className="rounded-2xl border border-[#f0ad18]/25 bg-[#0b2039] p-4">
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setSelectedApartmentFinancialReport("collections")}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      setSelectedApartmentFinancialReport("collections");
+                    }
+                  }}
+                  className="rounded-2xl border border-[#f0ad18]/25 bg-[#0b2039] p-4 text-right transition hover:border-[#f6c84a]/60 hover:bg-[#0f2945]"
+                >
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <p className="text-sm font-semibold text-gray-200">إجمالي التحصيلات</p>
@@ -1880,12 +5442,26 @@ export default function BuildingDetails() {
                   </div>
 
                   <div className="mt-3 text-2xl font-black text-green-400">
-                    12,000 <span className="text-xs text-gray-500">ريال</span>
+                    {getSelectedApartmentPeriodPayments()
+                      .reduce((sum, payment) => sum + (Number(payment.amount) || 0), 0)
+                      .toLocaleString("ar-SA")} <span className="text-xs text-gray-500">ريال</span>
                   </div>
+                  <div className="mt-1 text-[10px] font-semibold text-gray-500">اضغط لعرض التفاصيل</div>
                 </div>
 
                 {/* فواتير المياه */}
-                <div className="rounded-2xl border border-cyan-400/20 bg-[#0b2039] p-4">
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setSelectedApartmentFinancialReport("water")}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      setSelectedApartmentFinancialReport("water");
+                    }
+                  }}
+                  className="rounded-2xl border border-cyan-400/20 bg-[#0b2039] p-4 text-right transition hover:border-cyan-300/60 hover:bg-[#0f2945]"
+                >
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <p className="text-sm font-semibold text-gray-200">إجمالي فواتير المياه</p>
@@ -1916,12 +5492,27 @@ export default function BuildingDetails() {
                   </div>
 
                   <div className="mt-3 text-2xl font-black text-cyan-400">
-                    320 <span className="text-xs font-semibold text-gray-500">ريال</span>
+                    {getSelectedApartmentPeriodCharges()
+                      .filter((charge) => charge.type?.trim() === "فاتورة مياه")
+                      .reduce((sum, charge) => sum + (Number(charge.amount) || 0), 0)
+                      .toLocaleString("ar-SA")} <span className="text-xs font-semibold text-gray-500">ريال</span>
                   </div>
+                  <div className="mt-1 text-[10px] font-semibold text-gray-500">اضغط لعرض التفاصيل</div>
                 </div>
 
                 {/* فواتير الكهرباء */}
-                <div className="rounded-2xl border border-yellow-400/20 bg-[#0b2039] p-4">
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setSelectedApartmentFinancialReport("electricity")}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      setSelectedApartmentFinancialReport("electricity");
+                    }
+                  }}
+                  className="rounded-2xl border border-yellow-400/20 bg-[#0b2039] p-4 text-right transition hover:border-yellow-300/60 hover:bg-[#0f2945]"
+                >
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <p className="text-sm font-semibold text-gray-200">إجمالي فواتير الكهرباء</p>
@@ -1952,20 +5543,38 @@ export default function BuildingDetails() {
                   </div>
 
                   <div className="mt-3 text-2xl font-black text-yellow-400">
-                    450 <span className="text-xs font-semibold text-gray-500">ريال</span>
+                    {getSelectedApartmentPeriodCharges()
+                      .filter((charge) => charge.type?.trim() === "فاتورة كهرباء")
+                      .reduce((sum, charge) => sum + (Number(charge.amount) || 0), 0)
+                      .toLocaleString("ar-SA")} <span className="text-xs font-semibold text-gray-500">ريال</span>
                   </div>
+                  <div className="mt-1 text-[10px] font-semibold text-gray-500">اضغط لعرض التفاصيل</div>
                 </div>
 
                 {/* التحصيلات المتأخرة */}
-                <div className="rounded-2xl border border-red-400/25 bg-[#301b29]/70 p-4">
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setSelectedApartmentFinancialReport("late")}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      setSelectedApartmentFinancialReport("late");
+                    }
+                  }}
+                  className="rounded-2xl border border-red-400/25 bg-[#301b29]/70 p-4 text-right transition hover:border-red-300/60 hover:bg-[#3a202f]"
+                >
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <p className="text-sm font-semibold text-gray-200">التحصيلات المتأخرة</p>
-                      <p className="mt-1 text-xs text-gray-500">دفعة واحدة متأخرة</p>
+                      <p className="mt-1 text-xs text-gray-500">إجمالي المتبقي على الشقة حتى اليوم</p>
                     </div>
                     <AlertCircle size={21} className="text-red-400" />
                   </div>
-                  <div className="mt-3 text-2xl font-black text-red-400">4,000 <span className="text-xs text-gray-500">ريال</span></div>
+                  <div className="mt-3 text-2xl font-black text-red-400">
+                    {getSelectedApartmentLateRemaining().toLocaleString("ar-SA")} <span className="text-xs text-gray-500">ريال</span>
+                  </div>
+                  <div className="mt-1 text-[10px] font-semibold text-gray-500">اضغط لعرض التفاصيل</div>
                 </div>
 
               </div>
@@ -1975,9 +5584,9 @@ export default function BuildingDetails() {
             {/* TABS                                               */}
             {/* ================================================= */}
 
-            <div className="shrink-0 border-b border-white/10 bg-[#071a2d] px-3 py-2 lg:px-5">
+            <div className="shrink-0 border-b border-white/10 bg-[#071a2d] px-3 py-2.5 lg:px-5">
 
-              <div className="flex gap-2 overflow-x-auto">
+              <div className="flex gap-2.5 overflow-x-auto">
 
                 {apartmentTabs.map((tab) => {
 
@@ -1994,14 +5603,14 @@ export default function BuildingDetails() {
                       onClick={() =>
                         setActiveTab(tab.title)
                       }
-                      className={`flex min-w-fit items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition ${
+                      className={`flex min-h-[50px] min-w-fit items-center justify-center gap-2.5 rounded-xl border px-5 py-3 text-base font-bold transition ${
                         active
                           ? "border-[#f0ad18]/60 bg-gradient-to-r from-[#f0ad18] to-[#d99a12] text-[#07182b] shadow-[0_0_20px_rgba(240,173,24,0.18)]"
-                          : "border-white/10 bg-white/[0.025] text-gray-400 hover:border-[#f0ad18]/30 hover:bg-white/[0.05] hover:text-white"
+                          : "border-white/10 bg-white/[0.025] text-gray-300 hover:border-[#f0ad18]/30 hover:bg-white/[0.05] hover:text-white"
                       }`}
                     >
 
-                      <Icon size={18} />
+                      <Icon size={21} strokeWidth={2.2} />
 
                       {tab.title}
 
@@ -2055,18 +5664,21 @@ export default function BuildingDetails() {
                             ).status
                           }
                           onChange={(event) =>
-                            updateApartmentTenantInfo(
+                            handleApartmentStatusChange(
                               selectedApartment,
-                              "status",
-                              event.target.value as ApartmentTenantInfo["status"]
+                              event.target.value
                             )
                           }
                           className="min-w-[180px] rounded-xl border border-white/10 bg-[#0b2039] px-4 py-2.5 text-base font-bold text-white outline-none transition focus:border-[#f0ad18]/60"
                         >
-                          <option value="تحت الصيانة">تحت الصيانة</option>
-                          <option value="فارغة">فارغة</option>
-                          <option value="محجوزة">محجوزة</option>
-                          <option value="مؤجرة">مؤجرة</option>
+                          {availableApartmentStatuses.map((status) => (
+                            <option key={status} value={status}>
+                              {status === "شاغرة" ? "فارغة" : status}
+                            </option>
+                          ))}
+                          <option value="__add_new_status__">
+                            + إضافة حالة جديدة
+                          </option>
                         </select>
                       </div>
 
@@ -2098,6 +5710,18 @@ export default function BuildingDetails() {
                             size={19}
                             className="shrink-0 text-[#f0ad18]"
                           />
+                          <button
+                            type="button"
+                            onClick={() =>
+                              saveApartmentTenantField(
+                                selectedApartment,
+                                "tenantName"
+                              )
+                            }
+                            className="shrink-0 rounded-lg border border-green-400/40 bg-green-500/10 px-3 py-1.5 text-sm font-black text-green-400 transition hover:bg-green-500/20"
+                          >
+                            حفظ
+                          </button>
                         </div>
                       </div>
 
@@ -2129,6 +5753,18 @@ export default function BuildingDetails() {
                             size={19}
                             className="shrink-0 text-[#f0ad18]"
                           />
+                          <button
+                            type="button"
+                            onClick={() =>
+                              saveApartmentTenantField(
+                                selectedApartment,
+                                "phone"
+                              )
+                            }
+                            className="shrink-0 rounded-lg border border-green-400/40 bg-green-500/10 px-3 py-1.5 text-sm font-black text-green-400 transition hover:bg-green-500/20"
+                          >
+                            حفظ
+                          </button>
                         </div>
                       </div>
 
@@ -2161,6 +5797,18 @@ export default function BuildingDetails() {
                             size={19}
                             className="shrink-0 text-[#f0ad18]"
                           />
+                          <button
+                            type="button"
+                            onClick={() =>
+                              saveApartmentTenantField(
+                                selectedApartment,
+                                "identityNumber"
+                              )
+                            }
+                            className="shrink-0 rounded-lg border border-green-400/40 bg-green-500/10 px-3 py-1.5 text-sm font-black text-green-400 transition hover:bg-green-500/20"
+                          >
+                            حفظ
+                          </button>
                         </div>
                       </div>
 
@@ -2213,6 +5861,15 @@ export default function BuildingDetails() {
                             size={19}
                             className="shrink-0 text-[#f0ad18]"
                           />
+                          <button
+                            type="button"
+                            onClick={() =>
+                              saveApartmentFloor(selectedApartment.number)
+                            }
+                            className="shrink-0 rounded-lg border border-green-400/40 bg-green-500/10 px-3 py-1.5 text-sm font-black text-green-400 transition hover:bg-green-500/20"
+                          >
+                            حفظ
+                          </button>
                         </div>
                       </div>
 
@@ -2534,98 +6191,297 @@ export default function BuildingDetails() {
 
                 <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
 
-                  <div className="rounded-3xl border border-[#285273] bg-white/[0.025] p-6">
+                  {(() => {
+                    const contractInfo = getApartmentContractInfo(
+                      selectedApartment.number
+                    );
 
-                    <FileText
-                      size={28}
-                      className="mb-4 text-[#f0ad18]"
-                    />
+                    return (
+                      <>
+                        <div className="rounded-3xl border border-[#285273] bg-white/[0.025] p-6 text-center">
 
-                    <div className="text-sm text-gray-500">
-                      رقم العقد
-                    </div>
+                          <div className="mb-4 flex justify-center">
+                            <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-[#f0ad18]/20 bg-[#f0ad18]/10">
+                              <FileText size={26} className="text-[#f0ad18]" />
+                            </div>
+                          </div>
 
-                    <div className="mt-2 text-xl font-bold">
-                      CNT-001-{selectedApartment.number}
-                    </div>
+                          <div className="text-lg font-black text-gray-200">
+                            رقم العقد
+                          </div>
 
-                  </div>
+                          <div className="mt-4 flex items-center justify-center gap-3">
+                            <Edit3 size={20} className="shrink-0 text-[#f0ad18]" />
+                            <input
+                              type="text"
+                              value={contractInfo.contractNumber}
+                              onChange={(event) =>
+                                updateApartmentContractField(
+                                  selectedApartment.number,
+                                  "contractNumber",
+                                  event.target.value
+                                )
+                              }
+                              className="w-full max-w-[260px] rounded-xl border border-white/10 bg-[#061a2d] px-4 py-3 text-center text-xl font-black text-white outline-none transition focus:border-[#f0ad18]/60"
+                            />
+                            <button
+                              type="button"
+                              onClick={() =>
+                                saveApartmentContractInfo(
+                                  selectedApartment.number
+                                )
+                              }
+                              className="shrink-0 rounded-lg border border-green-400/40 bg-green-500/10 px-3 py-2 text-sm font-black text-green-400 transition hover:bg-green-500/20"
+                            >
+                              حفظ
+                            </button>
+                          </div>
 
-                  <div className="rounded-3xl border border-[#285273] bg-white/[0.025] p-6">
-
-                    <CalendarDays
-                      size={28}
-                      className="mb-4 text-blue-400"
-                    />
-
-                    <div className="text-sm text-gray-500">
-                      بداية العقد
-                    </div>
-
-                    <div className="mt-2 text-xl font-bold">
-                      01 - 06 - 2025
-                    </div>
-
-                  </div>
-
-                  <div className="rounded-3xl border border-[#285273] bg-white/[0.025] p-6">
-
-                    <CalendarDays
-                      size={28}
-                      className="mb-4 text-red-400"
-                    />
-
-                    <div className="text-sm text-gray-500">
-                      نهاية العقد
-                    </div>
-
-                    <div className="mt-2 text-xl font-bold">
-                      31 - 05 - 2026
-                    </div>
-
-                  </div>
-
-                  <div className="rounded-3xl border border-[#285273] bg-white/[0.025] p-6 lg:col-span-3">
-
-                    <h3 className="mb-5 text-xl font-bold">
-                      تفاصيل العقد
-                    </h3>
-
-                    <div className="grid gap-4 md:grid-cols-3">
-
-                      <div className="rounded-xl bg-[#061a2d] p-4">
-                        <div className="text-sm text-gray-500">
-                          قيمة الإيجار
                         </div>
-                        <div className="mt-2 text-xl font-bold text-[#f0ad18]">
-                          {selectedApartment.rent.toLocaleString(
-                            "ar-SA"
-                          )}{" "}
-                          ريال
-                        </div>
-                      </div>
 
-                      <div className="rounded-xl bg-[#061a2d] p-4">
-                        <div className="text-sm text-gray-500">
-                          مدة العقد
-                        </div>
-                        <div className="mt-2 text-xl font-bold">
-                          سنة واحدة
-                        </div>
-                      </div>
+                        <div className="rounded-3xl border border-[#285273] bg-white/[0.025] p-6 text-center">
 
-                      <div className="rounded-xl bg-[#061a2d] p-4">
-                        <div className="text-sm text-gray-500">
-                          التأمين
-                        </div>
-                        <div className="mt-2 text-xl font-bold">
-                          غير محدد
-                        </div>
-                      </div>
+                          <div className="mb-4 flex justify-center">
+                            <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-blue-400/20 bg-blue-400/10">
+                              <CalendarDays size={26} className="text-blue-400" />
+                            </div>
+                          </div>
 
-                    </div>
+                          <div className="text-lg font-black text-gray-200">
+                            بداية العقد
+                          </div>
 
-                  </div>
+                          <input
+                            key={`contract-start-date-${selectedApartment.number}-${contractInfo.startDate}`}
+                            type="text"
+                            inputMode="numeric"
+                            dir="ltr"
+                            defaultValue={formatContractDate(contractInfo.startDate)}
+                            onChange={(event) => {
+                              const value = event.target.value.replace(/[^0-9/]/g, "");
+                              const match = value.match(/^(\d{0,2})(?:\/(\d{0,2}))?(?:\/(\d{0,4}))?$/);
+
+                              if (!match) return;
+
+                              const [, day, month, year] = match;
+                              const formatted = [day, month, year].filter(Boolean).join("/");
+
+                              if (day?.length === 2 && month?.length === 2 && year?.length === 4) {
+                                const parsedDate = `${year}-${month}-${day}`;
+                                const parsed = new Date(`${parsedDate}T00:00:00`);
+                                if (
+                                  !Number.isNaN(parsed.getTime()) &&
+                                  parsed.getFullYear() === Number(year) &&
+                                  parsed.getMonth() + 1 === Number(month) &&
+                                  parsed.getDate() === Number(day)
+                                ) {
+                                  updateApartmentContractStartDate(
+                                    selectedApartment.number,
+                                    parsedDate
+                                  );
+                                }
+                              } else if (!formatted) {
+                                updateApartmentContractStartDate(
+                                  selectedApartment.number,
+                                  ""
+                                );
+                              }
+                            }}
+                            onBlur={(event) => {
+                              const currentValue = event.currentTarget.value;
+                              const match = currentValue.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+
+                              if (!match) {
+                                event.currentTarget.value = formatContractDate(contractInfo.startDate);
+                              }
+                            }}
+                            placeholder="يوم/شهر/سنة"
+                            className="mt-4 w-full rounded-xl border border-white/10 bg-[#061a2d] px-4 py-3 text-center text-xl font-black text-white outline-none transition focus:border-blue-400/60"
+                          />
+
+                          <div className="mt-2 text-sm text-gray-500">
+                            يتم حساب نهاية العقد تلقائيًا حسب المدة
+                          </div>
+
+                        </div>
+
+                        <div className="rounded-3xl border border-[#285273] bg-white/[0.025] p-6 text-center">
+
+                          <div className="mb-4 flex justify-center">
+                            <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-red-400/20 bg-red-400/10">
+                              <CalendarDays size={26} className="text-red-400" />
+                            </div>
+                          </div>
+
+                          <div className="text-lg font-black text-gray-200">
+                            نهاية العقد
+                          </div>
+
+                          <input
+                            key={`contract-end-date-${selectedApartment.number}-${contractInfo.endDate}`}
+                            type="text"
+                            inputMode="numeric"
+                            dir="ltr"
+                            defaultValue={formatContractDate(contractInfo.endDate)}
+                            onChange={(event) => {
+                              const value = event.target.value.replace(/[^0-9/]/g, "");
+                              const match = value.match(/^(\d{0,2})(?:\/(\d{0,2}))?(?:\/(\d{0,4}))?$/);
+
+                              if (!match) return;
+
+                              const [, day, month, year] = match;
+                              const formatted = [day, month, year].filter(Boolean).join("/");
+
+                              if (day?.length === 2 && month?.length === 2 && year?.length === 4) {
+                                const parsedDate = `${year}-${month}-${day}`;
+                                const parsed = new Date(`${parsedDate}T00:00:00`);
+                                if (
+                                  !Number.isNaN(parsed.getTime()) &&
+                                  parsed.getFullYear() === Number(year) &&
+                                  parsed.getMonth() + 1 === Number(month) &&
+                                  parsed.getDate() === Number(day)
+                                ) {
+                                  updateApartmentContractField(
+                                    selectedApartment.number,
+                                    "endDate",
+                                    parsedDate
+                                  );
+                                }
+                              } else if (!formatted) {
+                                updateApartmentContractField(
+                                  selectedApartment.number,
+                                  "endDate",
+                                  ""
+                                );
+                              }
+                            }}
+                            placeholder="يوم/شهر/سنة"
+                            className="mt-4 w-full rounded-xl border border-white/10 bg-[#061a2d] px-4 py-3 text-center text-xl font-black text-white outline-none transition focus:border-red-400/60"
+                          />
+
+                          <div className="mt-2 text-sm text-gray-500">
+                            يمكنك تعديل التاريخ يدويًا عند الحاجة
+                          </div>
+
+                        </div>
+
+                        <div className="rounded-3xl border border-[#285273] bg-white/[0.025] p-6 lg:col-span-3">
+
+                          <h3 className="mb-5 text-center text-2xl font-black text-[#f0ad18]">
+                            تفاصيل العقد
+                          </h3>
+
+                          <div className="grid gap-4 md:grid-cols-3">
+
+                            <div className="rounded-xl bg-[#061a2d] p-5 text-center">
+                              <div className="text-lg font-black text-gray-200">
+                                قيمة الإيجار
+                              </div>
+                              <div className="mt-3 text-2xl font-black text-[#f0ad18]">
+                                {selectedApartment.rent.toLocaleString(
+                                  "ar-SA"
+                                )} {" "}
+                                ريال
+                              </div>
+                            </div>
+
+                            <div className="rounded-xl bg-[#061a2d] p-5 text-center">
+                              <div className="text-xl font-black text-gray-100 text-center">
+                                مدة العقد
+                              </div>
+
+                              <div className="mt-4 flex flex-col items-center justify-center gap-3 sm:flex-row">
+                                <select
+                                  value={contractInfo.durationUnit}
+                                  onChange={(event) =>
+                                    updateApartmentContractDuration(
+                                      selectedApartment.number,
+                                      event.target.value as "day" | "month" | "year",
+                                      contractInfo.durationValue
+                                    )
+                                  }
+                                  className="rounded-xl border border-white/10 bg-[#071a2d] px-4 py-2.5 text-center text-base font-black text-white outline-none transition focus:border-[#f0ad18]/60"
+                                >
+                                  <option value="day" className="bg-[#071a2d] text-white">
+                                    يوم
+                                  </option>
+                                  <option value="month" className="bg-[#071a2d] text-white">
+                                    شهر
+                                  </option>
+                                  <option value="year" className="bg-[#071a2d] text-white">
+                                    سنة
+                                  </option>
+                                </select>
+
+                                <input
+                                  type="number"
+                                  min="1"
+                                  step="1"
+                                  value={contractInfo.durationValue}
+                                  onChange={(event) =>
+                                    updateApartmentContractDuration(
+                                      selectedApartment.number,
+                                      contractInfo.durationUnit,
+                                      Number(event.target.value)
+                                    )
+                                  }
+                                  className="w-24 rounded-xl border border-white/10 bg-[#071a2d] px-4 py-2.5 text-center text-base font-black text-white outline-none transition focus:border-[#f0ad18]/60"
+                                />
+                              </div>
+
+                              <div className="mt-3 text-xl font-black text-white">
+                                {formatContractDuration(
+                                  contractInfo.durationUnit,
+                                  contractInfo.durationValue
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="rounded-xl bg-[#061a2d] p-5 text-center">
+                              <div className="text-xl font-black text-gray-100 text-center">
+                                التأمين
+                              </div>
+
+                              <div className="mt-3 flex items-center justify-center gap-2">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={contractInfo.insuranceAmount || ""}
+                                  onChange={(event) =>
+                                    updateApartmentContractField(
+                                      selectedApartment.number,
+                                      "insuranceAmount",
+                                      Math.max(0, Number(event.target.value) || 0)
+                                    )
+                                  }
+                                  placeholder="مبلغ التأمين"
+                                  className="w-full max-w-[190px] rounded-xl border border-white/10 bg-[#071a2d] px-4 py-2.5 text-center text-2xl font-black text-white outline-none transition focus:border-[#f0ad18]/60"
+                                />
+                                <span className="text-base font-bold text-gray-400">ريال</span>
+                              </div>
+
+                              <input
+                                type="text"
+                                value={contractInfo.insuranceNotes}
+                                onChange={(event) =>
+                                  updateApartmentContractField(
+                                    selectedApartment.number,
+                                    "insuranceNotes",
+                                    event.target.value
+                                  )
+                                }
+                                placeholder="ملاحظات التأمين"
+                                className="mt-3 w-full rounded-xl border border-white/10 bg-[#071a2d] px-4 py-2.5 text-center text-base font-semibold text-white outline-none transition focus:border-[#f0ad18]/60"
+                              />
+                            </div>
+
+                          </div>
+
+                        </div>
+                      </>
+                    );
+                  })()}
 
                 </div>
 
@@ -2634,97 +6490,245 @@ export default function BuildingDetails() {
               {/* PAYMENTS */}
 
               {activeTab ===
-                "المدفوعات" && (
+                "المدفوعات" && (() => {
+                const payments = getApartmentPayments(selectedApartment.number);
+                const contractInfo = getApartmentContractInfo(
+                  selectedApartment.number
+                );
+                const contractPayments = payments.filter(
+                  (payment) =>
+                    Boolean(payment.date) &&
+                    (!contractInfo.startDate || payment.date >= contractInfo.startDate)
+                );
+                const totalPaid = contractPayments.reduce(
+                  (sum, payment) => sum + (Number(payment.amount) || 0),
+                  0
+                );
 
-                <div className="space-y-5">
+                const apartmentRent = getApartmentRent(selectedApartment);
+                const isRentedApartment =
+                  selectedApartment.status === "مؤجرة" ||
+                  selectedApartment.status === "مؤجرة للشركة";
+                const accruedRentMonths = isRentedApartment
+                  ? getAccruedRentMonths(
+                      contractInfo.startDate,
+                      contractInfo.endDate
+                    )
+                  : 0;
+                const totalRentDue = accruedRentMonths * apartmentRent;
 
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                const otherChargesTotal = getApartmentCharges(
+                  selectedApartment.number,
+                  contractInfo.startDate
+                ).reduce(
+                  (sum, charge) => sum + (Number(charge.amount) || 0),
+                  0
+                );
 
-                    <div className="rounded-3xl border border-green-400/20 bg-green-500/[0.04] p-6">
-                      <div className="text-sm text-gray-400">
-                        المدفوع هذا العام
+                const totalDue = totalRentDue + otherChargesTotal;
+
+                const totalRentCollected = contractPayments
+                  .filter((payment) => payment.type?.trim() === "إيجار")
+                  .reduce(
+                    (sum, payment) => sum + (Number(payment.amount) || 0),
+                    0
+                  );
+
+                const collectedRentMonths =
+                  apartmentRent > 0
+                    ? Math.floor(totalRentCollected / apartmentRent)
+                    : 0;
+
+                const partialRentCollected =
+                  apartmentRent > 0
+                    ? totalRentCollected - collectedRentMonths * apartmentRent
+                    : 0;
+
+                const totalRemaining = Math.max(totalDue - totalPaid, 0);
+
+                return (
+                  <div className="space-y-5">
+
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+
+                      <div className="rounded-3xl border border-orange-400/25 bg-orange-500/[0.04] p-6">
+                        <div className="text-sm font-bold text-gray-400">
+                          إجمالي المستحقات + الإيجارات
+                        </div>
+                        <div className="mt-2 text-3xl font-black text-orange-300">
+                          {totalDue.toLocaleString("ar-SA")} ريال
+                        </div>
+                        <div className="mt-2 text-xs font-semibold text-gray-500">
+                          {accruedRentMonths} {accruedRentMonths === 1 ? "شهر" : "أشهر"} إيجار + المستحقات المسجلة
+                        </div>
                       </div>
-                      <div className="mt-2 text-3xl font-bold text-green-400">
-                        48,000 ريال
+
+                      <div className="rounded-3xl border border-blue-400/20 bg-blue-500/[0.04] p-6">
+                        <div className="text-sm font-bold text-gray-400">
+                          إجمالي المدفوع
+                        </div>
+                        <div className="mt-2 text-3xl font-black text-blue-300">
+                          {totalPaid.toLocaleString("ar-SA")} ريال
+                        </div>
+                        <div className="mt-2 text-xs font-semibold text-gray-500">
+                          إيجارات + فواتير + مستحقات محصلة
+                        </div>
                       </div>
+
+                      <div className="rounded-3xl border border-red-400/20 bg-red-500/[0.04] p-6">
+                        <div className="text-sm font-bold text-gray-400">
+                          إجمالي المتبقي
+                        </div>
+                        <div className="mt-2 text-3xl font-black text-red-300">
+                          {totalRemaining.toLocaleString("ar-SA")} ريال
+                        </div>
+                        <div className="mt-2 text-xs font-semibold text-gray-500">
+                          المبلغ غير المدفوع أو المتأخر حتى الآن
+                        </div>
+                      </div>
+
+                      <div className="rounded-3xl border border-green-400/20 bg-green-500/[0.04] p-6">
+                        <div className="text-sm font-bold text-gray-400">
+                          إجمالي الإيجارات المحصلة
+                        </div>
+                        <div className="mt-2 text-3xl font-black text-green-300">
+                          {totalRentCollected.toLocaleString("ar-SA")} ريال
+                        </div>
+                        <div className="mt-2 text-xs font-semibold text-gray-500">
+                          {collectedRentMonths} {collectedRentMonths === 1 ? "شهر محصل" : "أشهر محصلة"}
+                          {partialRentCollected > 0
+                            ? ` + ${partialRentCollected.toLocaleString("ar-SA")} ريال جزئي`
+                            : ""}
+                        </div>
+                      </div>
+
                     </div>
 
-                    <div className="rounded-3xl border border-[#f0ad18]/20 bg-[#f0ad18]/[0.04] p-6">
-                      <div className="text-sm text-gray-400">
-                        قيمة الإيجار الشهري
-                      </div>
-                      <div className="mt-2 text-3xl font-bold text-[#f0ad18]">
-                        {selectedApartment.rent.toLocaleString(
-                          "ar-SA"
-                        )}
-                      </div>
-                    </div>
+                    <div className="overflow-visible rounded-3xl border border-[#285273]">
 
-                    <div className="rounded-3xl border border-blue-400/20 bg-blue-500/[0.04] p-6">
-                      <div className="text-sm text-gray-400">
-                        حالة السداد
-                      </div>
-                      <div className="mt-2 text-2xl font-bold text-blue-400">
-                        منتظم
-                      </div>
-                    </div>
+                      <div className="relative flex flex-col gap-4 border-b border-white/10 bg-[#071a2d] p-5 sm:flex-row sm:items-center sm:justify-between">
 
-                  </div>
-
-                  <div className="overflow-hidden rounded-3xl border border-[#285273]">
-
-                    <div className="border-b border-white/10 bg-[#071a2d] p-5">
-
-                      <h3 className="text-xl font-bold">
-                        سجل الدفعات
-                      </h3>
-
-                    </div>
-
-                    <div className="divide-y divide-white/5">
-
-                      {[
-                        "01 / 05 / 2026",
-                        "01 / 04 / 2026",
-                        "01 / 03 / 2026",
-                        "01 / 02 / 2026",
-                      ].map((date) => (
-
-                        <div
-                          key={date}
-                          className="flex items-center justify-between bg-[#061426] p-5"
-                        >
-
-                          <div>
-
-                            <div className="font-bold">
-                              دفعة شهرية
-                            </div>
-
-                            <div className="mt-1 text-sm leading-6 text-gray-400">
-                              {date}
-                            </div>
-
-                          </div>
-
-                          <div className="font-bold text-green-400">
-                            {getApartmentRent(selectedApartment).toLocaleString(
-                              "ar-SA"
-                            )}{" "}
-                            ريال
-                          </div>
-
+                        <div>
+                          <h3 className="text-xl font-bold">
+                            سجل الدفعات
+                          </h3>
+                          <p className="mt-1 text-sm font-semibold text-gray-500">
+                            جميع عمليات الدفع والتحصيل الخاصة بهذه الشقة
+                          </p>
                         </div>
 
-                      ))}
+                        <div className="relative">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setIsPaymentExportMenuOpen((current) => !current)
+                            }
+                            className="flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-[#f0ad18]/45 bg-[#f0ad18]/10 px-5 py-2.5 text-base font-black text-[#f6c84a] transition hover:border-[#f6c84a]/80 hover:bg-[#f0ad18]/20"
+                          >
+                            <Download size={19} />
+                            تصدير
+                          </button>
+
+                          {isPaymentExportMenuOpen && (
+                            <div className="absolute left-0 top-[calc(100%+8px)] z-[120] w-48 overflow-hidden rounded-2xl border border-[#285273] bg-[#061426] p-1.5 shadow-[0_18px_45px_rgba(0,0,0,0.45)]">
+
+                              <button
+                                type="button"
+                                onClick={exportApartmentPaymentsPdf}
+                                className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-right text-sm font-black text-white transition hover:bg-red-500/10 hover:text-red-300"
+                              >
+                                <FileText size={18} className="text-red-300" />
+                                تصدير PDF
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={exportApartmentPaymentsExcel}
+                                className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-right text-sm font-black text-white transition hover:bg-green-500/10 hover:text-green-300"
+                              >
+                                <Download size={18} className="text-green-300" />
+                                تصدير Excel
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={printApartmentPayments}
+                                className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-right text-sm font-black text-white transition hover:bg-blue-500/10 hover:text-blue-300"
+                              >
+                                <Printer size={18} className="text-blue-300" />
+                                طباعة
+                              </button>
+
+                            </div>
+                          )}
+                        </div>
+
+                      </div>
+
+                      <div className="overflow-x-auto">
+                        <div className="min-w-[760px] divide-y divide-white/5">
+
+                          <div className="grid grid-cols-[70px_150px_1fr_150px_1.5fr] gap-3 bg-[#0a2137] px-5 py-4 text-sm font-black text-gray-300">
+                            <div>#</div>
+                            <div>تاريخ الدفع</div>
+                            <div>نوع المستحق</div>
+                            <div>المبلغ</div>
+                            <div>تفاصيل المبلغ</div>
+                          </div>
+
+                          {payments.length > 0 ? (
+                            payments.map((payment, index) => (
+                              <div
+                                key={`${payment.date}-${payment.type}-${index}`}
+                                className="grid grid-cols-[70px_150px_1fr_150px_1.5fr] gap-3 bg-[#061426] px-5 py-4 text-sm"
+                              >
+                                <div className="font-bold text-gray-500">
+                                  {index + 1}
+                                </div>
+
+                                <div className="font-bold text-gray-300">
+                                  {formatPaymentDate(payment.date)}
+                                </div>
+
+                                <div className="font-black text-white">
+                                  {payment.type || "غير محدد"}
+                                </div>
+
+                                <div className="font-black text-green-400">
+                                  {(Number(payment.amount) || 0).toLocaleString(
+                                    "ar-SA"
+                                  )}{" "}
+                                  ريال
+                                </div>
+
+                                <div className="font-semibold leading-6 text-gray-400">
+                                  {payment.notes || "لا توجد تفاصيل"}
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="px-5 py-14 text-center">
+                              <Receipt
+                                size={42}
+                                className="mx-auto text-gray-700"
+                              />
+                              <div className="mt-4 text-base font-bold text-gray-400">
+                                لا توجد دفعات مسجلة لهذه الشقة حتى الآن
+                              </div>
+                              <div className="mt-2 text-sm text-gray-600">
+                                عند تسجيل تحصيل من شاشة التحصيل سيظهر هنا تلقائيًا.
+                              </div>
+                            </div>
+                          )}
+
+                        </div>
+                      </div>
 
                     </div>
 
                   </div>
-
-                </div>
-
-              )}
+                );
+              })()}
 
               {/* DOCUMENTS */}
 
@@ -2833,51 +6837,24 @@ export default function BuildingDetails() {
             {/* MODAL FOOTER                                      */}
             {/* ================================================= */}
 
-            <div className="flex flex-col-reverse gap-3 border-t border-white/10 bg-[#050f1d] p-5 sm:flex-row sm:items-center sm:justify-between lg:px-6">
+            <div className="flex flex-col gap-3 border-t border-white/10 bg-[#050f1d] p-5 sm:flex-row sm:items-center sm:justify-center lg:px-6">
 
-              <div className="flex flex-wrap gap-3">
-
-                <button
-                  type="button"
-                  className="flex items-center justify-center gap-2 rounded-xl border border-red-400/50 bg-red-500/5 px-5 py-3 font-bold text-red-400 transition hover:bg-red-500/10"
-                >
-
-                  <Trash2 size={18} />
-
-                  أرشفة / إلغاء الشقة
-
-                </button>
-
-                <div className="flex flex-col gap-2">
-                  <button
-                    type="button"
-                    className="flex items-center justify-center gap-2 rounded-xl border border-blue-400/50 bg-blue-500/5 px-5 py-3 font-bold text-blue-400 transition hover:bg-blue-500/10"
-                  >
-                    <Edit3 size={18} />
-                    تعديل البيانات
-                  </button>
-
-                  <button
-                    type="button"
-                    className="flex items-center justify-center gap-2 rounded-xl border border-green-400/50 bg-green-500/10 px-5 py-3 font-bold text-green-400 transition hover:bg-green-500/15"
-                  >
-                    <CheckCircle2 size={18} />
-                    حفظ
-                  </button>
-                </div>
-
-              </div>
+              <button
+                type="button"
+                onClick={saveApartmentDetails}
+                className="flex min-h-[54px] min-w-[180px] items-center justify-center gap-3 rounded-2xl border border-green-400/60 bg-green-500/10 px-8 py-4 text-lg font-black text-green-400 transition hover:bg-green-500/15"
+              >
+                <CheckCircle2 size={24} />
+                حفظ
+              </button>
 
               <button
                 type="button"
                 onClick={closeApartment}
-                className="flex items-center justify-center gap-2 rounded-xl border border-[#f0ad18]/60 bg-[#f0ad18]/10 px-7 py-3 font-bold text-[#f6c84a] transition hover:bg-[#f0ad18] hover:text-[#07182b]"
+                className="flex min-h-[54px] min-w-[180px] items-center justify-center gap-3 rounded-2xl border border-[#f0ad18]/60 bg-[#f0ad18]/10 px-8 py-4 text-lg font-black text-[#f6c84a] transition hover:bg-[#f0ad18] hover:text-[#07182b]"
               >
-
                 إغلاق
-
-                <X size={19} />
-
+                <X size={23} />
               </button>
 
             </div>
@@ -3387,6 +7364,23 @@ export default function BuildingDetails() {
                   </div>
 
                   <div className="relative mb-3">
+                    <select
+                      value={apartmentStatusFilter}
+                      onChange={(event) =>
+                        setApartmentStatusFilter(event.target.value)
+                      }
+                      className="h-11 w-full appearance-none rounded-xl border border-white/10 bg-[#07182b] px-4 text-sm font-bold text-white outline-none transition focus:border-cyan-400/50"
+                    >
+                      <option value="">كل حالات الشقق</option>
+                      {availableApartmentStatuses.map((status) => (
+                        <option key={status} value={status}>
+                          {status}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="relative mb-3">
                     <Search
                       size={18}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
@@ -3529,32 +7523,77 @@ export default function BuildingDetails() {
 
                     <label className="block text-center">
                       <span className="mb-2 block text-sm font-black text-gray-300 text-center">
-                        المبلغ لكل شقة (ريال)
+                        {chargeForm.type === "إيجار"
+                          ? "إجمالي الإيجار للشقق المحددة (ريال)"
+                          : "المبلغ لكل شقة (ريال)"}
                       </span>
                       <div className="relative">
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={chargeForm.amount}
-                          onChange={(event) =>
-                            setChargeForm((current) => ({
-                              ...current,
-                              amount: event.target.value,
-                            }))
-                          }
-                          placeholder="اكتب المبلغ"
-                          className={`h-14 w-full rounded-xl border bg-[#0b2039] px-4 pl-16 text-center text-xl font-black text-white outline-none transition placeholder:text-gray-600 ${
-                            chargeModalMode === "collection"
-                              ? "border-[#f0ad18]/25 focus:border-[#f0ad18]/70"
-                              : "border-cyan-400/20 focus:border-cyan-400/70"
-                          }`}
-                        />
+                        {chargeForm.type === "إيجار" ? (
+                          <div
+                            className={`flex h-14 w-full items-center justify-center rounded-xl border bg-[#0b2039] px-4 pl-16 text-center text-xl font-black text-white ${
+                              chargeModalMode === "collection"
+                                ? "border-[#f0ad18]/25"
+                                : "border-cyan-400/20"
+                            }`}
+                          >
+                            {selectedRentTotal.toLocaleString("ar-SA")}
+                          </div>
+                        ) : (
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={chargeForm.amount}
+                            onChange={(event) =>
+                              setChargeForm((current) => ({
+                                ...current,
+                                amount: event.target.value,
+                              }))
+                            }
+                            placeholder="اكتب المبلغ"
+                            className={`h-14 w-full rounded-xl border bg-[#0b2039] px-4 pl-16 text-center text-xl font-black text-white outline-none transition placeholder:text-gray-600 ${
+                              chargeModalMode === "collection"
+                                ? "border-[#f0ad18]/25 focus:border-[#f0ad18]/70"
+                                : "border-cyan-400/20 focus:border-cyan-400/70"
+                            }`}
+                          />
+                        )}
                         <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm font-black text-gray-500">
                           ريال
                         </span>
                       </div>
                     </label>
+
+                    {chargeModalMode === "collection" && chargeForm.type === "إيجار" && (
+                      <label className="block text-center">
+                        <span className="mb-2 block text-sm font-black text-gray-300 text-center">
+                          عدد أشهر التحصيل
+                        </span>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            min="1"
+                            max={Math.max(1, selectedRentCollectionMaxMonths)}
+                            step="1"
+                            value={rentCollectionMonths}
+                            onChange={(event) => {
+                              const requested = Math.max(1, Number(event.target.value) || 1);
+                              const maxMonths = selectedRentCollectionMaxMonths;
+                              setRentCollectionMonths(
+                                maxMonths > 0 ? Math.min(requested, maxMonths) : requested
+                              );
+                            }}
+                            className="h-14 w-full rounded-xl border border-[#f0ad18]/25 bg-[#0b2039] px-4 text-center text-xl font-black text-white outline-none transition focus:border-[#f0ad18]/70"
+                          />
+                          <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm font-black text-gray-500">
+                            شهر
+                          </span>
+                        </div>
+                        <p className="mt-2 text-xs font-semibold text-gray-500">
+                          الافتراضي شهر واحد — الحد الأقصى المتاح للتحصيل: {selectedRentCollectionMaxMonths.toLocaleString("ar-SA")} أشهر
+                        </p>
+                      </label>
+                    )}
 
                     <label className="block text-center">
                       <span className="mb-2 block text-sm font-black text-gray-300 text-center">
@@ -3621,8 +7660,10 @@ export default function BuildingDetails() {
                       <div className="mt-1 flex items-center justify-between gap-3">
                         <span>إجمالي العملية</span>
                         <span className="text-base font-black text-white">
-                          {selectedChargeApartments.length > 0 &&
-                          Number(chargeForm.amount) > 0
+                          {chargeForm.type === "إيجار"
+                            ? selectedRentCollectionTotal.toLocaleString("ar-SA")
+                            : selectedChargeApartments.length > 0 &&
+                              Number(chargeForm.amount) > 0
                             ? (
                                 selectedChargeApartments.length *
                                 Number(chargeForm.amount)
@@ -3648,9 +7689,39 @@ export default function BuildingDetails() {
                       return;
                     }
 
-                    if (!chargeForm.amount.trim() || Number(chargeForm.amount) <= 0) {
+                    if (
+                      chargeForm.type !== "إيجار" &&
+                      (!chargeForm.amount.trim() || Number(chargeForm.amount) <= 0)
+                    ) {
                       window.alert("من فضلك اكتب مبلغًا صحيحًا أولاً");
                       return;
+                    }
+
+                    if (chargeModalMode === "collection" && chargeForm.type === "إيجار") {
+                      if (rentCollectionMonths < 1) {
+                        window.alert("عدد أشهر التحصيل يجب أن يكون شهرًا واحدًا على الأقل.");
+                        return;
+                      }
+
+                      const invalidApartment = selectedChargeApartments
+                        .map((apartmentNumber) =>
+                          apartments.find((item) => item.number === apartmentNumber)
+                        )
+                        .find(
+                          (apartment) =>
+                            apartment &&
+                            rentCollectionMonths > getApartmentRemainingRentMonths(apartment)
+                        );
+
+                      if (invalidApartment) {
+                        const maxMonths = getApartmentRemainingRentMonths(invalidApartment);
+                        window.alert(
+                          maxMonths > 0
+                            ? `لا يمكن تحصيل أكثر من ${maxMonths} شهر للشقة رقم ${invalidApartment.number} لأن هذا هو المتبقي من قيمة عقدها بعد التحصيلات السابقة.`
+                            : `لا يوجد متبقي من قيمة عقد الشقة رقم ${invalidApartment.number} يمكن تحصيله.`
+                        );
+                        return;
+                      }
                     }
 
                     try {
@@ -3665,10 +7736,30 @@ export default function BuildingDetails() {
                         : [];
 
                       const newCharges = selectedChargeApartments.map(
-                        (apartmentNumber) => ({
-                          ...chargeForm,
-                          apartmentNumber,
-                        })
+                        (apartmentNumber) => {
+                          const apartment = apartments.find(
+                            (item) => item.number === apartmentNumber
+                          );
+                          const monthlyRent = apartment ? getApartmentRent(apartment) : 0;
+                          const rentMonths =
+                            chargeModalMode === "collection" && chargeForm.type === "إيجار"
+                              ? Math.max(1, rentCollectionMonths)
+                              : undefined;
+
+                          return {
+                            ...chargeForm,
+                            amount:
+                              chargeForm.type === "إيجار"
+                                ? String(monthlyRent * (rentMonths ?? 1))
+                                : chargeForm.amount,
+                            notes:
+                              chargeForm.type === "إيجار" && rentMonths
+                                ? `${chargeForm.notes ? `${chargeForm.notes} — ` : ""}تحصيل إيجار عن ${rentMonths} ${rentMonths === 1 ? "شهر" : "أشهر"}`
+                                : chargeForm.notes,
+                            apartmentNumber,
+                            ...(rentMonths ? { rentMonths } : {}),
+                          };
+                        }
                       );
 
                       window.localStorage.setItem(
@@ -3686,7 +7777,10 @@ export default function BuildingDetails() {
                       notes: "",
                     });
                     setSelectedChargeApartments([]);
+                    setApartmentTypeFilter("");
+                    setApartmentStatusFilter("");
                     setApartmentSearch("");
+                    setRentCollectionMonths(1);
                     setIsChargeModalOpen(false);
                   }}
                   className={`flex h-14 items-center justify-center gap-2 rounded-2xl border px-5 text-base font-black transition sm:text-lg ${
@@ -3714,6 +7808,955 @@ export default function BuildingDetails() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===================================================== */}
+      {/* APARTMENT TYPE DETAILS REPORT MODAL                      */}
+      {/* ===================================================== */}
+
+      {selectedApartmentTypeReport && (
+        <div
+          className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/85 p-2 backdrop-blur-md sm:p-4"
+          onClick={() => setSelectedApartmentTypeReport(null)}
+        >
+          <div
+            dir="rtl"
+            className="flex max-h-[94vh] w-full max-w-[98vw] flex-col overflow-hidden rounded-3xl border border-[#d89b18]/40 bg-[#07182b] shadow-[0_25px_90px_rgba(0,0,0,0.65)]"
+            onClick={(event) => event.stopPropagation()}
+          >
+            {(() => {
+              const rows = getApartmentTypeReportData();
+              const totalRent = rows.reduce(
+                (sum, row) => sum + getApartmentRent(row.apartment),
+                0
+              );
+              const totalPaid = rows.reduce(
+                (sum, row) => sum + row.totalPaid,
+                0
+              );
+
+              return (
+                <>
+                  <div className="flex shrink-0 items-center justify-between border-b border-white/10 bg-[#061426] px-5 py-4">
+                    <div className="text-right">
+                      <h2 className="text-xl font-black text-[#f6c84a] sm:text-2xl">
+                        {getApartmentTypeReportTitle()}
+                      </h2>
+                      <p className="mt-1 text-xs font-semibold text-gray-400 sm:text-sm">
+                        تفاصيل جميع الشقق المسجلة تحت هذا النوع
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setSelectedApartmentTypeReport(null)}
+                      className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-gray-300 transition hover:border-red-400/40 hover:bg-red-400/10 hover:text-red-300"
+                      aria-label="إغلاق التقرير"
+                    >
+                      <X size={21} />
+                    </button>
+                  </div>
+
+                  <div className="shrink-0 grid grid-cols-2 gap-3 border-b border-white/10 bg-[#0b2039] p-4 sm:grid-cols-4">
+                    <div className="rounded-2xl border border-[#f0ad18]/20 bg-[#07182b] p-3 text-center">
+                      <div className="text-xs font-bold text-gray-400">عدد الشقق</div>
+                      <div className="mt-1 text-2xl font-black text-[#f6c84a]">
+                        {rows.length}
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-green-400/20 bg-[#07182b] p-3 text-center">
+                      <div className="text-xs font-bold text-gray-400">إيجار الشقة</div>
+                      <div className="mt-1 text-2xl font-black text-green-300">
+                        {rows.length
+                          ? getApartmentRent(rows[0].apartment).toLocaleString("ar-SA")
+                          : "0"}{" "}
+                        ريال
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-blue-400/20 bg-[#07182b] p-3 text-center">
+                      <div className="text-xs font-bold text-gray-400">إجمالي الإيجار الشهري</div>
+                      <div className="mt-1 text-2xl font-black text-blue-300">
+                        {totalRent.toLocaleString("ar-SA")} ريال
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-purple-400/20 bg-[#07182b] p-3 text-center">
+                      <div className="text-xs font-bold text-gray-400">إجمالي المدفوعات</div>
+                      <div className="mt-1 text-2xl font-black text-purple-300">
+                        {totalPaid.toLocaleString("ar-SA")} ريال
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="min-h-0 flex-1 overflow-auto p-4">
+                    <div className="overflow-x-auto rounded-2xl border border-white/10">
+                      <table className="w-full min-w-[2200px] border-collapse text-xs">
+                        <thead className="sticky top-0 z-10 bg-[#0b2039]">
+                          <tr className="text-gray-300">
+                            <th className="border-b border-white/10 px-3 py-3 text-center">رقم الشقة</th>
+                            <th className="border-b border-white/10 px-3 py-3 text-center">النوع</th>
+                            <th className="border-b border-white/10 px-3 py-3 text-center">الحالة</th>
+                            <th className="border-b border-white/10 px-3 py-3 text-center">الإيجار الشهري</th>
+                            <th className="border-b border-white/10 px-3 py-3 text-center">اسم المستأجر / الجهة</th>
+                            <th className="border-b border-white/10 px-3 py-3 text-center">الجوال</th>
+                            <th className="border-b border-white/10 px-3 py-3 text-center">رقم الهوية</th>
+                            <th className="border-b border-white/10 px-3 py-3 text-center">الدور</th>
+                            <th className="border-b border-white/10 px-3 py-3 text-center">المواقف</th>
+                            <th className="border-b border-white/10 px-3 py-3 text-center">عداد الكهرباء</th>
+                            <th className="border-b border-white/10 px-3 py-3 text-center">عداد المياه</th>
+                            <th className="border-b border-white/10 px-3 py-3 text-center">حالة الفرش</th>
+                            <th className="border-b border-white/10 px-3 py-3 text-center">رقم العقد</th>
+                            <th className="border-b border-white/10 px-3 py-3 text-center">بداية العقد</th>
+                            <th className="border-b border-white/10 px-3 py-3 text-center">نهاية العقد</th>
+                            <th className="border-b border-white/10 px-3 py-3 text-center">مدة العقد</th>
+                            <th className="border-b border-white/10 px-3 py-3 text-center">التأمين</th>
+                            <th className="border-b border-white/10 px-3 py-3 text-center">ملاحظات التأمين</th>
+                            <th className="border-b border-white/10 px-3 py-3 text-center">عدد الدفعات</th>
+                            <th className="border-b border-white/10 px-3 py-3 text-center">إجمالي المدفوع</th>
+                          </tr>
+                        </thead>
+
+                        <tbody>
+                          {rows.map(
+                            ({
+                              apartment,
+                              extraInfo,
+                              tenantInfo,
+                              contractInfo,
+                              paymentCount,
+                              totalPaid: apartmentTotalPaid,
+                            }) => {
+                              const statusColor = getStatusColor(apartment.status);
+
+                              return (
+                                <tr
+                                  key={apartment.number}
+                                  className="border-b border-white/5 bg-white/[0.02] transition hover:bg-white/[0.05]"
+                                >
+                                  <td className="px-3 py-3 text-center font-black text-[#f6c84a]">
+                                    {apartment.number}
+                                  </td>
+                                  <td className="px-3 py-3 text-center font-semibold text-gray-200">
+                                    {getApartmentType(apartment)}
+                                  </td>
+                                  <td className="px-3 py-3 text-center">
+                                    <span
+                                      className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-black ${statusColor.badge}`}
+                                    >
+                                      <span className={`h-2 w-2 rounded-full ${statusColor.dot}`} />
+                                      {apartment.status === "شاغرة"
+                                        ? "فارغة"
+                                        : apartment.status}
+                                    </span>
+                                  </td>
+                                  <td className="px-3 py-3 text-center font-black text-green-300">
+                                    {getApartmentRent(apartment).toLocaleString("ar-SA")} ريال
+                                  </td>
+                                  <td className="px-3 py-3 text-center font-semibold text-gray-300">
+                                    {tenantInfo.tenantName || apartment.tenant || "غير مضاف"}
+                                  </td>
+                                  <td className="px-3 py-3 text-center font-semibold text-gray-300">
+                                    {tenantInfo.phone || "غير مضاف"}
+                                  </td>
+                                  <td className="px-3 py-3 text-center font-semibold text-gray-300">
+                                    {tenantInfo.identityNumber || "غير مضاف"}
+                                  </td>
+                                  <td className="px-3 py-3 text-center font-semibold text-gray-300">
+                                    {extraInfo.floor || "غير محدد"}
+                                  </td>
+                                  <td className="px-3 py-3 text-center font-semibold text-gray-300">
+                                    {extraInfo.parking}
+                                  </td>
+                                  <td className="px-3 py-3 text-center font-semibold text-gray-300">
+                                    {extraInfo.electricityMeter}
+                                  </td>
+                                  <td className="px-3 py-3 text-center font-semibold text-gray-300">
+                                    {extraInfo.waterMeter}
+                                  </td>
+                                  <td className="px-3 py-3 text-center font-semibold text-gray-300">
+                                    {extraInfo.furnitureStatus}
+                                  </td>
+                                  <td className="px-3 py-3 text-center font-semibold text-gray-300">
+                                    {contractInfo.contractNumber || "غير محدد"}
+                                  </td>
+                                  <td className="px-3 py-3 text-center font-semibold text-gray-300">
+                                    {formatContractDate(contractInfo.startDate)}
+                                  </td>
+                                  <td className="px-3 py-3 text-center font-semibold text-gray-300">
+                                    {formatContractDate(contractInfo.endDate)}
+                                  </td>
+                                  <td className="px-3 py-3 text-center font-semibold text-gray-300">
+                                    {formatContractDuration(
+                                      contractInfo.durationUnit,
+                                      contractInfo.durationValue
+                                    )}
+                                  </td>
+                                  <td className="px-3 py-3 text-center font-black text-[#f6c84a]">
+                                    {Number(contractInfo.insuranceAmount || 0).toLocaleString("ar-SA")} ريال
+                                  </td>
+                                  <td className="px-3 py-3 text-center font-semibold text-gray-400">
+                                    {contractInfo.insuranceNotes || "لا توجد ملاحظات"}
+                                  </td>
+                                  <td className="px-3 py-3 text-center font-black text-blue-300">
+                                    {paymentCount}
+                                  </td>
+                                  <td className="px-3 py-3 text-center font-black text-purple-300">
+                                    {apartmentTotalPaid.toLocaleString("ar-SA")} ريال
+                                  </td>
+                                </tr>
+                              );
+                            }
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  <div className="shrink-0 border-t border-white/10 bg-[#061426] p-4">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                      <button
+                        type="button"
+                        onClick={exportApartmentTypeReportExcel}
+                        className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-green-400/30 bg-green-500/10 px-4 text-sm font-black text-green-300 transition hover:bg-green-500/20"
+                      >
+                        <Download size={19} />
+                        تصدير Excel
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={printApartmentTypeReport}
+                        className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-blue-400/30 bg-blue-500/10 px-4 text-sm font-black text-blue-300 transition hover:bg-blue-500/20"
+                      >
+                        <Printer size={19} />
+                        طباعة
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={exportApartmentTypeReportPdf}
+                        className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-red-400/30 bg-red-500/10 px-4 text-sm font-black text-red-300 transition hover:bg-red-500/20"
+                      >
+                        <FileText size={19} />
+                        تصدير PDF
+                      </button>
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+
+      {/* ===================================================== */}
+      {/* APARTMENT REPORT MODAL                                  */}
+      {/* ===================================================== */}
+
+      {apartmentReportType && (
+        <div
+          className="fixed inset-0 z-[90] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"
+          onClick={closeApartmentReport}
+        >
+          <div
+            dir="rtl"
+            className="flex max-h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-3xl border border-[#d89b18]/40 bg-[#07182b] shadow-[0_25px_90px_rgba(0,0,0,0.55)]"
+            onClick={(event) => event.stopPropagation()}
+          >
+            {(() => {
+              const report = getApartmentReport();
+              const totalReportRent = report.data.reduce(
+                (sum, apartment) => sum + getApartmentRent(apartment),
+                0
+              );
+
+              return (
+                <>
+                  <div className="flex shrink-0 items-center justify-between border-b border-white/10 bg-[#061426] px-5 py-4">
+                    <div className="text-right">
+                      <h2 className="text-xl font-black text-[#f6c84a] sm:text-2xl">
+                        {report.title}
+                      </h2>
+                      <p className="mt-1 text-xs font-semibold text-gray-400 sm:text-sm">
+                        {report.subtitle}
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={closeApartmentReport}
+                      className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-gray-300 transition hover:border-red-400/40 hover:bg-red-400/10 hover:text-red-300"
+                      aria-label="إغلاق التقرير"
+                    >
+                      <X size={21} />
+                    </button>
+                  </div>
+
+                  <div className="shrink-0 grid grid-cols-2 gap-3 border-b border-white/10 bg-[#0b2039] p-4 sm:grid-cols-4">
+                    <div className="rounded-2xl border border-[#f0ad18]/20 bg-[#07182b] p-3 text-center">
+                      <div className="text-xs font-bold text-gray-400">عدد الشقق</div>
+                      <div className="mt-1 text-2xl font-black text-[#f6c84a]">
+                        {report.data.length}
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-green-400/20 bg-[#07182b] p-3 text-center">
+                      <div className="text-xs font-bold text-gray-400">الإيجار الشهري</div>
+                      <div className="mt-1 text-2xl font-black text-green-300">
+                        {totalReportRent.toLocaleString("ar-SA")}
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-blue-400/20 bg-[#07182b] p-3 text-center">
+                      <div className="text-xs font-bold text-gray-400">الفترة</div>
+                      <div className="mt-1 text-sm font-black text-blue-300">
+                        تقرير حالي
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-purple-400/20 bg-[#07182b] p-3 text-center">
+                      <div className="text-xs font-bold text-gray-400">نسبة الإشغال</div>
+                      <div className="mt-1 text-2xl font-black text-purple-300">
+                        {occupancyRate}%
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="min-h-0 flex-1 overflow-auto p-4">
+                    <div className="overflow-hidden rounded-2xl border border-white/10">
+                      <table className="w-full min-w-[760px] border-collapse text-sm">
+                        <thead className="sticky top-0 z-10 bg-[#0b2039]">
+                          <tr className="text-gray-300">
+                            <th className="border-b border-white/10 px-4 py-3 text-center">رقم الشقة</th>
+                            <th className="border-b border-white/10 px-4 py-3 text-center">نوع الشقة</th>
+                            <th className="border-b border-white/10 px-4 py-3 text-center">الحالة</th>
+                            <th className="border-b border-white/10 px-4 py-3 text-center">الإيجار الشهري</th>
+                            <th className="border-b border-white/10 px-4 py-3 text-center">المستأجر / الجهة</th>
+                          </tr>
+                        </thead>
+
+                        <tbody>
+                          {report.data.map((apartment) => {
+                            const statusColor = getStatusColor(apartment.status);
+
+                            return (
+                              <tr
+                                key={apartment.number}
+                                className="border-b border-white/5 bg-white/[0.02] transition hover:bg-white/[0.05]"
+                              >
+                                <td className="px-4 py-3 text-center font-black text-[#f6c84a]">
+                                  {apartment.number}
+                                </td>
+                                <td className="px-4 py-3 text-center font-semibold text-gray-200">
+                                  {getApartmentType(apartment)}
+                                </td>
+                                <td className="px-4 py-3 text-center">
+                                  <span
+                                    className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-black ${statusColor.badge}`}
+                                  >
+                                    <span className={`h-2 w-2 rounded-full ${statusColor.dot}`} />
+                                    {apartment.status === "شاغرة"
+                                      ? "فارغة"
+                                      : apartment.status}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 text-center font-black text-green-300">
+                                  {getApartmentRent(apartment).toLocaleString("ar-SA")} ريال
+                                </td>
+                                <td className="px-4 py-3 text-center font-semibold text-gray-300">
+                                  {apartment.tenant || "غير مضاف"}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  <div className="shrink-0 border-t border-white/10 bg-[#061426] p-4">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                      <button
+                        type="button"
+                        onClick={exportApartmentReportExcel}
+                        className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-green-400/30 bg-green-500/10 px-4 text-sm font-black text-green-300 transition hover:bg-green-500/20"
+                      >
+                        <Download size={19} />
+                        تصدير Excel
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={printApartmentReport}
+                        className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-blue-400/30 bg-blue-500/10 px-4 text-sm font-black text-blue-300 transition hover:bg-blue-500/20"
+                      >
+                        <Printer size={19} />
+                        طباعة
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={exportApartmentReportPdf}
+                        className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-red-400/30 bg-red-500/10 px-4 text-sm font-black text-red-300 transition hover:bg-red-500/20"
+                      >
+                        <FileText size={19} />
+                        تصدير PDF
+                      </button>
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+
+      {/* ===================================================== */}
+      {/* MONTHLY FINANCIAL REPORT MODAL                           */}
+      {/* ===================================================== */}
+
+      {isMonthlyDueReportOpen && (
+        <div
+          className="fixed inset-0 z-[95] flex items-center justify-center bg-black/80 p-4 backdrop-blur-md"
+          onClick={() => setIsMonthlyDueReportOpen(false)}
+        >
+          <div
+            dir="rtl"
+            className="flex max-h-[90vh] w-full max-w-7xl flex-col overflow-hidden rounded-3xl border border-orange-400/30 bg-[#07182b] shadow-[0_25px_90px_rgba(0,0,0,0.6)]"
+            onClick={(event) => event.stopPropagation()}
+          >
+            {(() => {
+              const report = getMonthlyReportData();
+
+              return (
+                <>
+                  <div className="flex shrink-0 items-center justify-between border-b border-white/10 bg-[#061426] px-5 py-4">
+                    <div className="text-right">
+                      <h2 className="text-xl font-black text-[#f6c84a] sm:text-2xl">
+                        {report.title}
+                      </h2>
+                      <p className="mt-1 text-xs font-semibold text-gray-400 sm:text-sm">
+                        {report.subtitle}
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setIsMonthlyDueReportOpen(false)}
+                      className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-gray-300 transition hover:border-red-400/40 hover:bg-red-400/10 hover:text-red-300"
+                      aria-label="إغلاق التقرير"
+                    >
+                      <X size={21} />
+                    </button>
+                  </div>
+
+                  <div className="shrink-0 grid grid-cols-1 gap-3 border-b border-white/10 bg-[#0b2039] p-4 sm:grid-cols-3">
+                    <div className="rounded-2xl border border-orange-400/20 bg-[#07182b] p-3 text-center">
+                      <div className="text-xs font-bold text-gray-400">
+                        إجمالي المستحق
+                      </div>
+                      <div className="mt-1 text-2xl font-black text-orange-300">
+                        {report.total.toLocaleString("ar-SA")} ريال
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-blue-400/20 bg-[#07182b] p-3 text-center">
+                      <div className="text-xs font-bold text-gray-400">
+                        عدد العمليات
+                      </div>
+                      <div className="mt-1 text-2xl font-black text-blue-300">
+                        {report.rows.length}
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-green-400/20 bg-[#07182b] p-3 text-center">
+                      <div className="text-xs font-bold text-gray-400">
+                        الفترة المحددة
+                      </div>
+                      <div className="mt-1 text-sm font-black text-green-300">
+                        {formatContractDate(fromDate)} —{" "}
+                        {formatContractDate(toDate)}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="min-h-0 flex-1 overflow-auto p-4">
+                    <div className="overflow-hidden rounded-2xl border border-white/10">
+                      <table className="w-full min-w-[1050px] border-collapse text-sm">
+                        <thead className="sticky top-0 z-10 bg-[#0b2039]">
+                          <tr className="text-gray-300">
+                            <th className="border-b border-white/10 px-4 py-3 text-center">
+                              #
+                            </th>
+                            <th className="border-b border-white/10 px-4 py-3 text-center">
+                              رقم الشقة
+                            </th>
+                            <th className="border-b border-white/10 px-4 py-3 text-center">
+                              المستأجر / الجهة
+                            </th>
+                            <th className="border-b border-white/10 px-4 py-3 text-center">
+                              التاريخ
+                            </th>
+                            <th className="border-b border-white/10 px-4 py-3 text-center">
+                              نوع المستحق
+                            </th>
+                            <th className="border-b border-white/10 px-4 py-3 text-center">
+                              المبلغ
+                            </th>
+                            <th className="border-b border-white/10 px-4 py-3 text-center">
+                              تفاصيل / ملاحظات
+                            </th>
+                          </tr>
+                        </thead>
+
+                        <tbody>
+                          {report.rows.length > 0 ? (
+                            report.rows.map((row, index) => (
+                              <tr
+                                key={`${row.date}-${row.apartmentNumber}-${row.type}-${index}`}
+                                className="border-b border-white/5 bg-white/[0.02] transition hover:bg-white/[0.05]"
+                              >
+                                <td className="px-4 py-3 text-center font-bold text-gray-500">
+                                  {index + 1}
+                                </td>
+                                <td className="px-4 py-3 text-center font-black text-[#f6c84a]">
+                                  {row.apartmentNumber ?? "غير محدد"}
+                                </td>
+                                <td className="px-4 py-3 text-center font-semibold text-gray-200">
+                                  {row.tenant}
+                                </td>
+                                <td className="px-4 py-3 text-center font-bold text-gray-300">
+                                  {formatContractDate(row.date)}
+                                </td>
+                                <td className="px-4 py-3 text-center font-black text-white">
+                                  {row.type}
+                                </td>
+                                <td className="px-4 py-3 text-center font-black text-green-300">
+                                  {row.amount.toLocaleString("ar-SA")} ريال
+                                </td>
+                                <td className="px-4 py-3 text-center font-semibold leading-6 text-gray-400">
+                                  {row.notes}
+                                </td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td
+                                colSpan={7}
+                                className="px-5 py-16 text-center"
+                              >
+                                <Receipt
+                                  size={42}
+                                  className="mx-auto text-gray-700"
+                                />
+                                <div className="mt-4 text-base font-bold text-gray-400">
+                                  لا توجد بيانات مسجلة خلال الفترة المحددة
+                                </div>
+                                <div className="mt-2 text-sm text-gray-600">
+                                  عند إضافة البيانات الخاصة بهذا النوع ستظهر هنا تلقائيًا.
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  <div className="shrink-0 border-t border-white/10 bg-[#061426] p-4">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                      <button
+                        type="button"
+                        onClick={exportMonthlyDueExcel}
+                        className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-green-400/30 bg-green-500/10 px-4 text-sm font-black text-green-300 transition hover:bg-green-500/20"
+                      >
+                        <Download size={19} />
+                        تصدير Excel
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={printMonthlyDueReport}
+                        className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-blue-400/30 bg-blue-500/10 px-4 text-sm font-black text-blue-300 transition hover:bg-blue-500/20"
+                      >
+                        <Printer size={19} />
+                        طباعة
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={exportMonthlyDuePdf}
+                        className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-red-400/30 bg-red-500/10 px-4 text-sm font-black text-red-300 transition hover:bg-red-500/20"
+                      >
+                        <FileText size={19} />
+                        تصدير PDF
+                      </button>
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+
+      {/* ===================================================== */}
+      {/* MONTHLY COLLECTION REPORT MODAL                        */}
+      {/* ===================================================== */}
+
+      {isMonthlyCollectionReportOpen && (
+        <div
+          className="fixed inset-0 z-[96] flex items-center justify-center bg-black/80 p-4 backdrop-blur-md"
+          onClick={() => setIsMonthlyCollectionReportOpen(false)}
+        >
+          <div
+            dir="rtl"
+            className="flex max-h-[90vh] w-full max-w-7xl flex-col overflow-hidden rounded-3xl border border-green-400/30 bg-[#07182b] shadow-[0_25px_90px_rgba(0,0,0,0.6)]"
+            onClick={(event) => event.stopPropagation()}
+          >
+            {(() => {
+              const report = getMonthlyCollectionReportData();
+
+              return (
+                <>
+                  <div className="flex shrink-0 items-center justify-between border-b border-white/10 bg-[#061426] px-5 py-4">
+                    <div className="text-right">
+                      <h2 className="text-xl font-black text-green-300 sm:text-2xl">
+                        {report.title}
+                      </h2>
+                      <p className="mt-1 text-xs font-semibold text-gray-400 sm:text-sm">
+                        {report.subtitle}
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setIsMonthlyCollectionReportOpen(false)}
+                      className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-gray-300 transition hover:border-red-400/40 hover:bg-red-400/10 hover:text-red-300"
+                      aria-label="إغلاق تقرير التحصيلات"
+                    >
+                      <X size={21} />
+                    </button>
+                  </div>
+
+                  <div className="shrink-0 grid grid-cols-1 gap-3 border-b border-white/10 bg-[#0b2039] p-4 sm:grid-cols-4">
+                    <div className="rounded-2xl border border-orange-400/20 bg-[#07182b] p-3 text-center">
+                      <div className="text-xs font-bold text-gray-400">
+                        إجمالي المستحق
+                      </div>
+                      <div className="mt-1 text-2xl font-black text-orange-300">
+                        {report.dueTotal.toLocaleString("ar-SA")} ريال
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-green-400/20 bg-[#07182b] p-3 text-center">
+                      <div className="text-xs font-bold text-gray-400">
+                        إجمالي المحصل
+                      </div>
+                      <div className="mt-1 text-2xl font-black text-green-300">
+                        {report.collectedTotal.toLocaleString("ar-SA")} ريال
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-red-400/20 bg-[#07182b] p-3 text-center">
+                      <div className="text-xs font-bold text-gray-400">
+                        المتبقي
+                      </div>
+                      <div className="mt-1 text-2xl font-black text-red-300">
+                        {report.remainingTotal.toLocaleString("ar-SA")} ريال
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-blue-400/20 bg-[#07182b] p-3 text-center">
+                      <div className="text-xs font-bold text-gray-400">
+                        الفترة المحددة
+                      </div>
+                      <div className="mt-1 text-sm font-black text-blue-300">
+                        {formatContractDate(fromDate)} —{" "}
+                        {formatContractDate(toDate)}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="min-h-0 flex-1 overflow-auto p-4">
+                    <div className="overflow-hidden rounded-2xl border border-white/10">
+                      <table className="w-full min-w-[1200px] border-collapse text-sm">
+                        <thead className="sticky top-0 z-10 bg-[#0b2039]">
+                          <tr className="text-gray-300">
+                            <th className="border-b border-white/10 px-4 py-3 text-center">
+                              #
+                            </th>
+                            <th className="border-b border-white/10 px-4 py-3 text-center">
+                              رقم الشقة
+                            </th>
+                            <th className="border-b border-white/10 px-4 py-3 text-center">
+                              المستأجر / الجهة
+                            </th>
+                            <th className="border-b border-white/10 px-4 py-3 text-center">
+                              التاريخ
+                            </th>
+                            <th className="border-b border-white/10 px-4 py-3 text-center">
+                              نوع المستحق
+                            </th>
+                            <th className="border-b border-white/10 px-4 py-3 text-center">
+                              نوع العملية
+                            </th>
+                            <th className="border-b border-white/10 px-4 py-3 text-center">
+                              المبلغ
+                            </th>
+                            <th className="border-b border-white/10 px-4 py-3 text-center">
+                              تفاصيل / ملاحظات
+                            </th>
+                          </tr>
+                        </thead>
+
+                        <tbody>
+                          {report.rows.length > 0 ? (
+                            report.rows.map((row, index) => (
+                              <tr
+                                key={`${row.date}-${row.apartmentNumber}-${row.type}-${row.transactionType}-${index}`}
+                                className="border-b border-white/5 bg-white/[0.02] transition hover:bg-white/[0.05]"
+                              >
+                                <td className="px-4 py-3 text-center font-bold text-gray-500">
+                                  {index + 1}
+                                </td>
+                                <td className="px-4 py-3 text-center font-black text-[#f6c84a]">
+                                  {row.apartmentNumber ?? "غير محدد"}
+                                </td>
+                                <td className="px-4 py-3 text-center font-semibold text-gray-200">
+                                  {row.tenant}
+                                </td>
+                                <td className="px-4 py-3 text-center font-bold text-gray-300">
+                                  {formatContractDate(row.date)}
+                                </td>
+                                <td className="px-4 py-3 text-center font-black text-white">
+                                  {row.type}
+                                </td>
+                                <td className="px-4 py-3 text-center">
+                                  <span
+                                    className={`inline-flex rounded-full border px-3 py-1.5 text-xs font-black ${
+                                      row.transactionType === "تحصيل"
+                                        ? "border-green-400/25 bg-green-400/10 text-green-300"
+                                        : "border-orange-400/25 bg-orange-400/10 text-orange-300"
+                                    }`}
+                                  >
+                                    {row.transactionType}
+                                  </span>
+                                </td>
+                                <td
+                                  className={`px-4 py-3 text-center font-black ${
+                                    row.transactionType === "تحصيل"
+                                      ? "text-green-300"
+                                      : "text-orange-300"
+                                  }`}
+                                >
+                                  {row.amount.toLocaleString("ar-SA")} ريال
+                                </td>
+                                <td className="px-4 py-3 text-center font-semibold leading-6 text-gray-400">
+                                  {row.notes}
+                                </td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td
+                                colSpan={8}
+                                className="px-5 py-16 text-center"
+                              >
+                                <Receipt
+                                  size={42}
+                                  className="mx-auto text-gray-700"
+                                />
+                                <div className="mt-4 text-base font-bold text-gray-400">
+                                  لا توجد بيانات مسجلة خلال الفترة المحددة
+                                </div>
+                                <div className="mt-2 text-sm text-gray-600">
+                                  عند إضافة المستحقات أو تسجيل التحصيلات ستظهر
+                                  هنا تلقائيًا.
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  <div className="shrink-0 border-t border-white/10 bg-[#061426] p-4">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                      <button
+                        type="button"
+                        onClick={exportMonthlyCollectionExcel}
+                        className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-green-400/30 bg-green-500/10 px-4 text-sm font-black text-green-300 transition hover:bg-green-500/20"
+                      >
+                        <Download size={19} />
+                        تصدير Excel
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={printMonthlyCollectionReport}
+                        className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-blue-400/30 bg-blue-500/10 px-4 text-sm font-black text-blue-300 transition hover:bg-blue-500/20"
+                      >
+                        <Printer size={19} />
+                        طباعة
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={exportMonthlyCollectionPdf}
+                        className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-red-400/30 bg-red-500/10 px-4 text-sm font-black text-red-300 transition hover:bg-red-500/20"
+                      >
+                        <FileText size={19} />
+                        تصدير PDF
+                      </button>
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+
+      {/* ===================================================== */}
+      {/* SELECTED APARTMENT FINANCIAL REPORT                    */}
+      {/* ===================================================== */}
+
+      {selectedApartmentFinancialReport && selectedApartment && (
+        <div
+          className="fixed inset-0 z-[10001] flex items-center justify-center bg-black/85 p-3 backdrop-blur-md sm:p-5"
+          onClick={() => setSelectedApartmentFinancialReport(null)}
+        >
+          <div
+            dir="rtl"
+            className="flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-[#f0ad18]/30 bg-[#07182b] shadow-[0_25px_90px_rgba(0,0,0,0.65)]"
+            onClick={(event) => event.stopPropagation()}
+          >
+            {(() => {
+              const report = getSelectedApartmentFinancialReport();
+              return (
+                <>
+                  <div className="flex shrink-0 items-center justify-between border-b border-white/10 bg-[#061426] px-5 py-4">
+                    <div>
+                      <h2 className="text-xl font-black text-[#f6c84a] sm:text-2xl">
+                        {report.title}
+                      </h2>
+                      <p className="mt-1 text-sm font-semibold text-gray-400">
+                        شقة رقم {selectedApartment.number} — {formatContractDate(fromDate)} إلى {formatContractDate(toDate)}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedApartmentFinancialReport(null)}
+                      className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-gray-300 transition hover:border-red-400/40 hover:bg-red-400/10 hover:text-red-300"
+                    >
+                      <X size={21} />
+                    </button>
+                  </div>
+
+                  <div className="grid shrink-0 grid-cols-1 gap-3 border-b border-white/10 bg-[#0b2039] p-4 sm:grid-cols-3">
+                    <div className="rounded-2xl border border-[#f0ad18]/20 bg-[#07182b] p-4 text-center">
+                      <div className="text-xs font-bold text-gray-400">إجمالي التقرير</div>
+                      <div className="mt-1 text-2xl font-black text-[#f6c84a]">
+                        {report.total.toLocaleString("ar-SA")} ريال
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border border-blue-400/20 bg-[#07182b] p-4 text-center">
+                      <div className="text-xs font-bold text-gray-400">عدد العمليات</div>
+                      <div className="mt-1 text-2xl font-black text-blue-300">
+                        {report.rows.length}
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border border-green-400/20 bg-[#07182b] p-4 text-center">
+                      <div className="text-xs font-bold text-gray-400">الفترة</div>
+                      <div className="mt-1 text-sm font-black text-green-300">
+                        {formatContractDate(fromDate)} — {formatContractDate(toDate)}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="min-h-0 flex-1 overflow-auto p-4">
+                    <div className="overflow-hidden rounded-2xl border border-white/10">
+                      <table className="w-full min-w-[850px] border-collapse text-sm">
+                        <thead className="sticky top-0 z-10 bg-[#0b2039]">
+                          <tr className="text-gray-300">
+                            <th className="border-b border-white/10 px-4 py-3 text-center">#</th>
+                            <th className="border-b border-white/10 px-4 py-3 text-center">التاريخ</th>
+                            <th className="border-b border-white/10 px-4 py-3 text-center">نوع العملية</th>
+                            <th className="border-b border-white/10 px-4 py-3 text-center">المبلغ</th>
+                            <th className="border-b border-white/10 px-4 py-3 text-center">التفاصيل</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {report.rows.length ? (
+                            report.rows.map((row, index) => (
+                              <tr key={`${row.date}-${row.type}-${index}`} className="border-b border-white/5 bg-white/[0.02] hover:bg-white/[0.05]">
+                                <td className="px-4 py-3 text-center font-bold text-gray-500">{index + 1}</td>
+                                <td className="px-4 py-3 text-center font-bold text-gray-300">{formatContractDate(row.date)}</td>
+                                <td className="px-4 py-3 text-center font-black text-white">{row.type || "غير محدد"}</td>
+                                <td className="px-4 py-3 text-center font-black text-green-300">{(Number(row.amount) || 0).toLocaleString("ar-SA")} ريال</td>
+                                <td className="px-4 py-3 text-center font-semibold text-gray-400">{row.notes || "لا توجد تفاصيل"}</td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td colSpan={5} className="px-5 py-14 text-center text-gray-500">لا توجد بيانات خلال الفترة المحددة.</td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  <div className="shrink-0 border-t border-white/10 bg-[#061426] p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
+                        <button
+                          type="button"
+                          onClick={printSelectedApartmentFinancialReport}
+                          className="flex h-11 items-center justify-center gap-2 rounded-2xl border border-blue-400/30 bg-blue-500/10 px-5 text-sm font-black text-blue-300 transition hover:bg-blue-500/20"
+                        >
+                          <Printer size={18} />
+                          طباعة
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={exportSelectedApartmentFinancialReportPdf}
+                          className="flex h-11 items-center justify-center gap-2 rounded-2xl border border-red-400/30 bg-red-500/10 px-5 text-sm font-black text-red-300 transition hover:bg-red-500/20"
+                        >
+                          <FileText size={18} />
+                          تصدير PDF
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={exportSelectedApartmentFinancialReportExcel}
+                          className="flex h-11 items-center justify-center gap-2 rounded-2xl border border-green-400/30 bg-green-500/10 px-5 text-sm font-black text-green-300 transition hover:bg-green-500/20"
+                        >
+                          <Download size={18} />
+                          تصدير Excel
+                        </button>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setSelectedApartmentFinancialReport(null)}
+                        className="flex h-11 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-8 text-sm font-black text-gray-300 transition hover:border-red-400/40 hover:bg-red-400/10 hover:text-red-300"
+                      >
+                        <X size={19} />
+                        إغلاق
+                      </button>
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
           </div>
         </div>
       )}
