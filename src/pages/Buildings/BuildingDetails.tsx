@@ -5105,12 +5105,12 @@ export default function BuildingDetails() {
       {selectedApartment && (
 
         <div
-          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/85 p-2 backdrop-blur-md sm:p-4"
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/85 p-1 backdrop-blur-md sm:p-2 lg:p-3"
           onClick={closeApartment}
         >
 
           <div
-            className="relative flex max-h-[calc(100vh-16px)] w-full max-w-[1420px] flex-col overflow-hidden rounded-[28px] border border-[#d89b18]/70 bg-[#061426]/98 shadow-[0_0_80px_rgba(216,155,24,0.18)] sm:max-h-[calc(100vh-32px)]"
+            className="relative flex h-[calc(100vh-8px)] max-h-[calc(100vh-8px)] w-[calc(100vw-8px)] max-w-[1600px] flex-col overflow-hidden rounded-[22px] border border-[#d89b18]/70 bg-[#061426]/98 shadow-[0_0_80px_rgba(216,155,24,0.18)] sm:h-[calc(100vh-16px)] sm:max-h-[calc(100vh-16px)] sm:w-[calc(100vw-16px)] sm:rounded-[28px]"
             onClick={(event) =>
               event.stopPropagation()
             }
@@ -5124,8 +5124,8 @@ export default function BuildingDetails() {
             {/* MODAL HEADER                                      */}
             {/* ================================================= */}
 
-            <div className="relative border-b border-white/10 bg-gradient-to-r from-[#050d18] via-[#0a2038] to-[#071a2d] px-5 py-3 lg:px-7">
-              <div className="relative flex min-h-[58px] items-center justify-between gap-4">
+            <div className="relative shrink-0 border-b border-white/10 bg-gradient-to-r from-[#050d18] via-[#0a2038] to-[#071a2d] px-3 py-2.5 sm:px-5 sm:py-3 lg:px-7">
+              <div className="relative flex min-h-[52px] items-center justify-between gap-2 sm:min-h-[58px] sm:gap-4">
                 <button
                   type="button"
                   onClick={closeApartment}
@@ -5136,10 +5136,10 @@ export default function BuildingDetails() {
                 </button>
 
                 <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
-                  <h2 className="text-2xl font-bold text-[#f6c84a] lg:text-3xl">
+                  <h2 className="text-xl font-bold text-[#f6c84a] sm:text-2xl lg:text-3xl">
                     تفاصيل الشقة
                   </h2>
-                  <p className="mt-1 text-base font-semibold text-gray-300 lg:text-lg">
+                  <p className="mt-1 text-sm font-semibold text-gray-300 sm:text-base lg:text-lg">
                     عمارة سنتر
                   </p>
                 </div>
@@ -5164,8 +5164,8 @@ export default function BuildingDetails() {
             {/* MODAL HERO                                         */}
             {/* ================================================= */}
 
-            <div className="grid shrink-0 grid-cols-1 gap-4 border-b border-white/10 bg-[#06182c] p-4 lg:grid-cols-[330px_1fr] lg:p-5" dir="ltr">
-              <div className="relative min-h-[220px] overflow-hidden rounded-3xl border border-[#d89b18]/30 bg-[#0a1e33]">
+            <div className="grid shrink-0 grid-cols-1 gap-3 border-b border-white/10 bg-[#06182c] p-3 sm:gap-4 sm:p-4 lg:grid-cols-[300px_1fr] lg:p-5 xl:grid-cols-[330px_1fr]" dir="ltr">
+              <div className="relative min-h-[180px] overflow-hidden rounded-3xl border border-[#d89b18]/30 bg-[#0a1e33] sm:min-h-[220px]">
                 <img
                   src="https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=1000&q=85"
                   alt="صورة الشقة"
@@ -5584,7 +5584,7 @@ export default function BuildingDetails() {
             {/* TABS                                               */}
             {/* ================================================= */}
 
-            <div className="shrink-0 border-b border-white/10 bg-[#071a2d] px-3 py-2.5 lg:px-5">
+            <div className="shrink-0 border-b border-white/10 bg-[#071a2d] px-2 py-2 sm:px-3 sm:py-2.5 lg:px-5">
 
               <div className="flex gap-2.5 overflow-x-auto">
 
@@ -5603,7 +5603,7 @@ export default function BuildingDetails() {
                       onClick={() =>
                         setActiveTab(tab.title)
                       }
-                      className={`flex min-h-[50px] min-w-fit items-center justify-center gap-2.5 rounded-xl border px-5 py-3 text-base font-bold transition ${
+                      className={`flex min-h-[44px] min-w-fit items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-bold transition sm:min-h-[50px] sm:gap-2.5 sm:px-5 sm:py-3 sm:text-base ${
                         active
                           ? "border-[#f0ad18]/60 bg-gradient-to-r from-[#f0ad18] to-[#d99a12] text-[#07182b] shadow-[0_0_20px_rgba(240,173,24,0.18)]"
                           : "border-white/10 bg-white/[0.025] text-gray-300 hover:border-[#f0ad18]/30 hover:bg-white/[0.05] hover:text-white"
@@ -5627,7 +5627,7 @@ export default function BuildingDetails() {
             {/* TAB CONTENT                                        */}
             {/* ================================================= */}
 
-            <div className="min-h-0 flex-1 overflow-y-auto bg-[#061426] p-4 lg:p-5">
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-[#061426] p-3 sm:p-4 lg:p-5">
 
               {/* BASIC */}
 
