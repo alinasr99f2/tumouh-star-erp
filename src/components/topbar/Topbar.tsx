@@ -5,11 +5,27 @@ import {
   Moon,
   Globe,
   ChevronDown,
+  Menu,
 } from "lucide-react";
 
-function Topbar() {
+type TopbarProps = {
+  onMobileMenu?: () => void;
+};
+
+function Topbar({ onMobileMenu }: TopbarProps) {
   return (
     <header className="h-16 sm:h-18 lg:h-20 bg-[#081B33] border-b border-white/10 px-3 sm:px-5 lg:px-8 flex items-center justify-between gap-2 sm:gap-4">
+
+      {/* Mobile Menu */}
+
+      <button
+        type="button"
+        aria-label="فتح القائمة الجانبية"
+        onClick={onMobileMenu}
+        className="flex lg:hidden w-9 h-9 sm:w-10 sm:h-10 items-center justify-center rounded-lg sm:rounded-xl bg-[#102947] hover:bg-[#16375d] transition shrink-0"
+      >
+        <Menu size={20} />
+      </button>
 
       {/* Left */}
 

@@ -10,18 +10,43 @@ import { sidebarMenu } from "../../data/menu";
 
 type SidebarProps = {
   onLogout: () => void;
+  mobileOpen?: boolean;
+  onMobileClose?: () => void;
 };
-a
-function Sidebar({ onLogout }: SidebarProps) {
+function Sidebar({
+  onLogout,
+  mobileOpen = false,
+  onMobileClose,
+}: SidebarProps) {
   const location = useLocation();
   const [openBuildings, setOpenBuildings] = useState(
     location.pathname.startsWith("/buildings")
   );
 
   return (
+    <>
+      {mobileOpen && (
+        <button
+          type="button"
+          aria-label="إغلاق القائمة الجانبية"
+          onClick={onMobileClose}
+          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-[2px] lg:hidden"
+        />
+      )}
+
     <aside
-      className="
-        w-[240px] lg:w-[270px]
+      className={`
+        fixed
+        inset-y-0
+        right-0
+        z-50
+        w-[85vw]
+        max-w-[300px]
+        lg:relative
+        lg:inset-auto
+        lg:z-auto
+        lg:w-[240px]
+        xl:w-[270px]
         shrink-0
         h-screen
         flex
@@ -30,7 +55,12 @@ function Sidebar({ onLogout }: SidebarProps) {
         border-l
         border-white/10
         text-white
-      "
+        transition-transform
+        duration-300
+        ease-in-out
+        lg:translate-x-0
+        ${mobileOpen ? "translate-x-0" : "translate-x-full"}
+      `}
     >
 
       {/* Header */}
@@ -202,6 +232,7 @@ function Sidebar({ onLogout }: SidebarProps) {
                     <NavLink
                       to={item.path}
                       end
+                      onClick={onMobileClose}
                       className={({ isActive }) =>
                         `
                         group
@@ -356,6 +387,7 @@ function Sidebar({ onLogout }: SidebarProps) {
                 key={item.title}
                 to={item.path}
                 end={item.path === "/"}
+                onClick={onMobileClose}
                 className={({ isActive }) =>
                   `
                   group
@@ -469,6 +501,7 @@ function Sidebar({ onLogout }: SidebarProps) {
       </div>
 
     </aside>
+    </>
   );
 }
 

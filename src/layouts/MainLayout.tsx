@@ -8,11 +8,11 @@ import { supabase } from "../utils/supabase";
 function MainLayout() {
   const navigate = useNavigate();
 
-  const [showLogoutModal, setShowLogoutModal] =
-    useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
-  const [loggingOut, setLoggingOut] =
-    useState(false);
+  // Mobile sidebar state
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   const handleLogout = async () => {
   try {
@@ -82,13 +82,19 @@ function MainLayout() {
       {/* Sidebar */}
       <Sidebar
         onLogout={() => setShowLogoutModal(true)}
+        mobileOpen={mobileSidebarOpen}
+        onMobileClose={() => setMobileSidebarOpen(false)}
       />
 
       {/* Main Content */}
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
 
         {/* Top Navigation */}
-        <Topbar />
+        <Topbar
+          onMobileMenu={() =>
+            setMobileSidebarOpen((current) => !current)
+          }
+        />
 
         {/* Page Content */}
         <main className="min-w-0 flex-1 overflow-y-auto overflow-x-hidden bg-[#071321] p-3 sm:p-4 lg:p-6">
@@ -176,13 +182,10 @@ function MainLayout() {
                 strokeLinejoin="round"
               >
                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-
                 <path d="M16 17l5-5-5-5" />
-
                 <path d="M21 12H9" />
               </svg>
             </div>
-
 
             {/* Title */}
             <h2
@@ -196,7 +199,6 @@ function MainLayout() {
               تسجيل الخروج
             </h2>
 
-
             {/* Message */}
             <p
               className="
@@ -209,7 +211,6 @@ function MainLayout() {
             >
               هل أنت متأكد من رغبتك في تسجيل الخروج؟
             </p>
-
 
             {/* Buttons */}
             <div
@@ -252,7 +253,6 @@ function MainLayout() {
               >
                 لا، إلغاء
               </button>
-
 
               {/* Confirm Logout */}
               <button
