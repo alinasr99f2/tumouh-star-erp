@@ -218,15 +218,15 @@ if (fundingError) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-2 sm:p-4 md:p-6">
 
-      <div className="w-[950px] max-w-full rounded-3xl border border-white/10 bg-[#081B33] p-8 shadow-2xl">
+      <div className="w-full max-w-[950px] max-h-[95vh] overflow-y-auto rounded-2xl border border-white/10 bg-[#081B33] p-4 shadow-2xl sm:rounded-3xl sm:p-6 md:p-8">
 
         {/* Header */}
 
-        <div className="mb-8 flex items-center justify-between">
+        <div className="mb-5 flex items-center justify-between gap-3 sm:mb-8">
 
-          <h2 className="text-3xl font-bold text-white">
+          <h2 className="text-xl font-bold text-white sm:text-2xl md:text-3xl">
             إضافة تغذية مالية
           </h2>
 
@@ -242,7 +242,7 @@ if (fundingError) {
 
         {/* Form */}
 
-        <div className="grid grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5">
 
           {/* تاريخ الإدخال */}
 
@@ -322,7 +322,7 @@ if (fundingError) {
 
         {/* Description */}
 
-        <div className="mt-6">
+        <div className="mt-4 sm:mt-6">
 
           <label className="mb-2 block text-sm text-gray-300">
             الوصف
@@ -341,7 +341,7 @@ if (fundingError) {
 
         {/* Attachment */}
 
-        <div className="mt-6">
+        <div className="mt-4 sm:mt-6">
 
           <label className="mb-2 block text-sm text-gray-300">
             إرفاق مستند
@@ -353,7 +353,7 @@ if (fundingError) {
   onChange={(e) => {
     setAttachmentFile(e.target.files?.[0] ?? null);
   }}
-  className="block w-full rounded-xl border border-white/10 bg-[#102947] p-3 text-white"
+  className="block w-full min-w-0 rounded-xl border border-white/10 bg-[#102947] p-3 text-sm text-white sm:text-base"
 />
 
 {attachmentFile && (
@@ -366,12 +366,12 @@ if (fundingError) {
 
         {/* Buttons */}
 
-        <div className="mt-8 flex justify-end gap-4">
+        <div className="mt-6 flex flex-col-reverse gap-3 sm:mt-8 sm:flex-row sm:justify-end sm:gap-4">
 
           <button
             onClick={onClose}
             disabled={saving}
-            className="rounded-xl border border-white/10 px-6 py-3 text-white hover:bg-white/5"
+            className="w-full rounded-xl border border-white/10 px-6 py-3 text-white hover:bg-white/5 sm:w-auto"
           >
             إلغاء
           </button>
@@ -379,7 +379,7 @@ if (fundingError) {
           <button
             onClick={handleSave}
             disabled={saving || loadingData}
-            className="rounded-xl bg-yellow-400 px-8 py-3 font-bold text-[#081B33] hover:bg-yellow-500 disabled:cursor-not-allowed disabled:opacity-50"
+            className="w-full rounded-xl bg-yellow-400 px-8 py-3 font-bold text-[#081B33] hover:bg-yellow-500 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
           >
             {saving
               ? "جاري الحفظ..."
@@ -428,7 +428,7 @@ function Input({
         onChange={(e) =>
           onChange?.(e.target.value)
         }
-        className="h-12 w-full rounded-xl border border-white/10 bg-[#102947] px-4 text-white outline-none focus:border-yellow-400"
+        className="h-11 w-full rounded-xl border border-white/10 bg-[#102947] px-3 text-sm text-white outline-none focus:border-yellow-400 sm:h-12 sm:px-4 sm:text-base"
       />
 
     </div>
@@ -473,7 +473,7 @@ function Select({
         onChange={(e) =>
           onChange?.(e.target.value)
         }
-        className="h-12 w-full rounded-xl border border-white/10 bg-[#102947] px-4 text-white outline-none focus:border-yellow-400 disabled:opacity-50"
+        className="h-11 w-full rounded-xl border border-white/10 bg-[#102947] px-3 text-sm text-white outline-none focus:border-yellow-400 disabled:opacity-50 sm:h-12 sm:px-4 sm:text-base"
       >
 
         <option value="">

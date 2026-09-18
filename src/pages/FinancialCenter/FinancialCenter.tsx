@@ -1396,31 +1396,31 @@ const handleDeleteAccount = async (account: any) => {
 
   return (
 
-    <div className="space-y-8">
+    <div className="w-full min-w-0 space-y-5 sm:space-y-6 md:space-y-8">
 
-      <div className="rounded-[28px] border border-white/10 bg-[#081B33] p-8 text-center">
+      <div className="rounded-2xl sm:rounded-[28px] border border-white/10 bg-[#081B33] p-4 sm:p-6 md:p-8 text-center">
 
-        <h1 className="text-4xl font-bold text-white">
+        <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white">
           💰 المركز المالي
         </h1>
 
-        <p className="mt-3 text-lg text-gray-400">
+        <p className="mt-2 sm:mt-3 text-sm sm:text-base md:text-lg text-gray-400">
           إدارة المصروفات والعهد والتغذية والبنود المالية
         </p>
 
       </div>
 
-      <div className="space-y-8">
+      <div className="w-full min-w-0 space-y-5 sm:space-y-6 md:space-y-8">
         {/* Dashboard */}
 
-<div className="grid grid-cols-4 gap-5">
+<div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 md:gap-5">
 
-  <div className="rounded-[28px] border border-emerald-400/20 bg-[#102947] p-6">
+  <div className="rounded-2xl sm:rounded-[28px] border border-emerald-400/20 bg-[#102947] p-4 sm:p-6">
     <p className="text-sm text-gray-400">
       إجمالي الأرصدة
     </p>
 
-    <h2 className="mt-3 text-4xl font-bold text-emerald-400">
+    <h2 className="mt-2 sm:mt-3 text-2xl sm:text-3xl md:text-4xl font-bold text-emerald-400">
       {(
   funding.reduce(
     (sum, item) => sum + Number(item.amount ?? 0),
@@ -1438,12 +1438,12 @@ const handleDeleteAccount = async (account: any) => {
     </span>
   </div>
 
-  <div className="rounded-[28px] border border-red-400/20 bg-[#102947] p-6">
+  <div className="rounded-2xl sm:rounded-[28px] border border-red-400/20 bg-[#102947] p-4 sm:p-6">
     <p className="text-sm text-gray-400">
       إجمالي المصروفات
     </p>
 
-    <h2 className="mt-3 text-4xl font-bold text-red-400">
+    <h2 className="mt-2 sm:mt-3 text-2xl sm:text-3xl md:text-4xl font-bold text-red-400">
       {totalExpensesAmount.toLocaleString()}
     </h2>
 
@@ -1452,12 +1452,12 @@ const handleDeleteAccount = async (account: any) => {
     </span>
   </div>
 
-  <div className="rounded-[28px] border border-sky-400/20 bg-[#102947] p-6">
+  <div className="rounded-2xl sm:rounded-[28px] border border-sky-400/20 bg-[#102947] p-4 sm:p-6">
     <p className="text-sm text-gray-400">
       إجمالي التغذية
     </p>
 
-    <h2 className="mt-3 text-4xl font-bold text-sky-400">
+    <h2 className="mt-2 sm:mt-3 text-2xl sm:text-3xl md:text-4xl font-bold text-sky-400">
       {totalFundingAmount.toLocaleString()}
     </h2>
 
@@ -1466,12 +1466,12 @@ const handleDeleteAccount = async (account: any) => {
     </span>
   </div>
 
-  <div className="rounded-[28px] border border-yellow-400/20 bg-[#102947] p-6">
+  <div className="rounded-2xl sm:rounded-[28px] border border-yellow-400/20 bg-[#102947] p-4 sm:p-6">
     <p className="text-sm text-gray-400">
       عدد العمليات
     </p>
 
-    <h2 className="mt-3 text-4xl font-bold text-yellow-400">
+    <h2 className="mt-2 sm:mt-3 text-2xl sm:text-3xl md:text-4xl font-bold text-yellow-400">
       {totalOperationsCount}
     </h2>
 
@@ -1484,12 +1484,12 @@ const handleDeleteAccount = async (account: any) => {
 
         <div className="w-full">
 
-          <div className="rounded-[28px] border border-white/10 bg-[#081B33] p-6">
+          <div className="rounded-2xl sm:rounded-[28px] border border-white/10 bg-[#081B33] p-4 sm:p-6">
 
             <div className="relative mb-8 flex items-center justify-center text-center">
 
               <div>
-                <h2 className="text-3xl font-bold text-white">
+                <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">
                   الأقسام المالية
                 </h2>
                 <p className="mt-2 text-gray-400">
@@ -1503,12 +1503,12 @@ const handleDeleteAccount = async (account: any) => {
 
             </div>
 
-            <div className="grid grid-cols-4 gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 md:gap-5">
 
            
             <div
   onClick={() => setActiveTab("expenses")}
-  className={`cursor-pointer rounded-[28px] border p-6 h-[230px]
+  className={`cursor-pointer rounded-2xl sm:rounded-[28px] border p-4 sm:p-6 h-auto min-h-[210px] sm:h-[230px]
   transition-all duration-500 ease-out ${
     activeTab === "expenses"
       ? "border-yellow-400 bg-gradient-to-br from-yellow-400 to-yellow-500 text-[#081B33] shadow-2xl"
@@ -1539,7 +1539,7 @@ const handleDeleteAccount = async (account: any) => {
 
   </div>
 
-  <h3 className="mt-7 text-[30px] font-extrabold">
+  <h3 className="mt-5 sm:mt-6 md:mt-7 text-2xl sm:text-[28px] md:text-[30px] font-extrabold">
     المصروفات
   </h3>
 
@@ -1565,7 +1565,7 @@ const handleDeleteAccount = async (account: any) => {
 
     <div>
 
-      <div className="text-4xl font-extrabold">
+      <div className="text-2xl sm:text-3xl md:text-4xl font-extrabold">
         {totalExpensesAmount.toLocaleString()}
       </div>
 
@@ -1596,7 +1596,7 @@ const handleDeleteAccount = async (account: any) => {
 </div>
 <div
   onClick={() => setActiveTab("accounts")}
-  className={`cursor-pointer rounded-[28px] border p-6 h-[230px]
+  className={`cursor-pointer rounded-2xl sm:rounded-[28px] border p-4 sm:p-6 h-auto min-h-[210px] sm:h-[230px]
   transition-all duration-500 ease-out ${
     activeTab === "accounts"
       ? "border-emerald-400 bg-gradient-to-br from-emerald-400 to-emerald-500 text-[#081B33] shadow-2xl"
@@ -1627,7 +1627,7 @@ const handleDeleteAccount = async (account: any) => {
 
   </div>
 
-  <h3 className="mt-7 text-[30px] font-extrabold">
+  <h3 className="mt-5 sm:mt-6 md:mt-7 text-2xl sm:text-[28px] md:text-[30px] font-extrabold">
     العهد المالية
   </h3>
 
@@ -1653,7 +1653,7 @@ const handleDeleteAccount = async (account: any) => {
 
     <div>
 
-      <div className="text-4xl font-extrabold">
+      <div className="text-2xl sm:text-3xl md:text-4xl font-extrabold">
         {totalAccounts}
       </div>
 
@@ -1684,7 +1684,7 @@ const handleDeleteAccount = async (account: any) => {
 </div>
 <div
   onClick={() => setActiveTab("funding")}
-  className={`cursor-pointer rounded-[28px] border p-6 h-[230px]
+  className={`cursor-pointer rounded-2xl sm:rounded-[28px] border p-4 sm:p-6 h-auto min-h-[210px] sm:h-[230px]
   transition-all duration-500 ease-out ${
     activeTab === "funding"
       ? "border-sky-400 bg-gradient-to-br from-sky-400 to-cyan-500 text-[#081B33] shadow-2xl"
@@ -1715,7 +1715,7 @@ const handleDeleteAccount = async (account: any) => {
 
   </div>
 
-  <h3 className="mt-7 text-[30px] font-extrabold">
+  <h3 className="mt-5 sm:mt-6 md:mt-7 text-2xl sm:text-[28px] md:text-[30px] font-extrabold">
     التغذية
   </h3>
 
@@ -1741,7 +1741,7 @@ const handleDeleteAccount = async (account: any) => {
 
     <div>
 
-      <div className="text-4xl font-extrabold">
+      <div className="text-2xl sm:text-3xl md:text-4xl font-extrabold">
         {totalFundingOperations}
       </div>
 
@@ -1772,7 +1772,7 @@ const handleDeleteAccount = async (account: any) => {
 </div>
 <div
   onClick={() => setActiveTab("categories")}
-  className={`cursor-pointer rounded-[28px] border p-6 h-[230px]
+  className={`cursor-pointer rounded-2xl sm:rounded-[28px] border p-4 sm:p-6 h-auto min-h-[210px] sm:h-[230px]
   transition-all duration-500 ease-out ${
     activeTab === "categories"
       ? "border-orange-400 bg-gradient-to-br from-orange-400 to-amber-500 text-[#081B33] shadow-2xl"
@@ -1803,7 +1803,7 @@ const handleDeleteAccount = async (account: any) => {
 
   </div>
 
-  <h3 className="mt-7 text-[30px] font-extrabold">
+  <h3 className="mt-5 sm:mt-6 md:mt-7 text-2xl sm:text-[28px] md:text-[30px] font-extrabold">
     البنود
   </h3>
 
@@ -1914,7 +1914,7 @@ const handleDeleteAccount = async (account: any) => {
 
 </div>
 
-      <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2 xl:grid-cols-3">
         {accounts.length === 0 ? (
           <div className="col-span-full rounded-3xl border border-white/10 bg-[#081B33] p-12 text-center text-gray-500">
             لا توجد عهد مالية مدخلة حتى الآن
@@ -1922,7 +1922,7 @@ const handleDeleteAccount = async (account: any) => {
         ) : (
           accounts.map((account) => (
             <div key={account.id} className="rounded-3xl border border-white/10 bg-[#102947] p-6 shadow-xl">
-              <div className="flex items-start justify-between gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
 
   <div className="min-w-0 flex-1">
     <h3 className="text-2xl font-extrabold text-white">
@@ -2167,7 +2167,7 @@ const handleDeleteAccount = async (account: any) => {
         </div>
 
 
-        <div className="max-h-[330px] overflow-y-auto">
+        <div className="max-h-[330px] overflow-y-auto overflow-x-auto">
 
           {expenseItems.length === 0 ? (
 
@@ -2271,7 +2271,7 @@ const handleDeleteAccount = async (account: any) => {
         </div>
 
 
-        <div className="max-h-[330px] overflow-y-auto">
+        <div className="max-h-[330px] overflow-y-auto overflow-x-auto">
 
           {categories.length === 0 ? (
 
@@ -2380,7 +2380,7 @@ const handleDeleteAccount = async (account: any) => {
         </div>
 
 
-        <div className="max-h-[330px] overflow-y-auto">
+        <div className="max-h-[330px] overflow-y-auto overflow-x-auto">
 
           {stages.length === 0 ? (
 
@@ -2456,8 +2456,8 @@ const handleDeleteAccount = async (account: any) => {
 )}
   {/* نافذة إضافة مرحلة */}
   {openStageModal && (
-    <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/70 p-4">
-      <div className="w-full max-w-lg rounded-3xl border border-white/10 bg-[#081B33] p-7 shadow-2xl">
+    <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/70 p-3 sm:p-4 overflow-y-auto">
+      <div className="w-full max-w-lg max-h-[92vh] overflow-y-auto rounded-2xl sm:rounded-3xl border border-white/10 bg-[#081B33] p-4 sm:p-6 md:p-7 shadow-2xl">
         <div className="mb-6 flex items-center justify-between">
           <div>
             <h3 className="text-2xl font-bold text-white">إضافة مرحلة جديدة</h3>
@@ -2476,8 +2476,8 @@ const handleDeleteAccount = async (account: any) => {
 
   {/* نافذة إضافة تصنيف */}
   {openCategoryModal && (
-    <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/70 p-4">
-      <div className="w-full max-w-lg rounded-3xl border border-white/10 bg-[#081B33] p-7 shadow-2xl">
+    <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/70 p-3 sm:p-4 overflow-y-auto">
+      <div className="w-full max-w-lg max-h-[92vh] overflow-y-auto rounded-2xl sm:rounded-3xl border border-white/10 bg-[#081B33] p-4 sm:p-6 md:p-7 shadow-2xl">
         <div className="mb-6 flex items-center justify-between">
           <div>
             <h3 className="text-2xl font-bold text-white">إضافة تصنيف جديد</h3>
@@ -2496,8 +2496,8 @@ const handleDeleteAccount = async (account: any) => {
 
   {/* نافذة إضافة بند */}
   {openItemModal && (
-    <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/70 p-4">
-      <div className="w-full max-w-lg rounded-3xl border border-white/10 bg-[#081B33] p-7 shadow-2xl">
+    <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/70 p-3 sm:p-4 overflow-y-auto">
+      <div className="w-full max-w-lg max-h-[92vh] overflow-y-auto rounded-2xl sm:rounded-3xl border border-white/10 bg-[#081B33] p-4 sm:p-6 md:p-7 shadow-2xl">
         <div className="mb-6 flex items-center justify-between">
           <div>
             <h3 className="text-2xl font-bold text-white">إضافة بند جديد</h3>
@@ -2528,8 +2528,8 @@ const handleDeleteAccount = async (account: any) => {
   selectedAccountId={selectedAccountId}
 />
 {selectedAccount && (
-  <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/70 p-4">
-    <div className="w-full max-w-5xl rounded-3xl border border-white/10 bg-[#081B33] p-7 shadow-2xl">
+  <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/70 p-3 sm:p-4 overflow-y-auto">
+    <div className="w-full max-w-5xl max-h-[92vh] overflow-y-auto rounded-2xl sm:rounded-3xl border border-white/10 bg-[#081B33] p-4 sm:p-6 md:p-7 shadow-2xl">
 
       {/* العنوان */}
       <div className="mb-6 flex items-center justify-between">
@@ -2568,7 +2568,7 @@ const handleDeleteAccount = async (account: any) => {
       </div>
 
       {/* البيانات المالية */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
 
         {/* الرصيد الحالي */}
         <div className="rounded-2xl border border-yellow-400/20 bg-yellow-400/10 p-5 text-center">
@@ -2664,11 +2664,11 @@ const handleDeleteAccount = async (account: any) => {
         </div>
 
         {/* الجدول */}
-        <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#102947]">
+        <div className="overflow-x-auto overflow-y-hidden rounded-2xl border border-white/10 bg-[#102947]">
 
           <div className="max-h-[280px] overflow-y-auto">
 
-            <table className="w-full min-w-[700px] text-sm">
+            <table className="w-full min-w-[700px] text-xs sm:text-sm">
 
               {/* رأس الجدول */}
               <thead className="sticky top-0 z-10 bg-[#163554]">
@@ -2870,9 +2870,9 @@ const handleDeleteAccount = async (account: any) => {
   {/* نافذة إضافة عهدة */}
   {openAccountModal && (
     
-    <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/70 p-4">
+    <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/70 p-3 sm:p-4 overflow-y-auto">
 
-      <div className="w-full max-w-lg rounded-3xl border border-white/10 bg-[#081B33] p-7 shadow-2xl">
+      <div className="w-full max-w-lg max-h-[92vh] overflow-y-auto rounded-2xl sm:rounded-3xl border border-white/10 bg-[#081B33] p-4 sm:p-6 md:p-7 shadow-2xl">
 
         {/* العنوان */}
 
@@ -2943,7 +2943,7 @@ const handleDeleteAccount = async (account: any) => {
 
         {/* الأزرار */}
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 
           <button
             type="button"

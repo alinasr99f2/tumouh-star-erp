@@ -123,7 +123,7 @@ export default function Home() {
           mx-auto
           flex
           w-full
-          max-w-[1550px]
+          w-full max-w-[1550px] min-w-0
           flex-col
           items-center
           px-3 sm:px-5
@@ -220,7 +220,7 @@ export default function Home() {
                   group
                   relative
                   flex
-                  min-h-[340px]
+                  min-h-[300px] sm:min-h-[340px]
                   sm:min-h-[390px]
                   flex-col
                   items-center
@@ -306,7 +306,7 @@ export default function Home() {
                     z-10
                     mb-5 sm:mb-6
                     flex
-                    h-[95px] w-[95px]
+                    h-[82px] w-[82px] sm:h-[95px] sm:w-[95px]
                     sm:h-[120px] sm:w-[120px]
                     shrink-0
                     items-center
@@ -373,8 +373,9 @@ export default function Home() {
                   className="
                     relative
                     z-10
-                    text-2xl
-                    sm:text-[29px]
+                    text-xl
+                    sm:text-2xl
+                    lg:text-[29px]
                     font-extrabold
                     leading-tight
                     text-white

@@ -135,24 +135,24 @@ export default function FinancialDetails() {
   };
 
   return (
-    <div dir="rtl" className="min-h-screen bg-[#061426] p-4 text-white sm:p-6">
-      <div className="mx-auto max-w-7xl">
-        <div className="mb-6 rounded-3xl border border-[#d89b18]/50 bg-[#050505] p-5 shadow-xl sm:p-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div dir="rtl" className="min-h-screen w-full min-w-0 overflow-x-hidden bg-[#061426] p-3 text-white sm:p-5 md:p-6">
+      <div className="mx-auto w-full max-w-7xl min-w-0">
+        <div className="mb-4 rounded-2xl border border-[#d89b18]/50 bg-[#050505] p-4 shadow-xl sm:mb-6 sm:rounded-3xl sm:p-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
             <button
               type="button"
               onClick={() => window.history.back()}
-              className="flex w-fit items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-black text-gray-300 transition hover:border-[#f0ad18]/50 hover:bg-[#f0ad18]/10 hover:text-[#f6c84a]"
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-black text-gray-300 transition hover:border-[#f0ad18]/50 hover:bg-[#f0ad18]/10 hover:text-[#f6c84a] sm:w-fit"
             >
               <ArrowLeft size={18} />
               رجوع
             </button>
 
-            <div className="text-center">
-              <h1 className="text-2xl font-black text-[#f6c84a] sm:text-3xl">
+            <div className="w-full text-center">
+              <h1 className="text-xl font-black text-[#f6c84a] sm:text-2xl md:text-3xl">
                 تفاصيل الحركات المالية
               </h1>
-              <p className="mt-1 text-sm font-semibold text-gray-400">
+              <p className="mt-1 text-xs font-semibold leading-5 text-gray-400 sm:text-sm">
                 المستحقات والتحصيلات المسجلة للعمارة حسب الفترة المحددة
               </p>
             </div>
@@ -160,7 +160,7 @@ export default function FinancialDetails() {
             <button
               type="button"
               onClick={() => setRefreshKey((value) => value + 1)}
-              className="flex w-fit items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-black text-gray-300 transition hover:border-[#f0ad18]/50 hover:bg-[#f0ad18]/10 hover:text-[#f6c84a]"
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-black text-gray-300 transition hover:border-[#f0ad18]/50 hover:bg-[#f0ad18]/10 hover:text-[#f6c84a] sm:w-fit"
             >
               <RefreshCw size={18} />
               تحديث
@@ -168,49 +168,49 @@ export default function FinancialDetails() {
           </div>
         </div>
 
-        <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-3xl border border-white/10 bg-white/[0.025] p-5">
-            <div className="flex items-center gap-3 text-gray-400">
+        <div className="mb-4 grid min-w-0 grid-cols-1 gap-3 sm:mb-6 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
+          <div className="min-w-0 rounded-2xl border border-white/10 bg-white/[0.025] p-4 sm:rounded-3xl sm:p-5">
+            <div className="flex items-center gap-2 text-sm text-gray-400 sm:gap-3">
               <CircleDollarSign size={22} />
               <span className="font-bold">إجمالي المستحقات</span>
             </div>
-            <div className="mt-3 text-2xl font-black text-[#f6c84a]">
+            <div className="mt-2 text-xl font-black text-[#f6c84a] sm:mt-3 sm:text-2xl">
               {formatMoney(totals.due)}
             </div>
           </div>
 
-          <div className="rounded-3xl border border-white/10 bg-white/[0.025] p-5">
-            <div className="flex items-center gap-3 text-gray-400">
+          <div className="min-w-0 rounded-2xl border border-white/10 bg-white/[0.025] p-4 sm:rounded-3xl sm:p-5">
+            <div className="flex items-center gap-2 text-sm text-gray-400 sm:gap-3">
               <WalletCards size={22} />
               <span className="font-bold">إجمالي المحصل</span>
             </div>
-            <div className="mt-3 text-2xl font-black text-green-400">
+            <div className="mt-2 text-xl font-black text-green-400 sm:mt-3 sm:text-2xl">
               {formatMoney(totals.collected)}
             </div>
           </div>
 
-          <div className="rounded-3xl border border-white/10 bg-white/[0.025] p-5">
-            <div className="flex items-center gap-3 text-gray-400">
+          <div className="min-w-0 rounded-2xl border border-white/10 bg-white/[0.025] p-4 sm:rounded-3xl sm:p-5">
+            <div className="flex items-center gap-2 text-sm text-gray-400 sm:gap-3">
               <CircleDollarSign size={22} />
               <span className="font-bold">المتبقي</span>
             </div>
-            <div className="mt-3 text-2xl font-black text-red-400">
+            <div className="mt-2 text-xl font-black text-red-400 sm:mt-3 sm:text-2xl">
               {formatMoney(totals.remaining)}
             </div>
           </div>
 
-          <div className="rounded-3xl border border-white/10 bg-white/[0.025] p-5">
-            <div className="flex items-center gap-3 text-gray-400">
+          <div className="min-w-0 rounded-2xl border border-white/10 bg-white/[0.025] p-4 sm:rounded-3xl sm:p-5">
+            <div className="flex items-center gap-2 text-sm text-gray-400 sm:gap-3">
               <FileText size={22} />
               <span className="font-bold">عدد العمليات</span>
             </div>
-            <div className="mt-3 text-2xl font-black text-white">
+            <div className="mt-2 text-xl font-black text-white sm:mt-3 sm:text-2xl">
               {totals.operations}
             </div>
           </div>
         </div>
 
-        <div className="mb-5 rounded-3xl border border-white/10 bg-white/[0.025] p-4 sm:p-5">
+        <div className="mb-4 rounded-2xl border border-white/10 bg-white/[0.025] p-3 sm:mb-5 sm:rounded-3xl sm:p-5">
           <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
             <label className="text-center text-xs font-bold text-gray-400">
               من تاريخ
@@ -253,18 +253,18 @@ export default function FinancialDetails() {
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.025]">
+        <div className="min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.025] sm:rounded-3xl">
           <div className="overflow-x-auto">
-            <table className="min-w-[950px] w-full text-sm">
+            <table className="w-full min-w-[760px] text-xs sm:min-w-[950px] sm:text-sm">
               <thead className="bg-white/[0.04] text-[#f6c84a]">
                 <tr>
-                  <th className="px-4 py-4 text-right">التاريخ</th>
-                  <th className="px-4 py-4 text-right">النوع</th>
-                  <th className="px-4 py-4 text-right">الشقة</th>
-                  <th className="px-4 py-4 text-right">الحركة</th>
-                  <th className="px-4 py-4 text-right">المبلغ</th>
-                  <th className="px-4 py-4 text-right">الملاحظات</th>
-                  <th className="px-4 py-4 text-center">إجراءات</th>
+                  <th className="px-3 py-3 text-right sm:px-4 sm:py-4">التاريخ</th>
+                  <th className="px-3 py-3 text-right sm:px-4 sm:py-4">النوع</th>
+                  <th className="px-3 py-3 text-right sm:px-4 sm:py-4">الشقة</th>
+                  <th className="px-3 py-3 text-right sm:px-4 sm:py-4">الحركة</th>
+                  <th className="px-3 py-3 text-right sm:px-4 sm:py-4">المبلغ</th>
+                  <th className="px-3 py-3 text-right sm:px-4 sm:py-4">الملاحظات</th>
+                  <th className="px-3 py-3 text-center sm:px-4 sm:py-4">إجراءات</th>
                 </tr>
               </thead>
               <tbody>
@@ -277,10 +277,10 @@ export default function FinancialDetails() {
                 ) : (
                   data.map((item, rowIndex) => (
                     <tr key={`${item.storageKey}-${item.index}-${rowIndex}`} className="border-t border-white/10">
-                      <td className="px-4 py-4 font-bold text-gray-300">{formatDate(item.date)}</td>
-                      <td className="px-4 py-4 font-bold text-gray-300">{item.type || "غير محدد"}</td>
-                      <td className="px-4 py-4 font-black text-white">{item.apartmentNumber ?? "العمارة"}</td>
-                      <td className="px-4 py-4">
+                      <td className="px-3 py-3 font-bold text-gray-300 sm:px-4 sm:py-4">{formatDate(item.date)}</td>
+                      <td className="px-3 py-3 font-bold text-gray-300 sm:px-4 sm:py-4">{item.type || "غير محدد"}</td>
+                      <td className="px-3 py-3 font-black text-white sm:px-4 sm:py-4">{item.apartmentNumber ?? "العمارة"}</td>
+                      <td className="px-3 py-3 sm:px-4 sm:py-4">
                         <span className={`rounded-full border px-3 py-1 text-xs font-black ${
                           item.source === "تحصيل"
                             ? "border-green-400/30 bg-green-500/10 text-green-400"
@@ -292,10 +292,10 @@ export default function FinancialDetails() {
                       <td className="px-4 py-4 font-black text-[#f6c84a]">
                         {formatMoney(Number(item.amount) || 0)}
                       </td>
-                      <td className="max-w-[320px] px-4 py-4 text-gray-400">
+                      <td className="max-w-[320px] px-3 py-3 text-gray-400 sm:px-4 sm:py-4">
                         {item.notes || "لا توجد ملاحظات"}
                       </td>
-                      <td className="px-4 py-4">
+                      <td className="px-3 py-3 sm:px-4 sm:py-4">
                         <div className="flex items-center justify-center gap-2">
                           <button
                             type="button"
@@ -338,10 +338,10 @@ export default function FinancialDetails() {
       </div>
 
       {editing && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-3xl border border-[#f0ad18]/30 bg-[#07182b] p-5 shadow-2xl">
-            <div className="mb-5 flex items-center justify-between">
-              <h2 className="text-xl font-black text-[#f6c84a]">تعديل العملية</h2>
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center overflow-y-auto bg-black/70 p-3 backdrop-blur-sm sm:p-4">
+          <div className="my-auto w-full max-w-lg rounded-2xl border border-[#f0ad18]/30 bg-[#07182b] p-4 shadow-2xl sm:rounded-3xl sm:p-5">
+            <div className="mb-4 flex items-center justify-between gap-3 sm:mb-5">
+              <h2 className="text-lg font-black text-[#f6c84a] sm:text-xl">تعديل العملية</h2>
               <button
                 type="button"
                 onClick={() => setEditing(null)}
@@ -412,7 +412,7 @@ export default function FinancialDetails() {
               </label>
             </div>
 
-            <div className="mt-5 grid grid-cols-2 gap-3">
+            <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
               <button
                 type="button"
                 onClick={() => setEditing(null)}

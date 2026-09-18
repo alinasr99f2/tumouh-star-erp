@@ -3891,14 +3891,14 @@ export default function BuildingDetails() {
     return (
       <div
         dir="rtl"
-        className="min-h-screen bg-[#061426] p-6 text-white"
+        className="min-h-screen w-full min-w-0 overflow-x-hidden bg-[#061426] p-3 text-white sm:p-5 md:p-6"
       >
-        <div className="mx-auto min-h-[calc(100vh-3rem)] max-w-7xl rounded-3xl border border-[#d89b18]/40 bg-[#07182b] p-6 shadow-[0_20px_80px_rgba(0,0,0,0.35)]">
-          <div className="flex items-center justify-between border-b border-white/10 pb-5">
+        <div className="mx-auto min-h-[calc(100vh-3rem)] w-full max-w-7xl min-w-0 rounded-2xl border border-[#d89b18]/40 bg-[#07182b] p-3 shadow-[0_20px_80px_rgba(0,0,0,0.35)] sm:rounded-3xl sm:p-5 md:p-6">
+          <div className="flex flex-col gap-3 border-b border-white/10 pb-4 sm:flex-row sm:items-center sm:justify-between sm:pb-5">
             <button
               type="button"
               onClick={() => window.close()}
-              className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-black text-gray-300 transition hover:border-[#f0ad18]/50 hover:bg-[#f0ad18]/10 hover:text-[#f6c84a]"
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-xs font-black text-gray-300 transition hover:border-[#f0ad18]/50 hover:bg-[#f0ad18]/10 hover:text-[#f6c84a] sm:w-auto sm:text-sm"
             >
               <X size={18} />
               إغلاق الصفحة
@@ -3939,24 +3939,24 @@ export default function BuildingDetails() {
   return (
     <div
       dir="rtl"
-      className="min-h-screen bg-[#061426] p-6 text-white"
+      className="min-h-screen w-full min-w-0 overflow-x-hidden bg-[#061426] p-3 text-white sm:p-5 md:p-6"
     >
 
       {/* ===================================================== */}
       {/* HEADER                                                 */}
       {/* ===================================================== */}
 
-      <div className="mb-6 rounded-2xl border border-[#d89b18] bg-[#050505] p-6 shadow-lg">
+      <div className="mb-4 rounded-2xl border border-[#d89b18] bg-[#050505] p-4 shadow-lg sm:mb-6 sm:p-6">
 
         <div className="flex flex-col items-center justify-center gap-2 text-center">
 
           <div className="flex items-center justify-center gap-5 text-center">
 
-            <h1 className="text-4xl font-bold text-[#f0ad18]">
+            <h1 className="text-2xl font-bold text-[#f0ad18] sm:text-3xl md:text-4xl">
               عمارة سنتر
             </h1>
 
-            <div className="text-3xl font-bold text-white">
+            <div className="text-2xl font-bold text-white sm:text-3xl">
               Tumouh Star
             </div>
 
@@ -3964,7 +3964,7 @@ export default function BuildingDetails() {
 
           <div className="flex items-center justify-center gap-4 text-center">
 
-            <p className="text-lg text-gray-300">
+            <p className="text-sm text-gray-300 sm:text-lg">
               تفاصيل الاستثمار والعقود والإيرادات
             </p>
 
@@ -3982,22 +3982,22 @@ export default function BuildingDetails() {
       {/* QUICK FINANCIAL ACTIONS - 4 LARGE GLASS CARDS            */}
       {/* ===================================================== */}
 
-      <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5" dir="rtl">
+      <div className="mb-4 grid grid-cols-1 gap-3 sm:mb-6 sm:grid-cols-2 xl:grid-cols-5" dir="rtl">
 
         {/* 1 - ADD INVOICE / CHARGE */}
         <button
           type="button"
           onClick={() => openChargeModal("charge", "فاتورة مياه")}
-          className="group relative min-h-[155px] overflow-hidden rounded-3xl border border-cyan-400/30 bg-white/[0.055] p-4 text-center shadow-[0_12px_40px_rgba(0,0,0,0.22)] backdrop-blur-2xl transition-all duration-300 hover:-translate-y-1 hover:border-cyan-300/70 hover:bg-cyan-400/[0.08] hover:shadow-[0_18px_50px_rgba(34,211,238,0.16)]"
+          className="group relative min-h-[135px] min-w-0 overflow-hidden rounded-2xl border border-cyan-400/30 bg-white/[0.055] p-3 text-center sm:min-h-[155px] sm:rounded-3xl sm:p-4 text-center shadow-[0_12px_40px_rgba(0,0,0,0.22)] backdrop-blur-2xl transition-all duration-300 hover:-translate-y-1 hover:border-cyan-300/70 hover:bg-cyan-400/[0.08] hover:shadow-[0_18px_50px_rgba(34,211,238,0.16)]"
         >
           <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-cyan-300 to-transparent opacity-70 transition-opacity duration-300 group-hover:opacity-100" />
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-cyan-300/30 bg-cyan-400/10 shadow-[0_0_25px_rgba(34,211,238,0.10)]">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-cyan-300/30 bg-cyan-400/10 shadow-[0_0_25px_rgba(34,211,238,0.10)]">
             <Receipt size={30} className="text-cyan-300" />
           </div>
-          <div className="mt-4 text-2xl font-black text-white">
+          <div className="mt-3 text-xl font-black text-white sm:mt-4 sm:text-2xl">
             إضافة فاتورة أو مستحقات
           </div>
-          <div className="mt-2 text-base font-semibold text-cyan-200/75">
+          <div className="mt-2 text-sm font-semibold text-cyan-200/75">
             مياه، كهرباء، نظافة أو مستحقات أخرى
           </div>
           <div className="mx-auto mt-4 inline-flex items-center gap-2 rounded-full border border-cyan-300/20 bg-cyan-400/10 px-3 py-1.5 text-sm font-black text-cyan-200">
@@ -4010,16 +4010,16 @@ export default function BuildingDetails() {
         <button
           type="button"
           onClick={() => openChargeModal("collection", "فاتورة مياه")}
-          className="group relative min-h-[155px] overflow-hidden rounded-3xl border border-green-400/30 bg-white/[0.055] p-4 text-center shadow-[0_12px_40px_rgba(0,0,0,0.22)] backdrop-blur-2xl transition-all duration-300 hover:-translate-y-1 hover:border-green-300/70 hover:bg-green-400/[0.08] hover:shadow-[0_18px_50px_rgba(34,197,94,0.14)]"
+          className="group relative min-h-[135px] min-w-0 overflow-hidden rounded-2xl border border-green-400/30 bg-white/[0.055] p-3 text-center sm:min-h-[155px] sm:rounded-3xl sm:p-4 text-center shadow-[0_12px_40px_rgba(0,0,0,0.22)] backdrop-blur-2xl transition-all duration-300 hover:-translate-y-1 hover:border-green-300/70 hover:bg-green-400/[0.08] hover:shadow-[0_18px_50px_rgba(34,197,94,0.14)]"
         >
           <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-green-300 to-transparent opacity-70 transition-opacity duration-300 group-hover:opacity-100" />
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-green-300/30 bg-green-400/10 shadow-[0_0_25px_rgba(34,197,94,0.10)]">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-green-300/30 bg-green-400/10 shadow-[0_0_25px_rgba(34,197,94,0.10)]">
             <Coins size={30} className="text-green-300" />
           </div>
-          <div className="mt-4 text-2xl font-black text-white">
+          <div className="mt-3 text-xl font-black text-white sm:mt-4 sm:text-2xl">
             تحصيل فاتورة أو مستحقات
           </div>
-          <div className="mt-2 text-base font-semibold text-green-200/75">
+          <div className="mt-2 text-sm font-semibold text-green-200/75">
             تسجيل تحصيل المياه، الكهرباء أو مستحقات أخرى
           </div>
           <div className="mx-auto mt-4 inline-flex items-center gap-2 rounded-full border border-green-300/20 bg-green-400/10 px-3 py-1.5 text-sm font-black text-green-200">
@@ -4032,16 +4032,16 @@ export default function BuildingDetails() {
         <button
           type="button"
           onClick={() => openChargeModal("charge", "إيجار")}
-          className="group relative min-h-[155px] overflow-hidden rounded-3xl border border-[#f0ad18]/35 bg-white/[0.055] p-4 text-center shadow-[0_12px_40px_rgba(0,0,0,0.22)] backdrop-blur-2xl transition-all duration-300 hover:-translate-y-1 hover:border-[#f6c84a]/80 hover:bg-[#f0ad18]/[0.08] hover:shadow-[0_18px_50px_rgba(240,173,24,0.16)]"
+          className="group relative min-h-[135px] min-w-0 overflow-hidden rounded-2xl border border-[#f0ad18]/35 bg-white/[0.055] p-3 text-center sm:min-h-[155px] sm:rounded-3xl sm:p-4 text-center shadow-[0_12px_40px_rgba(0,0,0,0.22)] backdrop-blur-2xl transition-all duration-300 hover:-translate-y-1 hover:border-[#f6c84a]/80 hover:bg-[#f0ad18]/[0.08] hover:shadow-[0_18px_50px_rgba(240,173,24,0.16)]"
         >
           <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-[#f6c84a] to-transparent opacity-70 transition-opacity duration-300 group-hover:opacity-100" />
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-[#f6c84a]/30 bg-[#f0ad18]/10 shadow-[0_0_25px_rgba(240,173,24,0.10)]">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-[#f6c84a]/30 bg-[#f0ad18]/10 shadow-[0_0_25px_rgba(240,173,24,0.10)]">
             <Wallet size={30} className="text-[#f6c84a]" />
           </div>
-          <div className="mt-4 text-2xl font-black text-white">
+          <div className="mt-3 text-xl font-black text-white sm:mt-4 sm:text-2xl">
             إضافة إيجار
           </div>
-          <div className="mt-2 text-base font-semibold text-[#f6c84a]/75">
+          <div className="mt-2 text-sm font-semibold text-[#f6c84a]/75">
             تسجيل استحقاق إيجار جديد
           </div>
           <div className="mx-auto mt-4 inline-flex items-center gap-2 rounded-full border border-[#f6c84a]/20 bg-[#f0ad18]/10 px-3 py-1.5 text-sm font-black text-[#f6c84a]">
@@ -4054,16 +4054,16 @@ export default function BuildingDetails() {
         <button
           type="button"
           onClick={() => openChargeModal("collection", "إيجار")}
-          className="group relative min-h-[155px] overflow-hidden rounded-3xl border border-purple-400/30 bg-white/[0.055] p-4 text-center shadow-[0_12px_40px_rgba(0,0,0,0.22)] backdrop-blur-2xl transition-all duration-300 hover:-translate-y-1 hover:border-purple-300/70 hover:bg-purple-400/[0.08] hover:shadow-[0_18px_50px_rgba(168,85,247,0.15)]"
+          className="group relative min-h-[135px] min-w-0 overflow-hidden rounded-2xl border border-purple-400/30 bg-white/[0.055] p-3 text-center sm:min-h-[155px] sm:rounded-3xl sm:p-4 text-center shadow-[0_12px_40px_rgba(0,0,0,0.22)] backdrop-blur-2xl transition-all duration-300 hover:-translate-y-1 hover:border-purple-300/70 hover:bg-purple-400/[0.08] hover:shadow-[0_18px_50px_rgba(168,85,247,0.15)]"
         >
           <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-purple-300 to-transparent opacity-70 transition-opacity duration-300 group-hover:opacity-100" />
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-purple-300/30 bg-purple-400/10 shadow-[0_0_25px_rgba(168,85,247,0.10)]">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-purple-300/30 bg-purple-400/10 shadow-[0_0_25px_rgba(168,85,247,0.10)]">
             <ArrowUpRight size={30} className="text-purple-300" />
           </div>
-          <div className="mt-4 text-2xl font-black text-white">
+          <div className="mt-3 text-xl font-black text-white sm:mt-4 sm:text-2xl">
             تحصيل إيجار
           </div>
-          <div className="mt-2 text-base font-semibold text-purple-200/75">
+          <div className="mt-2 text-sm font-semibold text-purple-200/75">
             تسجيل دفعة إيجار محصلة
           </div>
           <div className="mx-auto mt-4 inline-flex items-center gap-2 rounded-full border border-purple-300/20 bg-purple-400/10 px-3 py-1.5 text-sm font-black text-purple-200">
@@ -4076,16 +4076,16 @@ export default function BuildingDetails() {
         <button
           type="button"
           onClick={openApartmentTypeModal}
-          className="group relative min-h-[155px] overflow-hidden rounded-3xl border border-blue-400/30 bg-white/[0.055] p-4 text-center shadow-[0_12px_40px_rgba(0,0,0,0.22)] backdrop-blur-2xl transition-all duration-300 hover:-translate-y-1 hover:border-blue-300/70 hover:bg-blue-400/[0.08] hover:shadow-[0_18px_50px_rgba(59,130,246,0.16)]"
+          className="group relative min-h-[135px] min-w-0 overflow-hidden rounded-2xl border border-blue-400/30 bg-white/[0.055] p-3 text-center sm:min-h-[155px] sm:rounded-3xl sm:p-4 text-center shadow-[0_12px_40px_rgba(0,0,0,0.22)] backdrop-blur-2xl transition-all duration-300 hover:-translate-y-1 hover:border-blue-300/70 hover:bg-blue-400/[0.08] hover:shadow-[0_18px_50px_rgba(59,130,246,0.16)]"
         >
           <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-blue-300 to-transparent opacity-70 transition-opacity duration-300 group-hover:opacity-100" />
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-blue-300/30 bg-blue-400/10 shadow-[0_0_25px_rgba(59,130,246,0.10)]">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-blue-300/30 bg-blue-400/10 shadow-[0_0_25px_rgba(59,130,246,0.10)]">
             <Building2 size={30} className="text-blue-300" />
           </div>
-          <div className="mt-4 text-2xl font-black text-white">
+          <div className="mt-3 text-xl font-black text-white sm:mt-4 sm:text-2xl">
             أنواع الشقق
           </div>
-          <div className="mt-2 text-base font-semibold text-blue-200/75">
+          <div className="mt-2 text-sm font-semibold text-blue-200/75">
             إضافة أنواع الشقق وتحديد أرقامها داخل العمارة
           </div>
           <div className="mx-auto mt-4 inline-flex items-center gap-2 rounded-full border border-blue-300/20 bg-blue-400/10 px-3 py-1.5 text-sm font-black text-blue-200">
@@ -4100,13 +4100,13 @@ export default function BuildingDetails() {
       {/* BASIC INFO - 6 GLASS CARDS                            */}
       {/* ===================================================== */}
 
-      <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+      <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 xl:mb-6 xl:grid-cols-6">
 
         {/* 1 - TOTAL APARTMENTS */}
 
         <div
           onClick={() => openApartmentReport("total")}
-          className="group relative cursor-pointer overflow-hidden rounded-2xl border border-white/10 bg-white/[0.045] p-4 text-center shadow-[0_10px_35px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:scale-[1.03] hover:border-[#f0ad18]/70 hover:bg-white/[0.07] hover:shadow-[0_16px_45px_rgba(240,173,24,0.12)]">
+          className="group relative min-w-0 cursor-pointer overflow-hidden rounded-2xl border border-white/10 bg-white/[0.045] p-3 text-center sm:p-4 shadow-[0_10px_35px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:scale-[1.03] hover:border-[#f0ad18]/70 hover:bg-white/[0.07] hover:shadow-[0_16px_45px_rgba(240,173,24,0.12)]">
 
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#f0ad18]/70 to-transparent opacity-60 transition-opacity duration-300 group-hover:opacity-100" />
 
@@ -4137,7 +4137,7 @@ export default function BuildingDetails() {
 
         <div
           onClick={() => openApartmentReport("rented")}
-          className="group relative cursor-pointer overflow-hidden rounded-2xl border border-white/10 bg-white/[0.045] p-4 text-center shadow-[0_10px_35px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:scale-[1.03] hover:border-green-400/70 hover:bg-white/[0.07] hover:shadow-[0_16px_45px_rgba(34,197,94,0.10)]">
+          className="group relative min-w-0 cursor-pointer overflow-hidden rounded-2xl border border-white/10 bg-white/[0.045] p-3 text-center sm:p-4 shadow-[0_10px_35px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:scale-[1.03] hover:border-green-400/70 hover:bg-white/[0.07] hover:shadow-[0_16px_45px_rgba(34,197,94,0.10)]">
 
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-green-400/70 to-transparent opacity-60 transition-opacity duration-300 group-hover:opacity-100" />
 
@@ -4168,7 +4168,7 @@ export default function BuildingDetails() {
 
         <div
           onClick={() => openApartmentReport("reserved")}
-          className="group relative cursor-pointer overflow-hidden rounded-2xl border border-white/10 bg-white/[0.045] p-4 text-center shadow-[0_10px_35px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:scale-[1.03] hover:border-blue-400/70 hover:bg-white/[0.07] hover:shadow-[0_16px_45px_rgba(59,130,246,0.10)]">
+          className="group relative min-w-0 cursor-pointer overflow-hidden rounded-2xl border border-white/10 bg-white/[0.045] p-3 text-center sm:p-4 shadow-[0_10px_35px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:scale-[1.03] hover:border-blue-400/70 hover:bg-white/[0.07] hover:shadow-[0_16px_45px_rgba(59,130,246,0.10)]">
 
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-blue-400/70 to-transparent opacity-60 transition-opacity duration-300 group-hover:opacity-100" />
 
@@ -4199,7 +4199,7 @@ export default function BuildingDetails() {
 
         <div
           onClick={() => openApartmentReport("maintenance")}
-          className="group relative cursor-pointer overflow-hidden rounded-2xl border border-white/10 bg-white/[0.045] p-4 text-center shadow-[0_10px_35px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:scale-[1.03] hover:border-orange-400/70 hover:bg-white/[0.07] hover:shadow-[0_16px_45px_rgba(251,146,60,0.10)]">
+          className="group relative min-w-0 cursor-pointer overflow-hidden rounded-2xl border border-white/10 bg-white/[0.045] p-3 text-center sm:p-4 shadow-[0_10px_35px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:scale-[1.03] hover:border-orange-400/70 hover:bg-white/[0.07] hover:shadow-[0_16px_45px_rgba(251,146,60,0.10)]">
 
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-orange-400/70 to-transparent opacity-60 transition-opacity duration-300 group-hover:opacity-100" />
 
@@ -4230,7 +4230,7 @@ export default function BuildingDetails() {
 
         <div
           onClick={() => openApartmentReport("vacant")}
-          className="group relative cursor-pointer overflow-hidden rounded-2xl border border-white/10 bg-white/[0.045] p-4 text-center shadow-[0_10px_35px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:scale-[1.03] hover:border-red-400/70 hover:bg-white/[0.07] hover:shadow-[0_16px_45px_rgba(248,113,113,0.10)]">
+          className="group relative min-w-0 cursor-pointer overflow-hidden rounded-2xl border border-white/10 bg-white/[0.045] p-3 text-center sm:p-4 shadow-[0_10px_35px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:scale-[1.03] hover:border-red-400/70 hover:bg-white/[0.07] hover:shadow-[0_16px_45px_rgba(248,113,113,0.10)]">
 
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-red-400/70 to-transparent opacity-60 transition-opacity duration-300 group-hover:opacity-100" />
 
@@ -4261,7 +4261,7 @@ export default function BuildingDetails() {
 
         <div
           onClick={() => openApartmentReport("occupancy")}
-          className="group relative cursor-pointer overflow-hidden rounded-2xl border border-white/10 bg-white/[0.045] p-4 text-center shadow-[0_10px_35px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:scale-[1.03] hover:border-[#f6c84a]/70 hover:bg-white/[0.07] hover:shadow-[0_16px_45px_rgba(246,200,74,0.12)]">
+          className="group relative min-w-0 cursor-pointer overflow-hidden rounded-2xl border border-white/10 bg-white/[0.045] p-3 text-center sm:p-4 shadow-[0_10px_35px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:scale-[1.03] hover:border-[#f6c84a]/70 hover:bg-white/[0.07] hover:shadow-[0_16px_45px_rgba(246,200,74,0.12)]">
 
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#f6c84a]/70 to-transparent opacity-60 transition-opacity duration-300 group-hover:opacity-100" />
 
@@ -4295,7 +4295,7 @@ export default function BuildingDetails() {
       {/* MONTHLY FINANCIAL SUMMARY - 8 LARGE GLASS CARDS        */}
       {/* ===================================================== */}
 
-      <div className="mb-6 rounded-3xl border border-white/10 bg-white/[0.025] p-4 shadow-[0_14px_45px_rgba(0,0,0,0.18)] backdrop-blur-xl sm:p-5">
+      <div className="mb-4 rounded-2xl border border-white/10 bg-white/[0.025] p-3 shadow-[0_14px_45px_rgba(0,0,0,0.18)] backdrop-blur-xl sm:mb-6 sm:rounded-3xl sm:p-5">
         <div className="relative mb-5 min-h-[76px]">
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-32 text-center">
             <div>
@@ -4308,12 +4308,12 @@ export default function BuildingDetails() {
             </div>
           </div>
 
-          <div className="relative z-10 flex items-center justify-between gap-3">
-            <div className="flex shrink-0 items-center gap-3">
+          <div className="relative z-10 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 flex-wrap items-center gap-3">
               <button
                 type="button"
                 onClick={openFinancialMovementsDetails}
-                className="flex min-h-[46px] items-center gap-2 rounded-2xl border border-[#f0ad18]/45 bg-[#f0ad18]/10 px-5 py-3 text-sm font-black text-[#f6c84a] shadow-[0_8px_24px_rgba(240,173,24,0.08)] transition-all duration-200 hover:-translate-y-0.5 hover:border-[#f6c84a]/80 hover:bg-[#f0ad18]/20 hover:shadow-[0_10px_28px_rgba(240,173,24,0.14)]"
+                className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-2xl border border-[#f0ad18]/45 bg-[#f0ad18]/10 px-5 py-3 text-sm font-black text-[#f6c84a] shadow-[0_8px_24px_rgba(240,173,24,0.08)] transition-all duration-200 hover:-translate-y-0.5 hover:border-[#f6c84a]/80 hover:bg-[#f0ad18]/20 hover:shadow-[0_10px_28px_rgba(240,173,24,0.14)]"
               >
                 <ArrowUpRight size={19} />
                 عرض التفاصيل المالية
@@ -4322,14 +4322,14 @@ export default function BuildingDetails() {
               <button
                 type="button"
                 onClick={openTenantDetails}
-                className="flex min-h-[46px] items-center gap-2 rounded-2xl border border-cyan-400/40 bg-cyan-400/10 px-5 py-3 text-sm font-black text-cyan-300 shadow-[0_8px_24px_rgba(34,211,238,0.08)] transition-all duration-200 hover:-translate-y-0.5 hover:border-cyan-300/80 hover:bg-cyan-400/20 hover:shadow-[0_10px_28px_rgba(34,211,238,0.14)]"
+                className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-2xl border border-cyan-400/40 bg-cyan-400/10 px-5 py-3 text-sm font-black text-cyan-300 shadow-[0_8px_24px_rgba(34,211,238,0.08)] transition-all duration-200 hover:-translate-y-0.5 hover:border-cyan-300/80 hover:bg-cyan-400/20 hover:shadow-[0_10px_28px_rgba(34,211,238,0.14)]"
               >
                 <Users size={19} />
                 تفاصيل المستأجرين
               </button>
             </div>
 
-            <div className="w-full max-w-[560px] ml-auto grid grid-cols-2 gap-3">
+            <div className="w-full min-w-0 max-w-[560px] ml-auto grid grid-cols-2 gap-3">
             <label className="text-center text-xs font-bold text-gray-400">
               من تاريخ
               <input
@@ -5312,7 +5312,7 @@ export default function BuildingDetails() {
                     </div>
                   </div>
                   <div className="text-xl font-black text-white">{formatContractDate(getApartmentContractInfo(selectedApartment.number).startDate)}</div>
-                  <div className="mt-2 text-base font-semibold text-gray-400">منذ بداية العقد</div>
+                  <div className="mt-2 text-sm font-semibold text-gray-400">منذ بداية العقد</div>
                 </div>
 
                 <div className="rounded-2xl border border-[#2a5275] bg-white/[0.035] p-5 text-center backdrop-blur-xl transition hover:border-[#f0ad18]/50">
@@ -7839,7 +7839,7 @@ export default function BuildingDetails() {
 
               return (
                 <>
-                  <div className="flex shrink-0 items-center justify-between border-b border-white/10 bg-[#061426] px-5 py-4">
+                  <div className="flex shrink-0 items-center justify-between gap-3 border-b border-white/10 bg-[#061426] px-3 py-3 sm:px-5 sm:py-4">
                     <div className="text-right">
                       <h2 className="text-xl font-black text-[#f6c84a] sm:text-2xl">
                         {getApartmentTypeReportTitle()}
@@ -7892,7 +7892,7 @@ export default function BuildingDetails() {
                     </div>
                   </div>
 
-                  <div className="min-h-0 flex-1 overflow-auto p-4">
+                  <div className="min-h-0 flex-1 overflow-auto p-3 sm:p-4">
                     <div className="overflow-x-auto rounded-2xl border border-white/10">
                       <table className="w-full min-w-[2200px] border-collapse text-xs">
                         <thead className="sticky top-0 z-10 bg-[#0b2039]">
@@ -8016,12 +8016,12 @@ export default function BuildingDetails() {
                     </div>
                   </div>
 
-                  <div className="shrink-0 border-t border-white/10 bg-[#061426] p-4">
+                  <div className="shrink-0 border-t border-white/10 bg-[#061426] p-3 sm:p-4">
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                       <button
                         type="button"
                         onClick={exportApartmentTypeReportExcel}
-                        className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-green-400/30 bg-green-500/10 px-4 text-sm font-black text-green-300 transition hover:bg-green-500/20"
+                        className="flex h-11 w-full items-center justify-center gap-2 rounded-2xl border border-green-400/30 bg-green-500/10 px-4 text-sm font-black text-green-300 transition hover:bg-green-500/20"
                       >
                         <Download size={19} />
                         تصدير Excel
@@ -8030,7 +8030,7 @@ export default function BuildingDetails() {
                       <button
                         type="button"
                         onClick={printApartmentTypeReport}
-                        className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-blue-400/30 bg-blue-500/10 px-4 text-sm font-black text-blue-300 transition hover:bg-blue-500/20"
+                        className="flex h-11 w-full items-center justify-center gap-2 rounded-2xl border border-blue-400/30 bg-blue-500/10 px-4 text-sm font-black text-blue-300 transition hover:bg-blue-500/20"
                       >
                         <Printer size={19} />
                         طباعة
@@ -8039,7 +8039,7 @@ export default function BuildingDetails() {
                       <button
                         type="button"
                         onClick={exportApartmentTypeReportPdf}
-                        className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-red-400/30 bg-red-500/10 px-4 text-sm font-black text-red-300 transition hover:bg-red-500/20"
+                        className="flex h-11 w-full items-center justify-center gap-2 rounded-2xl border border-red-400/30 bg-red-500/10 px-4 text-sm font-black text-red-300 transition hover:bg-red-500/20"
                       >
                         <FileText size={19} />
                         تصدير PDF
@@ -8059,12 +8059,12 @@ export default function BuildingDetails() {
 
       {apartmentReportType && (
         <div
-          className="fixed inset-0 z-[90] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-[90] flex items-center justify-center overflow-y-auto bg-black/75 p-3 backdrop-blur-sm sm:p-4"
           onClick={closeApartmentReport}
         >
           <div
             dir="rtl"
-            className="flex max-h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-3xl border border-[#d89b18]/40 bg-[#07182b] shadow-[0_25px_90px_rgba(0,0,0,0.55)]"
+            className="my-auto flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-[#d89b18]/40 bg-[#07182b] shadow-[0_25px_90px_rgba(0,0,0,0.55)]"
             onClick={(event) => event.stopPropagation()}
           >
             {(() => {
@@ -8076,7 +8076,7 @@ export default function BuildingDetails() {
 
               return (
                 <>
-                  <div className="flex shrink-0 items-center justify-between border-b border-white/10 bg-[#061426] px-5 py-4">
+                  <div className="flex shrink-0 items-center justify-between gap-3 border-b border-white/10 bg-[#061426] px-3 py-3 sm:px-5 sm:py-4">
                     <div className="text-right">
                       <h2 className="text-xl font-black text-[#f6c84a] sm:text-2xl">
                         {report.title}
@@ -8126,8 +8126,8 @@ export default function BuildingDetails() {
                     </div>
                   </div>
 
-                  <div className="min-h-0 flex-1 overflow-auto p-4">
-                    <div className="overflow-hidden rounded-2xl border border-white/10">
+                  <div className="min-h-0 flex-1 overflow-auto p-3 sm:p-4">
+                    <div className="min-w-0 overflow-x-auto rounded-2xl border border-white/10">
                       <table className="w-full min-w-[760px] border-collapse text-sm">
                         <thead className="sticky top-0 z-10 bg-[#0b2039]">
                           <tr className="text-gray-300">
@@ -8178,12 +8178,12 @@ export default function BuildingDetails() {
                     </div>
                   </div>
 
-                  <div className="shrink-0 border-t border-white/10 bg-[#061426] p-4">
+                  <div className="shrink-0 border-t border-white/10 bg-[#061426] p-3 sm:p-4">
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                       <button
                         type="button"
                         onClick={exportApartmentReportExcel}
-                        className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-green-400/30 bg-green-500/10 px-4 text-sm font-black text-green-300 transition hover:bg-green-500/20"
+                        className="flex h-11 w-full items-center justify-center gap-2 rounded-2xl border border-green-400/30 bg-green-500/10 px-4 text-sm font-black text-green-300 transition hover:bg-green-500/20"
                       >
                         <Download size={19} />
                         تصدير Excel
@@ -8192,7 +8192,7 @@ export default function BuildingDetails() {
                       <button
                         type="button"
                         onClick={printApartmentReport}
-                        className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-blue-400/30 bg-blue-500/10 px-4 text-sm font-black text-blue-300 transition hover:bg-blue-500/20"
+                        className="flex h-11 w-full items-center justify-center gap-2 rounded-2xl border border-blue-400/30 bg-blue-500/10 px-4 text-sm font-black text-blue-300 transition hover:bg-blue-500/20"
                       >
                         <Printer size={19} />
                         طباعة
@@ -8201,7 +8201,7 @@ export default function BuildingDetails() {
                       <button
                         type="button"
                         onClick={exportApartmentReportPdf}
-                        className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-red-400/30 bg-red-500/10 px-4 text-sm font-black text-red-300 transition hover:bg-red-500/20"
+                        className="flex h-11 w-full items-center justify-center gap-2 rounded-2xl border border-red-400/30 bg-red-500/10 px-4 text-sm font-black text-red-300 transition hover:bg-red-500/20"
                       >
                         <FileText size={19} />
                         تصدير PDF
@@ -8221,12 +8221,12 @@ export default function BuildingDetails() {
 
       {isMonthlyDueReportOpen && (
         <div
-          className="fixed inset-0 z-[95] flex items-center justify-center bg-black/80 p-4 backdrop-blur-md"
+          className="fixed inset-0 z-[95] flex items-center justify-center overflow-y-auto bg-black/80 p-3 backdrop-blur-md sm:p-4"
           onClick={() => setIsMonthlyDueReportOpen(false)}
         >
           <div
             dir="rtl"
-            className="flex max-h-[90vh] w-full max-w-7xl flex-col overflow-hidden rounded-3xl border border-orange-400/30 bg-[#07182b] shadow-[0_25px_90px_rgba(0,0,0,0.6)]"
+            className="my-auto flex max-h-[92vh] w-full max-w-7xl flex-col overflow-hidden rounded-2xl border border-orange-400/30 bg-[#07182b] shadow-[0_25px_90px_rgba(0,0,0,0.6)]"
             onClick={(event) => event.stopPropagation()}
           >
             {(() => {
@@ -8234,7 +8234,7 @@ export default function BuildingDetails() {
 
               return (
                 <>
-                  <div className="flex shrink-0 items-center justify-between border-b border-white/10 bg-[#061426] px-5 py-4">
+                  <div className="flex shrink-0 items-center justify-between gap-3 border-b border-white/10 bg-[#061426] px-3 py-3 sm:px-5 sm:py-4">
                     <div className="text-right">
                       <h2 className="text-xl font-black text-[#f6c84a] sm:text-2xl">
                         {report.title}
@@ -8284,8 +8284,8 @@ export default function BuildingDetails() {
                     </div>
                   </div>
 
-                  <div className="min-h-0 flex-1 overflow-auto p-4">
-                    <div className="overflow-hidden rounded-2xl border border-white/10">
+                  <div className="min-h-0 flex-1 overflow-auto p-3 sm:p-4">
+                    <div className="min-w-0 overflow-x-auto rounded-2xl border border-white/10">
                       <table className="w-full min-w-[1050px] border-collapse text-sm">
                         <thead className="sticky top-0 z-10 bg-[#0b2039]">
                           <tr className="text-gray-300">
@@ -8367,12 +8367,12 @@ export default function BuildingDetails() {
                     </div>
                   </div>
 
-                  <div className="shrink-0 border-t border-white/10 bg-[#061426] p-4">
+                  <div className="shrink-0 border-t border-white/10 bg-[#061426] p-3 sm:p-4">
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                       <button
                         type="button"
                         onClick={exportMonthlyDueExcel}
-                        className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-green-400/30 bg-green-500/10 px-4 text-sm font-black text-green-300 transition hover:bg-green-500/20"
+                        className="flex h-11 w-full items-center justify-center gap-2 rounded-2xl border border-green-400/30 bg-green-500/10 px-4 text-sm font-black text-green-300 transition hover:bg-green-500/20"
                       >
                         <Download size={19} />
                         تصدير Excel
@@ -8381,7 +8381,7 @@ export default function BuildingDetails() {
                       <button
                         type="button"
                         onClick={printMonthlyDueReport}
-                        className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-blue-400/30 bg-blue-500/10 px-4 text-sm font-black text-blue-300 transition hover:bg-blue-500/20"
+                        className="flex h-11 w-full items-center justify-center gap-2 rounded-2xl border border-blue-400/30 bg-blue-500/10 px-4 text-sm font-black text-blue-300 transition hover:bg-blue-500/20"
                       >
                         <Printer size={19} />
                         طباعة
@@ -8390,7 +8390,7 @@ export default function BuildingDetails() {
                       <button
                         type="button"
                         onClick={exportMonthlyDuePdf}
-                        className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-red-400/30 bg-red-500/10 px-4 text-sm font-black text-red-300 transition hover:bg-red-500/20"
+                        className="flex h-11 w-full items-center justify-center gap-2 rounded-2xl border border-red-400/30 bg-red-500/10 px-4 text-sm font-black text-red-300 transition hover:bg-red-500/20"
                       >
                         <FileText size={19} />
                         تصدير PDF
@@ -8410,12 +8410,12 @@ export default function BuildingDetails() {
 
       {isMonthlyCollectionReportOpen && (
         <div
-          className="fixed inset-0 z-[96] flex items-center justify-center bg-black/80 p-4 backdrop-blur-md"
+          className="fixed inset-0 z-[96] flex items-center justify-center overflow-y-auto bg-black/80 p-3 backdrop-blur-md sm:p-4"
           onClick={() => setIsMonthlyCollectionReportOpen(false)}
         >
           <div
             dir="rtl"
-            className="flex max-h-[90vh] w-full max-w-7xl flex-col overflow-hidden rounded-3xl border border-green-400/30 bg-[#07182b] shadow-[0_25px_90px_rgba(0,0,0,0.6)]"
+            className="my-auto flex max-h-[92vh] w-full max-w-7xl flex-col overflow-hidden rounded-2xl border border-green-400/30 bg-[#07182b] shadow-[0_25px_90px_rgba(0,0,0,0.6)]"
             onClick={(event) => event.stopPropagation()}
           >
             {(() => {
@@ -8423,7 +8423,7 @@ export default function BuildingDetails() {
 
               return (
                 <>
-                  <div className="flex shrink-0 items-center justify-between border-b border-white/10 bg-[#061426] px-5 py-4">
+                  <div className="flex shrink-0 items-center justify-between gap-3 border-b border-white/10 bg-[#061426] px-3 py-3 sm:px-5 sm:py-4">
                     <div className="text-right">
                       <h2 className="text-xl font-black text-green-300 sm:text-2xl">
                         {report.title}
@@ -8482,9 +8482,9 @@ export default function BuildingDetails() {
                     </div>
                   </div>
 
-                  <div className="min-h-0 flex-1 overflow-auto p-4">
-                    <div className="overflow-hidden rounded-2xl border border-white/10">
-                      <table className="w-full min-w-[1200px] border-collapse text-sm">
+                  <div className="min-h-0 flex-1 overflow-auto p-3 sm:p-4">
+                    <div className="min-w-0 overflow-x-auto rounded-2xl border border-white/10">
+                      <table className="w-full min-w-[900px] border-collapse text-xs sm:min-w-[1200px] sm:text-sm">
                         <thead className="sticky top-0 z-10 bg-[#0b2039]">
                           <tr className="text-gray-300">
                             <th className="border-b border-white/10 px-4 py-3 text-center">
@@ -8586,12 +8586,12 @@ export default function BuildingDetails() {
                     </div>
                   </div>
 
-                  <div className="shrink-0 border-t border-white/10 bg-[#061426] p-4">
+                  <div className="shrink-0 border-t border-white/10 bg-[#061426] p-3 sm:p-4">
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                       <button
                         type="button"
                         onClick={exportMonthlyCollectionExcel}
-                        className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-green-400/30 bg-green-500/10 px-4 text-sm font-black text-green-300 transition hover:bg-green-500/20"
+                        className="flex h-11 w-full items-center justify-center gap-2 rounded-2xl border border-green-400/30 bg-green-500/10 px-4 text-sm font-black text-green-300 transition hover:bg-green-500/20"
                       >
                         <Download size={19} />
                         تصدير Excel
@@ -8600,7 +8600,7 @@ export default function BuildingDetails() {
                       <button
                         type="button"
                         onClick={printMonthlyCollectionReport}
-                        className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-blue-400/30 bg-blue-500/10 px-4 text-sm font-black text-blue-300 transition hover:bg-blue-500/20"
+                        className="flex h-11 w-full items-center justify-center gap-2 rounded-2xl border border-blue-400/30 bg-blue-500/10 px-4 text-sm font-black text-blue-300 transition hover:bg-blue-500/20"
                       >
                         <Printer size={19} />
                         طباعة
@@ -8609,7 +8609,7 @@ export default function BuildingDetails() {
                       <button
                         type="button"
                         onClick={exportMonthlyCollectionPdf}
-                        className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-red-400/30 bg-red-500/10 px-4 text-sm font-black text-red-300 transition hover:bg-red-500/20"
+                        className="flex h-11 w-full items-center justify-center gap-2 rounded-2xl border border-red-400/30 bg-red-500/10 px-4 text-sm font-black text-red-300 transition hover:bg-red-500/20"
                       >
                         <FileText size={19} />
                         تصدير PDF
@@ -8629,19 +8629,19 @@ export default function BuildingDetails() {
 
       {selectedApartmentFinancialReport && selectedApartment && (
         <div
-          className="fixed inset-0 z-[10001] flex items-center justify-center bg-black/85 p-3 backdrop-blur-md sm:p-5"
+          className="fixed inset-0 z-[10001] flex items-center justify-center overflow-y-auto bg-black/85 p-3 backdrop-blur-md sm:p-5"
           onClick={() => setSelectedApartmentFinancialReport(null)}
         >
           <div
             dir="rtl"
-            className="flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-[#f0ad18]/30 bg-[#07182b] shadow-[0_25px_90px_rgba(0,0,0,0.65)]"
+            className="my-auto flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-[#f0ad18]/30 bg-[#07182b] shadow-[0_25px_90px_rgba(0,0,0,0.65)]"
             onClick={(event) => event.stopPropagation()}
           >
             {(() => {
               const report = getSelectedApartmentFinancialReport();
               return (
                 <>
-                  <div className="flex shrink-0 items-center justify-between border-b border-white/10 bg-[#061426] px-5 py-4">
+                  <div className="flex shrink-0 items-center justify-between gap-3 border-b border-white/10 bg-[#061426] px-3 py-3 sm:px-5 sm:py-4">
                     <div>
                       <h2 className="text-xl font-black text-[#f6c84a] sm:text-2xl">
                         {report.title}
@@ -8680,9 +8680,9 @@ export default function BuildingDetails() {
                     </div>
                   </div>
 
-                  <div className="min-h-0 flex-1 overflow-auto p-4">
-                    <div className="overflow-hidden rounded-2xl border border-white/10">
-                      <table className="w-full min-w-[850px] border-collapse text-sm">
+                  <div className="min-h-0 flex-1 overflow-auto p-3 sm:p-4">
+                    <div className="min-w-0 overflow-x-auto rounded-2xl border border-white/10">
+                      <table className="w-full min-w-[700px] border-collapse text-xs sm:min-w-[850px] sm:text-sm">
                         <thead className="sticky top-0 z-10 bg-[#0b2039]">
                           <tr className="text-gray-300">
                             <th className="border-b border-white/10 px-4 py-3 text-center">#</th>
@@ -8713,7 +8713,7 @@ export default function BuildingDetails() {
                     </div>
                   </div>
 
-                  <div className="shrink-0 border-t border-white/10 bg-[#061426] p-4">
+                  <div className="shrink-0 border-t border-white/10 bg-[#061426] p-3 sm:p-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
                         <button

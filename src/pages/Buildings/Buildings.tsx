@@ -118,28 +118,28 @@ export default function Buildings() {
 
   return (
     <div
-      className="space-y-6"
+      className="w-full min-w-0 space-y-4 sm:space-y-5 md:space-y-6"
       dir="rtl"
     >
       {/* =========================
           عنوان الصفحة
       ========================= */}
 
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
 
         <div>
-          <h1 className="text-3xl font-bold text-white">
+          <h1 className="text-2xl font-bold text-white sm:text-3xl">
             العمائر
           </h1>
 
-          <p className="mt-2 text-gray-400">
+          <p className="mt-1 text-sm text-gray-400 sm:mt-2">
             إدارة جميع عمائر شركة طموح ستار.
           </p>
         </div>
 
         <button
           type="button"
-          className="rounded-xl bg-yellow-400 px-6 py-3 font-bold text-[#081B33] transition hover:bg-yellow-500"
+          className="w-full rounded-xl bg-yellow-400 px-5 py-3 text-sm font-bold text-[#081B33] transition hover:bg-yellow-500 sm:w-auto sm:px-6"
         >
           + عمارة جديدة
         </button>
@@ -189,7 +189,7 @@ export default function Buildings() {
             onClick={() =>
               setFilter(item)
             }
-            className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
+            className={`flex-1 rounded-lg px-3 py-2 text-xs font-medium transition sm:flex-none sm:px-4 sm:text-sm ${
               filter === item
                 ? "bg-yellow-400 text-[#081B33]"
                 : "bg-[#081B33] text-gray-300 hover:bg-[#102844]"
@@ -206,7 +206,7 @@ export default function Buildings() {
           الإحصائيات
       ========================= */}
 
-      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
 
         {stats.map((item) => {
 
@@ -215,25 +215,25 @@ export default function Buildings() {
           return (
             <div
               key={item.title}
-              className="rounded-2xl border border-white/10 bg-[#081B33] p-6"
+              className="min-w-0 rounded-2xl border border-white/10 bg-[#081B33] p-4 sm:p-6"
             >
 
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-3">
 
                 <div>
 
-                  <p className="text-sm text-gray-400">
+                  <p className="text-xs text-gray-400 sm:text-sm">
                     {item.title}
                   </p>
 
-                  <h2 className="mt-2 text-3xl font-bold text-white">
+                  <h2 className="mt-1 text-2xl font-bold text-white sm:mt-2 sm:text-3xl">
                     {item.value}
                   </h2>
 
                 </div>
 
                 <div
-                  className={`flex h-14 w-14 items-center justify-center rounded-2xl ${item.bgClass}`}
+                  className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl sm:h-14 sm:w-14 ${item.bgClass}`}
                 >
                   <Icon
                     size={28}
@@ -256,13 +256,13 @@ export default function Buildings() {
 
       <div>
 
-        <div className="mb-4 flex items-center justify-between">
+        <div className="mb-3 flex items-center justify-between gap-3 sm:mb-4">
 
-          <h2 className="text-xl font-bold text-white">
+          <h2 className="text-lg font-bold text-white sm:text-xl">
             قائمة العمائر
           </h2>
 
-          <span className="text-sm text-gray-500">
+          <span className="text-xs text-gray-500 sm:text-sm">
             {filteredBuildings.length} عمارة
           </span>
 
@@ -270,13 +270,13 @@ export default function Buildings() {
 
         {filteredBuildings.length === 0 ? (
 
-          <div className="rounded-2xl border border-white/10 bg-[#081B33] p-12 text-center text-gray-400">
+          <div className="rounded-2xl border border-white/10 bg-[#081B33] p-7 text-center text-sm text-gray-400 sm:p-12">
             لا توجد عمائر مطابقة للبحث أو الفلتر.
           </div>
 
         ) : (
 
-          <div className="grid gap-6 xl:grid-cols-2">
+          <div className="grid min-w-0 grid-cols-1 gap-4 sm:gap-5 xl:grid-cols-2">
 
             {filteredBuildings.map(
               (building) => {
@@ -294,23 +294,23 @@ export default function Buildings() {
 
                   <div
                     key={building.id}
-                    className="overflow-hidden rounded-2xl border border-white/10 bg-[#081B33]"
+                    className="min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-[#081B33]"
                   >
 
                     {/* =====================
                         رأس الكارت
                     ===================== */}
 
-                    <div className="border-b border-white/10 p-6">
+                    <div className="border-b border-white/10 p-4 sm:p-6">
 
-                      <div className="flex items-start justify-between gap-4">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
 
-                        <div className="flex items-start gap-4">
+                        <div className="flex min-w-0 items-start gap-3 sm:gap-4">
 
-                          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-yellow-400/10">
+                          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-yellow-400/10 sm:h-14 sm:w-14">
 
                             <Building2
-                              size={29}
+                              size={26}
                               className="text-yellow-400"
                             />
 
@@ -318,9 +318,9 @@ export default function Buildings() {
 
                           <div>
 
-                            <div className="flex items-center gap-3">
+                            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
 
-                              <h3 className="text-xl font-bold text-white">
+                              <h3 className="text-lg font-bold text-white sm:text-xl">
                                 {building.name}
                               </h3>
 
@@ -330,7 +330,7 @@ export default function Buildings() {
 
                             </div>
 
-                            <div className="mt-2 flex items-center gap-1.5 text-sm text-gray-400">
+                            <div className="mt-1 flex items-center gap-1.5 text-xs text-gray-400 sm:mt-2 sm:text-sm">
 
                               <MapPin size={15} />
 
@@ -349,7 +349,7 @@ export default function Buildings() {
                               `/buildings/${building.id}`
                             )
                           }
-                          className="flex items-center gap-1 text-sm font-medium text-yellow-400 transition hover:text-yellow-300"
+                          className="flex w-full items-center justify-center gap-1 text-sm font-medium text-yellow-400 transition hover:text-yellow-300 sm:w-auto sm:justify-start"
                         >
 
                           التفاصيل
@@ -370,7 +370,7 @@ export default function Buildings() {
 
                     <div className="grid grid-cols-3 divide-x divide-x-reverse divide-white/10">
 
-                      <div className="p-5 text-center">
+                      <div className="p-3 text-center sm:p-5">
 
                         <Home
                           size={19}
@@ -387,7 +387,7 @@ export default function Buildings() {
 
                       </div>
 
-                      <div className="p-5 text-center">
+                      <div className="p-3 text-center sm:p-5">
 
                         <Wallet
                           size={19}
@@ -407,7 +407,7 @@ export default function Buildings() {
 
                       </div>
 
-                      <div className="p-5 text-center">
+                      <div className="p-3 text-center sm:p-5">
 
                         <Building2
                           size={19}
@@ -430,9 +430,9 @@ export default function Buildings() {
                         نسبة الإنجاز
                     ===================== */}
 
-                    <div className="border-t border-white/10 p-6">
+                    <div className="border-t border-white/10 p-4 sm:p-6">
 
-                      <div className="mb-2 flex items-center justify-between text-sm">
+                      <div className="mb-2 flex items-center justify-between text-xs sm:text-sm">
 
                         <span className="text-gray-400">
                           نسبة الإنجاز
@@ -466,7 +466,7 @@ export default function Buildings() {
                             `/buildings/${building.id}`
                           )
                         }
-                        className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl border border-yellow-400/30 bg-yellow-400/10 px-5 py-3 font-bold text-yellow-400 transition hover:bg-yellow-400 hover:text-[#081B33]"
+                        className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-yellow-400/30 bg-yellow-400/10 px-4 py-3 text-sm font-bold text-yellow-400 transition hover:bg-yellow-400 hover:text-[#081B33] sm:mt-5 sm:px-5"
                       >
                         اعرض التفاصيل
 

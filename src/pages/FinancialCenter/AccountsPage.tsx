@@ -172,23 +172,23 @@ export default function AccountsPage({
     "-";
 
   return (
-    <div className="space-y-8">
+    <div className="w-full min-w-0 space-y-4 sm:space-y-6 lg:space-y-8">
 
       {/* ================= Header ================= */}
 
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-col items-stretch justify-between gap-4 sm:flex-row sm:items-center">
 
         <div>
-          <h2 className="text-3xl font-bold text-white">
+          <h2 className="text-2xl font-bold text-white sm:text-3xl">
             العهد المالية
           </h2>
 
-          <p className="mt-2 text-base text-gray-400">
+          <p className="mt-2 text-sm text-gray-400 sm:text-base">
             إدارة جميع العهد والأرصدة والحركات المالية.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:gap-3">
 
           {/* إجمالي العهد */}
 
@@ -285,7 +285,7 @@ export default function AccountsPage({
     {/* ================= Accounts ================= */}
 
 {accounts.length > 0 && (
-  <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+  <div className="grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2 xl:grid-cols-3">
 
     {accounts.map((account) => (
 
@@ -293,6 +293,7 @@ export default function AccountsPage({
         key={account.id}
         className="
           group
+          min-w-0
           overflow-hidden
           rounded-3xl
           border border-white/10
@@ -306,11 +307,11 @@ export default function AccountsPage({
         "
       >
 
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
 
           {/* ================= Card Header ================= */}
 
-          <div className="flex items-start justify-between gap-4">
+          <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-start sm:gap-4">
 
             <div className="min-w-0 flex-1">
 
@@ -331,7 +332,7 @@ export default function AccountsPage({
 
             </div>
 
-            <div className="flex shrink-0 items-center gap-2">
+            <div className="flex w-full shrink-0 items-center justify-end gap-2 sm:w-auto">
 
               {/* تعديل */}
               <button
@@ -404,8 +405,10 @@ export default function AccountsPage({
               <div
                 className="
                   flex
-                  h-16
-                  w-16
+                  h-14
+                  w-14
+                  sm:h-16
+                  sm:w-16
                   items-center
                   justify-center
                   rounded-2xl
@@ -432,7 +435,7 @@ export default function AccountsPage({
 
                   <div className="mt-1 flex items-baseline gap-2">
 
-                    <span className="text-3xl font-extrabold text-yellow-400">
+                    <span className="text-2xl font-extrabold text-yellow-400 sm:text-3xl">
                       {Number(
                         account.currentBalance || 0
                       ).toLocaleString()}
@@ -451,7 +454,7 @@ export default function AccountsPage({
 
                 <div
                   className="
-                    mt-6
+                    mt-5
                     grid
                     grid-cols-3
                     divide-x
@@ -518,7 +521,7 @@ export default function AccountsPage({
 
                 {/* ================= Actions ================= */}
 
-                <div className="mt-6 grid grid-cols-2 gap-3">
+                <div className="mt-5 grid grid-cols-1 gap-3 sm:mt-6 sm:grid-cols-2">
 
                   {/* عرض */}
 
@@ -599,17 +602,17 @@ export default function AccountsPage({
       {/* ================= Funding Modal ================= */}
       {selectedAccountForView && (
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-2 sm:p-4 backdrop-blur-sm"
           onClick={closeFundingModal}
         >
           <div
-            className="w-full max-w-6xl overflow-hidden rounded-3xl border border-white/10 bg-[#081B33] shadow-2xl"
+            className="w-full max-w-6xl overflow-hidden rounded-2xl border border-white/10 bg-[#081B33] shadow-2xl sm:rounded-3xl"
             dir="rtl"
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
+            <div className="flex items-start justify-between gap-3 border-b border-white/10 px-4 py-4 sm:items-center sm:px-6">
               <div>
-                <h3 className="text-xl font-extrabold text-white">
+                <h3 className="text-base font-extrabold text-white sm:text-xl">
                   عمليات تغذية العهدة — {selectedAccountForView.name}
                 </h3>
                 <p className="mt-1 text-xs text-gray-400">
@@ -625,7 +628,7 @@ export default function AccountsPage({
               </button>
             </div>
 
-            <div className="max-h-[70vh] overflow-auto p-4">
+            <div className="max-h-[75vh] overflow-auto p-2 sm:p-4">
               {(() => {
                 const rows = funding
                   .filter((item) => Number(item?.account_id) === Number(selectedAccountForView.id))
@@ -666,7 +669,7 @@ export default function AccountsPage({
 
                 return (
                   <div className="overflow-x-auto rounded-2xl border border-white/10">
-                    <table className="min-w-[1150px] w-full text-sm">
+                    <table className="min-w-[950px] w-full text-xs sm:min-w-[1150px] sm:text-sm">
                       <thead className="bg-[#102947] text-gray-300">
                         <tr>
                           <th className="px-4 py-3 text-right">تاريخ الإدخال</th>
@@ -738,7 +741,7 @@ export default function AccountsPage({
           "
         >
 
-          <div className="text-5xl">
+          <div className="text-4xl sm:text-5xl">
             💼
           </div>
 
