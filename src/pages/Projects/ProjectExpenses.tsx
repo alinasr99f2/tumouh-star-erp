@@ -1141,35 +1141,35 @@ export default function ProjectDetails() {
   }
 
   return (
-    <div className="space-y-8 pb-10">
+    <div className="w-full min-w-0 space-y-5 sm:space-y-6 lg:space-y-8 pb-6 sm:pb-8 lg:pb-10">
       {/* =====================================================
           EXPENSES PAGE HEADER
       ===================================================== */}
-      <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#173C63] via-[#0D2948] to-[#101C2D] px-8 py-7 shadow-xl">
+      <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-white/10 bg-gradient-to-br from-[#173C63] via-[#0D2948] to-[#101C2D] px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-7 shadow-xl">
         <div className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-yellow-400/10 blur-3xl" />
         <div className="pointer-events-none absolute -left-20 -bottom-20 h-64 w-64 rounded-full bg-blue-500/10 blur-3xl" />
 
-        <div className="relative z-10 flex items-center justify-between gap-6">
+        <div className="relative z-10 flex flex-col gap-4 sm:gap-5 lg:flex-row lg:items-center lg:justify-between lg:gap-6">
           <button
             type="button"
             onClick={() => navigate(`/projects/${project.id}`)}
-            className="flex items-center gap-2 rounded-xl border border-white/10 bg-black/10 px-4 py-2 text-sm font-semibold text-gray-300 backdrop-blur-sm transition hover:bg-white/10 hover:text-white"
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-black/10 px-4 py-2 text-sm font-semibold text-gray-300 backdrop-blur-sm transition hover:bg-white/10 hover:text-white sm:w-auto"
           >
             <ArrowLeft size={17} />
             رجوع للمشروع
           </button>
 
-          <div className="text-center">
+          <div className="w-full min-w-0 text-center lg:flex-1">
             <p className="text-sm font-bold text-yellow-400">المصروفات</p>
-            <h1 className="mt-1 text-3xl font-extrabold text-white">
+            <h1 className="mt-1 text-2xl font-extrabold leading-tight text-white sm:text-3xl">
               مصروفات {project.name}
             </h1>
-            <p className="mt-2 text-sm text-gray-400">
+            <p className="mt-2 text-xs leading-5 text-gray-400 sm:text-sm">
               ملخص وتفاصيل جميع مصروفات المشروع
             </p>
           </div>
 
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-yellow-400/20 bg-yellow-400/10 text-yellow-400">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center self-center rounded-2xl border border-yellow-400/20 bg-yellow-400/10 text-yellow-400 sm:h-16 sm:w-16 lg:self-auto">
             <WalletCards size={34} />
           </div>
         </div>
@@ -1180,9 +1180,9 @@ export default function ProjectDetails() {
           EXPENSE SUMMARY - 4 CARDS
       ===================================================== */}
       <section className="space-y-5">
-        <div className="flex flex-col gap-4 rounded-3xl border border-white/10 bg-[#081B33] p-5 md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-col gap-4 rounded-2xl sm:rounded-3xl border border-white/10 bg-[#081B33] p-4 sm:p-5 md:flex-row md:items-center md:justify-between">
           <div className="text-right">
-            <h2 className="text-2xl font-extrabold text-white">
+            <h2 className="text-xl font-extrabold text-white sm:text-2xl">
               ملخص مصروفات المشروع
             </h2>
             <p className="mt-1 text-sm text-gray-400">
@@ -1193,14 +1193,14 @@ export default function ProjectDetails() {
           <button
             type="button"
             onClick={refreshProjectExpenses}
-            className="flex items-center justify-center gap-2 rounded-xl border border-cyan-400/20 bg-cyan-400/10 px-5 py-3 font-bold text-cyan-300 transition hover:bg-cyan-400/20"
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-cyan-400/20 bg-cyan-400/10 px-5 py-3 font-bold text-cyan-300 transition hover:bg-cyan-400/20 sm:w-auto"
           >
             <RefreshCw size={18} />
             تحديث
           </button>
         </div>
 
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2 xl:grid-cols-4">
           <ExpensePeriodCard
             title="إجمالي مصاريف اليوم"
             value={expensePeriodTotals.day}
@@ -1282,7 +1282,7 @@ export default function ProjectDetails() {
           نفس فكرة التصميم: لوحتان، 3 بنود في كل لوحة
       ===================================================== */}
 
-      <section className="grid gap-5 xl:grid-cols-2">
+      <section className="grid min-w-0 gap-4 sm:gap-5 xl:grid-cols-2">
 
         {/* RIGHT - HIGHEST 3 COST ITEMS */}
         <TopCostPanel
@@ -1322,7 +1322,7 @@ export default function ProjectDetails() {
       <section className="overflow-hidden rounded-3xl border border-white/10 bg-[#081B33] shadow-xl">
         <div className="flex flex-col gap-4 border-b border-white/10 bg-[#102947] p-5 xl:flex-row xl:items-center xl:justify-between">
           <div className="text-right">
-            <h2 className="text-2xl font-extrabold text-white">تفاصيل مصروفات المشروع</h2>
+            <h2 className="text-xl font-extrabold text-white sm:text-2xl">تفاصيل مصروفات المشروع</h2>
             <p className="mt-1 text-sm text-gray-400">
               نفس تفاصيل قائمة المصروفات بالمركز المالي
             </p>
@@ -1384,7 +1384,7 @@ export default function ProjectDetails() {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="min-w-[1500px] w-full text-sm text-white">
+          <table className="min-w-[1200px] w-full text-xs sm:min-w-[1500px] sm:text-sm text-white">
             <thead className="bg-[#102947] text-gray-300">
               <tr>
                 <th className="p-3 text-center">التاريخ</th>
@@ -1424,7 +1424,7 @@ export default function ProjectDetails() {
                     <td className="p-3 text-center">{Number(expense.tax ?? 0).toLocaleString("ar-SA")}</td>
                     <td className="p-3 text-center font-bold text-yellow-400">{getExpenseTotal(expense).toLocaleString("ar-SA")}</td>
                     <td className="p-3">
-                      <div className="flex justify-center gap-2">
+                      <div className="flex flex-wrap justify-center gap-2 min-w-[220px]">
                         <button type="button" onClick={() => setSelectedExpense(expense)} className="flex items-center gap-1 rounded-lg bg-sky-500 px-3 py-2 text-xs font-bold text-white hover:bg-sky-600">
                           <Eye size={14} /> عرض
                         </button>
@@ -1589,7 +1589,7 @@ function TopCostPanel({
           text-gray-400
         "
       >
-        <div className="text-center">
+        <div className="w-full min-w-0 text-center lg:flex-1">
           #
         </div>
 
@@ -1597,11 +1597,11 @@ function TopCostPanel({
           اسم البند
         </div>
 
-        <div className="text-center">
+        <div className="w-full min-w-0 text-center lg:flex-1">
           إجمالي التكلفة
         </div>
 
-        <div className="text-center">
+        <div className="w-full min-w-0 text-center lg:flex-1">
           النسبة
         </div>
       </div>
@@ -1680,7 +1680,7 @@ function TopCostPanel({
 
 
                 {/* Amount */}
-                <div className="text-center">
+                <div className="w-full min-w-0 text-center lg:flex-1">
                   <p className="text-base font-extrabold text-white">
                     {Number(item.amount).toLocaleString("ar-SA")}
                   </p>
@@ -1692,7 +1692,7 @@ function TopCostPanel({
 
 
                 {/* Percentage */}
-                <div className="text-center">
+                <div className="w-full min-w-0 text-center lg:flex-1">
                   <span
                     className={`
                       inline-flex
@@ -1772,7 +1772,7 @@ function AllCostItemsModal({
 }: AllCostItemsModalProps) {
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-2 sm:p-4 backdrop-blur-sm"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
@@ -1796,9 +1796,9 @@ function AllCostItemsModal({
         "
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-white/10 px-6 py-5">
+        <div className="flex flex-col gap-4 border-b border-white/10 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-5">
           <div className="text-right">
-            <h2 className="text-2xl font-extrabold text-white">
+            <h2 className="text-xl font-extrabold text-white sm:text-2xl">
               جميع بنود التكاليف
             </h2>
             <p className="mt-1 text-sm text-gray-400">
@@ -1831,7 +1831,7 @@ function AllCostItemsModal({
         </div>
 
         {/* Summary */}
-        <div className="grid grid-cols-1 gap-4 border-b border-white/10 bg-black/10 p-5 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 border-b border-white/10 bg-black/10 p-3 sm:gap-4 sm:p-5 md:grid-cols-2">
           <div className="rounded-2xl border border-blue-400/20 bg-blue-400/5 p-4">
             <p className="text-sm font-semibold text-gray-400">عدد البنود</p>
             <p className="mt-1 text-2xl font-extrabold text-white">
@@ -1850,8 +1850,8 @@ function AllCostItemsModal({
         </div>
 
         {/* Table */}
-        <div className="min-h-0 flex-1 overflow-auto p-5">
-          <div className="min-w-[760px] overflow-hidden rounded-2xl border border-white/10">
+        <div className="min-h-0 flex-1 overflow-auto p-3 sm:p-5">
+          <div className="min-w-[620px] sm:min-w-[760px] overflow-hidden rounded-2xl border border-white/10">
             <div
               className="
                 grid
@@ -1868,10 +1868,10 @@ function AllCostItemsModal({
                 text-gray-400
               "
             >
-              <div className="text-center">#</div>
+              <div className="w-full min-w-0 text-center lg:flex-1">#</div>
               <div>اسم البند</div>
-              <div className="text-center">إجمالي التكلفة</div>
-              <div className="text-center">النسبة</div>
+              <div className="w-full min-w-0 text-center lg:flex-1">إجمالي التكلفة</div>
+              <div className="w-full min-w-0 text-center lg:flex-1">النسبة</div>
             </div>
 
             {items.length > 0 ? (
@@ -1884,7 +1884,7 @@ function AllCostItemsModal({
                 return (
                   <div
                     key={`${item.name}-${index}`}
-                    className="grid grid-cols-[70px_1fr_180px_140px] items-center gap-3 border-b border-white/10 px-5 py-5 last:border-b-0"
+                    className="grid grid-cols-[50px_minmax(0,1fr)_140px_110px] sm:grid-cols-[70px_1fr_180px_140px] items-center gap-3 border-b border-white/10 px-5 py-5 last:border-b-0"
                   >
                     <div className="flex justify-center">
                       <span
@@ -1911,14 +1911,14 @@ function AllCostItemsModal({
                       </div>
                     </div>
 
-                    <div className="text-center">
+                    <div className="w-full min-w-0 text-center lg:flex-1">
                       <p className="text-base font-extrabold text-white">
                         {Number(item.amount).toLocaleString("ar-SA")}
                       </p>
                       <p className="mt-1 text-[11px] text-gray-500">ريال</p>
                     </div>
 
-                    <div className="text-center">
+                    <div className="w-full min-w-0 text-center lg:flex-1">
                       <span className="inline-flex rounded-full border border-blue-400/20 bg-blue-400/10 px-3 py-1 text-sm font-extrabold text-blue-300">
                         {percentage.toFixed(1)}%
                       </span>
@@ -1933,7 +1933,7 @@ function AllCostItemsModal({
             )}
 
             {items.length > 0 && (
-              <div className="grid grid-cols-[70px_1fr_180px_140px] items-center gap-3 border-t border-yellow-400/20 bg-yellow-400/5 px-5 py-5">
+              <div className="grid grid-cols-[50px_minmax(0,1fr)_140px_110px] sm:grid-cols-[70px_1fr_180px_140px] items-center gap-3 border-t border-yellow-400/20 bg-yellow-400/5 px-5 py-5">
                 <div />
                 <div className="text-lg font-extrabold text-yellow-300">
                   الإجمالي
@@ -1941,7 +1941,7 @@ function AllCostItemsModal({
                 <div className="text-center text-lg font-extrabold text-yellow-400">
                   {total.toLocaleString("ar-SA")} ريال
                 </div>
-                <div className="text-center">
+                <div className="w-full min-w-0 text-center lg:flex-1">
                   <span className="inline-flex rounded-full border border-yellow-400/20 bg-yellow-400/10 px-3 py-1 text-sm font-extrabold text-yellow-300">
                     100%
                   </span>
@@ -1952,7 +1952,7 @@ function AllCostItemsModal({
         </div>
 
         {/* Footer actions */}
-        <div className="grid grid-cols-1 gap-3 border-t border-white/10 bg-black/10 p-5 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-2 sm:gap-3 border-t border-white/10 bg-black/10 p-3 sm:p-5 sm:grid-cols-3">
           <button
             type="button"
             onClick={onExportPdf}
@@ -2156,15 +2156,15 @@ function ExpenseDetailsModal({
 
   return (
     <div
-      className="fixed inset-0 z-[110] flex items-center justify-center bg-black/70 p-4"
+      className="fixed inset-0 z-[110] flex items-center justify-center bg-black/70 p-2 sm:p-4"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
     >
-      <div className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-3xl border border-white/10 bg-[#081B33] shadow-2xl">
-        <div className="flex items-center justify-between border-b border-white/10 bg-[#102947] px-7 py-5">
+      <div className="max-h-[94vh] w-full max-w-5xl overflow-y-auto rounded-2xl sm:rounded-3xl border border-white/10 bg-[#081B33] shadow-2xl">
+        <div className="flex items-start justify-between gap-3 border-b border-white/10 bg-[#102947] px-4 py-4 sm:items-center sm:px-7 sm:py-5">
           <div>
-            <h2 className="text-2xl font-bold text-white">تفاصيل المصروف</h2>
+            <h2 className="text-xl font-bold text-white sm:text-2xl">تفاصيل المصروف</h2>
             <p className="mt-1 text-sm text-gray-400">
               رقم العملية: #{expense.id}
             </p>
@@ -2178,7 +2178,7 @@ function ExpenseDetailsModal({
           </button>
         </div>
 
-        <div className="p-7">
+        <div className="p-4 sm:p-7">
           <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2">
             <ViewBox label="تاريخ المصروف" value={expense.expenseDate || "-"} />
             <ViewBox label="المشروع" value={projectName} />
@@ -2227,11 +2227,11 @@ function ExpenseDetailsModal({
           )}
         </div>
 
-        <div className="flex justify-end border-t border-white/10 bg-[#102947] px-7 py-4">
+        <div className="flex justify-end border-t border-white/10 bg-[#102947] px-4 py-4 sm:px-7">
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl bg-yellow-400 px-7 py-3 font-bold text-[#081B33] hover:bg-yellow-300"
+            className="w-full rounded-xl bg-yellow-400 px-7 py-3 font-bold text-[#081B33] hover:bg-yellow-300 sm:w-auto"
           >
             إغلاق
           </button>

@@ -42,17 +42,17 @@ export default function Projects() {
 
   return (
     <>
-      <div className="space-y-6">
+      <div className="w-full min-w-0 space-y-4 sm:space-y-5 lg:space-y-6">
 
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 
-          <div>
+          <div className="min-w-0">
 
-            <h1 className="text-3xl font-bold text-white">
+            <h1 className="text-2xl sm:text-3xl font-bold text-white">
               المشاريع
             </h1>
 
-            <p className="mt-2 text-gray-400">
+            <p className="mt-2 text-sm sm:text-base text-gray-400">
               إدارة جميع مشاريع شركة طموح ستار.
             </p>
 
@@ -60,7 +60,7 @@ export default function Projects() {
 
           <button
             onClick={() => setOpenModal(true)}
-            className="rounded-xl bg-yellow-400 px-6 py-3 font-bold text-[#081B33] transition hover:bg-yellow-500"
+            className="w-full sm:w-auto shrink-0 rounded-xl bg-yellow-400 px-5 sm:px-6 py-3 font-bold text-[#081B33] transition hover:bg-yellow-500"
           >
             + مشروع جديد
           </button>

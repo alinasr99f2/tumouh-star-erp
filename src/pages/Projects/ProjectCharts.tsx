@@ -700,7 +700,7 @@ export default function ProjectCharts() {
     return (
       <div
         dir="rtl"
-        className="min-h-full p-6 text-center text-white"
+        className="min-h-full w-full min-w-0 p-3 text-center text-white sm:p-5 md:p-7"
       >
         المشروع غير موجود.
       </div>
@@ -710,32 +710,32 @@ export default function ProjectCharts() {
   return (
     <div
       dir="rtl"
-      className="min-h-full space-y-6 bg-[#06182B] p-5 text-white md:p-7"
+      className="min-h-full w-full min-w-0 space-y-4 overflow-x-hidden bg-[#06182B] p-3 text-white sm:space-y-5 sm:p-5 md:space-y-6 md:p-7"
     >
-      <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-l from-[#102947] via-[#0D2742] to-[#081B33] p-6 shadow-2xl">
-        <div className="absolute left-5 top-5 flex h-16 w-16 items-center justify-center rounded-2xl border border-blue-300/20 bg-blue-400/10 text-blue-300">
-          <BarChart3 size={34} />
+      <section className="relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-l from-[#102947] via-[#0D2742] to-[#081B33] p-4 shadow-2xl sm:rounded-3xl sm:p-6">
+        <div className="absolute left-3 top-3 hidden h-12 w-12 items-center justify-center rounded-2xl border border-blue-300/20 bg-blue-400/10 text-blue-300 sm:flex sm:left-5 sm:top-5 sm:h-16 sm:w-16">
+          <BarChart3 size={30} />
         </div>
 
         <div className="flex flex-col items-center justify-center gap-4 text-center">
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-blue-300/20 bg-blue-400/10 text-blue-300">
-            <BarChart3 size={34} />
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-blue-300/20 bg-blue-400/10 text-blue-300 sm:h-16 sm:w-16">
+            <BarChart3 size={30} />
           </div>
 
           <div>
-            <div className="mb-2 inline-flex rounded-full border border-blue-300/20 bg-blue-400/10 px-3 py-1 text-[11px] font-bold tracking-wide text-blue-200">
+            <div className="mb-2 inline-flex rounded-full border border-blue-300/20 bg-blue-400/10 px-3 py-1 text-[10px] font-bold tracking-wide text-blue-200 sm:text-[11px]">
               PROJECT ANALYTICS
             </div>
 
-            <h1 className="text-3xl font-black md:text-4xl">
+            <h1 className="text-2xl font-black sm:text-3xl md:text-4xl">
               الرسوم البيانية
             </h1>
 
-            <p className="mt-2 text-base font-bold text-gray-200">
+            <p className="mt-2 text-sm font-bold text-gray-200 sm:text-base">
               {project.name}
             </p>
 
-            <p className="mt-2 text-sm text-gray-400">
+            <p className="mt-2 max-w-3xl text-xs leading-6 text-gray-400 sm:text-sm">
               لوحة تحليلية توضح المصاريف،
               حركة الإنفاق، الكميات
               المتوقعة والمستخدمة،
@@ -752,15 +752,15 @@ export default function ProjectCharts() {
               `/projects/${projectId}`
             )
           }
-          className="absolute right-5 top-5 flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-extrabold text-gray-200 transition hover:bg-white/10"
+          className="absolute right-3 top-3 flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-extrabold text-gray-200 transition hover:bg-white/10 sm:right-5 sm:top-5 sm:gap-2 sm:px-4 sm:text-sm"
         >
           <ArrowLeft size={17} />
           العودة للمشروع
         </button>
       </section>
 
-      <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <div className="rounded-2xl border border-rose-400/20 bg-gradient-to-br from-[#4C2B3B] to-[#211A2C] p-5 shadow-lg">
+      <section className="grid min-w-0 grid-cols-1 gap-3 sm:gap-4 md:grid-cols-3">
+        <div className="min-w-0 rounded-2xl border border-rose-400/20 bg-gradient-to-br from-[#4C2B3B] to-[#211A2C] p-4 shadow-lg sm:p-5">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-bold text-gray-300">
@@ -786,7 +786,7 @@ export default function ProjectCharts() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-cyan-400/20 bg-gradient-to-br from-[#234044] to-[#182632] p-5 shadow-lg">
+        <div className="min-w-0 rounded-2xl border border-cyan-400/20 bg-gradient-to-br from-[#234044] to-[#182632] p-4 shadow-lg sm:p-5">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-bold text-gray-300">
@@ -811,7 +811,7 @@ export default function ProjectCharts() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-blue-400/20 bg-gradient-to-br from-[#293B5A] to-[#1A2439] p-5 shadow-lg">
+        <div className="min-w-0 rounded-2xl border border-blue-400/20 bg-gradient-to-br from-[#293B5A] to-[#1A2439] p-4 shadow-lg sm:p-5">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-bold text-gray-300">
@@ -838,7 +838,7 @@ export default function ProjectCharts() {
       </section>
 
       {dataWarnings.length > 0 && (
-        <div className="rounded-2xl border border-yellow-400/20 bg-yellow-400/5 px-5 py-4">
+        <div className="rounded-2xl border border-yellow-400/20 bg-yellow-400/5 px-4 py-3 sm:px-5 sm:py-4">
           <div className="flex flex-col gap-2 text-right">
             <p className="text-sm font-extrabold text-yellow-300">
               تنبيه بيانات
@@ -865,7 +865,7 @@ export default function ProjectCharts() {
       )}
 
       {loading ? (
-        <div className="rounded-3xl border border-white/10 bg-[#0B223A] p-12 text-center text-gray-300 shadow-xl">
+        <div className="rounded-2xl border border-white/10 bg-[#0B223A] p-6 text-center text-gray-300 shadow-xl sm:rounded-3xl sm:p-12">
           <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-white/10 border-t-cyan-300" />
 
           <p className="text-base font-extrabold">
@@ -873,7 +873,7 @@ export default function ProjectCharts() {
           </p>
         </div>
       ) : (
-        <section className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+        <section className="grid min-w-0 grid-cols-1 gap-4 sm:gap-5 xl:grid-cols-2">
           <ChartCard
             title="المصاريف حسب التصنيف"
             description="ترتيب أعلى التصنيفات حسب قيمة المصروف الفعلية."
@@ -889,7 +889,7 @@ export default function ProjectCharts() {
             ) : (
               <ResponsiveContainer
                 width="100%"
-                height={350}
+                height={320}
               >
                 <BarChart
                   data={expenseByCategory.slice(
@@ -980,7 +980,7 @@ export default function ProjectCharts() {
             ) : (
               <ResponsiveContainer
                 width="100%"
-                height={350}
+                height={320}
               >
                 <LineChart
                   data={
@@ -1060,7 +1060,7 @@ export default function ProjectCharts() {
           >
             <ResponsiveContainer
               width="100%"
-              height={350}
+              height={320}
             >
               <BarChart
                 data={
@@ -1163,7 +1163,7 @@ export default function ProjectCharts() {
             ) : (
               <ResponsiveContainer
                 width="100%"
-                height={350}
+                height={320}
               >
                 <PieChart>
                   <Pie
@@ -1261,7 +1261,7 @@ export default function ProjectCharts() {
               ) : (
                 <ResponsiveContainer
                   width="100%"
-                  height={330}
+                  height={300}
                 >
                   <BarChart
                     data={
@@ -1344,18 +1344,18 @@ function ChartCard({
   children: ReactNode;
 }) {
   return (
-    <div className="overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#102947] via-[#0D2742] to-[#081B33] p-5 shadow-xl">
+    <div className="min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-[#102947] via-[#0D2742] to-[#081B33] p-4 shadow-xl sm:rounded-3xl sm:p-5">
       <div className="mb-4 flex items-start gap-3 border-b border-white/10 pb-4">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-yellow-400/20 bg-yellow-400/10 text-yellow-300">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-yellow-400/20 bg-yellow-400/10 text-yellow-300 sm:h-11 sm:w-11">
           <Calculator size={21} />
         </div>
 
         <div className="min-w-0">
-          <h2 className="text-xl font-black text-white">
+          <h2 className="text-lg font-black text-white sm:text-xl">
             {title}
           </h2>
 
-          <p className="mt-1 text-sm font-medium leading-6 text-gray-400">
+          <p className="mt-1 text-xs font-medium leading-6 text-gray-400 sm:text-sm">
             {description}
           </p>
         </div>
@@ -1374,7 +1374,7 @@ function EmptyChart({
   text: string;
 }) {
   return (
-    <div className="flex h-[350px] flex-col items-center justify-center rounded-2xl border border-dashed border-white/10 bg-[#081B33]/50 text-center">
+    <div className="flex h-[260px] flex-col items-center justify-center rounded-2xl border border-dashed border-white/10 bg-[#081B33]/50 text-center sm:h-[320px] lg:h-[350px]">
       <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-gray-400">
         {icon}
       </div>

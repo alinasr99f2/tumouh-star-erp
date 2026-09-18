@@ -4,7 +4,7 @@ import ProjectsSection from "../../components/dashboard/ProjectsSection";
 
 export default function CompanyDashboard() {
   return (
-    <div className="relative min-h-screen overflow-hidden">
+    <div className="relative min-h-full overflow-hidden">
 
       {/* ========================= */}
       {/* خلفية لوجو الشركة */}
@@ -30,6 +30,10 @@ export default function CompanyDashboard() {
             absolute
             w-[120vw]
             h-[120vh]
+            sm:w-[110vw]
+            sm:h-[110vh]
+            lg:w-[120vw]
+            lg:h-[120vh]
             max-w-none
             object-cover
             select-none
@@ -44,7 +48,7 @@ export default function CompanyDashboard() {
       {/* محتوى لوحة التحكم */}
       {/* ========================= */}
 
-      <div className="relative z-10">
+      <div className="relative z-10 w-full min-w-0">
 
         {/* الترحيب */}
         <DashboardHero />

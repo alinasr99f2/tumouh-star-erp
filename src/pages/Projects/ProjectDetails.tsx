@@ -1447,9 +1447,9 @@ ${error?.message ?? ""}`);
     return (
       <div className="min-h-[70vh] space-y-6 pb-10" dir="rtl">
 
-            <div className="flex shrink-0 items-center justify-between border-b border-white/10 bg-[#102947] px-7 py-5">
+            <div className="flex shrink-0 items-center justify-between border-b border-white/10 bg-[#102947] px-4 sm:px-6 lg:px-7 py-4 sm:py-5">
               <div className="text-right">
-                <h2 className="text-2xl font-extrabold text-white">تفاصيل إجمالي مصروفات المشروع</h2>
+                <h2 className="text-xl sm:text-2xl font-extrabold text-white">تفاصيل إجمالي مصروفات المشروع</h2>
                 <p className="mt-1 text-sm text-gray-400">كل ملخصات المصروفات والتفاصيل وبنود التكلفة الخاصة بـ {project.name}</p>
               </div>
               <button
@@ -1468,7 +1468,7 @@ ${error?.message ?? ""}`);
       <section className="space-y-5">
         <div className="flex flex-col gap-4 rounded-3xl border border-white/10 bg-[#081B33] p-5 md:flex-row md:items-center md:justify-between">
           <div className="text-right">
-            <h2 className="text-2xl font-extrabold text-white">
+            <h2 className="text-xl sm:text-2xl font-extrabold text-white">
               ملخص مصروفات المشروع
             </h2>
             <p className="mt-1 text-sm text-gray-400">
@@ -1552,7 +1552,7 @@ ${error?.message ?? ""}`);
                 <WalletCards size={22} />
               </div>
               <div>
-                <h2 className="text-2xl font-extrabold text-white">أكثر 5 تصنيفات تكلفة</h2>
+                <h2 className="text-xl sm:text-2xl font-extrabold text-white">أكثر 5 تصنيفات تكلفة</h2>
                 <p className="mt-1 text-sm text-gray-400">مرتبة من الأعلى إلى الأقل حسب إجمالي المصروفات</p>
               </div>
             </div>
@@ -1565,7 +1565,7 @@ ${error?.message ?? ""}`);
 
         <div className="divide-y divide-white/10">
           {highestCostItems.length > 0 ? highestCostItems.map((item: any, index: number) => (
-            <div key={`${item.name}-${index}`} className="grid grid-cols-[48px_1fr_150px_190px] items-center gap-4 px-6 py-4 transition hover:bg-white/[0.03]">
+            <div key={`${item.name}-${index}`} className="grid grid-cols-1 sm:grid-cols-[48px_1fr_150px_190px] items-center gap-3 sm:gap-4 px-4 sm:px-6 py-4 transition hover:bg-white/[0.03]">
               {(() => {
                 const expectedPercentage = Math.max(0, Number(item.expectedPercentage) || 0);
                 const expectedColor =
@@ -1632,7 +1632,7 @@ ${error?.message ?? ""}`);
         <div className="overflow-hidden rounded-3xl border border-white/10 bg-[#081B33] shadow-xl">
           <div className="flex flex-col gap-4 border-b border-white/10 bg-[#102947] p-5 xl:flex-row xl:items-center xl:justify-between">
             <div className="text-right">
-              <h2 className="text-2xl font-extrabold text-white">
+              <h2 className="text-xl sm:text-2xl font-extrabold text-white">
                 تفاصيل مصروفات المشروع
               </h2>
               <p className="mt-1 text-sm text-gray-400">
@@ -1710,7 +1710,7 @@ ${error?.message ?? ""}`);
           </div>
 
           <div className="overflow-x-auto">
-            <table className="min-w-[2200px] w-max text-[14px] leading-6 text-white">
+            <table className="min-w-[1050px] w-max text-[14px] leading-6 text-white">
               <thead className="bg-[#102947] text-gray-300">
                 <tr>
                   <th className="p-3 text-center">التاريخ</th>
@@ -1896,7 +1896,7 @@ ${error?.message ?? ""}`);
   }
 
   return (
-    <div className="space-y-8 pb-10">
+    <div className="w-full min-w-0 space-y-5 sm:space-y-6 lg:space-y-8 pb-6 sm:pb-8 lg:pb-10">
 
       {/* =====================================================
           PROJECT HEADER
@@ -1905,7 +1905,7 @@ ${error?.message ?? ""}`);
       <div
         className="
           relative
-          min-h-[190px]
+          min-h-[220px] sm:min-h-[190px]
           overflow-hidden
           rounded-3xl
           border
@@ -1914,8 +1914,8 @@ ${error?.message ?? ""}`);
           from-[#173C63]
           via-[#0D2948]
           to-[#101C2D]
-          px-8
-          py-8
+          px-4 sm:px-6 lg:px-8
+          py-5 sm:py-6 lg:py-8
           shadow-xl
         "
       >
@@ -1954,8 +1954,8 @@ ${error?.message ?? ""}`);
           onClick={() => navigate("/projects")}
           className="
             absolute
-            right-5
-            top-5
+            right-3 sm:right-5
+            top-3 sm:top-5
             z-20
             flex
             items-center
@@ -1964,7 +1964,7 @@ ${error?.message ?? ""}`);
             border
             border-white/10
             bg-black/10
-            px-4
+            px-3 sm:px-4
             py-2
             text-sm
             font-semibold
@@ -1984,20 +1984,21 @@ ${error?.message ?? ""}`);
             relative
             z-10
             flex
-            min-h-[150px]
-            items-center
-            justify-between
-            gap-8
+            min-h-[170px] sm:min-h-[150px]
+            flex-col items-center
+            justify-center
+            gap-5
+            sm:flex-row sm:justify-between sm:gap-8
           "
         >
 
           {/* RIGHT - PROJECT ICON */}
-          <div className="flex w-[220px] shrink-0 items-center">
+          <div className="flex w-full sm:w-[220px] shrink-0 items-center justify-center sm:justify-start">
             <div
               className="
                 flex
-                h-28
-                w-28
+                h-20 w-20 sm:h-28
+                sm:w-28
                 items-center
                 justify-center
                 rounded-3xl
@@ -2103,7 +2104,7 @@ ${error?.message ?? ""}`);
               shadow-black/20
             "
           >
-            <h2 className="text-2xl font-extrabold text-white">
+            <h2 className="text-xl sm:text-2xl font-extrabold text-white">
               مؤشرات المشروع
             </h2>
 
@@ -2114,7 +2115,7 @@ ${error?.message ?? ""}`);
         </div>
 
 
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-5">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
 
           {/* 1 - CURRENT PRICE */}
           <ProjectKpi
@@ -2214,7 +2215,7 @@ ${error?.message ?? ""}`);
             SECONDARY PROJECT KPIs
             5 CARDS - SAME DESIGN SYSTEM
         ===================================================== */}
-        <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-5">
+        <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
 
           {/* 1 - RAW METER PRICE */}
           <ProjectKpi
@@ -2416,11 +2417,11 @@ ${error?.message ?? ""}`);
               shadow-black/20
             "
           >
-            <div className="flex items-center justify-center gap-8">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-8">
 
               {/* عنوان الفلل */}
               <div className="text-center">
-                <h2 className="text-3xl font-extrabold text-white">
+                <h2 className="text-2xl sm:text-3xl font-extrabold text-white">
                   فلل المشروع
                 </h2>
 
@@ -2447,7 +2448,7 @@ ${error?.message ?? ""}`);
                   إجمالي الفلل
                 </span>
 
-                <span className="text-3xl font-extrabold text-yellow-400">
+                <span className="text-2xl sm:text-3xl font-extrabold text-yellow-400">
                   {projectVillas.length || 18}
                 </span>
 
@@ -2735,10 +2736,10 @@ function ExpenseDetailsModal({
         if (event.target === event.currentTarget) onClose();
       }}
     >
-      <div className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-3xl border border-white/10 bg-[#081B33] shadow-2xl">
-        <div className="flex items-center justify-between border-b border-white/10 bg-[#102947] px-7 py-5">
+      <div className="max-h-[92vh] w-[calc(100%-1rem)] sm:w-full max-w-5xl overflow-y-auto rounded-3xl border border-white/10 bg-[#081B33] shadow-2xl">
+        <div className="flex items-center justify-between border-b border-white/10 bg-[#102947] px-4 sm:px-6 lg:px-7 py-4 sm:py-5">
           <div>
-            <h2 className="text-2xl font-bold text-white">تفاصيل المصروف</h2>
+            <h2 className="text-xl sm:text-2xl font-bold text-white">تفاصيل المصروف</h2>
             <p className="mt-1 text-sm text-gray-400">
               رقم العملية: #{expense.id}
             </p>
@@ -2752,8 +2753,8 @@ function ExpenseDetailsModal({
           </button>
         </div>
 
-        <div className="p-7">
-          <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="p-4 sm:p-6 lg:p-7">
+          <div className="mb-6 grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2">
             <ViewBox label="تاريخ المصروف" value={expense.expenseDate || "-"} />
             <ViewBox label="المشروع" value={projectName} />
             <ViewBox label="الفيلا" value={villaName} />
@@ -2768,7 +2769,7 @@ function ExpenseDetailsModal({
             />
           </div>
 
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-3">
             <div className="rounded-2xl border border-white/10 bg-[#102947] p-5">
               <p className="text-sm text-gray-400">قبل الضريبة</p>
               <p className="mt-2 text-2xl font-bold text-white">
@@ -3168,7 +3169,7 @@ function AllCostItemsModal({
         {/* Header */}
         <div className="flex items-center justify-between border-b border-white/10 px-6 py-5">
           <div className="text-right">
-            <h2 className="text-2xl font-extrabold text-white">
+            <h2 className="text-xl sm:text-2xl font-extrabold text-white">
               جميع التصنيفات
             </h2>
             <p className="mt-1 text-sm text-gray-400">
@@ -3636,8 +3637,8 @@ function VillaCard({
   onEdit,
 }: VillaCardProps) {
   return (
-    <div className="group flex min-h-[410px] flex-col overflow-hidden rounded-3xl border border-blue-400/15 bg-gradient-to-br from-[#12365D] via-[#0D2948] to-[#091C31] shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-yellow-400/30 hover:shadow-2xl">
-      <div className="flex items-start justify-between border-b border-white/10 p-7">
+    <div className="group flex min-h-[360px] sm:min-h-[410px] flex-col overflow-hidden rounded-3xl border border-blue-400/15 bg-gradient-to-br from-[#12365D] via-[#0D2948] to-[#091C31] shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-yellow-400/30 hover:shadow-2xl">
+      <div className="flex items-start justify-between border-b border-white/10 p-4 sm:p-6 lg:p-7">
         <div className="flex items-center gap-4">
           <div className="flex h-20 w-20 items-center justify-center rounded-2xl border border-yellow-400/20 bg-yellow-400/10 text-yellow-400 shadow-lg transition duration-300 group-hover:scale-105">
             <Home size={40} />
@@ -3653,8 +3654,8 @@ function VillaCard({
         </div>
       </div>
 
-      <div className="flex-1 px-7 py-7">
-        <div className="grid grid-cols-2 gap-4">
+      <div className="flex-1 px-4 sm:px-7 py-5 sm:py-7">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           <VillaStatBox label="المساحة" value={`${Number(area ?? 0).toLocaleString("ar-SA")} م²`} />
           <VillaStatBox label="التصنيف" value={classification || "غير محدد"} />
         </div>
@@ -3665,7 +3666,7 @@ function VillaCard({
         </div>
       </div>
 
-      <div className="mt-auto grid grid-cols-2 gap-3 border-t border-white/10 p-5">
+      <div className="mt-auto grid grid-cols-1 sm:grid-cols-2 gap-3 border-t border-white/10 p-4 sm:p-5">
         <button onClick={onView} className="flex items-center justify-center gap-2 rounded-xl border border-blue-400/20 bg-blue-500/10 py-3 font-bold text-blue-300 transition hover:bg-blue-500 hover:text-white">عرض <Eye size={18} /></button>
         <button onClick={onEdit} className="flex items-center justify-center gap-2 rounded-xl border border-yellow-400/20 bg-yellow-400/10 py-3 font-bold text-yellow-400 transition hover:bg-yellow-400 hover:text-[#081B33]">تعديل <Pencil size={18} /></button>
       </div>
@@ -3686,18 +3687,18 @@ function VillaEditModal({ villa, onClose, onSave }: { villa: ProjectVilla; onClo
   const [form, setForm] = useState<ProjectVilla>(villa);
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-      <div className="w-full max-w-2xl rounded-3xl border border-white/10 bg-[#081B33] shadow-2xl">
-        <div className="flex items-center justify-between border-b border-white/10 bg-[#102947] px-7 py-5">
-          <div><h2 className="text-2xl font-extrabold text-white">تعديل بيانات الفيلا</h2><p className="mt-1 text-sm text-gray-400">تعديل الاسم والمساحة والرقم والتصنيف</p></div>
+      <div className="w-[calc(100%-1rem)] sm:w-full max-w-2xl rounded-3xl border border-white/10 bg-[#081B33] shadow-2xl">
+        <div className="flex items-center justify-between border-b border-white/10 bg-[#102947] px-4 sm:px-6 lg:px-7 py-4 sm:py-5">
+          <div><h2 className="text-xl sm:text-2xl font-extrabold text-white">تعديل بيانات الفيلا</h2><p className="mt-1 text-sm text-gray-400">تعديل الاسم والمساحة والرقم والتصنيف</p></div>
           <button type="button" onClick={onClose} className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 text-gray-400 hover:bg-red-500/20 hover:text-red-300"><X size={20} /></button>
         </div>
-        <div className="grid grid-cols-1 gap-5 p-7 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-5 p-4 sm:p-6 lg:p-7 md:grid-cols-2">
           <label><span className="mb-2 block text-sm font-semibold text-gray-300">اسم الفيلا *</span><input value={form.name ?? ""} onChange={(e) => setForm({ ...form, name: e.target.value })} className="h-12 w-full rounded-xl border border-white/10 bg-[#102947] px-4 text-white outline-none focus:border-yellow-400" /></label>
           <label><span className="mb-2 block text-sm font-semibold text-gray-300">رقم الفيلا *</span><input type="number" min="1" value={form.villa_number} onChange={(e) => setForm({ ...form, villa_number: Number(e.target.value) })} className="h-12 w-full rounded-xl border border-white/10 bg-[#102947] px-4 text-white outline-none focus:border-yellow-400" /></label>
           <label><span className="mb-2 block text-sm font-semibold text-gray-300">المساحة م² *</span><input type="number" min="0" step="0.01" value={form.area ?? ""} onChange={(e) => setForm({ ...form, area: Number(e.target.value) })} className="h-12 w-full rounded-xl border border-white/10 bg-[#102947] px-4 text-white outline-none focus:border-yellow-400" /></label>
           <label><span className="mb-2 block text-sm font-semibold text-gray-300">التصنيف</span><select value={form.classification ?? ""} onChange={(e) => setForm({ ...form, classification: e.target.value || null })} className="h-12 w-full rounded-xl border border-white/10 bg-[#102947] px-4 text-white outline-none focus:border-yellow-400"><option value="">غير محدد</option><option value="صغيرة">صغيرة</option><option value="متوسطة">متوسطة</option><option value="كبيرة">كبيرة</option></select></label>
         </div>
-        <div className="grid grid-cols-2 gap-3 border-t border-white/10 bg-[#102947] p-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 border-t border-white/10 bg-[#102947] p-4 sm:p-5">
           <button type="button" onClick={onClose} className="rounded-xl border border-white/10 px-6 py-3 font-bold text-white hover:bg-white/5">إلغاء</button>
           <button type="button" onClick={() => onSave(form)} className="rounded-xl bg-yellow-400 px-6 py-3 font-bold text-[#081B33] hover:bg-yellow-300">حفظ التعديلات</button>
         </div>
@@ -3761,13 +3762,13 @@ function VillasOverviewModal({
 
   return (
     <div className="fixed inset-0 z-[105] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-      <div className="flex max-h-[92vh] w-full max-w-7xl flex-col overflow-hidden rounded-3xl border border-white/10 bg-[#071A2E] shadow-2xl">
-        <div className="flex items-center justify-between border-b border-white/10 bg-[#102947] px-7 py-5">
-          <div className="text-right"><h2 className="text-2xl font-extrabold text-white">تفاصيل فلل المشروع</h2><p className="mt-1 text-sm text-gray-400">جميع فلل مشروع {projectName} وحساب نصيب كل فيلا بالتساوي</p></div>
+      <div className="flex max-h-[92vh] w-[calc(100%-1rem)] sm:w-full max-w-7xl flex-col overflow-hidden rounded-3xl border border-white/10 bg-[#071A2E] shadow-2xl">
+        <div className="flex items-center justify-between border-b border-white/10 bg-[#102947] px-4 sm:px-6 lg:px-7 py-4 sm:py-5">
+          <div className="text-right"><h2 className="text-xl sm:text-2xl font-extrabold text-white">تفاصيل فلل المشروع</h2><p className="mt-1 text-sm text-gray-400">جميع فلل مشروع {projectName} وحساب نصيب كل فيلا بالتساوي</p></div>
           <button type="button" onClick={onClose} className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-gray-300 hover:bg-red-500/20 hover:text-red-300"><X size={22} /></button>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto p-6">
-          <div className="mb-5 grid grid-cols-1 gap-4 md:grid-cols-4">
+        <div className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-5 lg:p-6">
+          <div className="mb-5 grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-4">
             <VillaStatBox label="إجمالي الفلل" value={`${villaCount} فيلا`} />
             <VillaStatBox label="إجمالي المساحة" value={`${totalArea.toLocaleString("ar-SA")} م²`} />
             <VillaStatBox label="إجمالي المصاريف" value={`${totalExpenses.toLocaleString("ar-SA")} ريال`} />
@@ -3803,16 +3804,16 @@ function VillaDetailsModal({ villa, expenseTotal, onClose, onEdit }: { villa: Pr
   return (
     <div className="fixed inset-0 z-[115] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
       <div className="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-3xl border border-white/10 bg-[#081B33] shadow-2xl">
-        <div className="flex items-center justify-between border-b border-white/10 bg-[#102947] px-7 py-5">
-          <div className="flex items-center gap-4"><div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-yellow-400/20 bg-yellow-400/10 text-yellow-400"><Home size={30} /></div><div><h2 className="text-2xl font-extrabold text-white">تفاصيل {villa.name || `فيلا ${villa.villa_number}`}</h2><p className="mt-1 text-sm text-gray-400">بيانات الفيلا ونصيبها من مصروفات المشروع</p></div></div>
+        <div className="flex items-center justify-between border-b border-white/10 bg-[#102947] px-4 sm:px-6 lg:px-7 py-4 sm:py-5">
+          <div className="flex items-center gap-4"><div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-yellow-400/20 bg-yellow-400/10 text-yellow-400"><Home size={30} /></div><div><h2 className="text-xl sm:text-2xl font-extrabold text-white">تفاصيل {villa.name || `فيلا ${villa.villa_number}`}</h2><p className="mt-1 text-sm text-gray-400">بيانات الفيلا ونصيبها من مصروفات المشروع</p></div></div>
           <button type="button" onClick={onClose} className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 text-gray-400 hover:bg-red-500/20 hover:text-red-300"><X size={20} /></button>
         </div>
-        <div className="p-7">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-4"><VillaStatBox label="رقم الفيلا" value={String(villa.villa_number)} /><VillaStatBox label="المساحة" value={`${area.toLocaleString("ar-SA")} م²`} /><VillaStatBox label="التصنيف" value={villa.classification || "غير محدد"} /><VillaStatBox label="سعر المتر للمصروف" value={`${meterPrice.toLocaleString("ar-SA", { maximumFractionDigits: 2 })} ريال`} /></div>
+        <div className="p-4 sm:p-6 lg:p-7">
+          <div className="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-4"><VillaStatBox label="رقم الفيلا" value={String(villa.villa_number)} /><VillaStatBox label="المساحة" value={`${area.toLocaleString("ar-SA")} م²`} /><VillaStatBox label="التصنيف" value={villa.classification || "غير محدد"} /><VillaStatBox label="سعر المتر للمصروف" value={`${meterPrice.toLocaleString("ar-SA", { maximumFractionDigits: 2 })} ريال`} /></div>
           <div className="mt-5 rounded-2xl border border-yellow-400/20 bg-yellow-400/10 p-6 text-center"><p className="text-sm font-semibold text-gray-400">نصيب الفيلا من إجمالي مصاريف المشروع</p><p className="mt-2 text-3xl font-extrabold text-yellow-400">{expenseTotal.toLocaleString("ar-SA", { maximumFractionDigits: 2 })} ريال</p></div>
           <div className="mt-5 rounded-2xl border border-white/10 bg-white/5 p-5"><p className="text-sm font-semibold text-gray-400">طريقة الحساب</p><p className="mt-2 text-lg font-bold text-white">{expenseTotal.toLocaleString("ar-SA", { maximumFractionDigits: 2 })} ÷ {area.toLocaleString("ar-SA")} = {meterPrice.toLocaleString("ar-SA", { maximumFractionDigits: 2 })} ريال / م²</p></div>
         </div>
-        <div className="grid grid-cols-2 gap-3 border-t border-white/10 bg-[#102947] p-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 border-t border-white/10 bg-[#102947] p-4 sm:p-5">
           <button type="button" onClick={onEdit} className="rounded-xl bg-yellow-400 px-5 py-3 font-bold text-[#081B33] hover:bg-yellow-300">تعديل بيانات الفيلا</button>
           <button type="button" onClick={onClose} className="rounded-xl border border-white/10 px-5 py-3 font-bold text-white hover:bg-white/5">إغلاق</button>
         </div>
