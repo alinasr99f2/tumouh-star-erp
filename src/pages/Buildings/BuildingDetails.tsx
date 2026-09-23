@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { supabase } from "../../utils/supabase";
 import {
   X,
   Building2,
@@ -38,7 +37,7 @@ import {
 type ApartmentStatus = string;
 
 type Apartment = {
-  number: number;
+  number: string;
   type: string;
   rent: number;
   status: ApartmentStatus;
@@ -75,7 +74,7 @@ type BuildingCharge = {
   amount: string;
   date: string;
   notes: string;
-  apartmentNumber?: number;
+  apartmentNumber?: string;
   rentMonths?: number;
 };
 
@@ -242,7 +241,7 @@ const formatContractDuration = (
   return `${count} شهر`;
 };
 
-const createDefaultApartmentContractInfo = (apartmentNumber: number): ApartmentContractInfo => ({
+const createDefaultApartmentContractInfo = (apartmentNumber: string): ApartmentContractInfo => ({
   contractNumber: `CNT-001-${apartmentNumber}`,
   startDate: DEFAULT_APARTMENT_CONTRACT_START_DATE,
   endDate: addContractDuration(
@@ -276,7 +275,7 @@ export default function BuildingDetails() {
 
   // أنواع الشقق المخصصة لكل شقة + الأنواع الجديدة المحفوظة
   const [apartmentTypes, setApartmentTypes] =
-    useState<Record<number, string>>(() => {
+    useState<Record<string, string>>(() => {
       try {
         const saved = window.localStorage.getItem(
           "tumouh_star_apartment_types"
@@ -325,7 +324,7 @@ export default function BuildingDetails() {
     });
 
   const [apartmentExtraInfo, setApartmentExtraInfo] =
-    useState<Record<number, ApartmentExtraInfo>>(() => {
+    useState<Record<string, ApartmentExtraInfo>>(() => {
       try {
         const saved = window.localStorage.getItem(
           "tumouh_star_apartment_extra_info"
@@ -337,7 +336,7 @@ export default function BuildingDetails() {
     });
 
   const [apartmentTenantInfo, setApartmentTenantInfo] =
-    useState<Record<number, ApartmentTenantInfo>>(() => {
+    useState<Record<string, ApartmentTenantInfo>>(() => {
       try {
         const saved = window.localStorage.getItem(
           "tumouh_star_apartment_tenant_info"
@@ -349,7 +348,7 @@ export default function BuildingDetails() {
     });
 
   const [apartmentContractInfo, setApartmentContractInfo] =
-    useState<Record<number, ApartmentContractInfo>>(() => {
+    useState<Record<string, ApartmentContractInfo>>(() => {
       try {
         const saved = window.localStorage.getItem(
           "tumouh_star_apartment_contract_info"
@@ -376,7 +375,7 @@ export default function BuildingDetails() {
   });
 
   const [selectedChargeApartments, setSelectedChargeApartments] =
-    useState<number[]>([]);
+    useState<string[]>([]);
   const [apartmentTypeFilter, setApartmentTypeFilter] = useState("");
   const [apartmentStatusFilter, setApartmentStatusFilter] = useState("");
   const [apartmentSearch, setApartmentSearch] = useState("");
@@ -405,7 +404,7 @@ export default function BuildingDetails() {
   const [selectedApartmentType, setSelectedApartmentType] =
     useState("");
   const [selectedTypeApartments, setSelectedTypeApartments] =
-    useState<number[]>([]);
+    useState<string[]>([]);
   const [selectedApartmentTypeReport, setSelectedApartmentTypeReport] =
     useState<string | null>(null);
   const [apartmentTypeSearch, setApartmentTypeSearch] = useState("");
@@ -415,7 +414,7 @@ export default function BuildingDetails() {
   const [isDeleteApartmentModalOpen, setIsDeleteApartmentModalOpen] =
     useState(false);
   const [selectedDeleteApartments, setSelectedDeleteApartments] =
-    useState<number[]>([]);
+    useState<string[]>([]);
   const [deleteApartmentSearch, setDeleteApartmentSearch] = useState("");
 
   const [apartments, setApartments] = useState<Apartment[]>(() => {
@@ -442,7 +441,7 @@ export default function BuildingDetails() {
           ].includes(number);
 
           return {
-            number,
+            number: String(number),
             type:
               number <= 20
                 ? "غرفتين وصالة"
@@ -470,7 +469,15 @@ export default function BuildingDetails() {
         "tumouh_star_building_apartments"
       );
 
-      return saved ? JSON.parse(saved) : createDefaultApartments();
+      if (saved) {
+        const parsed = JSON.parse(saved) as Apartment[];
+        return parsed.map((apartment) => ({
+          ...apartment,
+          number: String(apartment.number),
+        }));
+      }
+
+      return createDefaultApartments();
     } catch {
       return createDefaultApartments();
     }
@@ -480,8 +487,12 @@ export default function BuildingDetails() {
     setApartments((current) => {
       const nextNumber =
         current.length > 0
-          ? Math.max(...current.map((apartment) => apartment.number)) + 1
-          : 1;
+          ? String(
+              Math.max(
+                ...current.map((apartment) => Number(apartment.number) || 0)
+              ) + 1
+            )
+          : "1";
 
       const updated = [
         ...current,
@@ -680,7 +691,7 @@ export default function BuildingDetails() {
   ];
 
   const getApartmentExtraInfo = (
-    apartmentNumber: number
+    apartmentNumber: string
   ): ApartmentExtraInfo => {
     return (
       apartmentExtraInfo[apartmentNumber] ??
@@ -722,7 +733,7 @@ export default function BuildingDetails() {
   };
 
   const updateApartmentExtraInfo = <K extends keyof ApartmentExtraInfo>(
-    apartmentNumber: number,
+    apartmentNumber: string,
     key: K,
     value: ApartmentExtraInfo[K]
   ) => {
@@ -766,7 +777,7 @@ export default function BuildingDetails() {
     setDeleteApartmentSearch("");
   };
 
-  const toggleDeleteApartment = (apartmentNumber: number) => {
+  const toggleDeleteApartment = (apartmentNumber: string) => {
     setSelectedDeleteApartments((current) =>
       current.includes(apartmentNumber)
         ? current.filter((number) => number !== apartmentNumber)
@@ -949,7 +960,7 @@ export default function BuildingDetails() {
     );
   };
 
-  const toggleTypeApartment = (apartmentNumber: number) => {
+  const toggleTypeApartment = (apartmentNumber: string) => {
     setSelectedTypeApartments((current) =>
       current.includes(apartmentNumber)
         ? current.filter((number) => number !== apartmentNumber)
@@ -1184,94 +1195,11 @@ export default function BuildingDetails() {
     setSelectedApartment(updatedApartment);
   };
 
-  const getCurrentBuildingId = (): number | null => {
-    const pathParts = window.location.pathname.split("/").filter(Boolean);
-    const rawId = pathParts[pathParts.length - 1];
-    const buildingId = Number(rawId);
-
-    return Number.isFinite(buildingId) && buildingId > 0
-      ? buildingId
-      : null;
-  };
-
-  const loadApartmentTenantData = async (apartment: Apartment) => {
-    const buildingId = getCurrentBuildingId();
-
-    if (!buildingId) {
-      return;
-    }
-
-    try {
-      const { data: lease, error: leaseError } = await supabase
-        .from("tenant_leases")
-        .select("*")
-        .eq("building_id", buildingId)
-        .eq("apartment_number", String(apartment.number))
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (leaseError) {
-        console.error("خطأ في تحميل عقد المستأجر:", leaseError);
-        return;
-      }
-
-      if (!lease?.tenant_id) {
-        return;
-      }
-
-      const { data: tenant, error: tenantError } = await supabase
-        .from("tenants")
-        .select("*")
-        .eq("id", lease.tenant_id)
-        .maybeSingle();
-
-      if (tenantError) {
-        console.error("خطأ في تحميل بيانات المستأجر:", tenantError);
-        return;
-      }
-
-      if (tenant) {
-        setApartmentTenantInfo((current) => ({
-          ...current,
-          [apartment.number]: {
-            ...getApartmentTenantInfo(apartment),
-            tenantName: tenant.full_name ?? "",
-            phone: tenant.phone ?? "",
-            identityNumber: tenant.identity_number ?? "",
-            status: lease.status ?? apartment.status,
-          },
-        }));
-
-        setApartmentContractInfo((current) => ({
-          ...current,
-          [apartment.number]: {
-            ...getApartmentContractInfo(apartment.number),
-            contractNumber: lease.contract_number ?? "",
-            startDate: lease.start_date ?? "",
-            endDate: lease.end_date ?? "",
-            insuranceAmount: Number(lease.insurance_amount ?? 0),
-            insuranceNotes: lease.insurance_notes ?? "",
-          },
-        }));
-
-        setApartments((current) =>
-          current.map((item) =>
-            item.number === apartment.number
-              ? { ...item, tenant: tenant.full_name || "اسم المستأجر غير مضاف" }
-              : item
-          )
-        );
-      }
-    } catch (error) {
-      console.error("خطأ غير متوقع أثناء تحميل بيانات المستأجر:", error);
-    }
-  };
-
-  const openApartment = (apartment: Apartment) => {
+  const openApartment = (
+    apartment: Apartment
+  ) => {
     setSelectedApartment(apartment);
     setActiveTab("البيانات الأساسية");
-    void loadApartmentTenantData(apartment);
   };
 
   const closeApartment = () => {
@@ -1301,9 +1229,9 @@ export default function BuildingDetails() {
       return;
     }
 
-    const newNumber = Number(editedApartmentNumber.trim());
+    const newNumber = editedApartmentNumber.trim();
 
-    if (!Number.isInteger(newNumber) || newNumber <= 0) {
+    if (!newNumber) {
       window.alert("من فضلك أدخل رقم شقة صحيح.");
       return;
     }
@@ -1444,7 +1372,7 @@ export default function BuildingDetails() {
     setEditedApartmentNumber("");
   };
 
-  const saveApartmentTenantField = async <
+  const saveApartmentTenantField = <
     K extends keyof Pick<
       ApartmentTenantInfo,
       "tenantName" | "phone" | "identityNumber"
@@ -1504,112 +1432,9 @@ export default function BuildingDetails() {
           : current
       );
     }
-
-    const buildingId = getCurrentBuildingId();
-    const apartmentNumber = String(apartment.number);
-
-    if (!buildingId) {
-      window.alert("تعذر تحديد رقم العمارة من الرابط.");
-      return;
-    }
-
-    if (!tenantInfo.tenantName.trim()) {
-      window.alert("من فضلك أدخل اسم المستأجر أولًا.");
-      return;
-    }
-
-    try {
-      const { data: existingLease, error: leaseLookupError } = await supabase
-        .from("tenant_leases")
-        .select("id, tenant_id")
-        .eq("building_id", buildingId)
-        .eq("apartment_number", apartmentNumber)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (leaseLookupError) {
-        throw leaseLookupError;
-      }
-
-      let tenantId = existingLease?.tenant_id ?? null;
-
-      const tenantPayload = {
-        full_name: tenantInfo.tenantName.trim(),
-        phone: tenantInfo.phone.trim() || null,
-        identity_number: tenantInfo.identityNumber.trim() || null,
-        updated_at: new Date().toISOString(),
-      };
-
-      if (tenantId) {
-        const { error: tenantUpdateError } = await supabase
-          .from("tenants")
-          .update(tenantPayload)
-          .eq("id", tenantId);
-
-        if (tenantUpdateError) {
-          throw tenantUpdateError;
-        }
-      } else {
-        const { data: insertedTenant, error: tenantInsertError } = await supabase
-          .from("tenants")
-          .insert(tenantPayload)
-          .select("id")
-          .single();
-
-        if (tenantInsertError) {
-          throw tenantInsertError;
-        }
-
-        tenantId = insertedTenant.id;
-      }
-
-      const contractInfo = getApartmentContractInfo(apartment.number);
-      const leasePayload = {
-        tenant_id: tenantId,
-        building_id: buildingId,
-        apartment_number: apartmentNumber,
-        contract_number: contractInfo.contractNumber || null,
-        start_date: contractInfo.startDate || null,
-        end_date: contractInfo.endDate || null,
-        monthly_rent: Number(apartment.rent ?? 0),
-        status: tenantInfo.status || apartment.status,
-        insurance_amount: Number(contractInfo.insuranceAmount ?? 0),
-        insurance_notes: contractInfo.insuranceNotes || null,
-        updated_at: new Date().toISOString(),
-      };
-
-      if (existingLease?.id) {
-        const { error: leaseUpdateError } = await supabase
-          .from("tenant_leases")
-          .update(leasePayload)
-          .eq("id", existingLease.id);
-
-        if (leaseUpdateError) {
-          throw leaseUpdateError;
-        }
-      } else {
-        const { error: leaseInsertError } = await supabase
-          .from("tenant_leases")
-          .insert(leasePayload);
-
-        if (leaseInsertError) {
-          throw leaseInsertError;
-        }
-      }
-
-      window.alert("تم حفظ بيانات المستأجر في قاعدة البيانات بنجاح.");
-    } catch (error: any) {
-      console.error("خطأ في حفظ بيانات المستأجر في Supabase:", error);
-      window.alert(
-        `تم حفظ البيانات محليًا، لكن حدث خطأ في قاعدة البيانات:\n${
-          error?.message ?? "خطأ غير معروف"
-        }`
-      );
-    }
   };
 
-  const saveApartmentFloor = (apartmentNumber: number) => {
+  const saveApartmentFloor = (apartmentNumber: string) => {
     const extraInfo = getApartmentExtraInfo(apartmentNumber);
 
     setApartmentExtraInfo((current) => {
@@ -1627,7 +1452,7 @@ export default function BuildingDetails() {
     });
   };
 
-  const getApartmentContractInfo = (apartmentNumber: number) => {
+  const getApartmentContractInfo = (apartmentNumber: string) => {
     return (
       apartmentContractInfo[apartmentNumber] ??
       createDefaultApartmentContractInfo(apartmentNumber)
@@ -1637,7 +1462,7 @@ export default function BuildingDetails() {
   const updateApartmentContractField = <
     K extends keyof ApartmentContractInfo
   >(
-    apartmentNumber: number,
+    apartmentNumber: string,
     key: K,
     value: ApartmentContractInfo[K]
   ) => {
@@ -1651,7 +1476,7 @@ export default function BuildingDetails() {
   };
 
   const updateApartmentContractStartDate = (
-    apartmentNumber: number,
+    apartmentNumber: string,
     startDate: string
   ) => {
     const currentInfo = getApartmentContractInfo(apartmentNumber);
@@ -1672,7 +1497,7 @@ export default function BuildingDetails() {
   };
 
   const updateApartmentContractDuration = (
-    apartmentNumber: number,
+    apartmentNumber: string,
     durationUnit: "day" | "month" | "year",
     durationValue: number
   ) => {
@@ -1695,7 +1520,7 @@ export default function BuildingDetails() {
     }));
   };
 
-  const saveApartmentContractInfo = (apartmentNumber: number) => {
+  const saveApartmentContractInfo = (apartmentNumber: string) => {
     const contractInfo = getApartmentContractInfo(apartmentNumber);
 
     setApartmentContractInfo((current) => {
@@ -1763,7 +1588,7 @@ export default function BuildingDetails() {
   const openChargeModal = (
     mode: "charge" | "collection",
     type: string,
-    apartmentNumber?: number
+    apartmentNumber?: string
   ) => {
     setChargeModalMode(mode);
     setChargeForm({
@@ -1782,7 +1607,7 @@ export default function BuildingDetails() {
     setIsChargeModalOpen(true);
   };
 
-  const toggleChargeApartment = (apartmentNumber: number) => {
+  const toggleChargeApartment = (apartmentNumber: string) => {
     setSelectedChargeApartments((current) =>
       current.includes(apartmentNumber)
         ? current.filter((number) => number !== apartmentNumber)
@@ -1860,7 +1685,7 @@ export default function BuildingDetails() {
     return Math.max(1, Math.ceil(value / 30));
   };
 
-  const getApartmentRentCollected = (apartmentNumber: number) => {
+  const getApartmentRentCollected = (apartmentNumber: string) => {
     return getApartmentPayments(apartmentNumber)
       .filter((payment) => payment.type?.trim() === "إيجار")
       .reduce((sum, payment) => sum + (Number(payment.amount) || 0), 0);
@@ -2067,7 +1892,7 @@ export default function BuildingDetails() {
         .map((charge) => {
           const apartment = apartments.find(
             (item) =>
-              Number(item.number) === Number(charge.apartmentNumber)
+              String(item.number) === String(charge.apartmentNumber)
           );
           const tenantInfo = apartment
             ? getApartmentTenantInfo(apartment)
@@ -2100,7 +1925,7 @@ export default function BuildingDetails() {
         .map((charge) => {
           const apartment = apartments.find(
             (item) =>
-              Number(item.number) === Number(charge.apartmentNumber)
+              String(item.number) === String(charge.apartmentNumber)
           );
           const tenantInfo = apartment
             ? getApartmentTenantInfo(apartment)
@@ -2130,7 +1955,7 @@ export default function BuildingDetails() {
     const rows = charges.map((charge) => {
       const apartment = apartments.find(
         (item) =>
-          Number(item.number) === Number(charge.apartmentNumber)
+          String(item.number) === String(charge.apartmentNumber)
       );
       const tenantInfo = apartment
         ? getApartmentTenantInfo(apartment)
@@ -2199,9 +2024,9 @@ export default function BuildingDetails() {
 
     const monthlyRentRows = getMonthlyRentRows();
 
-    const getTenantForApartment = (apartmentNumber?: number) => {
+    const getTenantForApartment = (apartmentNumber?: string) => {
       const apartment = apartments.find(
-        (item) => Number(item.number) === Number(apartmentNumber)
+        (item) => String(item.number) === String(apartmentNumber)
       );
 
       if (!apartment) {
@@ -2953,7 +2778,7 @@ export default function BuildingDetails() {
       .replace(/"/g, "&quot;")
       .replace(/'/g, "&#039;");
 
-  function getApartmentPayments(apartmentNumber: number): BuildingCharge[] {
+  function getApartmentPayments(apartmentNumber: string): BuildingCharge[] {
     try {
       const saved = window.localStorage.getItem(
         "tumouh_star_building_collections"
@@ -2969,7 +2794,7 @@ export default function BuildingDetails() {
         .filter(
           (payment) =>
             payment &&
-            Number(payment.apartmentNumber) === Number(apartmentNumber)
+            String(payment.apartmentNumber) === String(apartmentNumber)
         )
         .sort((a, b) => String(b.date ?? "").localeCompare(String(a.date ?? "")));
     } catch {
@@ -3012,7 +2837,7 @@ export default function BuildingDetails() {
 
       return charges.filter(
         (charge) =>
-          Number(charge.apartmentNumber) === Number(selectedApartment.number) &&
+          String(charge.apartmentNumber) === String(selectedApartment.number) &&
           Boolean(charge.date) &&
           charge.date >= fromDate &&
           charge.date <= toDate
@@ -3318,7 +3143,7 @@ export default function BuildingDetails() {
   };
 
   const getApartmentCharges = (
-    apartmentNumber: number,
+    apartmentNumber: string,
     fromDate?: string
   ): BuildingCharge[] => {
     try {
@@ -3335,7 +3160,7 @@ export default function BuildingDetails() {
 
       return charges.filter(
         (charge) =>
-          Number(charge.apartmentNumber) === Number(apartmentNumber) &&
+          String(charge.apartmentNumber) === String(apartmentNumber) &&
           Boolean(charge.date) &&
           charge.date <= today &&
           (!fromDate || charge.date >= fromDate) &&
@@ -5550,8 +5375,8 @@ export default function BuildingDetails() {
                   {isEditingApartmentNumber ? (
                     <div className="mt-3 space-y-3">
                       <input
-                        type="number"
-                        min="1"
+                        type="text"
+                        inputMode="text"
                         value={editedApartmentNumber}
                         onChange={(event) =>
                           setEditedApartmentNumber(event.target.value)
