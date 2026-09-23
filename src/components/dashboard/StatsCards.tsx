@@ -1,3 +1,4 @@
+
 import {
   Building2,
   Wallet,
@@ -10,31 +11,27 @@ const stats = [
     title: "إجمالي المشاريع",
     value: "0",
     icon: Building2,
-    color: "bg-blue-500",
   },
   {
     title: "إجمالي الأصول",
     value: "0",
     icon: Wallet,
-    color: "bg-violet-500",
   },
   {
     title: "الإيرادات",
     value: "0",
     icon: TrendingUp,
-    color: "bg-green-500",
   },
   {
     title: "المصروفات",
     value: "0",
     icon: CircleDollarSign,
-    color: "bg-red-500",
   },
 ];
 
 export default function StatsCards() {
   return (
-    <section className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
+    <section className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
 
       {stats.map((item) => {
         const Icon = item.icon;
@@ -44,58 +41,83 @@ export default function StatsCards() {
             key={item.title}
             className="
               group
-              rounded-3xl
+              relative
+              min-h-[165px]
+              overflow-hidden
+              rounded-2xl
               border
-              border-white/10
-              bg-[#081B33]
-              p-6
+              border-[#c49a3a]/25
+              bg-gradient-to-br
+              from-[#123d32]
+              via-[#0b342b]
+              to-[#08271f]
+              p-5
+              shadow-[0_12px_30px_rgba(6,78,59,0.12)]
               transition-all
               duration-300
-              hover:-translate-y-2
-              hover:border-yellow-400/40
+              hover:-translate-y-1
+              hover:border-[#c49a3a]/75
+              hover:shadow-[0_18px_38px_rgba(6,78,59,0.20)]
             "
           >
 
-            <div className="flex items-start justify-between">
+            {/* اللمعة الداخلية */}
 
-              <div>
+            <div
+              className="
+                pointer-events-none
+                absolute
+                -right-10
+                -top-10
+                h-28
+                w-28
+                rounded-full
+                bg-[#c49a3a]/10
+                blur-2xl
+              "
+            />
 
-                <p className="text-sm text-gray-400">
+            <div className="relative z-10 flex items-start justify-between gap-4">
+
+              <div className="min-w-0">
+
+                <p className="text-sm font-medium text-[#d8dfd9]">
                   {item.title}
                 </p>
 
-                <h2 className="mt-4 text-4xl font-bold text-white">
+                <h2 className="mt-4 text-3xl font-bold text-white">
                   {item.value}
                 </h2>
 
               </div>
 
               <div
-                className={`
+                className="
                   flex
-                  h-16
-                  w-16
+                  h-12
+                  w-12
+                  shrink-0
                   items-center
                   justify-center
-                  rounded-2xl
-                  ${item.color}
-                  shadow-lg
+                  rounded-xl
+                  border
+                  border-[#c49a3a]/60
+                  bg-[#c49a3a]/15
+                  text-[#f6d878]
+                  shadow-[0_0_20px_rgba(196,154,58,0.08)]
                   transition-transform
                   duration-300
-                  group-hover:scale-110
-                `}
+                  group-hover:scale-105
+                "
               >
-                <Icon
-                  size={30}
-                  className="text-white"
-                />
+                <Icon size={25} strokeWidth={1.8} />
               </div>
 
             </div>
 
-            <div className="mt-6">
+            <div className="relative z-10 mt-6 border-t border-white/10 pt-3">
 
-              <span className="text-xs text-gray-500">
+              <span className="text-xs text-[#aebfb6]">
                 لا توجد بيانات حتى الآن
               </span>
 

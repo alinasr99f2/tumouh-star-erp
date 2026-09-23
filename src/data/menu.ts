@@ -4,6 +4,8 @@ import {
   FolderKanban,
   Building2,
   Receipt,
+  BarChart3,
+  UsersRound,
 } from "lucide-react";
 
 export const sidebarMenu = [
@@ -29,7 +31,18 @@ export const sidebarMenu = [
     title: "العمائر",
     icon: Building2,
     path: "/buildings",
-    isSubItem: true,
+    children: [
+      {
+        title: "التفاصيل المالية",
+        icon: BarChart3,
+        path: "/buildings/financial-details",
+      },
+      {
+        title: "تفاصيل المستأجرين",
+        icon: UsersRound,
+        path: "/buildings/tenant-details",
+      },
+    ],
   },
 
   {

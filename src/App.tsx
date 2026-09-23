@@ -18,6 +18,8 @@ import ProjectQuantities from "./pages/Projects/ProjectQuantities";
 import ProjectCharts from "./pages/Projects/ProjectCharts";
 import Buildings from "./pages/Buildings/Buildings";
 import BuildingDetails from "./pages/Buildings/BuildingDetails";
+import FinancialDetails from "./pages/Buildings/FinancialDetails";
+import TenantDetails from "./pages/Buildings/TenantDetails";
 import FinancialCenter from "./pages/FinancialCenter/FinancialCenter";
 
 function App() {
@@ -86,6 +88,17 @@ function App() {
           <Route
             path="/buildings/:id"
             element={<BuildingDetails />}
+          />
+
+          {/* صفحات فرعية للعمائر */}
+          <Route
+            path="/buildings/financial-details"
+            element={<FinancialDetails />}
+          />
+
+          <Route
+            path="/buildings/tenant-details"
+            element={<TenantDetails />}
           />
 
           {/* المركز المالي */}

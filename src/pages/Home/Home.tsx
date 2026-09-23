@@ -7,6 +7,8 @@ import {
 
 import { useNavigate } from "react-router-dom";
 
+import "./Home.css";
+
 export default function Home() {
   const navigate = useNavigate();
 
@@ -45,6 +47,7 @@ export default function Home() {
         min-h-full
         overflow-hidden
         pb-10
+        aqar-home-page
       "
     >
 
@@ -68,47 +71,7 @@ export default function Home() {
           blur-[100px]
         "
       />
-
-      {/* =========================================
-          العلامة المائية
-      ========================================= */}
-
-      <div
-        className="
-          pointer-events-none
-          absolute
-          left-1/2
-          top-[58%]
-          z-0
-          -translate-x-1/2
-          -translate-y-1/2
-          opacity-[0.055]
-        "
-      >
-        <div
-          className="
-            flex
-            h-[650px]
-            w-[650px]
-            items-center
-            justify-center
-          "
-        >
-          <span
-            className="
-              text-[520px]
-              font-black
-              leading-none
-              text-yellow-400
-            "
-          >
-            ★
-          </span>
-        </div>
-      </div>
-
-
-      {/* =========================================
+{/* =========================================
           المحتوى
       ========================================= */}
 
@@ -154,9 +117,10 @@ export default function Home() {
               text-[11px]
               font-bold
               text-yellow-400
+              aqar-home-badge
             "
           >
-            Tumouh Star ERP
+            AQAR SMART ERP
             <span className="mr-1">✦</span>
           </div>
 
@@ -166,6 +130,7 @@ export default function Home() {
               font-extrabold
               leading-tight
               text-white
+              aqar-home-title
               md:text-5xl
             "
           >
@@ -177,10 +142,11 @@ export default function Home() {
               mt-2
               text-sm
               text-gray-400
+              aqar-home-description
               md:text-base
             "
           >
-            مرحبًا بك في نظام طموح ستار لإدارة الأعمال
+            مرحبًا بك في عقار سمارت لإدارة العقارات
           </p>
 
         </div>
@@ -225,6 +191,7 @@ export default function Home() {
                   text-center
                   shadow-2xl
                   backdrop-blur-xl
+                  aqar-feature-card
                   transition-all
                   duration-500
                   hover:-translate-y-2
@@ -346,6 +313,7 @@ export default function Home() {
                       transition-transform
                       duration-500
                       group-hover:scale-110
+                    aqar-card-icon
                       ${
                         isYellow
                           ? "text-yellow-100"
@@ -371,6 +339,7 @@ export default function Home() {
                     font-extrabold
                     leading-tight
                     text-white
+                    aqar-card-title
                   "
                 >
                   {card.title}
@@ -392,6 +361,7 @@ export default function Home() {
                     font-medium
                     leading-7
                     text-gray-300
+                    aqar-card-description
                   "
                 >
                   {card.description}
@@ -422,6 +392,7 @@ export default function Home() {
                     font-bold
                     transition-all
                     duration-300
+                    aqar-card-button
                     hover:scale-105
                     ${
                       isYellow

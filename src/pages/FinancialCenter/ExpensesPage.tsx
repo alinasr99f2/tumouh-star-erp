@@ -267,11 +267,11 @@ const ViewBox = ({
         rounded-2xl
         border
         border-white/10
-        bg-[#102947]
+        bg-[#073529]
         p-4
       "
     >
-      <p className="mb-2 text-xs text-gray-400">
+      <p className="mb-2 text-xs text-[#9CBAB0]">
         {label}
       </p>
 
@@ -934,74 +934,74 @@ export default function ExpensesPage({
       {/* الإحصائيات */}
       {/* ===================================== */}
 
-      <div className="grid grid-cols-4 gap-5">
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
 
         {/* اليوم */}
-        <div className="rounded-[24px] border border-orange-400/20 bg-[#081B33] p-4 shadow-lg">
+        <div className="rounded-[24px] border border-[#C49A3A]/25 bg-gradient-to-br from-[#0B4537] via-[#073529] to-[#05261F] p-4 shadow-lg">
           <div className="flex items-center justify-between gap-2">
             <div>
-              <p className="text-sm font-bold text-gray-400">مصروفات اليوم</p>
-              <h2 className="mt-2 text-3xl font-extrabold text-orange-400">{todayExpenses.toLocaleString()}</h2>
-              <span className="text-xs text-gray-500">ريال</span>
+              <p className="text-sm font-bold text-[#9CBAB0]">مصروفات اليوم</p>
+              <h2 className="mt-2 text-3xl font-extrabold text-[#F6D878]">{todayExpenses.toLocaleString()}</h2>
+              <span className="text-xs text-[#77998D]">ريال</span>
             </div>
-            <CalendarDays size={28} className="text-orange-400/60" />
+            <CalendarDays size={28} className="text-[#F6D878]/60" />
           </div>
-          <input type="date" value={selectedDay} onChange={(e) => setSelectedDay(e.target.value)} className="mt-4 w-full rounded-xl border border-white/10 bg-[#102947] px-3 py-2 text-sm text-white outline-none focus:border-orange-400" />
+          <input type="date" value={selectedDay} onChange={(e) => setSelectedDay(e.target.value)} className="mt-4 w-full rounded-xl border border-white/10 bg-[#073529] px-3 py-2 text-sm text-white outline-none focus:border-[#D4AD4D]" />
           <div className="mt-3 grid grid-cols-2 gap-2">
             <button type="button" onClick={() => exportPeriod("day", "excel")} className="flex items-center justify-center gap-1 rounded-lg bg-emerald-500/15 px-2 py-2 text-xs font-bold text-emerald-300 hover:bg-emerald-500/25"><FileSpreadsheet size={15} /> Excel</button>
-            <button type="button" onClick={() => exportPeriod("day", "print")} className="flex items-center justify-center gap-1 rounded-lg bg-sky-500/15 px-2 py-2 text-xs font-bold text-sky-300 hover:bg-sky-500/25"><Printer size={15} /> PDF / طباعة</button>
+            <button type="button" onClick={() => exportPeriod("day", "print")} className="flex items-center justify-center gap-1 rounded-lg bg-[#0E5141]/15 px-2 py-2 text-xs font-bold text-[#D4E8DF] hover:bg-[#0E5141]/25"><Printer size={15} /> PDF / طباعة</button>
           </div>
         </div>
 
         {/* الأسبوع */}
-        <div className="rounded-[24px] border border-purple-400/20 bg-[#081B33] p-4 shadow-lg">
+        <div className="rounded-[24px] border border-[#C49A3A]/25 bg-gradient-to-br from-[#0B4537] via-[#073529] to-[#05261F] p-4 shadow-lg">
           <div className="flex items-center justify-between gap-2">
             <div>
-              <p className="text-sm font-bold text-gray-400">مصروفات الفترة</p>
-              <h2 className="mt-2 text-3xl font-extrabold text-purple-400">{weekExpenses.toLocaleString()}</h2>
-              <span className="text-xs text-gray-500">ريال</span>
+              <p className="text-sm font-bold text-[#9CBAB0]">مصروفات الفترة</p>
+              <h2 className="mt-2 text-3xl font-extrabold text-[#D4AD4D]">{weekExpenses.toLocaleString()}</h2>
+              <span className="text-xs text-[#77998D]">ريال</span>
             </div>
-            <CalendarDays size={28} className="text-purple-400/60" />
+            <CalendarDays size={28} className="text-[#D4AD4D]/60" />
           </div>
           <div className="mt-4 grid grid-cols-2 gap-2">
-            <input type="date" value={weekFrom} onChange={(e) => setWeekFrom(e.target.value)} className="w-full rounded-xl border border-white/10 bg-[#102947] px-2 py-2 text-xs text-white outline-none focus:border-purple-400" />
-            <input type="date" value={weekTo} onChange={(e) => setWeekTo(e.target.value)} className="w-full rounded-xl border border-white/10 bg-[#102947] px-2 py-2 text-xs text-white outline-none focus:border-purple-400" />
+            <input type="date" value={weekFrom} onChange={(e) => setWeekFrom(e.target.value)} className="w-full rounded-xl border border-white/10 bg-[#073529] px-2 py-2 text-xs text-white outline-none focus:border-[#D4AD4D]" />
+            <input type="date" value={weekTo} onChange={(e) => setWeekTo(e.target.value)} className="w-full rounded-xl border border-white/10 bg-[#073529] px-2 py-2 text-xs text-white outline-none focus:border-[#D4AD4D]" />
           </div>
           <div className="mt-3 grid grid-cols-2 gap-2">
             <button type="button" onClick={() => exportPeriod("week", "excel")} className="flex items-center justify-center gap-1 rounded-lg bg-emerald-500/15 px-2 py-2 text-xs font-bold text-emerald-300 hover:bg-emerald-500/25"><FileSpreadsheet size={15} /> Excel</button>
-            <button type="button" onClick={() => exportPeriod("week", "print")} className="flex items-center justify-center gap-1 rounded-lg bg-sky-500/15 px-2 py-2 text-xs font-bold text-sky-300 hover:bg-sky-500/25"><Printer size={15} /> PDF / طباعة</button>
+            <button type="button" onClick={() => exportPeriod("week", "print")} className="flex items-center justify-center gap-1 rounded-lg bg-[#0E5141]/15 px-2 py-2 text-xs font-bold text-[#D4E8DF] hover:bg-[#0E5141]/25"><Printer size={15} /> PDF / طباعة</button>
           </div>
         </div>
 
         {/* الشهر */}
-        <div className="rounded-[24px] border border-emerald-400/20 bg-[#081B33] p-4 shadow-lg">
+        <div className="rounded-[24px] border border-emerald-400/25 bg-gradient-to-br from-[#0B4537] via-[#073529] to-[#05261F] p-4 shadow-lg">
           <div className="flex items-center justify-between gap-2">
             <div>
-              <p className="text-sm font-bold text-gray-400">مصروفات الشهر</p>
-              <h2 className="mt-2 text-3xl font-extrabold text-emerald-400">{monthExpenses.toLocaleString()}</h2>
-              <span className="text-xs text-gray-500">ريال</span>
+              <p className="text-sm font-bold text-[#9CBAB0]">مصروفات الشهر</p>
+              <h2 className="mt-2 text-3xl font-extrabold text-emerald-300">{monthExpenses.toLocaleString()}</h2>
+              <span className="text-xs text-[#77998D]">ريال</span>
             </div>
-            <CalendarDays size={28} className="text-emerald-400/60" />
+            <CalendarDays size={28} className="text-emerald-300/60" />
           </div>
-          <input type="month" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className="mt-4 w-full rounded-xl border border-white/10 bg-[#102947] px-3 py-2 text-sm text-white outline-none focus:border-emerald-400" />
+          <input type="month" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className="mt-4 w-full rounded-xl border border-white/10 bg-[#073529] px-3 py-2 text-sm text-white outline-none focus:border-emerald-300" />
           <div className="mt-3 grid grid-cols-2 gap-2">
             <button type="button" onClick={() => exportPeriod("month", "excel")} className="flex items-center justify-center gap-1 rounded-lg bg-emerald-500/15 px-2 py-2 text-xs font-bold text-emerald-300 hover:bg-emerald-500/25"><FileSpreadsheet size={15} /> Excel</button>
-            <button type="button" onClick={() => exportPeriod("month", "print")} className="flex items-center justify-center gap-1 rounded-lg bg-sky-500/15 px-2 py-2 text-xs font-bold text-sky-300 hover:bg-sky-500/25"><Printer size={15} /> PDF / طباعة</button>
+            <button type="button" onClick={() => exportPeriod("month", "print")} className="flex items-center justify-center gap-1 rounded-lg bg-[#0E5141]/15 px-2 py-2 text-xs font-bold text-[#D4E8DF] hover:bg-[#0E5141]/25"><Printer size={15} /> PDF / طباعة</button>
           </div>
         </div>
 
         {/* السنة */}
-        <div className="rounded-[24px] border border-yellow-400/20 bg-[#081B33] p-4 shadow-lg">
+        <div className="rounded-[24px] border border-[#C49A3A]/30 bg-gradient-to-br from-[#0B4537] via-[#073529] to-[#05261F] p-4 shadow-lg">
           <div className="flex items-center justify-between gap-2">
             <div>
-              <p className="text-sm font-bold text-gray-400">إجمالي السنة</p>
-              <h2 className="mt-2 text-3xl font-extrabold text-yellow-400">{yearExpenses.toLocaleString()}</h2>
-              <span className="text-xs text-gray-500">ريال</span>
+              <p className="text-sm font-bold text-[#9CBAB0]">إجمالي السنة</p>
+              <h2 className="mt-2 text-3xl font-extrabold text-[#F6D878]">{yearExpenses.toLocaleString()}</h2>
+              <span className="text-xs text-[#77998D]">ريال</span>
             </div>
-            <CalendarDays size={28} className="text-yellow-400/60" />
+            <CalendarDays size={28} className="text-[#F6D878]/60" />
           </div>
-          <input type="number" min="2000" max="2100" value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} className="mt-4 w-full rounded-xl border border-white/10 bg-[#102947] px-3 py-2 text-sm text-white outline-none focus:border-yellow-400" placeholder="السنة" />
-          <div className="mt-3 rounded-lg bg-yellow-400/10 px-2 py-2 text-center text-xs font-bold text-yellow-300">حدد السنة لعرض إجماليها</div>
+          <input type="number" min="2000" max="2100" value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} className="mt-4 w-full rounded-xl border border-white/10 bg-[#073529] px-3 py-2 text-sm text-white outline-none focus:border-[#D4AD4D]" placeholder="السنة" />
+          <div className="mt-3 rounded-lg bg-[#C49A3A]/10 px-2 py-2 text-center text-xs font-bold text-[#F6D878]">حدد السنة لعرض إجماليها</div>
         </div>
 
       </div>
@@ -1010,21 +1010,21 @@ export default function ExpensesPage({
       {/* شريط الأدوات */}
       {/* ===================================== */}
 
-      <div className="rounded-2xl border border-white/10 bg-[#081B33] p-4">
+      <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#0B4537] via-[#073529] to-[#05261F] p-4">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <button type="button" onClick={onAddExpense} className="flex items-center gap-2 rounded-xl bg-yellow-400 px-5 py-3 font-bold text-[#081B33] transition hover:bg-yellow-300">
+            <button type="button" onClick={onAddExpense} className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#C49A3A] to-[#F6D878] px-5 py-3 font-bold text-[#16352B] transition hover:from-[#D4AD4D] hover:to-[#F6D878]">
               + إضافة مصروف
             </button>
 
             <div className="relative">
-              <button type="button" onClick={() => setExportMenu(exportMenu === "all" ? null : "all")} className="flex items-center gap-2 rounded-xl border border-sky-400/30 bg-sky-400/10 px-5 py-3 font-bold text-sky-300 transition hover:bg-sky-400/20">
+              <button type="button" onClick={() => setExportMenu(exportMenu === "all" ? null : "all")} className="flex items-center gap-2 rounded-xl border border-[#C49A3A]/30 bg-[#C49A3A]/10 px-5 py-3 font-bold text-[#D4E8DF] transition hover:bg-[#C49A3A]/20">
                 <Download size={18} /> تصدير
               </button>
               {exportMenu === "all" && (
-                <div className="absolute right-0 top-full z-50 mt-2 w-48 overflow-hidden rounded-2xl border border-white/10 bg-[#102947] p-2 shadow-2xl">
+                <div className="absolute right-0 top-full z-50 mt-2 w-48 overflow-hidden rounded-2xl border border-white/10 bg-[#073529] p-2 shadow-2xl">
                   <button type="button" onClick={() => exportAllExpenses("excel")} className="flex w-full items-center gap-2 rounded-xl px-3 py-3 text-sm font-bold text-emerald-300 hover:bg-white/5"><FileSpreadsheet size={17} /> Excel</button>
-                  <button type="button" onClick={() => exportAllExpenses("print")} className="flex w-full items-center gap-2 rounded-xl px-3 py-3 text-sm font-bold text-sky-300 hover:bg-white/5"><FileText size={17} /> PDF</button>
+                  <button type="button" onClick={() => exportAllExpenses("print")} className="flex w-full items-center gap-2 rounded-xl px-3 py-3 text-sm font-bold text-[#D4E8DF] hover:bg-white/5"><FileText size={17} /> PDF</button>
                   <button type="button" onClick={() => exportAllExpenses("print")} className="flex w-full items-center gap-2 rounded-xl px-3 py-3 text-sm font-bold text-gray-200 hover:bg-white/5"><Printer size={17} /> طباعة</button>
                 </div>
               )}
@@ -1032,9 +1032,9 @@ export default function ExpensesPage({
           </div>
 
           <div className="relative w-full max-w-xl">
-            <Search size={19} className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-gray-500" />
-            <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="بحث في أي خانة من خانات المصروف..." className="w-full rounded-xl border border-white/10 bg-[#102947] py-3 pr-11 pl-4 text-white outline-none placeholder:text-gray-500 focus:border-yellow-400" />
-            {search && <button type="button" onClick={() => setSearch("")} className="absolute left-3 top-1/2 -translate-y-1/2 rounded-md px-2 text-gray-400 hover:bg-white/5 hover:text-white">×</button>}
+            <Search size={19} className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[#77998D]" />
+            <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="بحث في أي خانة من خانات المصروف..." className="w-full rounded-xl border border-white/10 bg-[#073529] py-3 pr-11 pl-4 text-white outline-none placeholder:text-[#77998D] focus:border-[#D4AD4D]" />
+            {search && <button type="button" onClick={() => setSearch("")} className="absolute left-3 top-1/2 -translate-y-1/2 rounded-md px-2 text-[#9CBAB0] hover:bg-white/5 hover:text-white">×</button>}
           </div>
         </div>
       </div>
@@ -1057,13 +1057,13 @@ export default function ExpensesPage({
         </div>
       )}
 
-      <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#081B33]">
+      <div className="overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-[#0B4537] via-[#073529] to-[#05261F]">
 
         <div className="overflow-x-auto">
 
           <table className="w-full min-w-[1500px]">
 
-            <thead className="bg-[#102947]">
+            <thead className="bg-[#073529]">
 
               <tr>
 
@@ -1138,7 +1138,7 @@ export default function ExpensesPage({
                 <tr>
                   <td
                     colSpan={14}
-                    className="p-12 text-center text-gray-400"
+                    className="p-12 text-center text-[#9CBAB0]"
                   >
                     جاري تحميل المصروفات...
                   </td>
@@ -1150,7 +1150,7 @@ export default function ExpensesPage({
 
                   <td
                     colSpan={14}
-                    className="p-12 text-center text-gray-500"
+                    className="p-12 text-center text-[#77998D]"
                   >
                     لا توجد بيانات حتى الآن
                   </td>
@@ -1164,7 +1164,7 @@ export default function ExpensesPage({
 
                     <tr
                       key={expense.id}
-                      className="border-t border-white/10 transition hover:bg-[#102947]"
+                      className="border-t border-white/10 transition hover:bg-[#073529]"
                     >
 
                       {/* تاريخ الإدخال */}
@@ -1201,7 +1201,7 @@ export default function ExpensesPage({
 
                       <td className="p-3 text-center">
                         <span
-                          className="inline-flex items-center gap-2 rounded-lg border border-yellow-400/20 bg-yellow-400/10 px-3 py-1 text-xs font-bold text-yellow-300"
+                          className="inline-flex items-center gap-2 rounded-lg border border-[#C49A3A]/30 bg-[#C49A3A]/10 px-3 py-1 text-xs font-bold text-[#F6D878]"
                           title="مرحلة المشروع"
                         >
                           <span aria-hidden="true">🏗️</span>
@@ -1222,12 +1222,12 @@ export default function ExpensesPage({
         }
       }}
       title="عرض المرفق"
-      className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-sky-500 text-white shadow-lg transition hover:scale-105 hover:bg-sky-600"
+      className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-[#0E5141] text-white shadow-lg transition hover:scale-105 hover:bg-[#12634F]"
     >
       <Paperclip size={20} strokeWidth={2.4} />
     </button>
   ) : (
-    <span className="text-gray-500">—</span>
+    <span className="text-[#77998D]">—</span>
   )}
 </td>
 
@@ -1283,7 +1283,7 @@ export default function ExpensesPage({
 
                       {/* الإجمالي */}
 
-                      <td className="p-3 text-center font-bold text-yellow-400">
+                      <td className="p-3 text-center font-bold text-[#F6D878]">
                         {Number(
                           expense.total ?? 0
                         ).toLocaleString()}
@@ -1294,11 +1294,11 @@ export default function ExpensesPage({
                       <td className="p-3">
 
                         <div className="flex items-center justify-center gap-2">
-                          <button type="button" onClick={() => handleView(expense)} title="عرض المصروف" className="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-500 text-white shadow-lg transition hover:scale-105 hover:bg-sky-600">
+                          <button type="button" onClick={() => handleView(expense)} title="عرض المصروف" className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#0E5141] text-white shadow-lg transition hover:scale-105 hover:bg-[#12634F]">
                             <Eye size={21} strokeWidth={2.4} />
                           </button>
                           
-                          <button type="button" onClick={() => handleEdit(expense)} title="تعديل المصروف" className="flex h-10 w-10 items-center justify-center rounded-xl bg-yellow-400 text-[#081B33] shadow-lg transition hover:scale-105 hover:bg-yellow-300">
+                          <button type="button" onClick={() => handleEdit(expense)} title="تعديل المصروف" className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-r from-[#C49A3A] to-[#F6D878] text-[#16352B] shadow-lg transition hover:scale-105 hover:from-[#D4AD4D] hover:to-[#F6D878]">
                             <Pencil size={21} strokeWidth={2.4} />
                           </button>
                           <button type="button" onClick={() => handleDelete(expense)} title="حذف المصروف" className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-500 text-white shadow-lg transition hover:scale-105 hover:bg-red-600">
@@ -1329,33 +1329,33 @@ export default function ExpensesPage({
   >
     <div
       dir="rtl"
-      className="w-full max-w-5xl max-h-[92vh] overflow-y-auto overflow-hidden rounded-[30px] border border-white/10 bg-[#081B33] shadow-[0_30px_100px_rgba(0,0,0,.55)]"
+      className="w-full max-w-5xl max-h-[92vh] overflow-y-auto overflow-hidden rounded-[30px] border border-white/10 bg-gradient-to-br from-[#0B4537] via-[#073529] to-[#05261F] shadow-[0_30px_100px_rgba(0,0,0,.55)]"
       onClick={(e) => e.stopPropagation()}
     >
-      <div className="sticky top-0 z-10 flex items-center justify-between border-b border-white/10 bg-[#102947] px-7 py-5">
+      <div className="sticky top-0 z-10 flex items-center justify-between border-b border-white/10 bg-[#073529] px-7 py-5">
         <div>
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-yellow-400/10 text-yellow-400">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#C49A3A]/10 text-[#F6D878]">
               <FileText size={25} />
             </div>
             <div>
               <h2 className="text-2xl font-extrabold text-white">تفاصيل المصروف</h2>
-              <p className="mt-1 text-sm text-gray-400">عرض كامل لبيانات وحركة المصروف</p>
+              <p className="mt-1 text-sm text-[#9CBAB0]">عرض كامل لبيانات وحركة المصروف</p>
             </div>
           </div>
         </div>
-        <button type="button" onClick={() => setSelectedExpense(null)} className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-xl text-gray-400 transition hover:bg-red-500/15 hover:text-red-400">×</button>
+        <button type="button" onClick={() => setSelectedExpense(null)} className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-xl text-[#9CBAB0] transition hover:bg-red-500/15 hover:text-red-400">×</button>
       </div>
 
       <div className="p-7">
-        <div className="mb-6 rounded-3xl border border-yellow-400/20 bg-gradient-to-l from-yellow-400/10 to-white/[0.02] p-6">
+        <div className="mb-6 rounded-3xl border border-[#C49A3A]/30 bg-gradient-to-l from-[#C49A3A]/10 to-white/[0.02] p-6">
           <div className="flex flex-wrap items-end justify-between gap-5">
             <div>
-              <p className="text-sm text-gray-400">إجمالي المصروف</p>
-              <p className="mt-1 text-4xl font-extrabold text-yellow-400">{Number(selectedExpense.total ?? 0).toLocaleString()} <span className="text-sm text-gray-500">ريال</span></p>
+              <p className="text-sm text-[#9CBAB0]">إجمالي المصروف</p>
+              <p className="mt-1 text-4xl font-extrabold text-[#F6D878]">{Number(selectedExpense.total ?? 0).toLocaleString()} <span className="text-sm text-[#77998D]">ريال</span></p>
             </div>
             <div className="text-left">
-              <p className="text-xs text-gray-500">رقم العملية</p>
+              <p className="text-xs text-[#77998D]">رقم العملية</p>
               <p className="mt-1 font-bold text-white">#{selectedExpense.id}</p>
             </div>
           </div>
@@ -1375,40 +1375,40 @@ export default function ExpensesPage({
         </div>
 
         <div className="grid grid-cols-3 gap-4">
-          <div className="rounded-2xl border border-white/10 bg-[#102947] p-5 text-center">
-            <p className="text-sm text-gray-400">قبل الضريبة</p>
-            <p className="mt-2 text-2xl font-extrabold text-white">{Number(selectedExpense.amount ?? 0).toLocaleString()} <span className="text-xs text-gray-500">ريال</span></p>
+          <div className="rounded-2xl border border-white/10 bg-[#073529] p-5 text-center">
+            <p className="text-sm text-[#9CBAB0]">قبل الضريبة</p>
+            <p className="mt-2 text-2xl font-extrabold text-white">{Number(selectedExpense.amount ?? 0).toLocaleString()} <span className="text-xs text-[#77998D]">ريال</span></p>
           </div>
-          <div className="rounded-2xl border border-orange-400/20 bg-orange-400/10 p-5 text-center">
-            <p className="text-sm text-gray-400">الضريبة</p>
-            <p className="mt-2 text-2xl font-extrabold text-orange-400">{Number(selectedExpense.tax ?? 0).toLocaleString()} <span className="text-xs text-gray-500">ريال</span></p>
+          <div className="rounded-2xl border border-[#C49A3A]/25 bg-[#C49A3A]/10 p-5 text-center">
+            <p className="text-sm text-[#9CBAB0]">الضريبة</p>
+            <p className="mt-2 text-2xl font-extrabold text-[#F6D878]">{Number(selectedExpense.tax ?? 0).toLocaleString()} <span className="text-xs text-[#77998D]">ريال</span></p>
           </div>
-          <div className="rounded-2xl border border-yellow-400/20 bg-yellow-400/10 p-5 text-center">
-            <p className="text-sm text-gray-400">الإجمالي</p>
-            <p className="mt-2 text-2xl font-extrabold text-yellow-400">{Number(selectedExpense.total ?? 0).toLocaleString()} <span className="text-xs text-gray-500">ريال</span></p>
+          <div className="rounded-2xl border border-[#C49A3A]/30 bg-[#C49A3A]/10 p-5 text-center">
+            <p className="text-sm text-[#9CBAB0]">الإجمالي</p>
+            <p className="mt-2 text-2xl font-extrabold text-[#F6D878]">{Number(selectedExpense.total ?? 0).toLocaleString()} <span className="text-xs text-[#77998D]">ريال</span></p>
           </div>
         </div>
 
         {selectedExpense.description && (
-          <div className="mt-6 rounded-2xl border border-white/10 bg-[#102947] p-5">
-            <p className="mb-2 text-sm font-bold text-gray-400">الوصف</p>
+          <div className="mt-6 rounded-2xl border border-white/10 bg-[#073529] p-5">
+            <p className="mb-2 text-sm font-bold text-[#9CBAB0]">الوصف</p>
             <p className="leading-8 text-white">{selectedExpense.description}</p>
           </div>
         )}
 
         {(selectedExpense as any).attachmentUrl || (selectedExpense as any).attachment_url || (selectedExpense as any).attachmentPath ? (
-          <div className="mt-6 flex items-center justify-between rounded-2xl border border-sky-400/20 bg-sky-400/10 p-5">
+          <div className="mt-6 flex items-center justify-between rounded-2xl border border-[#C49A3A]/25 bg-[#C49A3A]/10 p-5">
             <div>
-              <p className="text-sm font-bold text-sky-300">مرفق المصروف</p>
-              <p className="mt-1 text-xs text-gray-400">يوجد مستند مرفق بهذا المصروف</p>
+              <p className="text-sm font-bold text-[#D4E8DF]">مرفق المصروف</p>
+              <p className="mt-1 text-xs text-[#9CBAB0]">يوجد مستند مرفق بهذا المصروف</p>
             </div>
-            <button type="button" onClick={() => { const url = (selectedExpense as any).attachmentUrl || (selectedExpense as any).attachment_url || (selectedExpense as any).attachmentPath; if (String(url).startsWith("http")) window.open(url, "_blank", "noopener,noreferrer"); else alert("لا يمكن فتح المرفق لأن الرابط غير متاح بشكل مباشر."); }} className="rounded-xl bg-sky-500 px-5 py-3 font-bold text-white hover:bg-sky-600">عرض المرفق</button>
+            <button type="button" onClick={() => { const url = (selectedExpense as any).attachmentUrl || (selectedExpense as any).attachment_url || (selectedExpense as any).attachmentPath; if (String(url).startsWith("http")) window.open(url, "_blank", "noopener,noreferrer"); else alert("لا يمكن فتح المرفق لأن الرابط غير متاح بشكل مباشر."); }} className="rounded-xl bg-[#0E5141] px-5 py-3 font-bold text-white hover:bg-[#12634F]">عرض المرفق</button>
           </div>
         ) : null}
       </div>
 
-      <div className="flex items-center justify-between gap-3 border-t border-white/10 bg-[#102947] px-7 py-4">
-        <button type="button" onClick={() => { setSelectedExpense(null); handleEdit(selectedExpense); }} className="flex items-center gap-2 rounded-xl bg-yellow-400 px-6 py-3 font-bold text-[#081B33] hover:bg-yellow-300"><Pencil size={18} /> تعديل المصروف</button>
+      <div className="flex items-center justify-between gap-3 border-t border-white/10 bg-[#073529] px-7 py-4">
+        <button type="button" onClick={() => { setSelectedExpense(null); handleEdit(selectedExpense); }} className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#C49A3A] to-[#F6D878] px-6 py-3 font-bold text-[#16352B] hover:from-[#D4AD4D] hover:to-[#F6D878]"><Pencil size={18} /> تعديل المصروف</button>
         <button type="button" onClick={() => setSelectedExpense(null)} className="rounded-xl border border-white/10 bg-white/5 px-7 py-3 font-bold text-gray-300 hover:bg-white/10 hover:text-white">إغلاق</button>
       </div>
     </div>
