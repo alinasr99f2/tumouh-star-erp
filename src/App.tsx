@@ -84,22 +84,21 @@ function App() {
             element={<Buildings />}
           />
 
-          {/* تفاصيل الحركات المالية للعمارة */}
+          {/* تفاصيل العمارة */}
+          <Route
+            path="/buildings/:id"
+            element={<BuildingDetails />}
+          />
+
+          {/* صفحات فرعية للعمائر */}
           <Route
             path="/buildings/financial-details"
             element={<FinancialDetails />}
           />
 
-          {/* تفاصيل المستأجرين للعمارة */}
           <Route
             path="/buildings/tenant-details"
             element={<TenantDetails />}
-          />
-
-          {/* تفاصيل العمارة */}
-          <Route
-            path="/buildings/:id"
-            element={<BuildingDetails />}
           />
 
           {/* المركز المالي */}

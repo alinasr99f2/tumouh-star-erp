@@ -1,3 +1,4 @@
+
 import {
   ArrowLeft,
   Calendar,
@@ -24,15 +25,15 @@ export default function ProjectsSection() {
 
       {/* Header */}
 
-      <div className="mb-8">
+      <div className="mb-8 text-center">
 
         <div>
 
-          <h2 className="text-2xl font-bold text-white">
+          <h2 className="text-3xl font-bold text-[#064E3B] sm:text-4xl">
             المشاريع النشطة
           </h2>
 
-          <p className="mt-2 text-gray-400">
+          <p className="mt-3 text-base text-gray-500 sm:text-lg">
             متابعة آخر المشاريع وحالة التنفيذ
           </p>
 
@@ -83,27 +84,29 @@ function ProjectCard({
         rounded-3xl
         border
         border-white/10
-        bg-[#081B33]
-        p-7
+        bg-[#064E3B]
+        p-5
+        text-center
         transition-all
         duration-300
         hover:-translate-y-1
         hover:border-yellow-400/30
         hover:shadow-2xl
+        sm:p-7
       "
     >
 
       {/* Project Header */}
 
-      <div className="flex items-start justify-between">
+      <div className="flex flex-col items-center justify-center gap-3">
 
         <div>
 
-          <h3 className="text-xl font-bold text-white">
+          <h3 className="text-2xl font-bold text-white">
             {name}
           </h3>
 
-          <div className="mt-3 flex items-center gap-2 text-gray-400">
+          <div className="mt-3 flex items-center justify-center gap-2 text-gray-300">
 
             <MapPin size={16} />
 
@@ -115,12 +118,14 @@ function ProjectCard({
 
         <span
           className="
+            inline-flex
             rounded-full
             bg-yellow-400/20
-            px-3
+            px-4
             py-1
             text-sm
-            text-yellow-400
+            font-medium
+            text-yellow-300
           "
         >
           {status}
@@ -132,9 +137,9 @@ function ProjectCard({
 
       <div className="mt-7">
 
-        <div className="mb-2 flex justify-between text-sm">
+        <div className="mb-2 flex items-center justify-between text-sm">
 
-          <span className="text-gray-400">
+          <span className="text-gray-300">
             نسبة الإنجاز
           </span>
 
@@ -201,14 +206,14 @@ function ProjectCard({
           justify-center
           gap-2
           rounded-xl
-          bg-[#17385D]
+          bg-[#0F5132]
           py-3
           font-semibold
           text-white
           transition-all
           duration-300
           hover:bg-yellow-400
-          hover:text-[#081B33]
+          hover:text-[#064E3B]
         "
       >
 
@@ -248,16 +253,17 @@ function InfoCard({
         border-white/10
         bg-white/5
         p-4
+        text-center
       "
     >
 
-      <div className="mb-3 flex items-center gap-2 text-yellow-400">
+      <div className="mb-3 flex items-center justify-center gap-2 text-yellow-300">
 
         {icon}
 
       </div>
 
-      <p className="text-xs text-gray-500">
+      <p className="text-xs text-gray-300">
         {title}
       </p>
 

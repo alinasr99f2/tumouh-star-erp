@@ -456,7 +456,7 @@ const deleteVilla = (villaToDelete: Villa) => {
 
  return (
   <div
-    className="app-layout w-full min-w-0 overflow-x-hidden"
+    className="app-layout"
     dir="rtl"
   >
     {/* =====================================
@@ -467,7 +467,7 @@ const deleteVilla = (villaToDelete: Villa) => {
   
 
 
-    <div className="app-main min-w-0 w-full">
+    <div className="app-main">
 
       {/* =====================================
           DASHBOARD PAGE
@@ -476,15 +476,15 @@ const deleteVilla = (villaToDelete: Villa) => {
             <>
           <Header />
 
-          <main className="dashboard-content w-full min-w-0 px-3 sm:px-4 lg:px-6">
+          <main className="dashboard-content">
 
             {/* =====================================
                 ACTION BAR
             ====================================== */}
 
-            <div className="dashboard-actions flex-col gap-4 sm:flex-row sm:items-center">
+            <div className="dashboard-actions">
 
-              <div className="dashboard-actions-title min-w-0">
+              <div className="dashboard-actions-title">
 
                 <span>
                   إدارة المشروع
@@ -497,7 +497,7 @@ const deleteVilla = (villaToDelete: Villa) => {
               </div>
 
 
-              <div className="dashboard-action-buttons flex-wrap gap-2 sm:gap-3">
+              <div className="dashboard-action-buttons">
 
                 {/* إدارة المصروفات */}
 
@@ -520,9 +520,9 @@ const deleteVilla = (villaToDelete: Villa) => {
                 EXPENSE SUMMARY
             ====================================== */}
 
-            <div className="expense-quick-summary grid grid-cols-1 gap-3 sm:grid-cols-2 lg:gap-4 xl:grid-cols-4">
+            <div className="expense-quick-summary">
 
-              <div className="expense-summary-card min-w-0 p-4 sm:p-5">
+              <div className="expense-summary-card">
 
                 <span>
                   إجمالي المصروفات
@@ -535,7 +535,7 @@ const deleteVilla = (villaToDelete: Villa) => {
               </div>
 
 
-              <div className="expense-summary-card min-w-0 p-4 sm:p-5">
+              <div className="expense-summary-card">
 
                 <span>
                   مصاريف المشروع العامة
@@ -548,7 +548,7 @@ const deleteVilla = (villaToDelete: Villa) => {
               </div>
 
 
-              <div className="expense-summary-card min-w-0 p-4 sm:p-5">
+              <div className="expense-summary-card">
 
                 <span>
                   مصاريف الفلل
@@ -561,7 +561,7 @@ const deleteVilla = (villaToDelete: Villa) => {
               </div>
 
 
-              <div className="expense-summary-card min-w-0 p-4 sm:p-5">
+              <div className="expense-summary-card">
 
                 <span>
                   عدد العمليات

@@ -1,19 +1,17 @@
-import logo from "../assets/logo.png";
-
 function Header() {
   return (
     <header className="main-header">
-      
+
       <div className="header-company">
         <img
-          src={logo}
-          alt="طموح ستار"
+          src="/aqar-smart-logo.png"
+          alt="عقار سمارت"
           className="company-logo"
         />
 
         <div className="company-info">
-          <h1>مؤسسة طموح ستار للتطوير العقاري</h1>
-          <p>نظام إدارة الاستثمارات والمشاريع</p>
+          <h1>عقار سمارت لإدارة العقارات</h1>
+          <p>نظام ذكي لإدارة العقارات والاستثمارات</p>
         </div>
       </div>
 

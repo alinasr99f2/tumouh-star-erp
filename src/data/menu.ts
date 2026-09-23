@@ -4,8 +4,8 @@ import {
   FolderKanban,
   Building2,
   Receipt,
-  WalletCards,
-  Users,
+  BarChart3,
+  UsersRound,
 } from "lucide-react";
 
 export const sidebarMenu = [
@@ -14,16 +14,19 @@ export const sidebarMenu = [
     icon: Home,
     path: "/home",
   },
+
   {
     title: "لوحة التحكم",
     icon: LayoutDashboard,
     path: "/dashboard",
   },
+
   {
     title: "المشاريع",
     icon: FolderKanban,
     path: "/projects",
   },
+
   {
     title: "العمائر",
     icon: Building2,
@@ -31,16 +34,17 @@ export const sidebarMenu = [
     children: [
       {
         title: "التفاصيل المالية",
-        icon: WalletCards,
+        icon: BarChart3,
         path: "/buildings/financial-details",
       },
       {
         title: "تفاصيل المستأجرين",
-        icon: Users,
+        icon: UsersRound,
         path: "/buildings/tenant-details",
       },
     ],
   },
+
   {
     title: "المركز المالي",
     icon: Receipt,
