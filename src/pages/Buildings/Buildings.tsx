@@ -12,6 +12,10 @@ import {
   Home,
   Wallet,
   ChevronLeft,
+  Edit3,
+  X,
+  Save,
+  DoorOpen,
 } from "lucide-react";
 
 type BuildingStatus =
@@ -30,7 +34,7 @@ type Building = {
   annualRent: number;
 };
 
-const buildings: Building[] = [
+const initialBuildings: Building[] = [
   {
     id: 1,
     name: "عمارة سنتر",
@@ -48,22 +52,35 @@ type Filter = "الكل" | BuildingStatus;
 export default function Buildings() {
   const navigate = useNavigate();
 
+  const [buildings, setBuildings] =
+    useState<Building[]>(initialBuildings);
+
   const [search, setSearch] = useState("");
 
   const [filter, setFilter] =
     useState<Filter>("الكل");
 
+  const [editingBuilding, setEditingBuilding] =
+    useState<Building | null>(null);
+
+  const [editName, setEditName] = useState("");
+  const [editCity, setEditCity] = useState("");
+  const [editStatus, setEditStatus] =
+    useState<BuildingStatus>("قيد التنفيذ");
+
   const filteredBuildings = useMemo(() => {
     return buildings.filter((building) => {
-      const searchValue = search.toLowerCase();
+      const normalizedSearch = search
+        .trim()
+        .toLowerCase();
 
       const matchesSearch =
         building.name
           .toLowerCase()
-          .includes(searchValue) ||
+          .includes(normalizedSearch) ||
         building.city
           .toLowerCase()
-          .includes(searchValue);
+          .includes(normalizedSearch);
 
       const matchesFilter =
         filter === "الكل" ||
@@ -71,7 +88,7 @@ export default function Buildings() {
 
       return matchesSearch && matchesFilter;
     });
-  }, [search, filter]);
+  }, [buildings, search, filter]);
 
   const stats = [
     {
@@ -79,9 +96,9 @@ export default function Buildings() {
       value: buildings.length,
       icon: Building2,
       iconClass: "text-[#F6D878]",
+      borderClass: "border-[#C49A3A]/40",
       bgClass: "bg-[#C49A3A]/10",
-      borderClass: "border-[#C49A3A]/30",
-      glowClass: "hover:shadow-[#C49A3A]/10",
+      glowClass: "shadow-[#C49A3A]/10",
     },
     {
       title: "قيد التنفيذ",
@@ -91,9 +108,9 @@ export default function Buildings() {
       ).length,
       icon: Hammer,
       iconClass: "text-[#F6D878]",
+      borderClass: "border-[#C49A3A]/40",
       bgClass: "bg-[#C49A3A]/10",
-      borderClass: "border-[#C49A3A]/30",
-      glowClass: "hover:shadow-[#C49A3A]/10",
+      glowClass: "shadow-[#C49A3A]/10",
     },
     {
       title: "مكتمل",
@@ -103,9 +120,9 @@ export default function Buildings() {
       ).length,
       icon: CheckCircle2,
       iconClass: "text-emerald-300",
+      borderClass: "border-emerald-400/30",
       bgClass: "bg-emerald-400/10",
-      borderClass: "border-emerald-400/25",
-      glowClass: "hover:shadow-emerald-400/10",
+      glowClass: "shadow-emerald-500/10",
     },
     {
       title: "متوقف",
@@ -115,408 +132,586 @@ export default function Buildings() {
       ).length,
       icon: PauseCircle,
       iconClass: "text-red-300",
+      borderClass: "border-red-400/30",
       bgClass: "bg-red-400/10",
-      borderClass: "border-red-400/25",
-      glowClass: "hover:shadow-red-400/10",
+      glowClass: "shadow-red-500/10",
     },
   ];
 
+  const openEditModal = (building: Building) => {
+    setEditingBuilding(building);
+    setEditName(building.name);
+    setEditCity(building.city);
+    setEditStatus(building.status);
+  };
+
+  const closeEditModal = () => {
+    setEditingBuilding(null);
+    setEditName("");
+    setEditCity("");
+    setEditStatus("قيد التنفيذ");
+  };
+
+  const saveBuildingChanges = () => {
+    if (!editingBuilding) return;
+
+    const trimmedName = editName.trim();
+    const trimmedCity = editCity.trim();
+
+    if (!trimmedName || !trimmedCity) {
+      alert("من فضلك أدخل اسم العمارة والعنوان.");
+      return;
+    }
+
+    setBuildings((previousBuildings) =>
+      previousBuildings.map((building) =>
+        building.id === editingBuilding.id
+          ? {
+              ...building,
+              name: trimmedName,
+              city: trimmedCity,
+              status: editStatus,
+            }
+          : building
+      )
+    );
+
+    closeEditModal();
+  };
+
   return (
-    <div
-      className="space-y-6"
-      dir="rtl"
-    >
-      {/* =========================
-          عنوان الصفحة
-      ========================= */}
+    <>
+      <div
+        className="space-y-8 pb-8"
+        dir="rtl"
+      >
+        {/* =========================
+            عنوان الصفحة
+        ========================= */}
 
-      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-white">
-            العمائر
-          </h1>
+        <div className="flex flex-col items-center justify-center gap-4 text-center">
+          <div>
+            <h1 className="text-3xl font-extrabold text-white md:text-4xl">
+              العمائر
+            </h1>
 
-          <p className="mt-2 text-[#9CBAB0]">
-            إدارة جميع عمائر شركة طموح ستار.
-          </p>
+            <p className="mt-3 text-base text-[#B4CEC5]">
+              إدارة جميع عمائر شركة طموح ستار
+            </p>
+          </div>
+
+          <button
+            type="button"
+            className="
+              rounded-2xl
+              border border-[#D4AD4D]
+              bg-gradient-to-r from-[#C49A3A] to-[#F6D878]
+              px-6 py-3
+              font-bold
+              text-[#16352B]
+              shadow-lg shadow-[#C49A3A]/10
+              transition-all duration-300
+              hover:-translate-y-0.5
+              hover:shadow-xl
+            "
+          >
+            + عمارة جديدة
+          </button>
         </div>
 
-        <button
-          type="button"
-          className="
-            rounded-xl
-            border
-            border-[#C49A3A]/30
-            bg-gradient-to-r
-            from-[#D4AD4D]
-            to-[#F6D878]
-            px-6
-            py-3
-            font-bold
-            text-[#16352B]
-            shadow-lg
-            shadow-[#C49A3A]/10
-            transition-all
-            duration-300
-            hover:-translate-y-0.5
-            hover:shadow-xl
-            hover:shadow-[#C49A3A]/20
-          "
-        >
-          + عمارة جديدة
-        </button>
-      </div>
+        {/* =========================
+            البحث
+        ========================= */}
 
-      {/* =========================
-          البحث
-      ========================= */}
+        <div className="flex justify-center">
+          <div className="group relative w-full max-w-xl">
+            <Search
+              size={21}
+              className="
+                absolute right-4 top-1/2
+                -translate-y-1/2
+                text-[#9ABDB0]
+                transition-colors
+                group-focus-within:text-[#F6D878]
+              "
+            />
 
-      <div className="relative">
-        <Search
-          size={19}
-          className="
-            absolute
-            right-4
-            top-1/2
-            -translate-y-1/2
-            text-[#77998D]
-          "
-        />
-
-        <input
-          value={search}
-          onChange={(event) =>
-            setSearch(event.target.value)
-          }
-          placeholder="ابحث باسم العمارة أو المدينة..."
-          className="
-            w-full
-            rounded-xl
-            border
-            border-[#C49A3A]/20
-            bg-gradient-to-r
-            from-[#0B4537]
-            to-[#073529]
-            py-3
-            pl-4
-            pr-11
-            text-sm
-            text-white
-            outline-none
-            transition-all
-            placeholder:text-[#77998D]
-            focus:border-[#D4AD4D]/60
-            focus:ring-2
-            focus:ring-[#C49A3A]/10
-          "
-        />
-      </div>
-
-      {/* =========================
-          الفلاتر
-      ========================= */}
-
-      <div className="flex flex-wrap gap-2">
-        {(
-          [
-            "الكل",
-            "قيد التنفيذ",
-            "مكتمل",
-            "متوقف",
-          ] as Filter[]
-        ).map((item) => (
-          <button
-            key={item}
-            type="button"
-            onClick={() => setFilter(item)}
-            className={`
-              rounded-xl
-              border
-              px-4
-              py-2
-              text-sm
-              font-medium
-              transition-all
-              duration-300
-              ${
-                filter === item
-                  ? "border-[#D4AD4D]/50 bg-gradient-to-r from-[#C49A3A] to-[#F6D878] text-[#16352B] shadow-md shadow-[#C49A3A]/10"
-                  : "border-white/10 bg-[#0B4537] text-[#B4CEC5] hover:border-[#C49A3A]/30 hover:bg-[#0E5141]"
+            <input
+              value={search}
+              onChange={(event) =>
+                setSearch(event.target.value)
               }
-            `}
-          >
-            {item}
-          </button>
-        ))}
-      </div>
-
-      {/* =========================
-          الإحصائيات
-      ========================= */}
-
-      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-        {stats.map((item) => {
-          const Icon = item.icon;
-
-          return (
-            <div
-              key={item.title}
-              className={`
-                group
-                relative
-                overflow-hidden
+              placeholder="ابحث باسم العمارة أو المدينة..."
+              className="
+                w-full
                 rounded-2xl
-                border
-                ${item.borderClass}
+                border border-[#C49A3A]/30
+                bg-gradient-to-r
+                from-[#0B4537]
+                via-[#073529]
+                to-[#05261F]
+                py-4
+                pr-12 pl-5
+                text-base
+                text-white
+                placeholder:text-[#8EADA2]
+                shadow-lg shadow-black/10
+                outline-none
+                transition-all duration-300
+                hover:border-[#C49A3A]/60
+                focus:border-[#D4AD4D]
+                focus:ring-2
+                focus:ring-[#D4AD4D]/20
+              "
+            />
+          </div>
+        </div>
+
+        {/* =========================
+            الفلاتر
+        ========================= */}
+
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          {(
+            [
+              "الكل",
+              "قيد التنفيذ",
+              "مكتمل",
+              "متوقف",
+            ] as Filter[]
+          ).map((item) => {
+            const isActive = filter === item;
+
+            return (
+              <button
+                key={item}
+                type="button"
+                onClick={() => setFilter(item)}
+                className={`
+                  min-w-[125px]
+                  rounded-2xl
+                  border
+                  px-6 py-3
+                  text-sm
+                  font-bold
+                  transition-all duration-300
+                  ${
+                    isActive
+                      ? `
+                        border-[#D4AD4D]
+                        bg-gradient-to-r
+                        from-[#C49A3A]
+                        to-[#F6D878]
+                        text-[#16352B]
+                        shadow-lg
+                        shadow-[#C49A3A]/20
+                      `
+                      : `
+                        border-[#C49A3A]/25
+                        bg-gradient-to-r
+                        from-[#0B4537]
+                        to-[#05261F]
+                        text-[#C5D9D1]
+                        hover:-translate-y-0.5
+                        hover:border-[#D4AD4D]
+                        hover:text-[#F6D878]
+                        hover:shadow-lg
+                        hover:shadow-[#C49A3A]/10
+                      `
+                  }
+                `}
+              >
+                {item}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* =========================
+            الإحصائيات
+        ========================= */}
+
+        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+          {stats.map((item) => {
+            const Icon = item.icon;
+
+            return (
+              <div
+                key={item.title}
+                className={`
+                  group
+                  relative
+                  overflow-hidden
+                  rounded-2xl
+                  border
+                  ${item.borderClass}
+                  bg-gradient-to-br
+                  from-[#0B4537]
+                  via-[#073529]
+                  to-[#05261F]
+                  p-6
+                  text-center
+                  shadow-lg
+                  ${item.glowClass}
+                  transition-all duration-300
+                  hover:-translate-y-1
+                  hover:shadow-xl
+                `}
+              >
+                <div className="flex flex-col items-center gap-3">
+                  <div
+                    className={`
+                      flex h-14 w-14
+                      items-center justify-center
+                      rounded-2xl
+                      border
+                      ${item.borderClass}
+                      ${item.bgClass}
+                      transition-transform duration-300
+                      group-hover:scale-110
+                    `}
+                  >
+                    <Icon
+                      size={28}
+                      className={item.iconClass}
+                    />
+                  </div>
+
+                  <p className="text-sm font-semibold text-[#B4CEC5]">
+                    {item.title}
+                  </p>
+
+                  <h2 className="text-4xl font-extrabold leading-none text-white">
+                    {item.value}
+                  </h2>
+                </div>
+
+                <div
+                  className="
+                    absolute bottom-0 left-1/2
+                    h-1 w-0
+                    -translate-x-1/2
+                    rounded-full
+                    bg-[#D4AD4D]
+                    transition-all duration-300
+                    group-hover:w-1/3
+                  "
+                />
+              </div>
+            );
+          })}
+        </div>
+
+        {/* =========================
+            عنوان قائمة العمائر
+        ========================= */}
+
+        <div className="space-y-5">
+          <div className="flex flex-col items-center justify-center gap-3 text-center">
+            <div className="flex items-center justify-center gap-3">
+              <div
+                className="
+                  flex h-12 w-12
+                  items-center justify-center
+                  rounded-2xl
+                  border border-[#C49A3A]/50
+                  bg-[#C49A3A]/10
+                "
+              >
+                <Building2
+                  size={25}
+                  className="text-[#F6D878]"
+                />
+              </div>
+
+              <h2 className="text-2xl font-extrabold text-white md:text-3xl">
+                قائمة العمائر
+              </h2>
+            </div>
+
+            <span
+              className="
+                rounded-full
+                border border-[#C49A3A]/30
+                bg-[#C49A3A]/10
+                px-5 py-2
+                text-sm font-semibold
+                text-[#F6D878]
+              "
+            >
+              {filteredBuildings.length} عمارة
+            </span>
+          </div>
+
+          {/* =========================
+              قائمة الكروت
+          ========================= */}
+
+          {filteredBuildings.length === 0 ? (
+            <div
+              className="
+                rounded-2xl
+                border border-dashed border-[#C49A3A]/40
                 bg-gradient-to-br
                 from-[#0B4537]
                 via-[#073529]
                 to-[#05261F]
-                p-6
+                p-12
                 text-center
-                shadow-lg
-                transition-all
-                duration-300
-                hover:-translate-y-1
-                hover:shadow-xl
-                ${item.glowClass}
-              `}
+                text-[#8EADA2]
+              "
             >
-              {/* Background Glow */}
-              <div
-                className="
-                  pointer-events-none
-                  absolute
-                  -right-10
-                  -top-10
-                  h-28
-                  w-28
-                  rounded-full
-                  bg-[#C49A3A]/[0.04]
-                  blur-3xl
-                  transition-all
-                  duration-300
-                  group-hover:bg-[#C49A3A]/[0.08]
-                "
-              />
-
-              <div className="relative z-10 flex flex-col items-center gap-4">
-                <div
-                  className={`
-                    flex
-                    h-14
-                    w-14
-                    items-center
-                    justify-center
-                    rounded-2xl
-                    border
-                    ${item.borderClass}
-                    ${item.bgClass}
-                    transition-transform
-                    duration-300
-                    group-hover:scale-110
-                  `}
-                >
-                  <Icon
-                    size={28}
-                    className={item.iconClass}
-                  />
-                </div>
-
-                <p className="text-sm font-medium text-[#B4CEC5]">
-                  {item.title}
-                </p>
-
-                <h2 className="text-4xl font-bold leading-none text-white">
-                  {item.value}
-                </h2>
-              </div>
-
-              {/* Bottom Accent */}
-              <div
-                className="
-                  absolute
-                  bottom-0
-                  left-1/2
-                  h-1
-                  w-0
-                  -translate-x-1/2
-                  rounded-full
-                  bg-[#D4AD4D]
-                  transition-all
-                  duration-300
-                  group-hover:w-1/3
-                "
-              />
+              لا توجد عمائر مطابقة للبحث أو الفلتر.
             </div>
-          );
-        })}
-      </div>
+          ) : (
+            <div className="grid gap-6 xl:grid-cols-2">
+              {filteredBuildings.map((building) => {
+                const occupancy =
+                  building.units > 0
+                    ? Math.round(
+                        (building.occupiedUnits /
+                          building.units) *
+                          100
+                      )
+                    : 0;
 
-      {/* =========================
-          قائمة العمائر
-      ========================= */}
+                const vacantUnits =
+                  Math.max(
+                    building.units -
+                      building.occupiedUnits,
+                    0
+                  );
 
-      <div>
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-white">
-            قائمة العمائر
-          </h2>
-
-          <span className="text-sm text-[#8EADA2]">
-            {filteredBuildings.length} عمارة
-          </span>
-        </div>
-
-        {filteredBuildings.length === 0 ? (
-          <div
-            className="
-              rounded-2xl
-              border
-              border-[#C49A3A]/20
-              bg-gradient-to-br
-              from-[#0B4537]
-              to-[#05261F]
-              p-12
-              text-center
-              text-[#9CBAB0]
-            "
-          >
-            لا توجد عمائر مطابقة للبحث أو الفلتر.
-          </div>
-        ) : (
-          <div className="grid gap-6 xl:grid-cols-2">
-            {filteredBuildings.map((building) => {
-              const occupancy =
-                building.units > 0
-                  ? Math.round(
-                      (building.occupiedUnits /
-                        building.units) *
-                        100
-                    )
-                  : 0;
-
-              const statusColor =
-                building.status === "مكتمل"
-                  ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-300"
-                  : building.status === "متوقف"
-                  ? "border-red-400/25 bg-red-400/10 text-red-300"
-                  : "border-[#C49A3A]/30 bg-[#C49A3A]/10 text-[#F6D878]";
-
-              return (
-                <div
-                  key={building.id}
-                  className="
-                    group
-                    relative
-                    overflow-hidden
-                    rounded-2xl
-                    border
-                    border-[#C49A3A]/20
-                    bg-gradient-to-br
-                    from-[#0B4537]
-                    via-[#073529]
-                    to-[#05261F]
-                    shadow-lg
-                    shadow-black/10
-                    transition-all
-                    duration-300
-                    hover:-translate-y-1
-                    hover:border-[#D4AD4D]/50
-                    hover:shadow-xl
-                    hover:shadow-[#C49A3A]/10
-                  "
-                >
-                  {/* Background Decoration */}
+                return (
                   <div
+                    key={building.id}
                     className="
-                      pointer-events-none
-                      absolute
-                      -bottom-20
-                      -left-16
-                      h-44
-                      w-44
-                      rounded-full
-                      bg-[#C49A3A]/[0.04]
-                      blur-3xl
-                      transition-all
-                      duration-500
-                      group-hover:bg-[#C49A3A]/[0.08]
+                      overflow-hidden
+                      rounded-3xl
+                      border border-[#C49A3A]/25
+                      bg-gradient-to-br
+                      from-[#0B4537]
+                      via-[#073529]
+                      to-[#05261F]
+                      shadow-xl shadow-black/10
+                      transition-all duration-300
+                      hover:border-[#C49A3A]/55
+                      hover:shadow-2xl
                     "
-                  />
+                  >
+                    {/* =====================
+                        رأس الكارت
+                    ===================== */}
 
-                  {/* =====================
-                      رأس الكارت
-                  ===================== */}
-
-                  <div className="relative z-10 border-b border-white/10 p-6">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex min-w-0 items-start gap-4">
-                        {/* Building Icon */}
-                        <div
-                          className="
-                            flex
-                            h-14
-                            w-14
-                            shrink-0
-                            items-center
-                            justify-center
-                            rounded-2xl
-                            border
-                            border-[#C49A3A]/30
-                            bg-[#C49A3A]/10
-                            transition-transform
-                            duration-300
-                            group-hover:scale-105
-                          "
-                        >
-                          <Building2
-                            size={29}
-                            className="text-[#F6D878]"
-                          />
-                        </div>
-
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-3">
-                            <h3 className="text-xl font-bold text-white">
-                              {building.name}
-                            </h3>
-
-                            <span
-                              className={`
-                                rounded-full
-                                border
-                                px-3
-                                py-1
-                                text-xs
-                                font-medium
-                                ${statusColor}
-                              `}
-                            >
-                              {building.status}
-                            </span>
-                          </div>
-
+                    <div
+                      className="
+                        border-b border-white/10
+                        p-6
+                      "
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex min-w-0 items-start gap-4">
                           <div
                             className="
-                              mt-2
-                              flex
-                              items-center
-                              gap-1.5
-                              text-sm
-                              text-[#9CBAB0]
+                              flex h-14 w-14 shrink-0
+                              items-center justify-center
+                              rounded-2xl
+                              border border-[#C49A3A]/40
+                              bg-[#C49A3A]/10
                             "
                           >
-                            <MapPin
-                              size={15}
-                              className="text-[#D4AD4D]"
+                            <Building2
+                              size={29}
+                              className="text-[#F6D878]"
                             />
+                          </div>
 
-                            {building.city}
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <h3 className="text-xl font-extrabold text-white">
+                                {building.name}
+                              </h3>
+
+                              <span
+                                className="
+                                  rounded-full
+                                  border border-[#C49A3A]/35
+                                  bg-[#C49A3A]/10
+                                  px-3 py-1
+                                  text-xs font-bold
+                                  text-[#F6D878]
+                                "
+                              >
+                                {building.status}
+                              </span>
+                            </div>
+
+                            <div
+                              className="
+                                mt-2 flex items-center
+                                gap-1.5
+                                text-sm
+                                text-[#B4CEC5]
+                              "
+                            >
+                              <MapPin size={16} />
+                              <span>{building.city}</span>
+                            </div>
                           </div>
                         </div>
+
+                        {/* زر التعديل بالقلم */}
+                        <button
+                          type="button"
+                          title="تعديل بيانات العمارة"
+                          onClick={() =>
+                            openEditModal(building)
+                          }
+                          className="
+                            flex h-11 w-11 shrink-0
+                            items-center justify-center
+                            rounded-xl
+                            border border-[#C49A3A]/40
+                            bg-[#C49A3A]/10
+                            text-[#F6D878]
+                            transition-all duration-300
+                            hover:-translate-y-0.5
+                            hover:border-[#D4AD4D]
+                            hover:bg-[#C49A3A]/25
+                          "
+                        >
+                          <Edit3 size={19} />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* =====================
+                        بيانات العمارة
+                    ===================== */}
+
+                    <div
+                      className="
+                        grid
+                        grid-cols-2
+                        divide-x divide-x-reverse
+                        divide-y
+                        divide-white/10
+                        md:grid-cols-4
+                        md:divide-y-0
+                      "
+                    >
+                      {/* إجمالي الشقق */}
+                      <div className="p-5 text-center">
+                        <Home
+                          size={21}
+                          className="mx-auto mb-3 text-[#F6D878]"
+                        />
+
+                        <p className="text-sm font-semibold text-[#B4CEC5]">
+                          إجمالي الشقق
+                        </p>
+
+                        <p className="mt-2 text-xl font-extrabold text-white">
+                          {building.units}
+                        </p>
                       </div>
 
+                      {/* الشقق الفارغة */}
+                      <div className="p-5 text-center">
+                        <DoorOpen
+                          size={21}
+                          className="mx-auto mb-3 text-emerald-300"
+                        />
+
+                        <p className="text-sm font-semibold text-[#B4CEC5]">
+                          الشقق الفارغة
+                        </p>
+
+                        <p className="mt-2 text-xl font-extrabold text-white">
+                          {vacantUnits}
+                        </p>
+                      </div>
+
+                      {/* الإيجار السنوي */}
+                      <div className="p-5 text-center">
+                        <Wallet
+                          size={21}
+                          className="mx-auto mb-3 text-[#F6D878]"
+                        />
+
+                        <p className="text-sm font-semibold text-[#B4CEC5]">
+                          الإيجار السنوي
+                        </p>
+
+                        <p className="mt-2 text-base font-extrabold text-white">
+                          {building.annualRent.toLocaleString(
+                            "ar-SA"
+                          )}{" "}
+                          ريال
+                        </p>
+                      </div>
+
+                      {/* نسبة الإشغال */}
+                      <div className="p-5 text-center">
+                        <Building2
+                          size={21}
+                          className="mx-auto mb-3 text-[#D4AD4D]"
+                        />
+
+                        <p className="text-sm font-semibold text-[#B4CEC5]">
+                          نسبة الإشغال
+                        </p>
+
+                        <p className="mt-2 text-xl font-extrabold text-white">
+                          {occupancy}%
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* =====================
+                        نسبة الإنجاز
+                    ===================== */}
+
+                    <div
+                      className="
+                        border-t border-white/10
+                        p-6
+                      "
+                    >
+                      <div className="mb-3 flex items-center justify-between text-sm">
+                        <span className="font-semibold text-[#B4CEC5]">
+                          نسبة الإنجاز
+                        </span>
+
+                        <span className="font-extrabold text-[#F6D878]">
+                          {building.progress}%
+                        </span>
+                      </div>
+
+                      <div
+                        className="
+                          h-3
+                          overflow-hidden
+                          rounded-full
+                          bg-[#031F18]
+                        "
+                      >
+                        <div
+                          className="
+                            h-full
+                            rounded-full
+                            bg-gradient-to-r
+                            from-[#B88B2D]
+                            to-[#F6D878]
+                            transition-all duration-500
+                          "
+                          style={{
+                            width: `${building.progress}%`,
+                          }}
+                        />
+                      </div>
+
+                      {/* زر عرض التفاصيل */}
                       <button
                         type="button"
                         onClick={() =>
@@ -525,203 +720,276 @@ export default function Buildings() {
                           )
                         }
                         className="
-                          flex
-                          shrink-0
-                          items-center
-                          gap-1
-                          text-sm
-                          font-medium
+                          mt-5
+                          flex w-full
+                          items-center justify-center
+                          gap-2
+                          rounded-2xl
+                          border border-[#C49A3A]/40
+                          bg-[#C49A3A]/10
+                          px-5 py-4
+                          font-extrabold
                           text-[#F6D878]
-                          transition-colors
-                          hover:text-white
+                          transition-all duration-300
+                          hover:-translate-y-0.5
+                          hover:bg-gradient-to-r
+                          hover:from-[#C49A3A]
+                          hover:to-[#F6D878]
+                          hover:text-[#16352B]
                         "
                       >
-                        التفاصيل
+                        عرض تفاصيل العمارة
 
-                        <ChevronLeft size={17} />
+                        <ChevronLeft size={19} />
                       </button>
                     </div>
                   </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
 
-                  {/* =====================
-                      بيانات العمارة
-                  ===================== */}
+      {/* =========================
+          نافذة تعديل بيانات العمارة
+      ========================= */}
 
-                  <div
-                    className="
-                      relative
-                      z-10
-                      grid
-                      grid-cols-3
-                      divide-x
-                      divide-x-reverse
-                      divide-white/10
-                    "
-                  >
-                    {/* Units */}
-                    <div className="p-5 text-center">
-                      <Home
-                        size={19}
-                        className="mx-auto mb-2 text-[#D4AD4D]"
-                      />
-
-                      <p className="text-xs text-[#8EADA2]">
-                        الوحدات
-                      </p>
-
-                      <p className="mt-1 font-bold text-white">
-                        {building.units}
-                      </p>
-                    </div>
-
-                    {/* Annual Rent */}
-                    <div className="p-5 text-center">
-                      <Wallet
-                        size={19}
-                        className="mx-auto mb-2 text-emerald-300"
-                      />
-
-                      <p className="text-xs text-[#8EADA2]">
-                        الإيجار السنوي
-                      </p>
-
-                      <p className="mt-1 text-sm font-bold text-white">
-                        {building.annualRent.toLocaleString(
-                          "ar-SA"
-                        )}{" "}
-                        ريال
-                      </p>
-                    </div>
-
-                    {/* Occupancy */}
-                    <div className="p-5 text-center">
-                      <Building2
-                        size={19}
-                        className="mx-auto mb-2 text-[#C4A4E8]"
-                      />
-
-                      <p className="text-xs text-[#8EADA2]">
-                        الإشغال
-                      </p>
-
-                      <p className="mt-1 font-bold text-white">
-                        {occupancy}%
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* =====================
-                      نسبة الإنجاز
-                  ===================== */}
-
-                  <div className="relative z-10 border-t border-white/10 p-6">
-                    <div className="mb-2 flex items-center justify-between text-sm">
-                      <span className="text-[#9CBAB0]">
-                        نسبة الإنجاز
-                      </span>
-
-                      <span className="font-bold text-[#F6D878]">
-                        {building.progress}%
-                      </span>
-                    </div>
-
-                    {/* Progress Background */}
-                    <div
-                      className="
-                        h-3
-                        overflow-hidden
-                        rounded-full
-                        border
-                        border-white/[0.04]
-                        bg-[#123D32]
-                      "
-                    >
-                      {/* Progress Value */}
-                      <div
-                        className="
-                          h-full
-                          rounded-full
-                          bg-gradient-to-r
-                          from-[#A9822F]
-                          via-[#D4AD4D]
-                          to-[#F6D878]
-                          shadow-[0_0_12px_rgba(212,173,77,0.25)]
-                          transition-all
-                          duration-500
-                        "
-                        style={{
-                          width: `${building.progress}%`,
-                        }}
-                      />
-                    </div>
-
-                    {/* =====================
-                        زر عرض التفاصيل
-                    ===================== */}
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        navigate(
-                          `/buildings/${building.id}`
-                        )
-                      }
-                      className="
-                        mt-5
-                        flex
-                        w-full
-                        items-center
-                        justify-center
-                        gap-2
-                        rounded-xl
-                        border
-                        border-[#C49A3A]/30
-                        bg-[#C49A3A]/10
-                        px-5
-                        py-3
-                        font-bold
-                        text-[#F6D878]
-                        transition-all
-                        duration-300
-                        hover:border-[#D4AD4D]
-                        hover:bg-gradient-to-r
-                        hover:from-[#C49A3A]
-                        hover:to-[#F6D878]
-                        hover:text-[#16352B]
-                        hover:shadow-lg
-                        hover:shadow-[#C49A3A]/10
-                      "
-                    >
-                      اعرض التفاصيل
-
-                      <ChevronLeft size={18} />
-                    </button>
-                  </div>
-
-                  {/* Bottom Accent */}
-                  <div
-                    className="
-                      absolute
-                      bottom-0
-                      left-1/2
-                      h-1
-                      w-0
-                      -translate-x-1/2
-                      rounded-full
-                      bg-gradient-to-r
-                      from-[#A9822F]
-                      to-[#F6D878]
-                      transition-all
-                      duration-300
-                      group-hover:w-1/3
-                    "
+      {editingBuilding && (
+        <div
+          className="
+            fixed inset-0 z-50
+            flex items-center justify-center
+            bg-black/70
+            p-4
+            backdrop-blur-sm
+          "
+          dir="rtl"
+        >
+          <div
+            className="
+              w-full max-w-lg
+              overflow-hidden
+              rounded-3xl
+              border border-[#C49A3A]/40
+              bg-gradient-to-br
+              from-[#0B4537]
+              via-[#073529]
+              to-[#05261F]
+              shadow-2xl shadow-black/40
+            "
+          >
+            {/* رأس النافذة */}
+            <div
+              className="
+                flex items-center justify-between
+                border-b border-white/10
+                px-6 py-5
+              "
+            >
+              <div className="flex items-center gap-3">
+                <div
+                  className="
+                    flex h-11 w-11
+                    items-center justify-center
+                    rounded-xl
+                    border border-[#C49A3A]/40
+                    bg-[#C49A3A]/10
+                  "
+                >
+                  <Edit3
+                    size={20}
+                    className="text-[#F6D878]"
                   />
                 </div>
-              );
-            })}
+
+                <h2 className="text-xl font-extrabold text-white">
+                  تعديل بيانات العمارة
+                </h2>
+              </div>
+
+              <button
+                type="button"
+                onClick={closeEditModal}
+                className="
+                  flex h-10 w-10
+                  items-center justify-center
+                  rounded-xl
+                  text-[#B4CEC5]
+                  transition
+                  hover:bg-white/10
+                  hover:text-white
+                "
+                title="إغلاق"
+              >
+                <X size={21} />
+              </button>
+            </div>
+
+            {/* محتوى النافذة */}
+            <div className="space-y-5 p-6">
+              {/* اسم العمارة */}
+              <div>
+                <label
+                  htmlFor="building-name"
+                  className="mb-2 block text-sm font-bold text-[#D5E5DE]"
+                >
+                  اسم العمارة
+                </label>
+
+                <input
+                  id="building-name"
+                  type="text"
+                  value={editName}
+                  onChange={(event) =>
+                    setEditName(event.target.value)
+                  }
+                  className="
+                    w-full
+                    rounded-xl
+                    border border-[#C49A3A]/30
+                    bg-[#031F18]/70
+                    px-4 py-3
+                    text-white
+                    outline-none
+                    transition
+                    placeholder:text-[#8EADA2]
+                    focus:border-[#D4AD4D]
+                    focus:ring-2
+                    focus:ring-[#D4AD4D]/20
+                  "
+                  placeholder="اكتب اسم العمارة"
+                />
+              </div>
+
+              {/* العنوان */}
+              <div>
+                <label
+                  htmlFor="building-city"
+                  className="mb-2 block text-sm font-bold text-[#D5E5DE]"
+                >
+                  العنوان / المدينة
+                </label>
+
+                <input
+                  id="building-city"
+                  type="text"
+                  value={editCity}
+                  onChange={(event) =>
+                    setEditCity(event.target.value)
+                  }
+                  className="
+                    w-full
+                    rounded-xl
+                    border border-[#C49A3A]/30
+                    bg-[#031F18]/70
+                    px-4 py-3
+                    text-white
+                    outline-none
+                    transition
+                    placeholder:text-[#8EADA2]
+                    focus:border-[#D4AD4D]
+                    focus:ring-2
+                    focus:ring-[#D4AD4D]/20
+                  "
+                  placeholder="اكتب العنوان أو المدينة"
+                />
+              </div>
+
+              {/* الحالة */}
+              <div>
+                <label
+                  htmlFor="building-status"
+                  className="mb-2 block text-sm font-bold text-[#D5E5DE]"
+                >
+                  حالة العمارة
+                </label>
+
+                <select
+                  id="building-status"
+                  value={editStatus}
+                  onChange={(event) =>
+                    setEditStatus(
+                      event.target.value as BuildingStatus
+                    )
+                  }
+                  className="
+                    w-full
+                    rounded-xl
+                    border border-[#C49A3A]/30
+                    bg-[#031F18]
+                    px-4 py-3
+                    text-white
+                    outline-none
+                    transition
+                    focus:border-[#D4AD4D]
+                    focus:ring-2
+                    focus:ring-[#D4AD4D]/20
+                  "
+                >
+                  <option value="قيد التنفيذ">
+                    قيد التنفيذ
+                  </option>
+
+                  <option value="مكتمل">
+                    مكتمل
+                  </option>
+
+                  <option value="متوقف">
+                    متوقف
+                  </option>
+                </select>
+              </div>
+
+              {/* أزرار النافذة */}
+              <div className="flex flex-col gap-3 pt-2 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={saveBuildingChanges}
+                  className="
+                    flex flex-1
+                    items-center justify-center
+                    gap-2
+                    rounded-xl
+                    bg-gradient-to-r
+                    from-[#C49A3A]
+                    to-[#F6D878]
+                    px-5 py-3
+                    font-extrabold
+                    text-[#16352B]
+                    shadow-lg shadow-[#C49A3A]/10
+                    transition
+                    hover:brightness-110
+                  "
+                >
+                  <Save size={18} />
+                  حفظ التعديلات
+                </button>
+
+                <button
+                  type="button"
+                  onClick={closeEditModal}
+                  className="
+                    flex flex-1
+                    items-center justify-center
+                    gap-2
+                    rounded-xl
+                    border border-white/15
+                    bg-white/5
+                    px-5 py-3
+                    font-bold
+                    text-[#D5E5DE]
+                    transition
+                    hover:bg-white/10
+                  "
+                >
+                  إلغاء
+                </button>
+              </div>
+            </div>
           </div>
-        )}
-      </div>
-    </div>
+        </div>
+      )}
+    </>
   );
 }

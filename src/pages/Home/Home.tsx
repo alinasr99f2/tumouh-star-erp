@@ -1,5 +1,7 @@
+
 import {
   ArrowLeft,
+  Building,
   Building2,
   LayoutDashboard,
   WalletCards,
@@ -13,31 +15,39 @@ export default function Home() {
   const navigate = useNavigate();
 
   const cards = [
-  {
-    title: "لوحة التحكم",
-    description:
-      "متابعة الأداء والإحصائيات والتقارير الرئيسية للنظام",
-    icon: LayoutDashboard,
-    path: "/dashboard",
-    color: "blue",
-  },
-  {
-    title: "المشاريع",
-    description:
-      "إدارة المشاريع ومتابعة التفاصيل والتواصل والمهام والتقدم",
-    icon: Building2,
-    path: "/projects",
-    color: "green",
-  },
-  {
-    title: "المركز المالي",
-    description:
-      "إدارة المصروفات، الأرباح، الحسابات والقيود المالية",
-    icon: WalletCards,
-    path: "/financial",
-    color: "yellow",
-  },
-];
+    {
+      title: "لوحة التحكم",
+      description:
+        "متابعة الأداء والإحصائيات والتقارير الرئيسية للنظام",
+      icon: LayoutDashboard,
+      path: "/dashboard",
+      color: "blue",
+    },
+    {
+      title: "المشاريع",
+      description:
+        "إدارة المشاريع ومتابعة التفاصيل والتواصل والمهام والتقدم",
+      icon: Building2,
+      path: "/projects",
+      color: "green",
+    },
+    {
+      title: "العمائر",
+      description:
+        "إدارة العمائر السكنية والتجارية ومتابعة الوحدات والإيجارات",
+      icon: Building,
+      path: "/buildings",
+      color: "building",
+    },
+    {
+      title: "المركز المالي",
+      description:
+        "إدارة المصروفات، الأرباح، الحسابات والقيود المالية",
+      icon: WalletCards,
+      path: "/financial",
+      color: "yellow",
+    },
+  ];
 
   return (
     <div
@@ -50,7 +60,6 @@ export default function Home() {
         aqar-home-page
       "
     >
-
       {/* =========================================
           الخلفية
       ========================================= */}
@@ -71,7 +80,8 @@ export default function Home() {
           blur-[100px]
         "
       />
-{/* =========================================
+
+      {/* =========================================
           المحتوى
       ========================================= */}
 
@@ -90,7 +100,6 @@ export default function Home() {
           lg:px-8
         "
       >
-
         {/* =====================================
             العنوان
         ===================================== */}
@@ -104,9 +113,9 @@ export default function Home() {
             text-center
           "
         >
-
           <div
             className="
+              aqar-home-badge
               mb-2
               rounded-full
               border
@@ -117,20 +126,20 @@ export default function Home() {
               text-[11px]
               font-bold
               text-yellow-400
-              aqar-home-badge
             "
           >
             AQAR SMART ERP
+
             <span className="mr-1">✦</span>
           </div>
 
           <h1
             className="
+              aqar-home-title
               text-4xl
               font-extrabold
               leading-tight
               text-white
-              aqar-home-title
               md:text-5xl
             "
           >
@@ -139,21 +148,19 @@ export default function Home() {
 
           <p
             className="
+              aqar-home-description
               mt-2
               text-sm
               text-gray-400
-              aqar-home-description
               md:text-base
             "
           >
             مرحبًا بك في عقار سمارت لإدارة العقارات
           </p>
-
         </div>
 
-
         {/* =====================================
-            الكروت الثلاثة
+            الكروت الأربعة
         ===================================== */}
 
         <div
@@ -162,22 +169,23 @@ export default function Home() {
             w-full
             grid-cols-1
             gap-5
-            md:grid-cols-3
-            lg:gap-7
+            md:grid-cols-2
+            xl:grid-cols-4
+            lg:gap-6
           "
         >
-
           {cards.map((card) => {
-
             const Icon = card.icon;
 
             const isYellow = card.color === "yellow";
             const isGreen = card.color === "green";
+            const isBuilding = card.color === "building";
 
             return (
               <div
                 key={card.title}
                 className={`
+                  aqar-feature-card
                   group
                   relative
                   flex
@@ -191,7 +199,6 @@ export default function Home() {
                   text-center
                   shadow-2xl
                   backdrop-blur-xl
-                  aqar-feature-card
                   transition-all
                   duration-500
                   hover:-translate-y-2
@@ -218,6 +225,17 @@ export default function Home() {
                         hover:border-emerald-400/60
                         hover:shadow-emerald-400/10
                       `
+                      : isBuilding
+                      ? `
+                        border-[#D4AD4D]/40
+                        bg-gradient-to-br
+                        from-[#D4AD4D]/[0.16]
+                        via-[#104638]/90
+                        to-[#06251e]/95
+                        shadow-[#D4AD4D]/[0.06]
+                        hover:border-[#F6D878]/70
+                        hover:shadow-[#D4AD4D]/15
+                      `
                       : `
                         border-blue-400/30
                         bg-gradient-to-br
@@ -231,8 +249,9 @@ export default function Home() {
                   }
                 `}
               >
-
-                {/* Glow */}
+                {/* =================================
+                    Glow
+                ================================= */}
 
                 <div
                   className={`
@@ -251,11 +270,12 @@ export default function Home() {
                         ? "bg-yellow-400"
                         : isGreen
                         ? "bg-emerald-400"
+                        : isBuilding
+                        ? "bg-[#D4AD4D]"
                         : "bg-blue-400"
                     }
                   `}
                 />
-
 
                 {/* =================================
                     الأيقونة
@@ -295,6 +315,14 @@ export default function Home() {
                           to-emerald-500/10
                           shadow-emerald-400/10
                         `
+                        : isBuilding
+                        ? `
+                          border-[#D4AD4D]/50
+                          bg-gradient-to-br
+                          from-[#D4AD4D]/25
+                          to-[#0B4537]/40
+                          shadow-[#D4AD4D]/15
+                        `
                         : `
                           border-blue-300/30
                           bg-gradient-to-br
@@ -305,27 +333,26 @@ export default function Home() {
                     }
                   `}
                 >
-
                   <Icon
                     size={62}
                     strokeWidth={1.8}
                     className={`
+                      aqar-card-icon
                       transition-transform
                       duration-500
                       group-hover:scale-110
-                    aqar-card-icon
                       ${
                         isYellow
                           ? "text-yellow-100"
                           : isGreen
                           ? "text-emerald-100"
+                          : isBuilding
+                          ? "text-[#F6D878]"
                           : "text-blue-100"
                       }
                     `}
                   />
-
                 </div>
-
 
                 {/* =================================
                     العنوان
@@ -333,18 +360,17 @@ export default function Home() {
 
                 <h2
                   className="
+                    aqar-card-title
                     relative
                     z-10
                     text-[29px]
                     font-extrabold
                     leading-tight
                     text-white
-                    aqar-card-title
                   "
                 >
                   {card.title}
                 </h2>
-
 
                 {/* =================================
                     الوصف
@@ -352,6 +378,7 @@ export default function Home() {
 
                 <p
                   className="
+                    aqar-card-description
                     relative
                     z-10
                     mt-4
@@ -361,12 +388,10 @@ export default function Home() {
                     font-medium
                     leading-7
                     text-gray-300
-                    aqar-card-description
                   "
                 >
                   {card.description}
                 </p>
-
 
                 {/* =================================
                     زر الدخول
@@ -376,6 +401,7 @@ export default function Home() {
                   type="button"
                   onClick={() => navigate(card.path)}
                   className={`
+                    aqar-card-button
                     relative
                     z-10
                     mt-auto
@@ -392,7 +418,6 @@ export default function Home() {
                     font-bold
                     transition-all
                     duration-300
-                    aqar-card-button
                     hover:scale-105
                     ${
                       isYellow
@@ -409,6 +434,14 @@ export default function Home() {
                           text-white
                           hover:bg-emerald-400/10
                         `
+                        : isBuilding
+                        ? `
+                          border-[#D4AD4D]/60
+                          bg-[#D4AD4D]/[0.06]
+                          text-white
+                          hover:border-[#F6D878]
+                          hover:bg-[#D4AD4D]/15
+                        `
                         : `
                           border-blue-400/50
                           bg-blue-400/5
@@ -418,10 +451,7 @@ export default function Home() {
                     }
                   `}
                 >
-
-                  <span>
-                    الدخول إلى القسم
-                  </span>
+                  <span>الدخول إلى القسم</span>
 
                   <ArrowLeft
                     size={24}
@@ -432,17 +462,12 @@ export default function Home() {
                       group-hover:-translate-x-1
                     "
                   />
-
                 </button>
-
               </div>
             );
           })}
-
         </div>
-
       </div>
-
     </div>
   );
 }

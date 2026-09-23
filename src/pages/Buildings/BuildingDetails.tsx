@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { supabase } from "../../utils/supabase";
 import {
   X,
   Building2,
@@ -266,6 +267,12 @@ type ApartmentTab =
 export default function BuildingDetails() {
   const [selectedApartment, setSelectedApartment] =
     useState<Apartment | null>(null);
+
+  const [isEditingApartmentNumber, setIsEditingApartmentNumber] =
+    useState(false);
+
+  const [editedApartmentNumber, setEditedApartmentNumber] =
+    useState("");
 
   // أنواع الشقق المخصصة لكل شقة + الأنواع الجديدة المحفوظة
   const [apartmentTypes, setApartmentTypes] =
@@ -1177,20 +1184,267 @@ export default function BuildingDetails() {
     setSelectedApartment(updatedApartment);
   };
 
-  const openApartment = (
-    apartment: Apartment
-  ) => {
+  const getCurrentBuildingId = (): number | null => {
+    const pathParts = window.location.pathname.split("/").filter(Boolean);
+    const rawId = pathParts[pathParts.length - 1];
+    const buildingId = Number(rawId);
+
+    return Number.isFinite(buildingId) && buildingId > 0
+      ? buildingId
+      : null;
+  };
+
+  const loadApartmentTenantData = async (apartment: Apartment) => {
+    const buildingId = getCurrentBuildingId();
+
+    if (!buildingId) {
+      return;
+    }
+
+    try {
+      const { data: lease, error: leaseError } = await supabase
+        .from("tenant_leases")
+        .select("*")
+        .eq("building_id", buildingId)
+        .eq("apartment_number", String(apartment.number))
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (leaseError) {
+        console.error("خطأ في تحميل عقد المستأجر:", leaseError);
+        return;
+      }
+
+      if (!lease?.tenant_id) {
+        return;
+      }
+
+      const { data: tenant, error: tenantError } = await supabase
+        .from("tenants")
+        .select("*")
+        .eq("id", lease.tenant_id)
+        .maybeSingle();
+
+      if (tenantError) {
+        console.error("خطأ في تحميل بيانات المستأجر:", tenantError);
+        return;
+      }
+
+      if (tenant) {
+        setApartmentTenantInfo((current) => ({
+          ...current,
+          [apartment.number]: {
+            ...getApartmentTenantInfo(apartment),
+            tenantName: tenant.full_name ?? "",
+            phone: tenant.phone ?? "",
+            identityNumber: tenant.identity_number ?? "",
+            status: lease.status ?? apartment.status,
+          },
+        }));
+
+        setApartmentContractInfo((current) => ({
+          ...current,
+          [apartment.number]: {
+            ...getApartmentContractInfo(apartment.number),
+            contractNumber: lease.contract_number ?? "",
+            startDate: lease.start_date ?? "",
+            endDate: lease.end_date ?? "",
+            insuranceAmount: Number(lease.insurance_amount ?? 0),
+            insuranceNotes: lease.insurance_notes ?? "",
+          },
+        }));
+
+        setApartments((current) =>
+          current.map((item) =>
+            item.number === apartment.number
+              ? { ...item, tenant: tenant.full_name || "اسم المستأجر غير مضاف" }
+              : item
+          )
+        );
+      }
+    } catch (error) {
+      console.error("خطأ غير متوقع أثناء تحميل بيانات المستأجر:", error);
+    }
+  };
+
+  const openApartment = (apartment: Apartment) => {
     setSelectedApartment(apartment);
     setActiveTab("البيانات الأساسية");
+    void loadApartmentTenantData(apartment);
   };
 
   const closeApartment = () => {
     setSelectedApartment(null);
     setActiveTab("البيانات الأساسية");
     setIsPaymentExportMenuOpen(false);
+    setIsEditingApartmentNumber(false);
+    setEditedApartmentNumber("");
   };
 
-  const saveApartmentTenantField = <
+  const startEditingApartmentNumber = () => {
+    if (!selectedApartment) {
+      return;
+    }
+
+    setEditedApartmentNumber(String(selectedApartment.number));
+    setIsEditingApartmentNumber(true);
+  };
+
+  const cancelEditingApartmentNumber = () => {
+    setIsEditingApartmentNumber(false);
+    setEditedApartmentNumber("");
+  };
+
+  const saveApartmentNumber = () => {
+    if (!selectedApartment) {
+      return;
+    }
+
+    const newNumber = Number(editedApartmentNumber.trim());
+
+    if (!Number.isInteger(newNumber) || newNumber <= 0) {
+      window.alert("من فضلك أدخل رقم شقة صحيح.");
+      return;
+    }
+
+    const oldNumber = selectedApartment.number;
+
+    if (newNumber === oldNumber) {
+      cancelEditingApartmentNumber();
+      return;
+    }
+
+    const duplicateApartment = apartments.some(
+      (apartment) =>
+        apartment.number === newNumber &&
+        apartment.number !== oldNumber
+    );
+
+    if (duplicateApartment) {
+      window.alert("رقم الشقة الجديد مستخدم بالفعل. اختر رقمًا آخر.");
+      return;
+    }
+
+    const updatedApartment = {
+      ...selectedApartment,
+      number: newNumber,
+    };
+
+    setApartments((current) => {
+      const updated = current.map((apartment) =>
+        apartment.number === oldNumber
+          ? { ...apartment, number: newNumber }
+          : apartment
+      );
+
+      window.localStorage.setItem(
+        "tumouh_star_building_apartments",
+        JSON.stringify(updated)
+      );
+
+      return updated;
+    });
+
+    setApartmentTypes((current) => {
+      const updated = { ...current };
+
+      if (Object.prototype.hasOwnProperty.call(updated, oldNumber)) {
+        updated[newNumber] = updated[oldNumber];
+        delete updated[oldNumber];
+      }
+
+      window.localStorage.setItem(
+        "tumouh_star_apartment_types",
+        JSON.stringify(updated)
+      );
+
+      return updated;
+    });
+
+    setApartmentExtraInfo((current) => {
+      const updated = { ...current };
+
+      if (Object.prototype.hasOwnProperty.call(updated, oldNumber)) {
+        updated[newNumber] = updated[oldNumber];
+        delete updated[oldNumber];
+      }
+
+      window.localStorage.setItem(
+        "tumouh_star_apartment_extra_info",
+        JSON.stringify(updated)
+      );
+
+      return updated;
+    });
+
+    setApartmentTenantInfo((current) => {
+      const updated = { ...current };
+
+      if (Object.prototype.hasOwnProperty.call(updated, oldNumber)) {
+        updated[newNumber] = updated[oldNumber];
+        delete updated[oldNumber];
+      }
+
+      window.localStorage.setItem(
+        "tumouh_star_apartment_tenant_info",
+        JSON.stringify(updated)
+      );
+
+      return updated;
+    });
+
+    setApartmentContractInfo((current) => {
+      const updated = { ...current };
+
+      if (Object.prototype.hasOwnProperty.call(updated, oldNumber)) {
+        updated[newNumber] = updated[oldNumber];
+        delete updated[oldNumber];
+      }
+
+      window.localStorage.setItem(
+        "tumouh_star_apartment_contract_info",
+        JSON.stringify(updated)
+      );
+
+      return updated;
+    });
+
+    try {
+      const savedCharges = window.localStorage.getItem(
+        "tumouh_star_building_charges"
+      );
+
+      if (savedCharges) {
+        const charges = JSON.parse(savedCharges) as BuildingCharge[];
+
+        const updatedCharges = charges.map((charge) =>
+          charge.apartmentNumber === oldNumber
+            ? { ...charge, apartmentNumber: newNumber }
+            : charge
+        );
+
+        window.localStorage.setItem(
+          "tumouh_star_building_charges",
+          JSON.stringify(updatedCharges)
+        );
+      }
+    } catch {
+      // تجاهل خطأ قراءة المستحقات مع حفظ بيانات الشقة بشكل طبيعي.
+    }
+
+    setSelectedChargeApartments((current) =>
+      current.map((number) =>
+        number === oldNumber ? newNumber : number
+      )
+    );
+
+    setSelectedApartment(updatedApartment);
+    setIsEditingApartmentNumber(false);
+    setEditedApartmentNumber("");
+  };
+
+  const saveApartmentTenantField = async <
     K extends keyof Pick<
       ApartmentTenantInfo,
       "tenantName" | "phone" | "identityNumber"
@@ -1248,6 +1502,109 @@ export default function BuildingDetails() {
                 tenantInfo.tenantName || "اسم المستأجر غير مضاف",
             }
           : current
+      );
+    }
+
+    const buildingId = getCurrentBuildingId();
+    const apartmentNumber = String(apartment.number);
+
+    if (!buildingId) {
+      window.alert("تعذر تحديد رقم العمارة من الرابط.");
+      return;
+    }
+
+    if (!tenantInfo.tenantName.trim()) {
+      window.alert("من فضلك أدخل اسم المستأجر أولًا.");
+      return;
+    }
+
+    try {
+      const { data: existingLease, error: leaseLookupError } = await supabase
+        .from("tenant_leases")
+        .select("id, tenant_id")
+        .eq("building_id", buildingId)
+        .eq("apartment_number", apartmentNumber)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (leaseLookupError) {
+        throw leaseLookupError;
+      }
+
+      let tenantId = existingLease?.tenant_id ?? null;
+
+      const tenantPayload = {
+        full_name: tenantInfo.tenantName.trim(),
+        phone: tenantInfo.phone.trim() || null,
+        identity_number: tenantInfo.identityNumber.trim() || null,
+        updated_at: new Date().toISOString(),
+      };
+
+      if (tenantId) {
+        const { error: tenantUpdateError } = await supabase
+          .from("tenants")
+          .update(tenantPayload)
+          .eq("id", tenantId);
+
+        if (tenantUpdateError) {
+          throw tenantUpdateError;
+        }
+      } else {
+        const { data: insertedTenant, error: tenantInsertError } = await supabase
+          .from("tenants")
+          .insert(tenantPayload)
+          .select("id")
+          .single();
+
+        if (tenantInsertError) {
+          throw tenantInsertError;
+        }
+
+        tenantId = insertedTenant.id;
+      }
+
+      const contractInfo = getApartmentContractInfo(apartment.number);
+      const leasePayload = {
+        tenant_id: tenantId,
+        building_id: buildingId,
+        apartment_number: apartmentNumber,
+        contract_number: contractInfo.contractNumber || null,
+        start_date: contractInfo.startDate || null,
+        end_date: contractInfo.endDate || null,
+        monthly_rent: Number(apartment.rent ?? 0),
+        status: tenantInfo.status || apartment.status,
+        insurance_amount: Number(contractInfo.insuranceAmount ?? 0),
+        insurance_notes: contractInfo.insuranceNotes || null,
+        updated_at: new Date().toISOString(),
+      };
+
+      if (existingLease?.id) {
+        const { error: leaseUpdateError } = await supabase
+          .from("tenant_leases")
+          .update(leasePayload)
+          .eq("id", existingLease.id);
+
+        if (leaseUpdateError) {
+          throw leaseUpdateError;
+        }
+      } else {
+        const { error: leaseInsertError } = await supabase
+          .from("tenant_leases")
+          .insert(leasePayload);
+
+        if (leaseInsertError) {
+          throw leaseInsertError;
+        }
+      }
+
+      window.alert("تم حفظ بيانات المستأجر في قاعدة البيانات بنجاح.");
+    } catch (error: any) {
+      console.error("خطأ في حفظ بيانات المستأجر في Supabase:", error);
+      window.alert(
+        `تم حفظ البيانات محليًا، لكن حدث خطأ في قاعدة البيانات:\n${
+          error?.message ?? "خطأ غير معروف"
+        }`
       );
     }
   };
@@ -5173,10 +5530,59 @@ export default function BuildingDetails() {
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#020813]/95 via-[#061426]/35 to-transparent" />
                 <div className="absolute inset-x-0 bottom-0 p-5 text-right" dir="rtl">
-                  <div className="text-sm font-medium text-gray-300">شقة رقم</div>
-                  <div className="mt-1 text-[76px] font-black leading-none text-[#f6c84a] drop-shadow-[0_0_25px_rgba(246,200,74,0.25)]">
-                    {selectedApartment.number}
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-sm font-medium text-gray-300">
+                      شقة رقم
+                    </div>
+
+                    {!isEditingApartmentNumber && (
+                      <button
+                        type="button"
+                        onClick={startEditingApartmentNumber}
+                        title="تعديل رقم الشقة"
+                        className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#f0ad18]/40 bg-[#f0ad18]/10 text-[#f6c84a] transition hover:border-[#f6c84a] hover:bg-[#f0ad18]/20"
+                      >
+                        <Edit3 size={17} />
+                      </button>
+                    )}
                   </div>
+
+                  {isEditingApartmentNumber ? (
+                    <div className="mt-3 space-y-3">
+                      <input
+                        type="number"
+                        min="1"
+                        value={editedApartmentNumber}
+                        onChange={(event) =>
+                          setEditedApartmentNumber(event.target.value)
+                        }
+                        autoFocus
+                        className="w-full rounded-2xl border border-[#f0ad18]/60 bg-[#061426]/90 px-4 py-3 text-center text-4xl font-black text-[#f6c84a] outline-none focus:ring-2 focus:ring-[#f0ad18]/20"
+                      />
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={saveApartmentNumber}
+                          className="rounded-xl bg-gradient-to-r from-[#c49a3a] to-[#f6d878] px-3 py-2 text-sm font-black text-[#16352b] transition hover:brightness-110"
+                        >
+                          حفظ
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={cancelEditingApartmentNumber}
+                          className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-bold text-gray-200 transition hover:bg-white/10"
+                        >
+                          إلغاء
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="mt-1 text-[76px] font-black leading-none text-[#f6c84a] drop-shadow-[0_0_25px_rgba(246,200,74,0.25)]">
+                      {selectedApartment.number}
+                    </div>
+                  )}
                   <div className={`mt-4 inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold backdrop-blur-md ${getStatusColor(selectedApartment.status).badge}`}>
                     <span className={`h-2.5 w-2.5 rounded-full ${getStatusColor(selectedApartment.status).dot}`} />
                     {selectedApartment.status}

@@ -35,11 +35,20 @@ const loginBenefits = [
 export default function Login() {
   const navigate = useNavigate();
 
+  /*
+   * وضع جهاز العمل:
+   * أضف VITE_WORK_DEVICE_MODE=true داخل ملف .env.local
+   * ويمكن أيضًا استخدام VITE_DEV_MODE=true كما كان سابقًا.
+   */
+  const workDeviceMode =
+    import.meta.env.VITE_WORK_DEVICE_MODE === "true" ||
+    import.meta.env.VITE_DEV_MODE === "true";
+
   useEffect(() => {
-    if (import.meta.env.VITE_DEV_MODE === "true") {
+    if (workDeviceMode) {
       navigate("/home", { replace: true });
     }
-  }, [navigate]);
+  }, [navigate, workDeviceMode]);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -79,6 +88,11 @@ export default function Login() {
       setLoading(false);
     }
   };
+
+  // منع ظهور صفحة تسجيل الدخول لحظة واحدة أثناء التحويل في وضع جهاز العمل.
+  if (workDeviceMode) {
+    return null;
+  }
 
   return (
     <div className="login-page" dir="rtl">
