@@ -1,26 +1,54 @@
+
 import { useEffect, useState } from "react";
-import { Eye, EyeOff, LockKeyhole, Mail, LogIn } from "lucide-react";
+import {
+  Eye,
+  EyeOff,
+  LockKeyhole,
+  Mail,
+  LogIn,
+  Building2,
+  Users,
+  ChartNoAxesCombined,
+  Settings,
+  ShieldCheck,
+  Zap,
+  Headset,
+  Globe,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../utils/supabase";
+import "./Login.css";
+
+const features = [
+  { icon: ChartNoAxesCombined, title: "تقارير دقيقة" },
+  { icon: Users, title: "إدارة المستأجرين" },
+  { icon: Building2, title: "إدارة العقارات" },
+  { icon: Settings, title: "تشغيل متكامل" },
+];
+
+const loginBenefits = [
+  { icon: ShieldCheck, title: "أمان عالي" },
+  { icon: Zap, title: "أداء سريع" },
+  { icon: Headset, title: "دعم مستمر" },
+];
 
 export default function Login() {
   const navigate = useNavigate();
+
   useEffect(() => {
-  if (import.meta.env.VITE_DEV_MODE === "true") {
-    navigate("/home", { replace: true });
-  }
-}, [navigate]);
+    if (import.meta.env.VITE_DEV_MODE === "true") {
+      navigate("/home", { replace: true });
+    }
+  }, [navigate]);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-
     setError("");
 
     if (!email || !password) {
@@ -31,20 +59,21 @@ export default function Login() {
     try {
       setLoading(true);
 
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      const { error: loginError } =
+        await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
 
-      if (error) {
-        console.error(error);
+      if (loginError) {
+        console.error(loginError);
         setError("اسم المستخدم أو كلمة المرور غير صحيحة");
         return;
       }
 
       navigate("/home");
-    } catch (err) {
-      console.error(err);
+    } catch (loginException) {
+      console.error(loginException);
       setError("حدث خطأ أثناء تسجيل الدخول، حاول مرة أخرى");
     } finally {
       setLoading(false);
@@ -52,627 +81,319 @@ export default function Login() {
   };
 
   return (
-    <div
-      dir="rtl"
-      className="
-        relative
-        min-h-screen
-        w-full
-        overflow-hidden
-        bg-[#071321]
-        text-white
-      "
-    >
-
-      {/* =========================================
-          الخلفية
-      ========================================= */}
-
-      <div className="absolute inset-0">
-
-        {/* إضاءة يمين */}
-        <div
-          className="
-            absolute
-            -right-40
-            -top-40
-            h-[650px]
-            w-[650px]
-            rounded-full
-            bg-yellow-400/10
-            blur-[130px]
-          "
-        />
-
-        {/* إضاءة يسار */}
-        <div
-          className="
-            absolute
-            -left-40
-            top-20
-            h-[550px]
-            w-[550px]
-            rounded-full
-            bg-emerald-400/5
-            blur-[120px]
-          "
-        />
-
-        {/* إضاءة خلف الكارت */}
-        <div
-          className="
-            absolute
-            left-1/2
-            top-1/2
-            h-[500px]
-            w-[500px]
-            -translate-x-1/2
-            -translate-y-1/2
-            rounded-full
-            bg-yellow-400/5
-            blur-[100px]
-          "
-        />
-
+    <div className="login-page" dir="rtl">
+      {/* الخلفية العامة */}
+      <div className="login-background" aria-hidden="true">
+        <div className="login-glow login-glow-top" />
+        <div className="login-glow login-glow-bottom" />
+        <div className="login-grid-pattern" />
+        <div className="login-corner login-corner-top" />
+        <div className="login-corner login-corner-bottom" />
       </div>
 
-
-      {/* =========================================
-          اللوجو الكبير في الخلفية
-      ========================================= */}
-
-      <div
-        className="
-          pointer-events-none
-          absolute
-          left-1/2
-          top-1/2
-          z-0
-          -translate-x-1/2
-          -translate-y-1/2
-          opacity-[0.07]
-        "
-      >
-
-        <div
-          className="
-            flex
-            h-[700px]
-            w-[700px]
-            items-center
-            justify-center
-          "
-        >
-
-          <div
-            className="
-              relative
-              h-[520px]
-              w-[520px]
-            "
-          >
-
-            {/* نجمة كبيرة */}
-            <div
-              className="
-                absolute
-                left-1/2
-                top-1/2
-                h-[360px]
-                w-[360px]
-                -translate-x-1/2
-                -translate-y-1/2
-                rotate-45
-                border-[35px]
-                border-yellow-400
-              "
-              style={{
-                clipPath:
-                  "polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 92%, 50% 70%, 21% 92%, 32% 57%, 2% 35%, 39% 35%)",
-              }}
-            />
-
-          </div>
-
-        </div>
-
+      {/* زر اللغة */}
+      <div className="language-switcher">
+        <button type="button" className="language-button">
+          <Globe size={18} />
+          <span>العربية</span>
+          <span className="language-arrow">⌄</span>
+        </button>
       </div>
 
-
-      {/* =========================================
-          اللوجو الكبير ناحية اليمين
-      ========================================= */}
-
-      <div
-        className="
-          absolute
-          right-0
-          top-1/2
-          z-10
-          hidden
-          -translate-y-1/2
-          xl:block
-        "
-      >
-
-        <div
-          className="
-            flex
-            h-28
-            w-28
-            items-center
-            justify-center
-            rounded-[30px]
-            border
-            border-yellow-400/40
-            bg-yellow-400/5
-            shadow-[0_0_50px_rgba(250,204,21,0.08)]
-          "
-        >
-
-          <div
-            className="
-              flex
-              h-20
-              w-20
-              items-center
-              justify-center
-              rounded-[24px]
-              border
-              border-yellow-400/20
-              bg-[#101d1b]
-            "
-          >
-
-            <span
-              className="
-                text-5xl
-                font-black
-                text-yellow-400
-              "
-            >
-              ★
-            </span>
-
-          </div>
-
-        </div>
-
-      </div>
-
-
-      {/* =========================================
-          كارت تسجيل الدخول
-          في منتصف الشاشة بالضبط
-      ========================================= */}
-
-      <div
-        className="
-          relative
-          z-20
-          flex
-          min-h-screen
-          w-full
-          items-center
-          justify-center
-          px-5
-          py-10
-        "
-      >
-
-        <div
-          className="
-            w-full
-            max-w-[520px]
-          "
-        >
-
-          {/* اللوجو فوق الكارت */}
-
-          <div
-            className="
-              mb-5
-              flex
-              flex-col
-              items-center
-              justify-center
-            "
-          >
-
-            <div
-              className="
-                mb-3
-                flex
-                h-20
-                w-20
-                items-center
-                justify-center
-                rounded-[24px]
-                border
-                border-yellow-400/40
-                bg-yellow-400/5
-                shadow-[0_0_35px_rgba(250,204,21,0.08)]
-              "
-            >
-
-              <div
-                className="
-                  flex
-                  h-14
-                  w-14
-                  items-center
-                  justify-center
-                  rounded-[18px]
-                  bg-[#111d1b]
-                "
-              >
-
-                <span
-                  className="
-                    text-3xl
-                    font-black
-                    text-yellow-400
-                  "
-                >
-                  ★
-                </span>
-
-              </div>
-
-            </div>
-
-
-            {/* اسم النظام */}
-
-            <div
-              className="
-                mb-1
-                rounded-full
-                border
-                border-yellow-400/30
-                bg-yellow-400/10
-                px-4
-                py-1
-                text-xs
-                font-bold
-                text-yellow-400
-              "
-            >
-              Tumouh Star ERP
-            </div>
-
-            <h1
-              className="
-                mt-1
-                text-4xl
-                font-extrabold
-                tracking-tight
-                text-white
-              "
-            >
-              تسجيل الدخول
-            </h1>
-
-            <p
-              className="
-                mt-1
-                text-sm
-                text-gray-400
-              "
-            >
-              مرحبًا بك في نظام طموح ستار لإدارة الأعمال
-            </p>
-
-          </div>
-
-
+      {/* الهيكل الرئيسي */}
+      <main className="login-main" dir="ltr">
+        <div className="login-layout">
           {/* =====================================
-              الكارت
+              كارت تسجيل الدخول - الشمال
           ===================================== */}
+          <section className="login-section" dir="rtl">
+            <div className="login-card">
+              <div className="login-card-top-line" />
 
-          <div
-            className="
-              rounded-[30px]
-              border
-              border-white/10
-              bg-[#0b1b2e]/90
-              p-7
-              shadow-2xl
-              backdrop-blur-xl
-            "
-          >
-
-            <form
-              onSubmit={handleLogin}
-              className="space-y-5"
-            >
-
-              {/* اسم المستخدم */}
-
-              <div>
-
-                <label
-                  className="
-                    mb-2
-                    block
-                    text-sm
-                    font-semibold
-                    text-gray-200
-                  "
-                >
-                  اسم المستخدم
-                </label>
-
-                <div className="relative">
-
-                  <Mail
-                    size={21}
-                    className="
-                      absolute
-                      right-4
-                      top-1/2
-                      -translate-y-1/2
-                      text-gray-500
-                    "
+              {/* رأس الكارت */}
+              <div className="login-card-header">
+                <div className="login-logo-wrapper">
+                  <img
+                    src="/aqar-smart-logo.png"
+                    alt="عقار سمارت"
+                    className="login-logo"
                   />
-
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="أدخل اسم المستخدم"
-                    autoComplete="username"
-                    disabled={loading}
-                    className="
-                      h-16
-                      w-full
-                      rounded-2xl
-                      border
-                      border-white/10
-                      bg-[#071321]
-                      pr-12
-                      pl-4
-                      text-base
-                      text-white
-                      outline-none
-                      transition-all
-                      placeholder:text-gray-600
-                      focus:border-yellow-400/60
-                      focus:ring-2
-                      focus:ring-yellow-400/10
-                      disabled:opacity-60
-                    "
-                  />
-
                 </div>
 
+                <h1 className="login-brand-title">عقار سمارت</h1>
+
+                <p className="login-brand-english">Aqar Smart</p>
+
+                <h2 className="login-welcome-title">
+                  مرحبًا بك مرة أخرى
+                </h2>
+
+                <p className="login-welcome-description">
+                  سجل الدخول إلى حسابك للمتابعة
+                </p>
               </div>
 
+              {/* نموذج الدخول */}
+              <form onSubmit={handleLogin} className="login-form">
+                {/* اسم المستخدم */}
+                <div className="login-field">
+                  <label htmlFor="email" className="login-field-label">
+                    اسم المستخدم
+                  </label>
 
-              {/* كلمة المرور */}
+                  <div className="login-input-wrapper">
+                    <Mail className="login-input-icon" size={21} />
 
-              <div>
+                    <input
+                      id="email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="أدخل اسم المستخدم"
+                      autoComplete="username"
+                      disabled={loading}
+                      className="login-input"
+                    />
+                  </div>
+                </div>
 
-                <label
-                  className="
-                    mb-2
-                    block
-                    text-sm
-                    font-semibold
-                    text-gray-200
-                  "
-                >
-                  كلمة المرور
-                </label>
+                {/* كلمة المرور */}
+                <div className="login-field">
+                  <label htmlFor="password" className="login-field-label">
+                    كلمة المرور
+                  </label>
 
-                <div className="relative">
+                  <div className="login-input-wrapper">
+                    <LockKeyhole
+                      className="login-input-icon"
+                      size={21}
+                    />
 
-                  <LockKeyhole
-                    size={21}
-                    className="
-                      absolute
-                      right-4
-                      top-1/2
-                      -translate-y-1/2
-                      text-gray-500
-                    "
-                  />
+                    <input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="أدخل كلمة المرور"
+                      autoComplete="current-password"
+                      disabled={loading}
+                      className="login-input login-password-input"
+                    />
 
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="أدخل كلمة المرور"
-                    autoComplete="current-password"
-                    disabled={loading}
-                    className="
-                      h-16
-                      w-full
-                      rounded-2xl
-                      border
-                      border-white/10
-                      bg-[#071321]
-                      pr-12
-                      pl-14
-                      text-base
-                      text-white
-                      outline-none
-                      transition-all
-                      placeholder:text-gray-600
-                      focus:border-yellow-400/60
-                      focus:ring-2
-                      focus:ring-yellow-400/10
-                      disabled:opacity-60
-                    "
-                  />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setShowPassword((current) => !current)
+                      }
+                      disabled={loading}
+                      aria-label={
+                        showPassword
+                          ? "إخفاء كلمة المرور"
+                          : "إظهار كلمة المرور"
+                      }
+                      className="password-toggle-button"
+                    >
+                      {showPassword ? (
+                        <EyeOff size={21} />
+                      ) : (
+                        <Eye size={21} />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* تذكرني ونسيت كلمة المرور */}
+                <div className="login-options">
+                  <label className="remember-option">
+                    <input
+                      type="checkbox"
+                      className="remember-checkbox"
+                    />
+                    <span>تذكرني</span>
+                  </label>
 
                   <button
                     type="button"
+                    className="forgot-password-button"
                     onClick={() =>
-                      setShowPassword((prev) => !prev)
+                      setError(
+                        "يرجى التواصل مع مسؤول النظام لاستعادة كلمة المرور"
+                      )
                     }
-                    disabled={loading}
-                    className="
-                      absolute
-                      left-4
-                      top-1/2
-                      -translate-y-1/2
-                      text-gray-500
-                      transition
-                      hover:text-yellow-400
-                    "
                   >
-
-                    {showPassword ? (
-                      <EyeOff size={21} />
-                    ) : (
-                      <Eye size={21} />
-                    )}
-
+                    نسيت كلمة المرور؟
                   </button>
-
                 </div>
 
-              </div>
-
-
-              {/* رسالة الخطأ */}
-
-              {error && (
-                <div
-                  className="
-                    rounded-2xl
-                    border
-                    border-red-500/20
-                    bg-red-500/10
-                    px-4
-                    py-3
-                    text-center
-                    text-sm
-                    text-red-300
-                  "
-                >
-                  {error}
-                </div>
-              )}
-
-
-              {/* زر تسجيل الدخول */}
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="
-                  flex
-                  h-16
-                  w-full
-                  items-center
-                  justify-center
-                  gap-3
-                  rounded-2xl
-                  bg-gradient-to-r
-                  from-yellow-400
-                  to-yellow-500
-                  text-base
-                  font-extrabold
-                  text-[#081B33]
-                  shadow-lg
-                  shadow-yellow-400/10
-                  transition-all
-                  duration-300
-                  hover:scale-[1.01]
-                  hover:shadow-yellow-400/20
-                  active:scale-[0.99]
-                  disabled:cursor-not-allowed
-                  disabled:opacity-60
-                "
-              >
-
-                {loading ? (
-                  <>
-                    <span
-                      className="
-                        h-5
-                        w-5
-                        animate-spin
-                        rounded-full
-                        border-2
-                        border-[#081B33]/30
-                        border-t-[#081B33]
-                      "
-                    />
-
-                    جاري تسجيل الدخول...
-                  </>
-                ) : (
-                  <>
-                    <LogIn size={21} />
-
-                    تسجيل الدخول
-                  </>
+                {/* رسالة الخطأ */}
+                {error && (
+                  <div className="login-error-message">
+                    {error}
+                  </div>
                 )}
 
+                {/* زر الدخول */}
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="login-submit-button"
+                >
+                  {loading ? (
+                    <>
+                      <span className="login-spinner" />
+                      جاري تسجيل الدخول...
+                    </>
+                  ) : (
+                    <>
+                      تسجيل الدخول
+                      <LogIn size={22} />
+                    </>
+                  )}
+                </button>
+              </form>
+
+              {/* الفاصل */}
+              <div className="login-divider">
+                <span />
+                <strong>أو</strong>
+                <span />
+              </div>
+
+              {/* الدخول بحساب الشركة */}
+              <button
+                type="button"
+                className="company-login-button"
+                onClick={() =>
+                  setError("خدمة الدخول بحساب الشركة ستكون متاحة قريبًا")
+                }
+              >
+                <Building2 size={21} />
+                الدخول بحساب الشركة
               </button>
 
-            </form>
+              {/* المزايا */}
+              <div className="login-benefits">
+                {loginBenefits.map((benefit) => {
+                  const Icon = benefit.icon;
 
+                  return (
+                    <div
+                      key={benefit.title}
+                      className="login-benefit-item"
+                    >
+                      <Icon size={23} />
+                      <span>{benefit.title}</span>
+                    </div>
+                  );
+                })}
+              </div>
 
-            {/* بيانات المستخدم المؤقت */}
-
-            <div
-              className="
-                mt-6
-                rounded-2xl
-                border
-                border-yellow-400/10
-                bg-yellow-400/5
-                p-4
-                text-center
-              "
-            >
-
-              <p
-                className="
-                  text-xs
-                  text-gray-500
-                "
-              >
-                المستخدم التجريبي الحالي
-              </p>
-
-              <p
-                className="
-                  mt-1
-                  text-sm
-                  font-bold
-                  text-yellow-400
-                "
-              >
-                test@tumouh-star.local
-              </p>
-
+              {/* الحساب التجريبي */}
+              <div className="demo-account-box">
+                <p>المستخدم التجريبي الحالي</p>
+                <strong>test@tumouh-star.local</strong>
+              </div>
             </div>
 
-          </div>
+            <div className="login-footer">
+              <p>© عقار سمارت. جميع الحقوق محفوظة.</p>
+              <span>Aqar Smart Real Estate Management System</span>
+            </div>
+          </section>
 
+          {/* =====================================
+              الكارت التعريفي الزجاجي - اليمين
+          ===================================== */}
+          <section className="hero-section" dir="rtl">
+            <div className="hero-panel">
+              {/* صورة الخلفية */}
+              <div className="hero-background-image" />
 
-          {/* أسفل الصفحة */}
+              {/* طبقات التدرج */}
+              <div className="hero-overlay" />
 
-          <p
-            className="
-              mt-4
-              text-center
-              text-xs
-              text-gray-500
-            "
-          >
-            Tumouh Star ERP System
-          </p>
+              {/* العلامة المائية الكبيرة */}
+              <img
+                src="/aqar-smart-logo.png"
+                alt=""
+                aria-hidden="true"
+                className="hero-watermark"
+              />
 
+              {/* الخطوط والزخارف */}
+              <div className="hero-decoration hero-decoration-one" />
+              <div className="hero-decoration hero-decoration-two" />
+
+              {/* محتوى الكارت */}
+              <div className="hero-content">
+                {/* اللوجو */}
+                <div className="hero-logo-wrapper">
+                  <img
+                    src="/aqar-smart-logo.png"
+                    alt="عقار سمارت"
+                    className="hero-logo"
+                  />
+                </div>
+
+                <h2 className="hero-title">عقار سمارت</h2>
+
+                <p className="hero-english-title">AQAR SMART</p>
+
+                <p className="hero-subtitle">
+                  نظام سمارت لإدارة العقارات
+                </p>
+
+                <p className="hero-management-title">
+                  SMART REAL ESTATE MANAGEMENT
+                </p>
+
+                <h1 className="hero-main-title">
+                  إدارة أذكى...
+                  <br />
+                  <span>لعقارات أكثر نجاحًا</span>
+                </h1>
+
+                <p className="hero-description">
+                  كل ما تحتاجه لإدارة عقاراتك ومتابعة مستأجريك
+                  <br />
+                  ومصروفاتك وتقاريرك من مكان واحد.
+                </p>
+
+                {/* المزايا */}
+                <div className="hero-features">
+                  {features.map((feature) => {
+                    const Icon = feature.icon;
+
+                    return (
+                      <div
+                        key={feature.title}
+                        className="hero-feature-card"
+                      >
+                        <div className="hero-feature-icon">
+                          <Icon size={34} />
+                        </div>
+
+                        <span>{feature.title}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* الصورة السفلية */}
+                <div className="hero-bottom-image">
+                  <div className="hero-bottom-background" />
+                  <div className="hero-bottom-overlay" />
+
+                  <div className="hero-bottom-content">
+                    <p>عقاراتك تحت السيطرة</p>
+                    <span>إدارة احترافية في مكان واحد</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
         </div>
-
-      </div>
-
+      </main>
     </div>
   );
 }
