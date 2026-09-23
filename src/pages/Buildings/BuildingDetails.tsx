@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { supabase } from "../../utils/supabase";
 import {
   X,
   Building2,
@@ -1538,7 +1539,125 @@ export default function BuildingDetails() {
     });
   };
 
-  const saveApartmentDetails = () => {
+  const saveTenantDataToSupabase = async (apartment: Apartment) => {
+    const tenantInfo = getApartmentTenantInfo(apartment);
+    const contractInfo = getApartmentContractInfo(apartment.number);
+    const buildingIdMatch = window.location.pathname.match(/\/buildings\/(\d+)/);
+    const buildingId = buildingIdMatch ? Number(buildingIdMatch[1]) : null;
+
+    if (!buildingId) {
+      throw new Error("لم يتم التعرف على رقم العمارة من الرابط.");
+    }
+
+    const fullName = tenantInfo.tenantName.trim();
+    const phone = tenantInfo.phone.trim();
+    const identityNumber = tenantInfo.identityNumber.trim();
+
+    if (!fullName) {
+      throw new Error("اكتب اسم المستأجر أولًا.");
+    }
+
+    const tenantLookup = supabase
+      .from("tenants")
+      .select("id")
+      .limit(1);
+
+    let tenantQuery = tenantLookup;
+
+    if (identityNumber) {
+      tenantQuery = tenantQuery.eq("identity_number", identityNumber);
+    } else if (phone) {
+      tenantQuery = tenantQuery.eq("phone", phone).eq("full_name", fullName);
+    } else {
+      tenantQuery = tenantQuery.eq("full_name", fullName);
+    }
+
+    const { data: existingTenant, error: tenantLookupError } =
+      await tenantQuery.maybeSingle();
+
+    if (tenantLookupError) {
+      throw tenantLookupError;
+    }
+
+    let tenantId = existingTenant?.id as string | undefined;
+
+    if (tenantId) {
+      const { error: updateTenantError } = await supabase
+        .from("tenants")
+        .update({
+          full_name: fullName,
+          phone: phone || null,
+          identity_number: identityNumber || null,
+        })
+        .eq("id", tenantId);
+
+      if (updateTenantError) {
+        throw updateTenantError;
+      }
+    } else {
+      const { data: insertedTenant, error: insertTenantError } =
+        await supabase
+          .from("tenants")
+          .insert({
+            full_name: fullName,
+            phone: phone || null,
+            identity_number: identityNumber || null,
+          })
+          .select("id")
+          .single();
+
+      if (insertTenantError) {
+        throw insertTenantError;
+      }
+
+      tenantId = insertedTenant?.id as string | undefined;
+    }
+
+    if (!tenantId) {
+      throw new Error("لم يتم الحصول على رقم المستأجر من قاعدة البيانات.");
+    }
+
+    const { data: existingLease, error: leaseLookupError } = await supabase
+      .from("tenant_leases")
+      .select("id")
+      .eq("tenant_id", tenantId)
+      .eq("building_id", buildingId)
+      .eq("apartment_number", apartment.number)
+      .limit(1)
+      .maybeSingle();
+
+    if (leaseLookupError) {
+      throw leaseLookupError;
+    }
+
+    const leaseData = {
+      tenant_id: tenantId,
+      building_id: buildingId,
+      apartment_number: apartment.number,
+      contract_number: contractInfo.contractNumber || null,
+    };
+
+    if (existingLease?.id) {
+      const { error: updateLeaseError } = await supabase
+        .from("tenant_leases")
+        .update(leaseData)
+        .eq("id", existingLease.id);
+
+      if (updateLeaseError) {
+        throw updateLeaseError;
+      }
+    } else {
+      const { error: insertLeaseError } = await supabase
+        .from("tenant_leases")
+        .insert(leaseData);
+
+      if (insertLeaseError) {
+        throw insertLeaseError;
+      }
+    }
+  };
+
+  const saveApartmentDetails = async () => {
     if (!selectedApartment) {
       return;
     }
@@ -1582,7 +1701,19 @@ export default function BuildingDetails() {
     );
 
     setApartments(updatedApartments);
-    closeApartment();
+
+    try {
+      await saveTenantDataToSupabase(selectedApartment);
+      window.alert("تم حفظ بيانات المستأجر في قاعدة البيانات بنجاح.");
+      closeApartment();
+    } catch (error) {
+      console.error("خطأ في حفظ بيانات المستأجر في Supabase:", error);
+      const message =
+        error instanceof Error
+          ? error.message
+          : "حدث خطأ غير معروف أثناء الحفظ في قاعدة البيانات.";
+      window.alert(`تم حفظ البيانات محليًا، لكن تعذر الحفظ في قاعدة البيانات.\n${message}`);
+    }
   };
 
   const openChargeModal = (
@@ -5949,7 +6080,7 @@ export default function BuildingDetails() {
                                 "tenantName"
                               )
                             }
-                            className="shrink-0 rounded-lg border border-green-400/40 bg-green-500/10 px-3 py-1.5 text-sm font-black text-green-400 transition hover:bg-green-500/20"
+                            className="hidden"
                           >
                             حفظ
                           </button>
@@ -5992,7 +6123,7 @@ export default function BuildingDetails() {
                                 "phone"
                               )
                             }
-                            className="shrink-0 rounded-lg border border-green-400/40 bg-green-500/10 px-3 py-1.5 text-sm font-black text-green-400 transition hover:bg-green-500/20"
+                            className="hidden"
                           >
                             حفظ
                           </button>
@@ -6036,7 +6167,7 @@ export default function BuildingDetails() {
                                 "identityNumber"
                               )
                             }
-                            className="shrink-0 rounded-lg border border-green-400/40 bg-green-500/10 px-3 py-1.5 text-sm font-black text-green-400 transition hover:bg-green-500/20"
+                            className="hidden"
                           >
                             حفظ
                           </button>
@@ -6097,7 +6228,7 @@ export default function BuildingDetails() {
                             onClick={() =>
                               saveApartmentFloor(selectedApartment.number)
                             }
-                            className="shrink-0 rounded-lg border border-green-400/40 bg-green-500/10 px-3 py-1.5 text-sm font-black text-green-400 transition hover:bg-green-500/20"
+                            className="hidden"
                           >
                             حفظ
                           </button>
@@ -6462,7 +6593,7 @@ export default function BuildingDetails() {
                                   selectedApartment.number
                                 )
                               }
-                              className="shrink-0 rounded-lg border border-green-400/40 bg-green-500/10 px-3 py-2 text-sm font-black text-green-400 transition hover:bg-green-500/20"
+                              className="hidden"
                             >
                               حفظ
                             </button>
