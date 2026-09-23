@@ -706,11 +706,11 @@ export default function FundingPage({
               rounded-2xl
               border
               border-white/10
-              bg-[#102947]
+              bg-[#073529]
               text-gray-300
               transition
-              hover:border-cyan-400/40
-              hover:text-cyan-400
+              hover:border-emerald-300/40
+              hover:text-emerald-300
               disabled:opacity-50
             "
             title="تحديث"
@@ -729,7 +729,7 @@ export default function FundingPage({
             <button
               type="button"
               onClick={() => setExportOpen((v) => !v)}
-              className="flex h-12 items-center gap-2 rounded-2xl border border-green-400/30 bg-green-500/10 px-4 font-bold text-green-400 transition hover:border-green-400 hover:bg-green-500 hover:text-white"
+              className="flex h-12 items-center gap-2 rounded-2xl border border-emerald-400/35 bg-emerald-400/10 px-4 font-bold text-emerald-300 transition hover:border-emerald-300 hover:bg-emerald-600 hover:text-white"
               title="تصدير التقرير"
             >
               <Download size={19} />
@@ -737,10 +737,10 @@ export default function FundingPage({
               <ChevronDown size={16} />
             </button>
             {exportOpen && (
-              <div className="absolute right-0 top-14 z-50 w-52 overflow-hidden rounded-2xl border border-white/10 bg-[#102947] p-1 shadow-2xl">
-                <button onClick={exportAllFunding} className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-right text-sm text-white hover:bg-white/10"><FileSpreadsheet size={18} className="text-green-400" /> Excel</button>
+              <div className="absolute right-0 top-14 z-50 w-52 overflow-hidden rounded-2xl border border-white/10 bg-[#073529] p-1 shadow-2xl">
+                <button onClick={exportAllFunding} className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-right text-sm text-white hover:bg-white/10"><FileSpreadsheet size={18} className="text-emerald-300" /> Excel</button>
                 <button onClick={exportPrint} className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-right text-sm text-white hover:bg-white/10"><FileText size={18} className="text-red-400" /> PDF / حفظ PDF</button>
-                <button onClick={exportPrint} className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-right text-sm text-white hover:bg-white/10"><Printer size={18} className="text-sky-400" /> طباعة</button>
+                <button onClick={exportPrint} className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-right text-sm text-white hover:bg-white/10"><Printer size={18} className="text-[#F6D878]" /> طباعة</button>
               </div>
             )}
           </div>
@@ -754,19 +754,19 @@ export default function FundingPage({
               gap-2
               rounded-2xl
               bg-gradient-to-r
-              from-sky-400
-              to-cyan-500
+              from-[#D4AD4D]
+              to-[#A9842F]
               px-7
               py-3
               font-bold
-              text-[#081B33]
+              text-[#05261F]
               shadow-lg
-              shadow-cyan-500/20
+              shadow-emerald-500/20
               transition-all
               duration-300
               hover:-translate-y-1
               hover:shadow-xl
-              hover:shadow-cyan-500/30
+              hover:shadow-emerald-500/30
             "
           >
             <span className="text-xl">
@@ -790,11 +790,11 @@ export default function FundingPage({
     className="
       rounded-2xl
       border
-      border-sky-400/20
-      bg-[#081B33]
+      border-[#C49A3A]/25
+      bg-[#05261F]
       p-6
       shadow-lg
-      shadow-sky-500/5
+      shadow-[#C49A3A]/5
     "
   >
 
@@ -810,8 +810,8 @@ export default function FundingPage({
         className="
           rounded-lg
           border
-          border-sky-400/20
-          bg-[#102947]
+          border-[#C49A3A]/25
+          bg-[#073529]
           px-2
           py-1
           text-xs
@@ -821,7 +821,7 @@ export default function FundingPage({
       />
     </div>
 
-    <h2 className="mt-3 text-3xl font-bold text-sky-400">
+    <h2 className="mt-3 text-3xl font-bold text-[#F6D878]">
       {formatMoney(todayFunding)} ريال
     </h2>
 
@@ -846,14 +846,14 @@ export default function FundingPage({
         className="
           flex items-center gap-2
           rounded-xl
-          border border-sky-400/30
-          bg-sky-400/10
+          border border-[#C49A3A]/35
+          bg-[#C49A3A]/10
           px-4 py-2
           text-sm font-bold
-          text-sky-300
+          text-[#F6D878]
           transition
-          hover:border-sky-400
-          hover:bg-sky-500
+          hover:border-[#D4AD4D]
+          hover:bg-[#C49A3A]
           hover:text-white
         "
         title="تصدير التقرير"
@@ -871,7 +871,7 @@ export default function FundingPage({
             w-48 overflow-hidden
             rounded-xl
             border border-white/10
-            bg-[#102947]
+            bg-[#073529]
             p-1
             shadow-2xl
           "
@@ -890,7 +890,7 @@ export default function FundingPage({
             onClick={() => handlePeriodExport("day", "excel")}
             className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-right text-sm text-white transition hover:bg-white/10"
           >
-            <FileSpreadsheet size={17} className="text-green-400" />
+            <FileSpreadsheet size={17} className="text-emerald-300" />
             Excel
           </button>
 
@@ -899,7 +899,7 @@ export default function FundingPage({
             onClick={() => handlePeriodExport("day", "print")}
             className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-right text-sm text-white transition hover:bg-white/10"
           >
-            <Printer size={17} className="text-sky-400" />
+            <Printer size={17} className="text-[#F6D878]" />
             طباعة
           </button>
         </div>
@@ -914,11 +914,11 @@ export default function FundingPage({
     className="
       rounded-2xl
       border
-      border-violet-400/20
-      bg-[#081B33]
+      border-[#C49A3A]/25
+      bg-[#05261F]
       p-6
       shadow-lg
-      shadow-violet-500/5
+      shadow-[#C49A3A]/5
     "
   >
 
@@ -938,8 +938,8 @@ export default function FundingPage({
           min-w-0
           rounded-lg
           border
-          border-violet-400/20
-          bg-[#102947]
+          border-[#C49A3A]/25
+          bg-[#073529]
           px-2
           py-1
           text-xs
@@ -958,8 +958,8 @@ export default function FundingPage({
           min-w-0
           rounded-lg
           border
-          border-violet-400/20
-          bg-[#102947]
+          border-[#C49A3A]/25
+          bg-[#073529]
           px-2
           py-1
           text-xs
@@ -970,7 +970,7 @@ export default function FundingPage({
 
     </div>
 
-    <h2 className="mt-3 text-3xl font-bold text-violet-400">
+    <h2 className="mt-3 text-3xl font-bold text-[#F6D878]">
       {formatMoney(weekFunding)} ريال
     </h2>
 
@@ -995,14 +995,14 @@ export default function FundingPage({
         className="
           flex items-center gap-2
           rounded-xl
-          border border-violet-400/30
-          bg-violet-400/10
+          border border-[#C49A3A]/35
+          bg-[#C49A3A]/10
           px-4 py-2
           text-sm font-bold
-          text-violet-300
+          text-[#F6D878]
           transition
-          hover:border-violet-400
-          hover:bg-violet-500
+          hover:border-[#D4AD4D]
+          hover:bg-[#C49A3A]
           hover:text-white
         "
         title="تصدير التقرير"
@@ -1020,7 +1020,7 @@ export default function FundingPage({
             w-48 overflow-hidden
             rounded-xl
             border border-white/10
-            bg-[#102947]
+            bg-[#073529]
             p-1
             shadow-2xl
           "
@@ -1039,7 +1039,7 @@ export default function FundingPage({
             onClick={() => handlePeriodExport("week", "excel")}
             className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-right text-sm text-white transition hover:bg-white/10"
           >
-            <FileSpreadsheet size={17} className="text-green-400" />
+            <FileSpreadsheet size={17} className="text-emerald-300" />
             Excel
           </button>
 
@@ -1048,7 +1048,7 @@ export default function FundingPage({
             onClick={() => handlePeriodExport("week", "print")}
             className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-right text-sm text-white transition hover:bg-white/10"
           >
-            <Printer size={17} className="text-sky-400" />
+            <Printer size={17} className="text-[#F6D878]" />
             طباعة
           </button>
         </div>
@@ -1063,11 +1063,11 @@ export default function FundingPage({
     className="
       rounded-2xl
       border
-      border-amber-400/20
-      bg-[#081B33]
+      border-[#C49A3A]/25
+      bg-[#05261F]
       p-6
       shadow-lg
-      shadow-amber-500/5
+      shadow-[#C49A3A]/5
     "
   >
 
@@ -1086,8 +1086,8 @@ export default function FundingPage({
         className="
           rounded-lg
           border
-          border-amber-400/20
-          bg-[#102947]
+          border-[#C49A3A]/25
+          bg-[#073529]
           px-2
           py-1
           text-xs
@@ -1098,7 +1098,7 @@ export default function FundingPage({
 
     </div>
 
-    <h2 className="mt-3 text-3xl font-bold text-amber-400">
+    <h2 className="mt-3 text-3xl font-bold text-[#F6D878]">
       {formatMoney(monthFunding)} ريال
     </h2>
 
@@ -1123,14 +1123,14 @@ export default function FundingPage({
         className="
           flex items-center gap-2
           rounded-xl
-          border border-amber-400/30
-          bg-amber-400/10
+          border border-[#C49A3A]/35
+          bg-[#C49A3A]/10
           px-4 py-2
           text-sm font-bold
-          text-amber-300
+          text-[#F6D878]
           transition
-          hover:border-amber-400
-          hover:bg-amber-500
+          hover:border-[#D4AD4D]
+          hover:bg-[#C49A3A]
           hover:text-white
         "
         title="تصدير التقرير"
@@ -1148,7 +1148,7 @@ export default function FundingPage({
             w-48 overflow-hidden
             rounded-xl
             border border-white/10
-            bg-[#102947]
+            bg-[#073529]
             p-1
             shadow-2xl
           "
@@ -1167,7 +1167,7 @@ export default function FundingPage({
             onClick={() => handlePeriodExport("month", "excel")}
             className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-right text-sm text-white transition hover:bg-white/10"
           >
-            <FileSpreadsheet size={17} className="text-green-400" />
+            <FileSpreadsheet size={17} className="text-emerald-300" />
             Excel
           </button>
 
@@ -1176,7 +1176,7 @@ export default function FundingPage({
             onClick={() => handlePeriodExport("month", "print")}
             className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-right text-sm text-white transition hover:bg-white/10"
           >
-            <Printer size={17} className="text-sky-400" />
+            <Printer size={17} className="text-[#F6D878]" />
             طباعة
           </button>
         </div>
@@ -1192,7 +1192,7 @@ export default function FundingPage({
             rounded-2xl
             border
             border-green-400/20
-            bg-[#081B33]
+            bg-[#05261F]
             p-6
             shadow-lg
             shadow-green-500/5
@@ -1203,7 +1203,7 @@ export default function FundingPage({
             إجمالي التغذية
           </p>
 
-          <h2 className="mt-3 text-3xl font-bold text-green-400">
+          <h2 className="mt-3 text-3xl font-bold text-emerald-300">
             {formatMoney(totalFunding)} ريال
           </h2>
 
@@ -1223,7 +1223,7 @@ export default function FundingPage({
           rounded-2xl
           border
           border-white/10
-          bg-[#081B33]
+          bg-[#05261F]
         "
       >
 
@@ -1234,7 +1234,7 @@ export default function FundingPage({
             justify-between
             border-b
             border-white/10
-            bg-[#102947]
+            bg-[#073529]
             px-5
             py-4
           "
@@ -1255,12 +1255,12 @@ export default function FundingPage({
           <div
             className="
               rounded-xl
-              bg-cyan-500/10
+              bg-emerald-400/10
               px-3
               py-2
               text-xs
               font-bold
-              text-cyan-400
+              text-emerald-300
             "
           >
             {funding.length} عملية
@@ -1272,7 +1272,7 @@ export default function FundingPage({
 
           <table className="min-w-[1200px] w-full text-sm">
 
-            <thead className="bg-[#102947]">
+            <thead className="bg-[#073529]">
 
               <tr className="border-t border-white/10">
 
@@ -1368,9 +1368,9 @@ export default function FundingPage({
                     <tr
                       key={item.id}
                       className="
-                        bg-[#081B33]
+                        bg-[#05261F]
                         transition
-                        hover:bg-[#102947]/60
+                        hover:bg-[#073529]/60
                       "
                     >
 
@@ -1386,7 +1386,7 @@ export default function FundingPage({
                         )}
                       </td>
 
-                      <td className="whitespace-nowrap px-4 py-4 font-bold text-cyan-300">
+                      <td className="whitespace-nowrap px-4 py-4 font-bold text-emerald-300">
                         {accountNameMap.get(
                           Number(
                             item.account_id
@@ -1400,7 +1400,7 @@ export default function FundingPage({
                         )}
                       </td>
 
-                      <td className="whitespace-nowrap px-4 py-4 font-extrabold text-green-400">
+                      <td className="whitespace-nowrap px-4 py-4 font-extrabold text-emerald-300">
                         {formatMoney(
                           Number(
                             item.amount ?? 0
@@ -1437,16 +1437,16 @@ export default function FundingPage({
                               gap-2
                               rounded-lg
                               border
-                              border-sky-400/20
-                              bg-sky-500/10
+                              border-[#C49A3A]/25
+                              bg-[#C49A3A]/10
                               px-3
                               py-2
                               text-xs
                               font-bold
-                              text-sky-400
+                              text-[#F6D878]
                               transition
-                              hover:border-sky-400
-                              hover:bg-sky-500
+                              hover:border-[#D4AD4D]
+                              hover:bg-[#C49A3A]
                               hover:text-white
                             "
                             title="عرض المرفق"

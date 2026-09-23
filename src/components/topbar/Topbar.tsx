@@ -5,47 +5,31 @@ import {
   Moon,
   Globe,
   ChevronDown,
-  Menu,
 } from "lucide-react";
 
-type TopbarProps = {
-  onMobileMenu?: () => void;
-};
-
-function Topbar({ onMobileMenu }: TopbarProps) {
+function Topbar() {
   return (
-    <header className="h-16 sm:h-18 lg:h-20 bg-[#081B33] border-b border-white/10 px-3 sm:px-5 lg:px-8 flex items-center justify-between gap-2 sm:gap-4">
-
-      {/* Mobile Menu */}
-
-      <button
-        type="button"
-        aria-label="فتح القائمة الجانبية"
-        onClick={onMobileMenu}
-        className="flex lg:hidden w-9 h-9 sm:w-10 sm:h-10 items-center justify-center rounded-lg sm:rounded-xl bg-[#102947] hover:bg-[#16375d] transition shrink-0"
-      >
-        <Menu size={20} />
-      </button>
+    <header className="h-20 bg-[#062B24] border-b border-white/10 px-8 flex items-center justify-between">
 
       {/* Left */}
 
-      <div className="flex items-center gap-2 sm:gap-3 lg:gap-4">
+      <div className="flex items-center gap-4">
 
-        <button className="w-9 h-9 sm:w-10 sm:h-10 lg:w-11 lg:h-11 rounded-lg sm:rounded-xl bg-[#102947] hover:bg-[#16375d] transition flex items-center justify-center shrink-0">
+        <button className="w-11 h-11 rounded-xl bg-[#0B4034] hover:bg-[#145545] transition flex items-center justify-center">
 
-          <Bell size={18} className="sm:w-5 sm:h-5" />
-
-        </button>
-
-        <button className="w-9 h-9 sm:w-10 sm:h-10 lg:w-11 lg:h-11 rounded-lg sm:rounded-xl bg-[#102947] hover:bg-[#16375d] transition flex items-center justify-center shrink-0">
-
-          <Moon size={17} className="sm:w-[18px] sm:h-[18px]" />
+          <Bell size={20} />
 
         </button>
 
-        <button className="w-9 h-9 sm:w-10 sm:h-10 lg:w-11 lg:h-11 rounded-lg sm:rounded-xl bg-[#102947] hover:bg-[#16375d] transition flex items-center justify-center shrink-0">
+        <button className="w-11 h-11 rounded-xl bg-[#0B4034] hover:bg-[#145545] transition flex items-center justify-center">
 
-          <Globe size={17} className="sm:w-[18px] sm:h-[18px]" />
+          <Moon size={18} />
+
+        </button>
+
+        <button className="w-11 h-11 rounded-xl bg-[#0B4034] hover:bg-[#145545] transition flex items-center justify-center">
+
+          <Globe size={18} />
 
         </button>
 
@@ -53,19 +37,19 @@ function Topbar({ onMobileMenu }: TopbarProps) {
 
       {/* Center */}
 
-      <div className="flex-1 flex justify-center min-w-0">
+      <div className="flex-1 flex justify-center">
 
-        <div className="relative w-full max-w-[450px]">
+        <div className="relative w-[450px]">
 
           <Search
             size={18}
-            className="absolute top-1/2 -translate-y-1/2 right-3 sm:right-4 text-gray-400"
+            className="absolute top-1/2 -translate-y-1/2 right-4 text-emerald-200/70"
           />
 
           <input
             type="text"
             placeholder="ابحث داخل النظام..."
-            className="w-full h-10 sm:h-11 lg:h-12 rounded-xl sm:rounded-2xl bg-[#102947] border border-white/10 pr-10 sm:pr-12 pl-3 sm:pl-4 outline-none text-sm sm:text-base text-white placeholder:text-gray-500 focus:border-yellow-400 transition"
+            className="w-full h-12 rounded-2xl bg-[#0B4034] border border-white/10 pr-12 pl-4 outline-none text-white placeholder:text-emerald-100/50 focus:border-yellow-400 transition"
           />
 
         </div>
@@ -74,31 +58,31 @@ function Topbar({ onMobileMenu }: TopbarProps) {
 
       {/* Right */}
 
-      <div className="flex items-center gap-2 sm:gap-3 lg:gap-5 min-w-0">
+      <div className="flex items-center gap-5">
 
-        <div className="text-left hidden sm:block">
+        <div className="text-left">
 
-          <h3 className="font-semibold text-sm lg:text-base whitespace-nowrap">
+          <h3 className="font-semibold">
             علي نصر
           </h3>
 
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-emerald-200/70">
             Supervisor
           </p>
 
         </div>
 
-        <div className="w-9 h-9 sm:w-10 sm:h-10 lg:w-12 lg:h-12 rounded-full bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center font-bold text-[#081B33] shrink-0">
+        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center font-bold text-[#062B24]">
           A
         </div>
 
-        <ChevronDown size={16} className="sm:w-[18px] sm:h-[18px] text-gray-400 shrink-0" />
+        <ChevronDown size={18} className="text-emerald-200/70" />
 
-        <div className="flex items-center gap-1.5 sm:gap-2 text-gray-300 mr-1 sm:mr-3 lg:mr-6 shrink-0">
+        <div className="flex items-center gap-2 text-emerald-100/80 mr-6">
 
-          <CalendarDays size={16} className="sm:w-[18px] sm:h-[18px]" />
+          <CalendarDays size={18} />
 
-          <span className="text-xs sm:text-sm whitespace-nowrap">
+          <span className="text-sm">
             28 يوليو 2026
           </span>
 

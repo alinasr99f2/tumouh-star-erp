@@ -410,7 +410,7 @@ export default function ProjectQuantities() {
 
   if (!project) {
     return (
-      <div className="min-h-full w-full min-w-0 p-3 text-right text-white sm:p-5 md:p-6" dir="rtl">
+      <div className="min-h-full p-6 text-right text-white" dir="rtl">
         <button
           type="button"
           onClick={() => navigate("/projects")}
@@ -424,30 +424,30 @@ export default function ProjectQuantities() {
   }
 
   return (
-    <div dir="rtl" className="min-h-full w-full min-w-0 overflow-x-hidden bg-[#06182B] p-3 text-white sm:p-4 md:p-6">
-      <div className="mx-auto w-full max-w-[1500px] min-w-0">
-        <div className="mb-4 rounded-2xl border border-white/10 bg-gradient-to-l from-[#173F68] via-[#102947] to-[#081B33] p-4 shadow-2xl sm:mb-5 sm:rounded-3xl sm:p-5">
+    <div dir="rtl" className="min-h-full bg-[#06182B] p-4 text-white md:p-6">
+      <div className="mx-auto max-w-[1500px]">
+        <div className="mb-5 rounded-3xl border border-white/10 bg-gradient-to-l from-[#173F68] via-[#102947] to-[#081B33] p-5 shadow-2xl">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
               <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-cyan-400/20 bg-cyan-400/10 text-cyan-300 sm:h-14 sm:w-14">
-                  <Boxes size={28} className="sm:h-8 sm:w-8" />
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-cyan-400/20 bg-cyan-400/10 text-cyan-300">
+                  <Boxes size={32} />
                 </div>
                 <div>
-                  <h1 className="text-xl font-extrabold sm:text-2xl">كميات المشروع</h1>
+                  <h1 className="text-2xl font-extrabold">كميات المشروع</h1>
                   <p className="mt-1 text-sm text-gray-400">{project.name}</p>
                 </div>
               </div>
-              <p className="mt-3 text-xs leading-6 text-gray-400 sm:mt-4 sm:text-sm">
+              <p className="mt-4 text-sm text-gray-400">
                 متابعة الكميات المتوقعة من المكتب ومقارنتها بالاستخدام الفعلي للمشروع.
               </p>
             </div>
 
-            <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={() => openUsage()}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-yellow-400 px-4 py-2.5 font-extrabold text-[#081B33] transition hover:bg-yellow-300 sm:w-auto"
+                className="flex items-center gap-2 rounded-xl bg-yellow-400 px-4 py-2.5 font-extrabold text-[#081B33] transition hover:bg-yellow-300"
               >
                 <Plus size={18} />
                 إضافة استخدام
@@ -455,7 +455,7 @@ export default function ProjectQuantities() {
               <button
                 type="button"
                 onClick={loadData}
-                className="flex w-full items-center justify-center gap-2 rounded-xl border border-cyan-400/20 bg-cyan-400/10 px-4 py-2.5 font-bold text-cyan-300 transition hover:bg-cyan-400/20 sm:w-auto"
+                className="flex items-center gap-2 rounded-xl border border-cyan-400/20 bg-cyan-400/10 px-4 py-2.5 font-bold text-cyan-300 transition hover:bg-cyan-400/20"
               >
                 <RefreshCw size={17} />
                 تحديث
@@ -463,7 +463,7 @@ export default function ProjectQuantities() {
               <button
                 type="button"
                 onClick={() => navigate(`/projects/${projectId}`)}
-                className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 font-bold text-gray-200 transition hover:bg-white/10 sm:w-auto"
+                className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 font-bold text-gray-200 transition hover:bg-white/10"
               >
                 <ArrowLeft size={18} />
                 رجوع للمشروع
@@ -473,33 +473,33 @@ export default function ProjectQuantities() {
         </div>
 
         {!dbAvailable && (
-          <div className="mb-4 rounded-2xl border border-red-400/20 bg-red-400/10 px-3 py-3 text-xs font-bold text-red-200 sm:mb-5 sm:px-4 sm:text-sm">
+          <div className="mb-5 rounded-2xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-sm font-bold text-red-200">
             قاعدة البيانات غير متاحة حاليًا. لن يتم حفظ أي بيانات محليًا.
           </div>
         )}
 
         {loading ? (
-          <div className="rounded-2xl border border-white/10 bg-[#0B273F] p-8 text-center text-gray-400 sm:rounded-3xl sm:p-12">
+          <div className="rounded-3xl border border-white/10 bg-[#0B273F] p-12 text-center text-gray-400">
             جاري تحميل الكميات...
           </div>
         ) : (
           <>
-            <div className="grid min-w-0 grid-cols-1 gap-4 sm:gap-5 xl:grid-cols-3">
+            <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
               {summaries.map((item) => {
                 const progress = Math.min(Math.max(item.percentage, 0), 100);
                 return (
                   <div
                     key={item.material}
-                    className="min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-[#173F68] via-[#102F4D] to-[#081B33] shadow-xl sm:rounded-3xl"
+                    className="overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#173F68] via-[#102F4D] to-[#081B33] shadow-xl"
                   >
-                    <div className="flex items-start justify-between gap-3 border-b border-white/10 p-4 sm:p-5">
+                    <div className="flex items-start justify-between border-b border-white/10 p-5">
                       <div>
                         <div className="flex items-center gap-3">
-                          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-cyan-400/20 bg-cyan-400/10 text-cyan-300 sm:h-12 sm:w-12">
-                            <Boxes size={25} className="sm:h-[27px] sm:w-[27px]" />
+                          <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-cyan-400/20 bg-cyan-400/10 text-cyan-300">
+                            <Boxes size={27} />
                           </div>
                           <div>
-                            <h2 className="text-lg font-extrabold sm:text-xl">{item.material}</h2>
+                            <h2 className="text-xl font-extrabold">{item.material}</h2>
                             <p className="text-xs text-gray-400">الوحدة: {item.unit}</p>
                           </div>
                         </div>
@@ -514,31 +514,31 @@ export default function ProjectQuantities() {
                       </button>
                     </div>
 
-                    <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 sm:p-5">
-                      <div className="min-w-0 rounded-2xl border border-blue-400/10 bg-white/5 p-3 text-center sm:p-4">
+                    <div className="grid grid-cols-2 gap-3 p-5">
+                      <div className="rounded-2xl border border-blue-400/10 bg-white/5 p-4 text-center">
                         <p className="text-xs font-bold text-gray-400">الكمية المتوقعة</p>
-                        <p className="mt-2 text-xl font-extrabold text-white sm:text-2xl">{formatNumber(item.expected)}</p>
+                        <p className="mt-2 text-2xl font-extrabold text-white">{formatNumber(item.expected)}</p>
                         <p className="mt-1 text-xs text-gray-500">{item.unit}</p>
                       </div>
-                      <div className="min-w-0 rounded-2xl border border-cyan-400/10 bg-cyan-400/5 p-3 text-center sm:p-4">
+                      <div className="rounded-2xl border border-cyan-400/10 bg-cyan-400/5 p-4 text-center">
                         <p className="text-xs font-bold text-gray-400">المستخدم فعليًا</p>
-                        <p className="mt-2 text-xl font-extrabold text-cyan-300 sm:text-2xl">{formatNumber(item.used)}</p>
+                        <p className="mt-2 text-2xl font-extrabold text-cyan-300">{formatNumber(item.used)}</p>
                         <p className="mt-1 text-xs text-gray-500">{item.unit}</p>
                       </div>
-                      <div className="min-w-0 rounded-2xl border border-white/10 bg-white/5 p-3 text-center sm:p-4">
+                      <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-center">
                         <p className="text-xs font-bold text-gray-400">المتبقي</p>
                         <p className={`mt-2 text-xl font-extrabold ${item.remaining < 0 ? "text-red-300" : "text-emerald-300"}`}>
                           {formatNumber(item.remaining)}
                         </p>
                         <p className="mt-1 text-xs text-gray-500">{item.unit}</p>
                       </div>
-                      <div className="min-w-0 rounded-2xl border border-white/10 bg-white/5 p-3 text-center sm:p-4">
+                      <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-center">
                         <p className="text-xs font-bold text-gray-400">نسبة الاستخدام</p>
                         <p className={`mt-2 text-xl font-extrabold ${item.status.text}`}>{formatNumber(item.percentage)}%</p>
                       </div>
                     </div>
 
-                    <div className="px-4 pb-4 sm:px-5 sm:pb-5">
+                    <div className="px-5 pb-5">
                       <div className="mb-2 flex items-center justify-between text-xs font-bold text-gray-400">
                         <span>{item.status.label}</span>
                         <span>{formatNumber(item.percentage)}%</span>
@@ -563,19 +563,19 @@ export default function ProjectQuantities() {
               })}
             </div>
 
-            <div className="mt-4 min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-[#0B273F] shadow-xl sm:mt-6 sm:rounded-3xl">
-              <div className="flex flex-col gap-3 border-b border-white/10 bg-[#102947] p-4 sm:p-5 md:flex-row md:items-center md:justify-between">
+            <div className="mt-6 overflow-hidden rounded-3xl border border-white/10 bg-[#0B273F] shadow-xl">
+              <div className="flex flex-col gap-3 border-b border-white/10 bg-[#102947] p-5 md:flex-row md:items-center md:justify-between">
                 <div>
-                  <h2 className="text-lg font-extrabold sm:text-xl">سجل استخدام المواد</h2>
+                  <h2 className="text-xl font-extrabold">سجل استخدام المواد</h2>
                   <p className="mt-1 text-xs text-gray-400">كل إضافة يتم تسجيلها لتجميع الاستخدام الفعلي تلقائيًا.</p>
                 </div>
-                <div className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-center text-sm font-bold text-gray-300 sm:w-auto">
+                <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-bold text-gray-300">
                   إجمالي السجلات: {usage.length}
                 </div>
               </div>
 
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[720px] text-right text-xs sm:min-w-[850px] sm:text-sm">
+                <table className="w-full min-w-[850px] text-right text-sm">
                   <thead className="bg-[#081B33] text-gray-400">
                     <tr>
                       <th className="px-4 py-3">التاريخ</th>
@@ -626,9 +626,9 @@ export default function ProjectQuantities() {
       </div>
 
       {editingMaterial && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center overflow-y-auto bg-black/70 p-3 backdrop-blur-sm sm:p-4">
-          <div className="my-auto w-full max-w-md overflow-hidden rounded-2xl border border-white/10 bg-[#0B273F] shadow-2xl sm:rounded-3xl">
-            <div className="flex items-center justify-between gap-3 border-b border-white/10 bg-[#102947] px-4 py-4 sm:px-5">
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md overflow-hidden rounded-3xl border border-white/10 bg-[#0B273F] shadow-2xl">
+            <div className="flex items-center justify-between border-b border-white/10 bg-[#102947] px-5 py-4">
               <div>
                 <h3 className="text-lg font-extrabold">الكمية المتوقعة — {editingMaterial}</h3>
                 <p className="mt-1 text-xs text-gray-400">أدخل الكمية المحددة من المكتب.</p>
@@ -641,7 +641,7 @@ export default function ProjectQuantities() {
                 <X size={19} />
               </button>
             </div>
-            <div className="p-4 sm:p-5">
+            <div className="p-5">
               <label className="mb-2 block text-sm font-bold text-gray-300">الكمية المتوقعة</label>
               <input
                 type="number"
@@ -655,7 +655,7 @@ export default function ProjectQuantities() {
               <p className="mt-2 text-xs text-gray-500">
                 الوحدة: {plans.find((plan) => plan.material === editingMaterial)?.unit}
               </p>
-              <div className="mt-5 grid grid-cols-1 gap-2 sm:flex">
+              <div className="mt-5 flex gap-2">
                 <button
                   type="button"
                   onClick={saveExpected}
@@ -668,7 +668,7 @@ export default function ProjectQuantities() {
                 <button
                   type="button"
                   onClick={() => setEditingMaterial(null)}
-                  className="rounded-xl border border-white/10 bg-white/5 px-5 py-3 font-bold text-gray-300"
+                  className="rounded-xl border border-white/10 bg-white/5 px-5 font-bold text-gray-300"
                 >
                   إلغاء
                 </button>
@@ -679,9 +679,9 @@ export default function ProjectQuantities() {
       )}
 
       {showUsageModal && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center overflow-y-auto bg-black/70 p-3 backdrop-blur-sm sm:p-4">
-          <div className="my-auto w-full max-w-lg overflow-hidden rounded-2xl border border-white/10 bg-[#0B273F] shadow-2xl sm:rounded-3xl">
-            <div className="flex items-center justify-between gap-3 border-b border-white/10 bg-[#102947] px-4 py-4 sm:px-5">
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg overflow-hidden rounded-3xl border border-white/10 bg-[#0B273F] shadow-2xl">
+            <div className="flex items-center justify-between border-b border-white/10 bg-[#102947] px-5 py-4">
               <div>
                 <h3 className="text-lg font-extrabold">إضافة استخدام فعلي</h3>
                 <p className="mt-1 text-xs text-gray-400">سجل الكمية التي تم استخدامها فعليًا.</p>
@@ -695,7 +695,7 @@ export default function ProjectQuantities() {
               </button>
             </div>
 
-            <div className="space-y-4 p-4 sm:p-5">
+            <div className="space-y-4 p-5">
               <div>
                 <label className="mb-2 block text-sm font-bold text-gray-300">البند</label>
                 <select

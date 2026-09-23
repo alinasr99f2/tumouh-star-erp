@@ -261,18 +261,18 @@ export default function CategoriesPage() {
   return (
     <div
       dir="rtl"
-      className="w-full min-w-0 space-y-4 text-white sm:space-y-6"
+      className="space-y-6 text-white"
     >
 
       {/* ================= Header ================= */}
 
       <div className="text-right">
 
-        <h2 className="text-2xl font-bold text-white sm:text-3xl">
+        <h2 className="text-3xl font-bold text-white">
           البنود
         </h2>
 
-        <p className="mt-2 text-xs text-gray-400 sm:text-sm">
+        <p className="mt-2 text-sm text-gray-400">
           إدارة بنود المصروفات والتصنيفات والمراحل.
         </p>
 
@@ -280,7 +280,7 @@ export default function CategoriesPage() {
 
       {/* ================= Main Summary Card ================= */}
 
-      <div className="rounded-2xl border border-white/10 bg-[#102947] p-4 sm:rounded-3xl sm:p-6">
+      <div className="rounded-3xl border border-white/10 bg-[#102947] p-6">
 
         {/* عنوان الكارت */}
 
@@ -299,7 +299,7 @@ export default function CategoriesPage() {
             <ClipboardList size={32} />
           </div>
 
-          <h3 className="mt-3 text-xl font-bold text-white sm:text-2xl">
+          <h3 className="mt-3 text-2xl font-bold text-white">
             البنود المالية
           </h3>
 
@@ -311,7 +311,7 @@ export default function CategoriesPage() {
 
         {/* ================= 3 Statistics ================= */}
 
-        <div className="mt-4 grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-3 sm:mt-6">
+        <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
 
           {/* إجمالي البنود */}
 
@@ -332,7 +332,7 @@ export default function CategoriesPage() {
                   إجمالي البنود
                 </p>
 
-                <p className="mt-2 text-2xl font-bold text-yellow-400 sm:text-3xl">
+                <p className="mt-2 text-3xl font-bold text-yellow-400">
                   {expenseItems.length}
                 </p>
 
@@ -376,7 +376,7 @@ export default function CategoriesPage() {
                   إجمالي التصنيفات
                 </p>
 
-                <p className="mt-2 text-2xl font-bold text-sky-400 sm:text-3xl">
+                <p className="mt-2 text-3xl font-bold text-sky-400">
                   {categories.length}
                 </p>
 
@@ -420,7 +420,7 @@ export default function CategoriesPage() {
                   إجمالي المراحل
                 </p>
 
-                <p className="mt-2 text-2xl font-bold text-emerald-400 sm:text-3xl">
+                <p className="mt-2 text-3xl font-bold text-emerald-400">
                   {stages.length}
                 </p>
 
@@ -480,7 +480,7 @@ export default function CategoriesPage() {
 
       {/* ================= Add Cards ================= */}
 
-      <div className="grid grid-cols-1 gap-3 sm:gap-5 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
 
         {/* إضافة بند */}
 
@@ -489,10 +489,10 @@ export default function CategoriesPage() {
           onClick={() => setOpenItemModal(true)}
           className="
             group
-            rounded-2xl
+            rounded-3xl
             border border-emerald-400/20
             bg-[#102947]
-            p-4 sm:rounded-3xl sm:p-6
+            p-6
             text-right
             transition
             hover:-translate-y-1
@@ -523,15 +523,15 @@ export default function CategoriesPage() {
 
           </div>
 
-          <h3 className="mt-4 text-xl font-bold sm:mt-5 sm:text-2xl">
+          <h3 className="mt-5 text-2xl font-bold">
             إضافة بند
           </h3>
 
-          <p className="mt-2 text-xs text-gray-400 sm:text-sm">
+          <p className="mt-2 text-sm text-gray-400">
             إضافة بند جديد وربطه بالتصنيف والمرحلة المناسبة.
           </p>
 
-          <p className="mt-3 text-xs font-bold text-emerald-400 sm:mt-4 sm:text-sm">
+          <p className="mt-4 text-sm font-bold text-emerald-400">
             {expenseItems.length} بند مسجل
           </p>
 
@@ -544,10 +544,10 @@ export default function CategoriesPage() {
           onClick={() => setOpenCategoryModal(true)}
           className="
             group
-            rounded-2xl
+            rounded-3xl
             border border-sky-400/20
             bg-[#102947]
-            p-4 sm:rounded-3xl sm:p-6
+            p-6
             text-right
             transition
             hover:-translate-y-1
@@ -578,15 +578,15 @@ export default function CategoriesPage() {
 
           </div>
 
-          <h3 className="mt-4 text-xl font-bold sm:mt-5 sm:text-2xl">
+          <h3 className="mt-5 text-2xl font-bold">
             إضافة تصنيف
           </h3>
 
-          <p className="mt-2 text-xs text-gray-400 sm:text-sm">
+          <p className="mt-2 text-sm text-gray-400">
             إضافة تصنيف جديد للمصروفات والبنود.
           </p>
 
-          <p className="mt-3 text-xs font-bold text-sky-400 sm:mt-4 sm:text-sm">
+          <p className="mt-4 text-sm font-bold text-sky-400">
             {categories.length} تصنيف مسجل
           </p>
 
@@ -599,10 +599,10 @@ export default function CategoriesPage() {
           onClick={() => setOpenStageModal(true)}
           className="
             group
-            rounded-2xl
+            rounded-3xl
             border border-yellow-400/20
             bg-[#102947]
-            p-4 sm:rounded-3xl sm:p-6
+            p-6
             text-right
             transition
             hover:-translate-y-1
@@ -633,15 +633,15 @@ export default function CategoriesPage() {
 
           </div>
 
-          <h3 className="mt-4 text-xl font-bold sm:mt-5 sm:text-2xl">
+          <h3 className="mt-5 text-2xl font-bold">
             إضافة مرحلة
           </h3>
 
-          <p className="mt-2 text-xs text-gray-400 sm:text-sm">
+          <p className="mt-2 text-sm text-gray-400">
             إضافة مرحلة جديدة لاستخدامها مع المصروفات.
           </p>
 
-          <p className="mt-3 text-xs font-bold text-yellow-400 sm:mt-4 sm:text-sm">
+          <p className="mt-4 text-sm font-bold text-yellow-400">
             {stages.length} مراحل مسجلة
           </p>
 
@@ -651,7 +651,7 @@ export default function CategoriesPage() {
 
       {/* ================= Tables ================= */}
 
-      <div className="grid grid-cols-1 gap-4 sm:gap-6 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
 
         {/* ================= Items ================= */}
 
@@ -700,23 +700,23 @@ export default function CategoriesPage() {
 
           </div>
 
-          <div className="max-h-[430px] overflow-x-auto overflow-y-auto">
+          <div className="max-h-[430px] overflow-y-auto">
 
-            <table className="w-full min-w-[560px] text-xs sm:min-w-0 sm:text-sm">
+            <table className="w-full text-sm">
 
               <thead className="sticky top-0 bg-[#102947]">
 
                 <tr>
 
-                  <th className="px-3 py-2 text-right text-gray-400 sm:px-4 sm:py-3">
+                  <th className="px-4 py-3 text-right text-gray-400">
                     #
                   </th>
 
-                  <th className="px-3 py-2 text-right text-gray-400 sm:px-4 sm:py-3">
+                  <th className="px-4 py-3 text-right text-gray-400">
                     البند
                   </th>
 
-                  <th className="px-3 py-2 text-right text-gray-400 sm:px-4 sm:py-3">
+                  <th className="px-4 py-3 text-right text-gray-400">
                     التصنيف
                   </th>
 
@@ -751,15 +751,15 @@ export default function CategoriesPage() {
                       "
                     >
 
-                      <td className="px-3 py-2 text-gray-500 sm:px-4 sm:py-3">
+                      <td className="px-4 py-3 text-gray-500">
                         {index + 1}
                       </td>
 
-                      <td className="px-3 py-2 font-bold text-white sm:px-4 sm:py-3">
+                      <td className="px-4 py-3 font-bold text-white">
                         {item.name}
                       </td>
 
-                      <td className="px-3 py-2 text-gray-400 sm:px-4 sm:py-3">
+                      <td className="px-4 py-3 text-gray-400">
                         {getCategoryName(item.categoryId)}
                       </td>
 
@@ -824,23 +824,23 @@ export default function CategoriesPage() {
 
           </div>
 
-          <div className="max-h-[430px] overflow-x-auto overflow-y-auto">
+          <div className="max-h-[430px] overflow-y-auto">
 
-            <table className="w-full min-w-[560px] text-xs sm:min-w-0 sm:text-sm">
+            <table className="w-full text-sm">
 
               <thead className="sticky top-0 bg-[#102947]">
 
                 <tr>
 
-                  <th className="px-3 py-2 text-right text-gray-400 sm:px-4 sm:py-3">
+                  <th className="px-4 py-3 text-right text-gray-400">
                     #
                   </th>
 
-                  <th className="px-3 py-2 text-right text-gray-400 sm:px-4 sm:py-3">
+                  <th className="px-4 py-3 text-right text-gray-400">
                     التصنيف
                   </th>
 
-                  <th className="px-3 py-2 text-center text-gray-400 sm:px-4 sm:py-3">
+                  <th className="px-4 py-3 text-center text-gray-400">
                     عدد البنود
                   </th>
 
@@ -875,15 +875,15 @@ export default function CategoriesPage() {
                       "
                     >
 
-                      <td className="px-3 py-2 text-gray-500 sm:px-4 sm:py-3">
+                      <td className="px-4 py-3 text-gray-500">
                         {index + 1}
                       </td>
 
-                      <td className="px-3 py-2 font-bold text-white sm:px-4 sm:py-3">
+                      <td className="px-4 py-3 font-bold text-white">
                         {category.name}
                       </td>
 
-                      <td className="px-3 py-2 text-center sm:px-4 sm:py-3">
+                      <td className="px-4 py-3 text-center">
 
                         <span
                           className="
@@ -963,23 +963,23 @@ export default function CategoriesPage() {
 
           </div>
 
-          <div className="max-h-[430px] overflow-x-auto overflow-y-auto">
+          <div className="max-h-[430px] overflow-y-auto">
 
-            <table className="w-full min-w-[560px] text-xs sm:min-w-0 sm:text-sm">
+            <table className="w-full text-sm">
 
               <thead className="sticky top-0 bg-[#102947]">
 
                 <tr>
 
-                  <th className="px-3 py-2 text-right text-gray-400 sm:px-4 sm:py-3">
+                  <th className="px-4 py-3 text-right text-gray-400">
                     #
                   </th>
 
-                  <th className="px-3 py-2 text-right text-gray-400 sm:px-4 sm:py-3">
+                  <th className="px-4 py-3 text-right text-gray-400">
                     المرحلة
                   </th>
 
-                  <th className="px-3 py-2 text-center text-gray-400 sm:px-4 sm:py-3">
+                  <th className="px-4 py-3 text-center text-gray-400">
                     الحالة
                   </th>
 
@@ -1014,15 +1014,15 @@ export default function CategoriesPage() {
                       "
                     >
 
-                      <td className="px-3 py-2 text-gray-500 sm:px-4 sm:py-3">
+                      <td className="px-4 py-3 text-gray-500">
                         {index + 1}
                       </td>
 
-                      <td className="px-3 py-2 font-bold text-white sm:px-4 sm:py-3">
+                      <td className="px-4 py-3 font-bold text-white">
                         {stage.name}
                       </td>
 
-                      <td className="px-3 py-2 text-center sm:px-4 sm:py-3">
+                      <td className="px-4 py-3 text-center">
 
                         <span
                           className="
@@ -1082,7 +1082,7 @@ export default function CategoriesPage() {
 
             <div className="flex items-center justify-between">
 
-              <h3 className="text-lg font-bold sm:text-xl">
+              <h3 className="text-xl font-bold">
                 إضافة مرحلة
               </h3>
 
@@ -1172,7 +1172,7 @@ export default function CategoriesPage() {
 
             <div className="flex items-center justify-between">
 
-              <h3 className="text-lg font-bold sm:text-xl">
+              <h3 className="text-xl font-bold">
                 إضافة تصنيف
               </h3>
 
@@ -1262,7 +1262,7 @@ export default function CategoriesPage() {
 
             <div className="flex items-center justify-between">
 
-              <h3 className="text-lg font-bold sm:text-xl">
+              <h3 className="text-xl font-bold">
                 إضافة بند
               </h3>
 

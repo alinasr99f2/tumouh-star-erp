@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
 
@@ -8,40 +9,59 @@ import { supabase } from "../utils/supabase";
 function MainLayout() {
   const navigate = useNavigate();
 
-  const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const [loggingOut, setLoggingOut] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] =
+    useState(false);
 
-  // Mobile sidebar state
-  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [loggingOut, setLoggingOut] =
+    useState(false);
 
   const handleLogout = async () => {
-  try {
-    setLoggingOut(true);
+    try {
+      setLoggingOut(true);
 
-    // ==========================================
-    // LOCAL DEVELOPMENT MODE
-    // لا يوجد اتصال بـ Supabase
-    // ==========================================
-    if (import.meta.env.VITE_DEV_MODE === "true") {
+      // ==========================================
+      // LOCAL DEVELOPMENT MODE
+      // لا يوجد اتصال بـ Supabase
+      // ==========================================
+      if (import.meta.env.VITE_DEV_MODE === "true") {
+        setShowLogoutModal(false);
+
+        navigate("/home", {
+          replace: true,
+        });
+
+        return;
+      }
+
+      // ==========================================
+      // PRODUCTION MODE
+      // تسجيل خروج حقيقي من Supabase
+      // ==========================================
+      const { error } =
+        await supabase.auth.signOut();
+
+      if (error) {
+        console.error(
+          "خطأ أثناء تسجيل الخروج:",
+          error
+        );
+
+        alert(
+          "حدث خطأ أثناء تسجيل الخروج، حاول مرة أخرى"
+        );
+
+        return;
+      }
+
       setShowLogoutModal(false);
 
-      navigate("/home", {
+      navigate("/login", {
         replace: true,
       });
 
-      return;
-    }
-
-    // ==========================================
-    // PRODUCTION MODE
-    // تسجيل خروج حقيقي من Supabase
-    // ==========================================
-    const { error } =
-      await supabase.auth.signOut();
-
-    if (error) {
+    } catch (error) {
       console.error(
-        "خطأ أثناء تسجيل الخروج:",
+        "خطأ غير متوقع أثناء تسجيل الخروج:",
         error
       );
 
@@ -49,64 +69,178 @@ function MainLayout() {
         "حدث خطأ أثناء تسجيل الخروج، حاول مرة أخرى"
       );
 
-      return;
+    } finally {
+      setLoggingOut(false);
     }
-
-    setShowLogoutModal(false);
-
-    navigate("/login", {
-      replace: true,
-    });
-
-  } catch (error) {
-    console.error(
-      "خطأ غير متوقع أثناء تسجيل الخروج:",
-      error
-    );
-
-    alert(
-      "حدث خطأ أثناء تسجيل الخروج، حاول مرة أخرى"
-    );
-
-  } finally {
-    setLoggingOut(false);
-  }
-};
+  };
 
   return (
     <div
-      className="flex h-screen min-w-0 overflow-hidden"
+      className="flex h-screen overflow-hidden bg-[#031F1B]"
       dir="rtl"
     >
 
-      {/* Sidebar */}
+      {/* ==========================================
+          SIDEBAR
+      ========================================== */}
+
       <Sidebar
         onLogout={() => setShowLogoutModal(true)}
-        mobileOpen={mobileSidebarOpen}
-        onMobileClose={() => setMobileSidebarOpen(false)}
       />
 
-      {/* Main Content */}
+      {/* ==========================================
+          MAIN CONTENT
+      ========================================== */}
+
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
 
         {/* Top Navigation */}
-        <Topbar
-          onMobileMenu={() =>
-            setMobileSidebarOpen((current) => !current)
-          }
-        />
 
-        {/* Page Content */}
-        <main className="min-w-0 flex-1 overflow-y-auto overflow-x-hidden bg-[#071321] p-3 sm:p-4 lg:p-6">
+        <Topbar />
 
-          <div className="mx-auto min-h-full w-full max-w-[1700px]">
+        {/* ==========================================
+            PAGE CONTENT
+        ========================================== */}
+
+        <main
+          className="
+            relative
+            flex-1
+            overflow-y-auto
+            bg-[#031F1B]
+            p-4
+            sm:p-6
+          "
+        >
+
+          {/* ==========================================
+              AQAR SMART BACKGROUND
+          ========================================== */}
+
+          <div
+            className="
+              pointer-events-none
+              absolute
+              inset-0
+              overflow-hidden
+            "
+            aria-hidden="true"
+          >
+
+            {/* Main Dark Green Gradient */}
+
+            <div
+              className="
+                absolute
+                inset-0
+                bg-gradient-to-br
+                from-[#062D27]
+                via-[#031F1B]
+                to-[#011412]
+              "
+            />
+
+            {/* Golden Glow */}
+
+            <div
+              className="
+                absolute
+                -right-40
+                -top-40
+                h-[500px]
+                w-[500px]
+                rounded-full
+                bg-[#C49A3A]/[0.035]
+                blur-[130px]
+              "
+            />
+
+            {/* Green Glow */}
+
+            <div
+              className="
+                absolute
+                -bottom-40
+                -left-40
+                h-[600px]
+                w-[600px]
+                rounded-full
+                bg-emerald-400/[0.04]
+                blur-[150px]
+              "
+            />
+
+            {/* ==========================================
+                AQAR SMART WATERMARK
+            ========================================== */}
+
+            <div
+              className="
+                absolute
+                bottom-[-40px]
+                left-1/2
+                w-[600px]
+                max-w-[90%]
+                -translate-x-1/2
+                opacity-[0.055]
+                sm:w-[750px]
+              "
+            >
+
+              <img
+                src="/aqar-smart-logo.png"
+                alt=""
+                aria-hidden="true"
+                className="
+                  h-auto
+                  w-full
+                  object-contain
+                  grayscale
+                "
+              />
+
+            </div>
+
+            {/* Decorative Golden Line */}
+
+            <div
+              className="
+                absolute
+                bottom-8
+                left-[-10%]
+                h-px
+                w-[120%]
+                rotate-[-8deg]
+                bg-gradient-to-r
+                from-transparent
+                via-[#C49A3A]/20
+                to-transparent
+              "
+            />
+
+          </div>
+
+          {/* ==========================================
+              PAGE CONTENT
+          ========================================== */}
+
+          <div
+            className="
+              relative
+              z-10
+              mx-auto
+              min-h-full
+              max-w-[1700px]
+            "
+          >
+
             <Outlet />
+
           </div>
 
         </main>
 
       </div>
-
 
       {/* ==========================================
           LOGOUT CONFIRMATION MODAL
@@ -122,8 +256,7 @@ function MainLayout() {
             items-center
             justify-center
             bg-black/60
-            p-3
-            sm:p-6
+            p-6
             backdrop-blur-md
           "
           onClick={() => {
@@ -134,16 +267,16 @@ function MainLayout() {
         >
 
           {/* Modal */}
+
           <div
             className="
               w-full
               max-w-md
               rounded-[28px]
               border
-              border-white/10
-              bg-[#081B33]
-              p-5
-              sm:p-8
+              border-[#C49A3A]/20
+              bg-[#062D27]
+              p-8
               text-center
               shadow-2xl
             "
@@ -153,15 +286,14 @@ function MainLayout() {
           >
 
             {/* Logout Icon */}
+
             <div
               className="
                 mx-auto
                 mb-5
                 flex
-                h-16
-                w-16
-                sm:h-20
-                sm:w-20
+                h-20
+                w-20
                 items-center
                 justify-center
                 rounded-3xl
@@ -171,6 +303,7 @@ function MainLayout() {
                 text-red-400
               "
             >
+
               <svg
                 width="38"
                 height="38"
@@ -181,17 +314,22 @@ function MainLayout() {
                 strokeLinecap="round"
                 strokeLinejoin="round"
               >
+
                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+
                 <path d="M16 17l5-5-5-5" />
+
                 <path d="M21 12H9" />
+
               </svg>
+
             </div>
 
             {/* Title */}
+
             <h2
               className="
-                text-xl
-                sm:text-2xl
+                text-2xl
                 font-black
                 text-white
               "
@@ -200,12 +338,11 @@ function MainLayout() {
             </h2>
 
             {/* Message */}
+
             <p
               className="
                 mt-3
                 leading-7
-                text-sm
-                sm:text-base
                 text-gray-400
               "
             >
@@ -213,18 +350,18 @@ function MainLayout() {
             </p>
 
             {/* Buttons */}
+
             <div
               className="
-                mt-6
-                sm:mt-8
+                mt-8
                 grid
                 grid-cols-2
-                gap-3
-                sm:gap-4
+                gap-4
               "
             >
 
               {/* Cancel */}
+
               <button
                 type="button"
                 disabled={loggingOut}
@@ -236,11 +373,8 @@ function MainLayout() {
                   border
                   border-white/10
                   bg-white/5
-                  px-3
+                  px-5
                   py-3
-                  text-sm
-                  sm:px-5
-                  sm:text-base
                   font-bold
                   text-gray-300
                   transition-all
@@ -255,6 +389,7 @@ function MainLayout() {
               </button>
 
               {/* Confirm Logout */}
+
               <button
                 type="button"
                 disabled={loggingOut}
@@ -262,11 +397,8 @@ function MainLayout() {
                 className="
                   rounded-2xl
                   bg-red-500
-                  px-3
+                  px-5
                   py-3
-                  text-sm
-                  sm:px-5
-                  sm:text-base
                   font-bold
                   text-white
                   transition-all

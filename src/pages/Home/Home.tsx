@@ -7,6 +7,8 @@ import {
 
 import { useNavigate } from "react-router-dom";
 
+import "./Home.css";
+
 export default function Home() {
   const navigate = useNavigate();
 
@@ -44,7 +46,8 @@ export default function Home() {
         relative
         min-h-full
         overflow-hidden
-        pb-6 sm:pb-8 lg:pb-10
+        pb-10
+        aqar-home-page
       "
     >
 
@@ -59,9 +62,8 @@ export default function Home() {
           left-1/2
           top-[48%]
           z-0
-          h-[420px] w-[420px]
-          sm:h-[520px] sm:w-[520px]
-          lg:h-[650px] lg:w-[650px]
+          h-[650px]
+          w-[650px]
           -translate-x-1/2
           -translate-y-1/2
           rounded-full
@@ -69,50 +71,7 @@ export default function Home() {
           blur-[100px]
         "
       />
-
-      {/* =========================================
-          العلامة المائية
-      ========================================= */}
-
-      <div
-        className="
-          pointer-events-none
-          absolute
-          left-1/2
-          top-[58%]
-          z-0
-          -translate-x-1/2
-          -translate-y-1/2
-          opacity-[0.055]
-        "
-      >
-        <div
-          className="
-            flex
-            h-[420px] w-[420px]
-            sm:h-[520px] sm:w-[520px]
-            lg:h-[650px] lg:w-[650px]
-            items-center
-            justify-center
-          "
-        >
-          <span
-            className="
-              text-[300px]
-              sm:text-[400px]
-              lg:text-[520px]
-              font-black
-              leading-none
-              text-yellow-400
-            "
-          >
-            ★
-          </span>
-        </div>
-      </div>
-
-
-      {/* =========================================
+{/* =========================================
           المحتوى
       ========================================= */}
 
@@ -123,11 +82,11 @@ export default function Home() {
           mx-auto
           flex
           w-full
-          w-full max-w-[1550px] min-w-0
+          max-w-[1550px]
           flex-col
           items-center
-          px-3 sm:px-5
-          pt-1 sm:pt-2
+          px-5
+          pt-2
           lg:px-8
         "
       >
@@ -138,7 +97,7 @@ export default function Home() {
 
         <div
           className="
-            mb-5 sm:mb-7
+            mb-7
             flex
             flex-col
             items-center
@@ -155,22 +114,23 @@ export default function Home() {
               bg-yellow-400/10
               px-3
               py-1
-              text-[10px] sm:text-[11px]
+              text-[11px]
               font-bold
               text-yellow-400
+              aqar-home-badge
             "
           >
-            Tumouh Star ERP
+            AQAR SMART ERP
             <span className="mr-1">✦</span>
           </div>
 
           <h1
             className="
-              text-3xl
-              sm:text-4xl
+              text-4xl
               font-extrabold
               leading-tight
               text-white
+              aqar-home-title
               md:text-5xl
             "
           >
@@ -180,12 +140,13 @@ export default function Home() {
           <p
             className="
               mt-2
-              text-xs sm:text-sm
+              text-sm
               text-gray-400
+              aqar-home-description
               md:text-base
             "
           >
-            مرحبًا بك في نظام طموح ستار لإدارة الأعمال
+            مرحبًا بك في عقار سمارت لإدارة العقارات
           </p>
 
         </div>
@@ -200,7 +161,7 @@ export default function Home() {
             grid
             w-full
             grid-cols-1
-            gap-4 sm:gap-5
+            gap-5
             md:grid-cols-3
             lg:gap-7
           "
@@ -220,17 +181,17 @@ export default function Home() {
                   group
                   relative
                   flex
-                  min-h-[300px] sm:min-h-[340px]
-                  sm:min-h-[390px]
+                  min-h-[390px]
                   flex-col
                   items-center
                   overflow-hidden
-                  rounded-[24px] sm:rounded-[30px]
+                  rounded-[30px]
                   border
-                  p-5 sm:p-7
+                  p-7
                   text-center
                   shadow-2xl
                   backdrop-blur-xl
+                  aqar-feature-card
                   transition-all
                   duration-500
                   hover:-translate-y-2
@@ -304,10 +265,10 @@ export default function Home() {
                   className={`
                     relative
                     z-10
-                    mb-5 sm:mb-6
+                    mb-6
                     flex
-                    h-[82px] w-[82px] sm:h-[95px] sm:w-[95px]
-                    sm:h-[120px] sm:w-[120px]
+                    h-[120px]
+                    w-[120px]
                     shrink-0
                     items-center
                     justify-center
@@ -346,12 +307,13 @@ export default function Home() {
                 >
 
                   <Icon
-                    size={52}
+                    size={62}
                     strokeWidth={1.8}
                     className={`
                       transition-transform
                       duration-500
                       group-hover:scale-110
+                    aqar-card-icon
                       ${
                         isYellow
                           ? "text-yellow-100"
@@ -373,12 +335,11 @@ export default function Home() {
                   className="
                     relative
                     z-10
-                    text-xl
-                    sm:text-2xl
-                    lg:text-[29px]
+                    text-[29px]
                     font-extrabold
                     leading-tight
                     text-white
+                    aqar-card-title
                   "
                 >
                   {card.title}
@@ -393,13 +354,14 @@ export default function Home() {
                   className="
                     relative
                     z-10
-                    mt-3 sm:mt-4
+                    mt-4
                     min-h-[58px]
                     max-w-[340px]
-                    text-sm sm:text-[15px]
+                    text-[15px]
                     font-medium
                     leading-7
                     text-gray-300
+                    aqar-card-description
                   "
                 >
                   {card.description}
@@ -418,20 +380,19 @@ export default function Home() {
                     z-10
                     mt-auto
                     flex
-                    w-full
-                    max-w-[210px]
-                    min-w-0
+                    min-w-[210px]
                     items-center
                     justify-center
-                    gap-2 sm:gap-3
+                    gap-3
                     rounded-full
                     border
-                    px-4 sm:px-6
+                    px-6
                     py-3
-                    text-sm sm:text-[17px]
+                    text-[17px]
                     font-bold
                     transition-all
                     duration-300
+                    aqar-card-button
                     hover:scale-105
                     ${
                       isYellow
@@ -463,7 +424,7 @@ export default function Home() {
                   </span>
 
                   <ArrowLeft
-                    size={21}
+                    size={24}
                     strokeWidth={2.2}
                     className="
                       transition-transform
