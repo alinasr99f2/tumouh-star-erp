@@ -1626,17 +1626,24 @@ export default function BuildingDetails() {
      * بهذه الطريقة نحدّث نفس الصف بدل إنشاء صف جديد كل مرة.
      */
     const { data: existingLease, error: leaseLookupError } = await supabase
-      .from("tenant_leases")
-      .select("id")
-      .eq("building_id", buildingId)
-      .eq("apartment_number", String(apartment.number))
-      .order("created_at", { ascending: true })
-      .limit(1)
-      .maybeSingle();
+  .from("tenant_leases")
+  .select("id, tenant_id")
+  .eq("building_id", buildingId)
+  .eq("apartment_number", String(apartment.number))
+  .order("created_at", { ascending: true })
+  .limit(1)
+  .maybeSingle();
 
-    if (leaseLookupError) {
-      throw leaseLookupError;
-    }
+if (leaseLookupError) {
+  throw leaseLookupError;
+}
+
+// منع ربط رقم الشقة بمستأجر مختلف
+if (existingLease?.id && existingLease.tenant_id !== tenantId) {
+  throw new Error(
+    `الشقة رقم ${apartment.number} مرتبطة بالفعل بمستأجر آخر. لا يمكن تسجيل مستأجر جديد بنفس الرقم.`
+  );
+}
 
     const leaseData = {
       tenant_id: tenantId,
