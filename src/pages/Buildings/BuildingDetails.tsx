@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "../../utils/supabase";
 import {
   X,
@@ -484,6 +484,8 @@ export default function BuildingDetails() {
     }
   });
 
+  const hasLoadedBuildingStateRef = useRef(false);
+
   const getCurrentBuildingId = () => {
     const match = window.location.pathname.match(/\/buildings\/(\d+)/);
     return match ? Number(match[1]) : null;
@@ -510,6 +512,7 @@ export default function BuildingDetails() {
     }
 
     if (!data) {
+      hasLoadedBuildingStateRef.current = true;
       return;
     }
 
@@ -549,6 +552,8 @@ export default function BuildingDetails() {
     if (data.apartment_contract_info) {
       setApartmentContractInfo(data.apartment_contract_info as Record<string, ApartmentContractInfo>);
     }
+
+    hasLoadedBuildingStateRef.current = true;
   };
 
   useEffect(() => {
@@ -582,6 +587,51 @@ export default function BuildingDetails() {
       throw error;
     }
   };
+
+  useEffect(() => {
+    if (!hasLoadedBuildingStateRef.current) {
+      return;
+    }
+
+    const persistBuildingState = async () => {
+      const buildingId = getCurrentBuildingId();
+
+      if (!buildingId) {
+        return;
+      }
+
+      const { error } = await supabase.from("building_state").upsert(
+        {
+          building_id: buildingId,
+          apartments,
+          apartment_types: apartmentTypes,
+          custom_apartment_types: customApartmentTypes,
+          custom_apartment_statuses: customApartmentStatuses,
+          apartment_type_rents: apartmentTypeRents,
+          apartment_extra_info: apartmentExtraInfo,
+          apartment_tenant_info: apartmentTenantInfo,
+          apartment_contract_info: apartmentContractInfo,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "building_id" }
+      );
+
+      if (error) {
+        console.error("خطأ في الحفظ التلقائي لبيانات العمارة:", error);
+      }
+    };
+
+    void persistBuildingState();
+  }, [
+    apartments,
+    apartmentTypes,
+    customApartmentTypes,
+    customApartmentStatuses,
+    apartmentTypeRents,
+    apartmentExtraInfo,
+    apartmentTenantInfo,
+    apartmentContractInfo,
+  ]);
 
   const addApartment = () => {
     setApartments((current) => {
