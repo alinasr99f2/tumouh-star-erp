@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { supabase } from "../../utils/supabase";
 import {
   X,
@@ -718,104 +718,6 @@ export default function BuildingDetails() {
       }
     );
   };
-
-  const loadTenantDataFromSupabase = async () => {
-    const buildingIdMatch = window.location.pathname.match(/\/buildings\/(\d+)/);
-    const buildingId = buildingIdMatch ? Number(buildingIdMatch[1]) : null;
-
-    if (!buildingId) {
-      return;
-    }
-
-    const { data, error } = await supabase
-      .from("tenant_leases")
-      .select(
-        `
-          apartment_number,
-          contract_number,
-          tenant_id,
-          tenants (
-            full_name,
-            phone,
-            identity_number
-          )
-        `
-      )
-      .eq("building_id", buildingId);
-
-    if (error) {
-      console.error("خطأ في تحميل بيانات المستأجرين من Supabase:", error);
-      return;
-    }
-
-    if (!data || data.length === 0) {
-      return;
-    }
-
-    const loadedTenantInfo: Record<string, ApartmentTenantInfo> = {};
-    const loadedContractInfo: Record<string, ApartmentContractInfo> = {};
-
-    data.forEach((lease) => {
-      const apartmentNumber = String(lease.apartment_number ?? "");
-      if (!apartmentNumber) return;
-
-      const tenant = Array.isArray(lease.tenants)
-        ? lease.tenants[0]
-        : lease.tenants;
-
-      const tenantName = tenant?.full_name ?? "";
-      const phone = tenant?.phone ?? "";
-      const identityNumber = tenant?.identity_number ?? "";
-
-      loadedTenantInfo[apartmentNumber] = {
-        status: "مؤجرة",
-        tenantName,
-        phone,
-        identityNumber,
-      };
-
-      const currentContract = getApartmentContractInfo(apartmentNumber);
-      loadedContractInfo[apartmentNumber] = {
-        ...currentContract,
-        contractNumber:
-          lease.contract_number || currentContract.contractNumber,
-      };
-    });
-
-    setApartmentTenantInfo((current) => ({
-      ...current,
-      ...loadedTenantInfo,
-    }));
-
-    setApartmentContractInfo((current) => ({
-      ...current,
-      ...loadedContractInfo,
-    }));
-
-    setApartments((current) => {
-      const updated = current.map((apartment) => {
-        const tenantInfo = loadedTenantInfo[apartment.number];
-        if (!tenantInfo) return apartment;
-
-        return {
-          ...apartment,
-          status: tenantInfo.status,
-          tenant: tenantInfo.tenantName || "اسم المستأجر غير مضاف",
-        };
-      });
-
-      window.localStorage.setItem(
-        "tumouh_star_building_apartments",
-        JSON.stringify(updated)
-      );
-
-      return updated;
-    });
-  };
-
-  useEffect(() => {
-    void loadTenantDataFromSupabase();
-  }, []);
 
   const updateApartmentTenantInfo = <K extends keyof ApartmentTenantInfo>(
     apartment: Apartment,
@@ -1674,14 +1576,13 @@ export default function BuildingDetails() {
       tenantQuery = tenantQuery.eq("full_name", fullName);
     }
 
-    const { data: existingTenants, error: tenantLookupError } =
-      await tenantQuery.order("created_at", { ascending: true });
+    const { data: existingTenant, error: tenantLookupError } =
+      await tenantQuery.maybeSingle();
 
     if (tenantLookupError) {
       throw tenantLookupError;
     }
 
-    const existingTenant = existingTenants?.[0];
     let tenantId = existingTenant?.id as string | undefined;
 
     const tenantData = {
