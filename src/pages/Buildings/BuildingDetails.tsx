@@ -1557,17 +1557,21 @@ export default function BuildingDetails() {
       throw new Error("اكتب اسم المستأجر أولًا.");
     }
 
-    const tenantLookup = supabase
+    /*
+     * أولًا: البحث عن المستأجر الحالي.
+     * نستخدم رقم الهوية عند توفره، ثم الجوال + الاسم، ثم الاسم.
+     */
+    let tenantQuery = supabase
       .from("tenants")
       .select("id")
       .limit(1);
 
-    let tenantQuery = tenantLookup;
-
     if (identityNumber) {
       tenantQuery = tenantQuery.eq("identity_number", identityNumber);
     } else if (phone) {
-      tenantQuery = tenantQuery.eq("phone", phone).eq("full_name", fullName);
+      tenantQuery = tenantQuery
+        .eq("phone", phone)
+        .eq("full_name", fullName);
     } else {
       tenantQuery = tenantQuery.eq("full_name", fullName);
     }
@@ -1581,14 +1585,16 @@ export default function BuildingDetails() {
 
     let tenantId = existingTenant?.id as string | undefined;
 
+    const tenantData = {
+      full_name: fullName,
+      phone: phone || null,
+      identity_number: identityNumber || null,
+    };
+
     if (tenantId) {
       const { error: updateTenantError } = await supabase
         .from("tenants")
-        .update({
-          full_name: fullName,
-          phone: phone || null,
-          identity_number: identityNumber || null,
-        })
+        .update(tenantData)
         .eq("id", tenantId);
 
       if (updateTenantError) {
@@ -1598,11 +1604,7 @@ export default function BuildingDetails() {
       const { data: insertedTenant, error: insertTenantError } =
         await supabase
           .from("tenants")
-          .insert({
-            full_name: fullName,
-            phone: phone || null,
-            identity_number: identityNumber || null,
-          })
+          .insert(tenantData)
           .select("id")
           .single();
 
@@ -1617,12 +1619,18 @@ export default function BuildingDetails() {
       throw new Error("لم يتم الحصول على رقم المستأجر من قاعدة البيانات.");
     }
 
+    /*
+     * مهم:
+     * البحث عن العقد يكون بالعمارة + رقم الشقة فقط،
+     * وليس tenant_id؛ لأن المستأجر قد يتغير عند تعديل البيانات.
+     * بهذه الطريقة نحدّث نفس الصف بدل إنشاء صف جديد كل مرة.
+     */
     const { data: existingLease, error: leaseLookupError } = await supabase
       .from("tenant_leases")
       .select("id")
-      .eq("tenant_id", tenantId)
       .eq("building_id", buildingId)
-      .eq("apartment_number", apartment.number)
+      .eq("apartment_number", String(apartment.number))
+      .order("created_at", { ascending: true })
       .limit(1)
       .maybeSingle();
 
@@ -1633,7 +1641,7 @@ export default function BuildingDetails() {
     const leaseData = {
       tenant_id: tenantId,
       building_id: buildingId,
-      apartment_number: apartment.number,
+      apartment_number: String(apartment.number),
       contract_number: contractInfo.contractNumber || null,
     };
 
@@ -1712,7 +1720,10 @@ export default function BuildingDetails() {
         error instanceof Error
           ? error.message
           : "حدث خطأ غير معروف أثناء الحفظ في قاعدة البيانات.";
-      window.alert(`تم حفظ البيانات محليًا، لكن تعذر الحفظ في قاعدة البيانات.\n${message}`);
+
+      window.alert(
+        `تم حفظ البيانات محليًا، لكن تعذر الحفظ في قاعدة البيانات.\n${message}`
+      );
     }
   };
 
