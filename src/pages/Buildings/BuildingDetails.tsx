@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "../../utils/supabase";
 import {
   X,
@@ -483,6 +483,105 @@ export default function BuildingDetails() {
       return createDefaultApartments();
     }
   });
+
+  const getCurrentBuildingId = () => {
+    const match = window.location.pathname.match(/\/buildings\/(\d+)/);
+    return match ? Number(match[1]) : null;
+  };
+
+  const loadBuildingStateFromSupabase = async () => {
+    const buildingId = getCurrentBuildingId();
+
+    if (!buildingId) {
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("building_state")
+      .select(
+        "apartments, apartment_types, custom_apartment_types, custom_apartment_statuses, apartment_type_rents, apartment_extra_info, apartment_tenant_info, apartment_contract_info"
+      )
+      .eq("building_id", buildingId)
+      .maybeSingle();
+
+    if (error) {
+      console.error("خطأ في تحميل بيانات العمارة من Supabase:", error);
+      return;
+    }
+
+    if (!data) {
+      return;
+    }
+
+    if (Array.isArray(data.apartments)) {
+      setApartments(
+        data.apartments.map((apartment: Apartment) => ({
+          ...apartment,
+          number: String(apartment.number),
+        }))
+      );
+    }
+
+    if (data.apartment_types) {
+      setApartmentTypes(data.apartment_types as Record<string, string>);
+    }
+
+    if (Array.isArray(data.custom_apartment_types)) {
+      setCustomApartmentTypes(data.custom_apartment_types as string[]);
+    }
+
+    if (Array.isArray(data.custom_apartment_statuses)) {
+      setCustomApartmentStatuses(data.custom_apartment_statuses as string[]);
+    }
+
+    if (data.apartment_type_rents) {
+      setApartmentTypeRents(data.apartment_type_rents as Record<string, number>);
+    }
+
+    if (data.apartment_extra_info) {
+      setApartmentExtraInfo(data.apartment_extra_info as Record<string, ApartmentExtraInfo>);
+    }
+
+    if (data.apartment_tenant_info) {
+      setApartmentTenantInfo(data.apartment_tenant_info as Record<string, ApartmentTenantInfo>);
+    }
+
+    if (data.apartment_contract_info) {
+      setApartmentContractInfo(data.apartment_contract_info as Record<string, ApartmentContractInfo>);
+    }
+  };
+
+  useEffect(() => {
+    void loadBuildingStateFromSupabase();
+  }, []);
+
+  const saveBuildingStateToSupabase = async (updatedApartments: Apartment[]) => {
+    const buildingId = getCurrentBuildingId();
+
+    if (!buildingId) {
+      throw new Error("لم يتم التعرف على رقم العمارة من الرابط.");
+    }
+
+    const { error } = await supabase.from("building_state").upsert(
+      {
+        building_id: buildingId,
+        apartments: updatedApartments,
+        apartment_types: apartmentTypes,
+        custom_apartment_types: customApartmentTypes,
+        custom_apartment_statuses: customApartmentStatuses,
+        apartment_type_rents: apartmentTypeRents,
+        apartment_extra_info: apartmentExtraInfo,
+        apartment_tenant_info: apartmentTenantInfo,
+        apartment_contract_info: apartmentContractInfo,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "building_id" }
+    );
+
+    if (error) {
+      throw error;
+    }
+  };
 
   const addApartment = () => {
     setApartments((current) => {
@@ -1718,6 +1817,7 @@ if (existingLease?.id && existingLease.tenant_id !== tenantId) {
     setApartments(updatedApartments);
 
     try {
+      await saveBuildingStateToSupabase(updatedApartments);
       await saveTenantDataToSupabase(selectedApartment);
       window.alert("تم حفظ بيانات المستأجر في قاعدة البيانات بنجاح.");
       closeApartment();
