@@ -1867,9 +1867,20 @@ if (existingLease?.id && existingLease.tenant_id !== tenantId) {
     setApartments(updatedApartments);
 
     try {
+      // حفظ بيانات الشقة الأساسية دائمًا، حتى لو لم يتم إدخال اسم مستأجر.
       await saveBuildingStateToSupabase(updatedApartments);
-      await saveTenantDataToSupabase(selectedApartment);
-      window.alert("تم حفظ بيانات المستأجر في قاعدة البيانات بنجاح.");
+
+      const tenantInfo = getApartmentTenantInfo(selectedApartment);
+      const hasTenantName = tenantInfo.tenantName.trim().length > 0;
+
+      // حفظ بيانات المستأجر فقط عند وجود اسم مستأجر.
+      if (hasTenantName) {
+        await saveTenantDataToSupabase(selectedApartment);
+        window.alert("تم حفظ بيانات الشقة والمستأجر في قاعدة البيانات بنجاح.");
+      } else {
+        window.alert("تم حفظ بيانات الشقة في قاعدة البيانات بنجاح، ويمكن إضافة المستأجر لاحقًا.");
+      }
+
       closeApartment();
     } catch (error) {
       console.error("خطأ في حفظ بيانات المستأجر في Supabase:", error);
