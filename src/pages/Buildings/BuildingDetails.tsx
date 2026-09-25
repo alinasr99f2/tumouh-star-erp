@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { supabase } from "../../utils/supabase";
 import {
   X,
@@ -71,6 +71,7 @@ type ApartmentContractInfo = {
 };
 
 type BuildingCharge = {
+  id?: string;
   type: string;
   amount: string;
   date: string;
@@ -78,6 +79,12 @@ type BuildingCharge = {
   apartmentNumber?: string;
   rentMonths?: number;
 };
+
+const getRowSourceId = (row: unknown) =>
+  (row as { sourceId?: string }).sourceId;
+
+const getRowSourceMode = (row: unknown) =>
+  (row as { sourceMode?: "charge" | "collection" }).sourceMode;
 
 const DEFAULT_APARTMENT_EXTRA_INFO: ApartmentExtraInfo = {
   floor: "",
@@ -375,6 +382,8 @@ export default function BuildingDetails() {
     notes: "",
   });
 
+  const [editingChargeId, setEditingChargeId] = useState<string | null>(null);
+
   const [selectedChargeApartments, setSelectedChargeApartments] =
     useState<string[]>([]);
   const [apartmentTypeFilter, setApartmentTypeFilter] = useState("");
@@ -483,192 +492,6 @@ export default function BuildingDetails() {
       return createDefaultApartments();
     }
   });
-
-
-  // مزامنة بيانات العمارة مع Supabase بدل الاعتماد على localStorage فقط.
-  const remoteStateHydratedRef = useRef(false);
-  const [remoteSyncVersion, setRemoteSyncVersion] = useState(0);
-
-  const getCurrentBuildingId = () => {
-    const match = window.location.pathname.match(/\/buildings\/(\d+)/);
-    return match ? Number(match[1]) : null;
-  };
-
-  const readBuildingChargesFromStorage = (key: string): BuildingCharge[] => {
-    try {
-      const saved = window.localStorage.getItem(key);
-      return saved ? (JSON.parse(saved) as BuildingCharge[]) : [];
-    } catch {
-      return [];
-    }
-  };
-
-  const persistBuildingStateToSupabase = async (
-    apartmentsOverride?: Apartment[]
-  ) => {
-    const buildingId = getCurrentBuildingId();
-    if (!buildingId) return;
-
-    const { error } = await supabase.from("building_state").upsert(
-      {
-        building_id: buildingId,
-        apartments: apartmentsOverride ?? apartments,
-        apartment_types: apartmentTypes,
-        custom_apartment_types: customApartmentTypes,
-        custom_apartment_statuses: customApartmentStatuses,
-        apartment_type_rents: apartmentTypeRents,
-        apartment_extra_info: apartmentExtraInfo,
-        apartment_tenant_info: apartmentTenantInfo,
-        apartment_contract_info: apartmentContractInfo,
-        building_charges: readBuildingChargesFromStorage(
-          "tumouh_star_building_charges"
-        ),
-        building_collections: readBuildingChargesFromStorage(
-          "tumouh_star_building_collections"
-        ),
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "building_id" }
-    );
-
-    if (error) throw error;
-  };
-
-  // تحميل آخر نسخة محفوظة على Supabase عند فتح العمارة على أي جهاز.
-  useEffect(() => {
-    let cancelled = false;
-
-    const loadBuildingStateFromSupabase = async () => {
-      const buildingId = getCurrentBuildingId();
-      if (!buildingId) {
-        remoteStateHydratedRef.current = true;
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from("building_state")
-        .select(
-          "apartments, apartment_types, custom_apartment_types, custom_apartment_statuses, apartment_type_rents, apartment_extra_info, apartment_tenant_info, apartment_contract_info, building_charges, building_collections"
-        )
-        .eq("building_id", buildingId)
-        .maybeSingle();
-
-      if (cancelled) return;
-
-      if (error) {
-        console.error("تعذر تحميل بيانات العمارة من Supabase:", error);
-      } else if (data) {
-        if (Array.isArray(data.apartments)) {
-          const normalizedApartments = (data.apartments as Apartment[]).map(
-            (apartment) => ({ ...apartment, number: String(apartment.number) })
-          );
-          setApartments(normalizedApartments);
-          window.localStorage.setItem(
-            "tumouh_star_building_apartments",
-            JSON.stringify(normalizedApartments)
-          );
-        }
-
-        if (data.apartment_types && typeof data.apartment_types === "object") {
-          setApartmentTypes(data.apartment_types as Record<string, string>);
-          window.localStorage.setItem(
-            "tumouh_star_apartment_types",
-            JSON.stringify(data.apartment_types)
-          );
-        }
-
-        if (Array.isArray(data.custom_apartment_types)) {
-          setCustomApartmentTypes(data.custom_apartment_types as string[]);
-          window.localStorage.setItem(
-            "tumouh_star_custom_apartment_types",
-            JSON.stringify(data.custom_apartment_types)
-          );
-        }
-
-        if (Array.isArray(data.custom_apartment_statuses)) {
-          setCustomApartmentStatuses(data.custom_apartment_statuses as string[]);
-          window.localStorage.setItem(
-            "tumouh_star_custom_apartment_statuses",
-            JSON.stringify(data.custom_apartment_statuses)
-          );
-        }
-
-        if (data.apartment_type_rents && typeof data.apartment_type_rents === "object") {
-          setApartmentTypeRents(data.apartment_type_rents as Record<string, number>);
-          window.localStorage.setItem(
-            "tumouh_star_apartment_type_rents",
-            JSON.stringify(data.apartment_type_rents)
-          );
-        }
-
-        if (data.apartment_extra_info && typeof data.apartment_extra_info === "object") {
-          setApartmentExtraInfo(data.apartment_extra_info as Record<string, ApartmentExtraInfo>);
-          window.localStorage.setItem(
-            "tumouh_star_apartment_extra_info",
-            JSON.stringify(data.apartment_extra_info)
-          );
-        }
-
-        if (data.apartment_tenant_info && typeof data.apartment_tenant_info === "object") {
-          setApartmentTenantInfo(data.apartment_tenant_info as Record<string, ApartmentTenantInfo>);
-          window.localStorage.setItem(
-            "tumouh_star_apartment_tenant_info",
-            JSON.stringify(data.apartment_tenant_info)
-          );
-        }
-
-        if (data.apartment_contract_info && typeof data.apartment_contract_info === "object") {
-          setApartmentContractInfo(data.apartment_contract_info as Record<string, ApartmentContractInfo>);
-          window.localStorage.setItem(
-            "tumouh_star_apartment_contract_info",
-            JSON.stringify(data.apartment_contract_info)
-          );
-        }
-
-        if (Array.isArray(data.building_charges)) {
-          window.localStorage.setItem(
-            "tumouh_star_building_charges",
-            JSON.stringify(data.building_charges)
-          );
-        }
-
-        if (Array.isArray(data.building_collections)) {
-          window.localStorage.setItem(
-            "tumouh_star_building_collections",
-            JSON.stringify(data.building_collections)
-          );
-        }
-      }
-
-      remoteStateHydratedRef.current = true;
-      setRemoteSyncVersion((current) => current + 1);
-    };
-
-    void loadBuildingStateFromSupabase();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  // إرسال أي تغيير محلي إلى Supabase بعد انتهاء تحميل النسخة البعيدة.
-  useEffect(() => {
-    if (!remoteStateHydratedRef.current) return;
-
-    void persistBuildingStateToSupabase().catch((error) => {
-      console.error("تعذر مزامنة بيانات العمارة مع Supabase:", error);
-    });
-  }, [
-    apartments,
-    apartmentTypes,
-    customApartmentTypes,
-    customApartmentStatuses,
-    apartmentTypeRents,
-    apartmentExtraInfo,
-    apartmentTenantInfo,
-    apartmentContractInfo,
-    remoteSyncVersion,
-  ]);
 
   const addApartment = () => {
     setApartments((current) => {
@@ -1740,7 +1563,7 @@ export default function BuildingDetails() {
     const identityNumber = tenantInfo.identityNumber.trim();
 
     if (!fullName) {
-      return;
+      throw new Error("اكتب اسم المستأجر أولًا.");
     }
 
     /*
@@ -1913,11 +1736,80 @@ export default function BuildingDetails() {
     }
   };
 
+  const getChargeStorageKey = (mode: "charge" | "collection") =>
+    mode === "collection"
+      ? "tumouh_star_building_collections"
+      : "tumouh_star_building_charges";
+
+  const getChargeById = (id: string, mode: "charge" | "collection") => {
+    try {
+      const key = getChargeStorageKey(mode);
+      const saved = window.localStorage.getItem(key);
+      const parsed = saved ? JSON.parse(saved) : [];
+      const records = Array.isArray(parsed) ? parsed : [];
+      return records
+        .map((record: BuildingCharge, index: number) => ({
+          ...record,
+          id: record.id || `${record.date || ""}|${record.apartmentNumber || ""}|${record.type || ""}|${record.amount || ""}|${index}`,
+        }))
+        .find((record: BuildingCharge) => record.id === id) || null;
+    } catch {
+      return null;
+    }
+  };
+
+  const viewCharge = (id: string, mode: "charge" | "collection") => {
+    const item = getChargeById(id, mode);
+    if (!item) {
+      window.alert("تعذر العثور على العملية.");
+      return;
+    }
+    window.alert(
+      `النوع: ${item.type || "غير محدد"}\nالمبلغ: ${Number(item.amount || 0).toLocaleString("ar-SA")} ريال\nالتاريخ: ${formatContractDate(item.date)}\nالشقة: ${item.apartmentNumber || "عمارة"}\nالتفاصيل: ${item.notes || "لا توجد تفاصيل"}`
+    );
+  };
+
+  const openChargeForEdit = (id: string, mode: "charge" | "collection") => {
+    const item = getChargeById(id, mode);
+    if (!item) {
+      window.alert("تعذر العثور على العملية للتعديل.");
+      return;
+    }
+    setEditingChargeId(id);
+    setChargeModalMode(mode);
+    setChargeForm({ ...item, amount: String(item.amount || "") });
+    setSelectedChargeApartments(item.apartmentNumber ? [String(item.apartmentNumber)] : []);
+    setRentCollectionMonths(item.rentMonths || 1);
+    setIsChargeModalOpen(true);
+  };
+
+  const deleteChargeById = (id: string, mode: "charge" | "collection") => {
+    if (!window.confirm("هل أنت متأكد من حذف هذه العملية؟ لا يمكن التراجع عن الحذف.")) return;
+    try {
+      const key = getChargeStorageKey(mode);
+      const saved = window.localStorage.getItem(key);
+      const parsed = saved ? JSON.parse(saved) : [];
+      const records = Array.isArray(parsed) ? parsed : [];
+      const next = records.filter((record: BuildingCharge, index: number) => {
+        const recordId = record.id || `${record.date || ""}|${record.apartmentNumber || ""}|${record.type || ""}|${record.amount || ""}|${index}`;
+        return recordId !== id;
+      });
+      window.localStorage.setItem(key, JSON.stringify(next));
+      window.dispatchEvent(new Event("storage"));
+      setIsMonthlyDueReportOpen(false);
+      setIsMonthlyCollectionReportOpen(false);
+      setSelectedApartmentFinancialReport(null);
+    } catch {
+      window.alert("تعذر حذف العملية، حاول مرة أخرى.");
+    }
+  };
+
   const openChargeModal = (
     mode: "charge" | "collection",
     type: string,
     apartmentNumber?: string
   ) => {
+    setEditingChargeId(null);
     setChargeModalMode(mode);
     setChargeForm({
       type,
@@ -2146,7 +2038,13 @@ export default function BuildingDetails() {
         return [];
       }
 
-      const charges = JSON.parse(saved) as BuildingCharge[];
+      const parsed = JSON.parse(saved);
+      const charges = (Array.isArray(parsed) ? parsed : []).map(
+        (charge: BuildingCharge, index: number) => ({
+          ...charge,
+          id: charge.id || `${charge.date || ""}|${charge.apartmentNumber || ""}|${charge.type || ""}|${charge.amount || ""}|${index}`,
+        })
+      );
 
       return charges
         .filter((charge) => {
@@ -2227,6 +2125,8 @@ export default function BuildingDetails() {
             : null;
 
           return {
+            sourceId: charge.id,
+            sourceMode: "charge" as const,
             apartmentNumber: charge.apartmentNumber,
             tenant:
               tenantInfo?.tenantName ||
@@ -2260,6 +2160,8 @@ export default function BuildingDetails() {
             : null;
 
           return {
+            sourceId: charge.id,
+            sourceMode: "charge" as const,
             apartmentNumber: charge.apartmentNumber,
             tenant:
               tenantInfo?.tenantName ||
@@ -2290,6 +2192,8 @@ export default function BuildingDetails() {
         : null;
 
       return {
+        sourceId: charge.id,
+        sourceMode: "charge" as const,
         apartmentNumber: charge.apartmentNumber,
         tenant:
           tenantInfo?.tenantName ||
@@ -2321,7 +2225,12 @@ export default function BuildingDetails() {
       }
 
       const parsed = JSON.parse(saved);
-      const collections = Array.isArray(parsed) ? (parsed as BuildingCharge[]) : [];
+      const collections = (Array.isArray(parsed) ? parsed : []).map(
+        (collection: BuildingCharge, index: number) => ({
+          ...collection,
+          id: collection.id || `${collection.date || ""}|${collection.apartmentNumber || ""}|${collection.type || ""}|${collection.amount || ""}|${index}`,
+        })
+      );
 
       return collections
         .filter((collection) => {
@@ -2389,6 +2298,8 @@ export default function BuildingDetails() {
           : charges.filter((charge) => charge.type?.trim() !== "إيجار");
 
       return filteredCharges.map((charge) => ({
+        sourceId: charge.id,
+        sourceMode: "charge" as const,
         apartmentNumber: charge.apartmentNumber,
         tenant: getTenantForApartment(charge.apartmentNumber),
         date: charge.date,
@@ -2416,6 +2327,8 @@ export default function BuildingDetails() {
           : collections;
 
       return filteredCollections.map((collection) => ({
+        sourceId: collection.id,
+        sourceMode: "collection" as const,
         apartmentNumber: collection.apartmentNumber,
         tenant: getTenantForApartment(collection.apartmentNumber),
         date: collection.date,
@@ -3483,7 +3396,13 @@ export default function BuildingDetails() {
         return [];
       }
 
-      const charges = JSON.parse(saved) as BuildingCharge[];
+      const parsed = JSON.parse(saved);
+      const charges = (Array.isArray(parsed) ? parsed : []).map(
+        (charge: BuildingCharge, index: number) => ({
+          ...charge,
+          id: charge.id || `${charge.date || ""}|${charge.apartmentNumber || ""}|${charge.type || ""}|${charge.amount || ""}|${index}`,
+        })
+      );
       const today = getTodayLocalDateString();
 
       return charges.filter(
@@ -8307,6 +8226,7 @@ export default function BuildingDetails() {
 
                           return {
                             ...chargeForm,
+                            id: editingChargeId || `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
                             amount:
                               chargeForm.type === "إيجار"
                                 ? String(monthlyRent * (rentMonths ?? 1))
@@ -8321,11 +8241,17 @@ export default function BuildingDetails() {
                         }
                       );
 
+                      const updatedCharges = editingChargeId
+                        ? currentCharges.map((entry: BuildingCharge, index: number) => {
+                            const entryId = entry.id || `${entry.date || ""}|${entry.apartmentNumber || ""}|${entry.type || ""}|${entry.amount || ""}|${index}`;
+                            return entryId === editingChargeId ? newCharges[0] : entry;
+                          })
+                        : [...currentCharges, ...newCharges];
+
                       window.localStorage.setItem(
                         storageKey,
-                        JSON.stringify([...currentCharges, ...newCharges])
+                        JSON.stringify(updatedCharges)
                       );
-                      setRemoteSyncVersion((current) => current + 1);
                     } catch {
                       // تجاهل خطأ التخزين المحلي مع إغلاق النموذج.
                     }
@@ -8341,6 +8267,7 @@ export default function BuildingDetails() {
                     setApartmentStatusFilter("");
                     setApartmentSearch("");
                     setRentCollectionMonths(1);
+                    setEditingChargeId(null);
                     setIsChargeModalOpen(false);
                   }}
                   className={`flex h-14 items-center justify-center gap-2 rounded-2xl border px-5 text-base font-black transition sm:text-lg ${
@@ -8870,6 +8797,9 @@ export default function BuildingDetails() {
                             <th className="border-b border-white/10 px-4 py-3 text-center">
                               تفاصيل / ملاحظات
                             </th>
+                            <th className="border-b border-white/10 px-4 py-3 text-center">
+                              الإجراءات
+                            </th>
                           </tr>
                         </thead>
 
@@ -8901,12 +8831,21 @@ export default function BuildingDetails() {
                                 <td className="px-4 py-3 text-center font-semibold leading-6 text-gray-400">
                                   {row.notes}
                                 </td>
+                                <td className="px-4 py-3 text-center">
+                                  {getRowSourceId(row) && getRowSourceMode(row) ? (
+                                    <div className="flex items-center justify-center gap-2">
+                                      <button type="button" onClick={() => viewCharge(getRowSourceId(row)!, getRowSourceMode(row)!)} className="rounded-lg border border-blue-400/30 bg-blue-500/10 px-3 py-1.5 text-xs font-black text-blue-300">عرض</button>
+                                      <button type="button" onClick={() => openChargeForEdit(getRowSourceId(row)!, getRowSourceMode(row)!)} className="rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-1.5 text-xs font-black text-amber-300">تعديل</button>
+                                      <button type="button" onClick={() => deleteChargeById(getRowSourceId(row)!, getRowSourceMode(row)!)} className="rounded-lg border border-red-400/30 bg-red-500/10 px-3 py-1.5 text-xs font-black text-red-300">حذف</button>
+                                    </div>
+                                  ) : <span className="text-xs text-gray-600">غير متاح</span>}
+                                </td>
                               </tr>
                             ))
                           ) : (
                             <tr>
                               <td
-                                colSpan={7}
+                                colSpan={9}
                                 className="px-5 py-16 text-center"
                               >
                                 <Receipt
@@ -9071,6 +9010,9 @@ export default function BuildingDetails() {
                             <th className="border-b border-white/10 px-4 py-3 text-center">
                               تفاصيل / ملاحظات
                             </th>
+                            <th className="border-b border-white/10 px-4 py-3 text-center">
+                              الإجراءات
+                            </th>
                           </tr>
                         </thead>
 
@@ -9118,6 +9060,15 @@ export default function BuildingDetails() {
                                 </td>
                                 <td className="px-4 py-3 text-center font-semibold leading-6 text-gray-400">
                                   {row.notes}
+                                </td>
+                                <td className="px-4 py-3 text-center">
+                                  {getRowSourceId(row) && getRowSourceMode(row) ? (
+                                    <div className="flex items-center justify-center gap-2">
+                                      <button type="button" onClick={() => viewCharge(getRowSourceId(row)!, getRowSourceMode(row)!)} className="rounded-lg border border-blue-400/30 bg-blue-500/10 px-3 py-1.5 text-xs font-black text-blue-300">عرض</button>
+                                      <button type="button" onClick={() => openChargeForEdit(getRowSourceId(row)!, getRowSourceMode(row)!)} className="rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-1.5 text-xs font-black text-amber-300">تعديل</button>
+                                      <button type="button" onClick={() => deleteChargeById(getRowSourceId(row)!, getRowSourceMode(row)!)} className="rounded-lg border border-red-400/30 bg-red-500/10 px-3 py-1.5 text-xs font-black text-red-300">حذف</button>
+                                    </div>
+                                  ) : <span className="text-xs text-gray-600">غير متاح</span>}
                                 </td>
                               </tr>
                             ))
@@ -9250,6 +9201,7 @@ export default function BuildingDetails() {
                             <th className="border-b border-white/10 px-4 py-3 text-center">نوع العملية</th>
                             <th className="border-b border-white/10 px-4 py-3 text-center">المبلغ</th>
                             <th className="border-b border-white/10 px-4 py-3 text-center">التفاصيل</th>
+                            <th className="border-b border-white/10 px-4 py-3 text-center">الإجراءات</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -9261,11 +9213,20 @@ export default function BuildingDetails() {
                                 <td className="px-4 py-3 text-center font-black text-white">{row.type || "غير محدد"}</td>
                                 <td className="px-4 py-3 text-center font-black text-green-300">{(Number(row.amount) || 0).toLocaleString("ar-SA")} ريال</td>
                                 <td className="px-4 py-3 text-center font-semibold text-gray-400">{row.notes || "لا توجد تفاصيل"}</td>
+                                <td className="px-4 py-3 text-center">
+                                  {getRowSourceId(row) && getRowSourceMode(row) ? (
+                                    <div className="flex items-center justify-center gap-2">
+                                      <button type="button" onClick={() => viewCharge(getRowSourceId(row)!, getRowSourceMode(row)!)} className="rounded-lg border border-blue-400/30 bg-blue-500/10 px-3 py-1.5 text-xs font-black text-blue-300">عرض</button>
+                                      <button type="button" onClick={() => openChargeForEdit(getRowSourceId(row)!, getRowSourceMode(row)!)} className="rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-1.5 text-xs font-black text-amber-300">تعديل</button>
+                                      <button type="button" onClick={() => deleteChargeById(getRowSourceId(row)!, getRowSourceMode(row)!)} className="rounded-lg border border-red-400/30 bg-red-500/10 px-3 py-1.5 text-xs font-black text-red-300">حذف</button>
+                                    </div>
+                                  ) : <span className="text-xs text-gray-600">غير متاح</span>}
+                                </td>
                               </tr>
                             ))
                           ) : (
                             <tr>
-                              <td colSpan={5} className="px-5 py-14 text-center text-gray-500">لا توجد بيانات خلال الفترة المحددة.</td>
+                              <td colSpan={6} className="px-5 py-14 text-center text-gray-500">لا توجد بيانات خلال الفترة المحددة.</td>
                             </tr>
                           )}
                         </tbody>
