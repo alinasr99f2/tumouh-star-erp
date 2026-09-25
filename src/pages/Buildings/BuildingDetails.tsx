@@ -593,7 +593,7 @@ export default function BuildingDetails() {
       return;
     }
 
-    const persistBuildingState = async () => {
+    const timeoutId = window.setTimeout(async () => {
       const buildingId = getCurrentBuildingId();
 
       if (!buildingId) {
@@ -619,9 +619,11 @@ export default function BuildingDetails() {
       if (error) {
         console.error("خطأ في الحفظ التلقائي لبيانات العمارة:", error);
       }
-    };
+    }, 400);
 
-    void persistBuildingState();
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
   }, [
     apartments,
     apartmentTypes,
