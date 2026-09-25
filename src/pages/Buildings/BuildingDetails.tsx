@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { supabase } from "../../utils/supabase";
 import {
   X,
@@ -78,17 +78,6 @@ type BuildingCharge = {
   notes: string;
   apartmentNumber?: string;
   rentMonths?: number;
-};
-
-type ReportRow = {
-  date: string;
-  apartmentNumber?: string;
-  type: string;
-  amount: number | string;
-  notes: string;
-  transactionType?: string;
-  sourceMode?: unknown;
-  tenant?: string;
 };
 
 const DEFAULT_APARTMENT_EXTRA_INFO: ApartmentExtraInfo = {
@@ -379,6 +368,7 @@ export default function BuildingDetails() {
   const [toDate, setToDate] = useState("2026-09-30");
 
   const [isChargeModalOpen, setIsChargeModalOpen] = useState(false);
+  const [editingChargeKey, setEditingChargeKey] = useState<string | null>(null);
   const [chargeModalMode, setChargeModalMode] = useState<"charge" | "collection">("charge");
   const [chargeForm, setChargeForm] = useState<BuildingCharge>({
     type: "إيجار",
@@ -386,9 +376,6 @@ export default function BuildingDetails() {
     date: new Date().toISOString().slice(0, 10),
     notes: "",
   });
-
-  const [editingChargeSignature, setEditingChargeSignature] = useState<string | null>(null);
-  const [, setReportRefreshKey] = useState(0);
 
   const [selectedChargeApartments, setSelectedChargeApartments] =
     useState<string[]>([]);
@@ -1209,16 +1196,6 @@ export default function BuildingDetails() {
     }));
 
     setSelectedApartment(updatedApartment);
-
-    // مزامنة تغيير حالة الشقة مباشرة مع Supabase، بدون اشتراط اسم المستأجر.
-    void saveBuildingStateToSupabase({
-      apartments: apartments.map((item) =>
-        item.number === apartment.number ? updatedApartment : item
-      ),
-    }).catch((error) => {
-      console.error("تعذر مزامنة حالة الشقة مع Supabase:", error);
-      window.alert("تم حفظ الحالة محليًا، لكن تعذر مزامنتها مع قاعدة البيانات. تحقق من اتصال Supabase.");
-    });
   };
 
   const openApartment = (
@@ -1564,113 +1541,6 @@ export default function BuildingDetails() {
     });
   };
 
-  const getCurrentBuildingId = () => {
-    const buildingIdMatch = window.location.pathname.match(/\/buildings\/(\d+)/);
-    return buildingIdMatch ? Number(buildingIdMatch[1]) : null;
-  };
-
-  const readStoredCharges = (key: string): BuildingCharge[] => {
-    try {
-      const saved = window.localStorage.getItem(key);
-      const parsed = saved ? JSON.parse(saved) : [];
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  };
-
-  const getChargeSignature = (charge: Partial<BuildingCharge>) =>
-    [
-      charge.date || "",
-      charge.apartmentNumber || "",
-      charge.type || "",
-      String(charge.amount ?? ""),
-      charge.notes || "",
-    ].join("|");
-
-  const saveBuildingStateToSupabase = async (
-    overrides: Partial<{
-      apartments: Apartment[];
-      apartmentTypes: Record<string, string>;
-      customApartmentTypes: string[];
-      customApartmentStatuses: string[];
-      apartmentTypeRents: Record<string, number>;
-      apartmentExtraInfo: Record<string, ApartmentExtraInfo>;
-      apartmentTenantInfo: Record<string, ApartmentTenantInfo>;
-      apartmentContractInfo: Record<string, ApartmentContractInfo>;
-      buildingCharges: BuildingCharge[];
-      buildingCollections: BuildingCharge[];
-    }> = {}
-  ) => {
-    const buildingId = getCurrentBuildingId();
-    if (!buildingId) {
-      throw new Error("لم يتم التعرف على رقم العمارة من الرابط.");
-    }
-
-    const payload = {
-      building_id: buildingId,
-      apartments: overrides.apartments ?? apartments,
-      apartment_types: overrides.apartmentTypes ?? apartmentTypes,
-      custom_apartment_types: overrides.customApartmentTypes ?? customApartmentTypes,
-      custom_apartment_statuses: overrides.customApartmentStatuses ?? customApartmentStatuses,
-      apartment_type_rents: overrides.apartmentTypeRents ?? apartmentTypeRents,
-      apartment_extra_info: overrides.apartmentExtraInfo ?? apartmentExtraInfo,
-      apartment_tenant_info: overrides.apartmentTenantInfo ?? apartmentTenantInfo,
-      apartment_contract_info: overrides.apartmentContractInfo ?? apartmentContractInfo,
-      building_charges: overrides.buildingCharges ?? readStoredCharges("tumouh_star_building_charges"),
-      building_collections: overrides.buildingCollections ?? readStoredCharges("tumouh_star_building_collections"),
-      updated_at: new Date().toISOString(),
-    };
-
-    const { error } = await supabase
-      .from("building_state")
-      .upsert(payload, { onConflict: "building_id" });
-
-    if (error) {
-      throw error;
-    }
-  };
-
-  const loadBuildingStateFromSupabase = async () => {
-    const buildingId = getCurrentBuildingId();
-    if (!buildingId) return;
-
-    const { data, error } = await supabase
-      .from("building_state")
-      .select("*")
-      .eq("building_id", buildingId)
-      .maybeSingle();
-
-    if (error || !data) return;
-
-    const remoteApartments = Array.isArray(data.apartments) ? data.apartments : null;
-    const remoteApartmentTypes = data.apartment_types && typeof data.apartment_types === "object" ? data.apartment_types : null;
-    const remoteCustomTypes = Array.isArray(data.custom_apartment_types) ? data.custom_apartment_types : null;
-    const remoteCustomStatuses = Array.isArray(data.custom_apartment_statuses) ? data.custom_apartment_statuses : null;
-    const remoteTypeRents = data.apartment_type_rents && typeof data.apartment_type_rents === "object" ? data.apartment_type_rents : null;
-    const remoteExtraInfo = data.apartment_extra_info && typeof data.apartment_extra_info === "object" ? data.apartment_extra_info : null;
-    const remoteTenantInfo = data.apartment_tenant_info && typeof data.apartment_tenant_info === "object" ? data.apartment_tenant_info : null;
-    const remoteContractInfo = data.apartment_contract_info && typeof data.apartment_contract_info === "object" ? data.apartment_contract_info : null;
-    const remoteCharges = Array.isArray(data.building_charges) ? data.building_charges : null;
-    const remoteCollections = Array.isArray(data.building_collections) ? data.building_collections : null;
-
-    if (remoteApartments) {
-      const normalized = remoteApartments.map((item: Apartment) => ({ ...item, number: String(item.number) }));
-      setApartments(normalized);
-      window.localStorage.setItem("tumouh_star_building_apartments", JSON.stringify(normalized));
-    }
-    if (remoteApartmentTypes) { setApartmentTypes(remoteApartmentTypes); window.localStorage.setItem("tumouh_star_apartment_types", JSON.stringify(remoteApartmentTypes)); }
-    if (remoteCustomTypes) { setCustomApartmentTypes(remoteCustomTypes); window.localStorage.setItem("tumouh_star_custom_apartment_types", JSON.stringify(remoteCustomTypes)); }
-    if (remoteCustomStatuses) { setCustomApartmentStatuses(remoteCustomStatuses); window.localStorage.setItem("tumouh_star_custom_apartment_statuses", JSON.stringify(remoteCustomStatuses)); }
-    if (remoteTypeRents) { setApartmentTypeRents(remoteTypeRents); window.localStorage.setItem("tumouh_star_apartment_type_rents", JSON.stringify(remoteTypeRents)); }
-    if (remoteExtraInfo) { setApartmentExtraInfo(remoteExtraInfo); window.localStorage.setItem("tumouh_star_apartment_extra_info", JSON.stringify(remoteExtraInfo)); }
-    if (remoteTenantInfo) { setApartmentTenantInfo(remoteTenantInfo); window.localStorage.setItem("tumouh_star_apartment_tenant_info", JSON.stringify(remoteTenantInfo)); }
-    if (remoteContractInfo) { setApartmentContractInfo(remoteContractInfo); window.localStorage.setItem("tumouh_star_apartment_contract_info", JSON.stringify(remoteContractInfo)); }
-    if (remoteCharges) { window.localStorage.setItem("tumouh_star_building_charges", JSON.stringify(remoteCharges)); }
-    if (remoteCollections) { window.localStorage.setItem("tumouh_star_building_collections", JSON.stringify(remoteCollections)); }
-    setReportRefreshKey((value) => value + 1);
-  };
-
   const saveTenantDataToSupabase = async (apartment: Apartment) => {
     const tenantInfo = getApartmentTenantInfo(apartment);
     const contractInfo = getApartmentContractInfo(apartment.number);
@@ -1685,10 +1555,8 @@ export default function BuildingDetails() {
     const phone = tenantInfo.phone.trim();
     const identityNumber = tenantInfo.identityNumber.trim();
 
-    // اسم المستأجر اختياري؛ حفظ حالة الشقة لا يتوقف عليه.
-    // إذا لم يوجد اسم، نحفظ بيانات الشقة في building_state فقط.
     if (!fullName) {
-      return;
+      throw new Error("اكتب اسم المستأجر أولًا.");
     }
 
     /*
@@ -1799,10 +1667,6 @@ export default function BuildingDetails() {
     }
   };
 
-  useEffect(() => {
-    void loadBuildingStateFromSupabase();
-  }, []);
-
   const saveApartmentDetails = async () => {
     if (!selectedApartment) {
       return;
@@ -1849,19 +1713,11 @@ export default function BuildingDetails() {
     setApartments(updatedApartments);
 
     try {
-      // حفظ بيانات الشقة بالكامل في building_state، واسم المستأجر اختياري.
-      await saveTenantDataToSupabase({ ...selectedApartment, ...updatedApartments.find((item) => item.number === selectedApartment.number) });
-      await saveBuildingStateToSupabase({
-        apartments: updatedApartments,
-        apartmentTenantInfo,
-        apartmentTypes,
-        apartmentExtraInfo,
-        apartmentContractInfo,
-      });
-      window.alert("تم حفظ بيانات الشقة في قاعدة البيانات بنجاح.");
+      await saveTenantDataToSupabase(selectedApartment);
+      window.alert("تم حفظ بيانات المستأجر في قاعدة البيانات بنجاح.");
       closeApartment();
     } catch (error) {
-      console.error("خطأ في حفظ بيانات الشقة في Supabase:", error);
+      console.error("خطأ في حفظ بيانات المستأجر في Supabase:", error);
       const message =
         error instanceof Error
           ? error.message
@@ -1873,12 +1729,108 @@ export default function BuildingDetails() {
     }
   };
 
+  const getChargeRecordKey = (charge: Partial<BuildingCharge>, transactionType?: string) =>
+    [
+      transactionType || "",
+      charge.date || "",
+      charge.apartmentNumber || "",
+      charge.type || "",
+      String(charge.amount ?? ""),
+      charge.notes || "",
+    ].join("|");
+
+  const findStoredChargeByKey = (mode: "charge" | "collection", key: string) => {
+    const storageKey =
+      mode === "collection"
+        ? "tumouh_star_building_collections"
+        : "tumouh_star_building_charges";
+
+    try {
+      const saved = window.localStorage.getItem(storageKey);
+      const records = saved ? (JSON.parse(saved) as BuildingCharge[]) : [];
+      const index = records.findIndex((record) =>
+        getChargeRecordKey(record, mode === "collection" ? "تحصيل" : "مستحق") === key
+      );
+      return { storageKey, records, index };
+    } catch {
+      return { storageKey, records: [] as BuildingCharge[], index: -1 };
+    }
+  };
+
+  const openChargeForReportRow = (row: {
+    sourceMode?: "charge" | "collection";
+    sourceKey?: string;
+    date: string;
+    type: string;
+    amount: number;
+    notes: string;
+    apartmentNumber?: string;
+  }) => {
+    if (!row.sourceMode || !row.sourceKey) {
+      window.alert("هذه العملية محسوبة تلقائيًا وليست سجلًا محفوظًا يمكن تعديله.");
+      return;
+    }
+
+    const { records, index } = findStoredChargeByKey(row.sourceMode, row.sourceKey);
+    if (index < 0) {
+      window.alert("تعذر العثور على العملية المحفوظة. حدّث الصفحة وحاول مرة أخرى.");
+      return;
+    }
+
+    const record = records[index];
+    setEditingChargeKey(row.sourceKey);
+    setChargeModalMode(row.sourceMode);
+    setChargeForm({
+      type: record.type || row.type || "إيجار",
+      amount: String(record.amount ?? row.amount ?? ""),
+      date: record.date || row.date,
+      notes: record.notes || row.notes || "",
+    });
+    setSelectedChargeApartments(record.apartmentNumber ? [String(record.apartmentNumber)] : []);
+    setRentCollectionMonths(record.rentMonths || 1);
+    setApartmentTypeFilter("");
+    setApartmentStatusFilter("");
+    setApartmentSearch("");
+    setIsChargeModalOpen(true);
+  };
+
+  const deleteChargeForReportRow = (row: {
+    sourceMode?: "charge" | "collection";
+    sourceKey?: string;
+    date: string;
+    type: string;
+    amount: number;
+    notes: string;
+    apartmentNumber?: string;
+  }) => {
+    if (!row.sourceMode || !row.sourceKey) {
+      window.alert("هذه العملية محسوبة تلقائيًا ولا يوجد سجل مستقل لحذفه.");
+      return;
+    }
+
+    if (!window.confirm("هل أنت متأكد من حذف هذه العملية؟ لا يمكن التراجع عن الحذف.")) {
+      return;
+    }
+
+    const { storageKey, records, index } = findStoredChargeByKey(row.sourceMode, row.sourceKey);
+    if (index < 0) {
+      window.alert("تعذر العثور على العملية المحفوظة.");
+      return;
+    }
+
+    const updated = records.filter((_, recordIndex) => recordIndex !== index);
+    window.localStorage.setItem(storageKey, JSON.stringify(updated));
+    window.dispatchEvent(new Event("storage"));
+    setIsChargeModalOpen(false);
+    window.alert("تم حذف العملية بنجاح.");
+  };
+
   const openChargeModal = (
     mode: "charge" | "collection",
     type: string,
     apartmentNumber?: string
   ) => {
-    setEditingChargeSignature(null);
+    setEditingChargeKey(null);
     setChargeModalMode(mode);
     setChargeForm({
       type,
@@ -2097,73 +2049,6 @@ export default function BuildingDetails() {
     setApartmentReportType(null);
   };
 
-  const findStoredCharge = (row: ReportRow, mode: "charge" | "collection") => {
-    const key = mode === "collection"
-      ? "tumouh_star_building_collections"
-      : "tumouh_star_building_charges";
-    const items = readStoredCharges(key);
-    return items.find((item) =>
-      getChargeSignature(item) === getChargeSignature({
-        date: row.date,
-        apartmentNumber: row.apartmentNumber,
-        type: row.type,
-        amount: String(row.amount),
-        notes: row.notes,
-      })
-    );
-  };
-
-  const openChargeForReportRow = (row: ReportRow) => {
-    const mode = row.transactionType === "تحصيل" ? "collection" : "charge";
-    const item = findStoredCharge(row, mode);
-    if (!item) {
-      window.alert("هذه العملية تلقائية أو غير موجودة في السجل القابل للتعديل.");
-      return;
-    }
-
-    setEditingChargeSignature(getChargeSignature(item));
-    setChargeModalMode(mode);
-    setChargeForm({
-      ...item,
-      amount: String(item.amount ?? ""),
-      date: item.date || getTodayLocalDateString(),
-      notes: item.notes || "",
-    });
-    setSelectedChargeApartments(item.apartmentNumber ? [String(item.apartmentNumber)] : []);
-    setRentCollectionMonths(item.rentMonths || 1);
-    setIsChargeModalOpen(true);
-  };
-
-  const deleteChargeForReportRow = async (row: ReportRow) => {
-    const mode = row.transactionType === "تحصيل" ? "collection" : "charge";
-    const key = mode === "collection"
-      ? "tumouh_star_building_collections"
-      : "tumouh_star_building_charges";
-    const items = readStoredCharges(key);
-    const target = findStoredCharge(row, mode);
-    if (!target) {
-      window.alert("هذه العملية تلقائية أو غير موجودة في السجل القابل للحذف.");
-      return;
-    }
-    if (!window.confirm("هل أنت متأكد من حذف هذه العملية؟ لا يمكن التراجع عن الحذف.")) return;
-
-    const targetSignature = getChargeSignature(target);
-    const next = items.filter((item) => getChargeSignature(item) !== targetSignature);
-    window.localStorage.setItem(key, JSON.stringify(next));
-    setReportRefreshKey((value) => value + 1);
-
-    try {
-      await saveBuildingStateToSupabase(
-        mode === "collection"
-          ? { buildingCollections: next }
-          : { buildingCharges: next }
-      );
-    } catch (error) {
-      console.error("تعذر مزامنة حذف العملية مع Supabase:", error);
-      window.alert("تم الحذف محليًا، لكن تعذر مزامنته مع قاعدة البيانات.");
-    }
-  };
-
   const getBuildingChargesForPeriod = (): BuildingCharge[] => {
     try {
       const saved = window.localStorage.getItem(
@@ -2264,7 +2149,6 @@ export default function BuildingDetails() {
             type: charge.type || "فاتورة كهرباء",
             amount: Number(charge.amount) || 0,
             notes: charge.notes || "لا توجد تفاصيل",
-            sourceMode: "charge",
           };
         });
 
@@ -2328,7 +2212,6 @@ export default function BuildingDetails() {
         type: charge.type || "غير محدد",
         amount: Number(charge.amount) || 0,
         notes: charge.notes || "لا توجد تفاصيل",
-        sourceMode: "charge",
       };
     });
 
@@ -2409,6 +2292,7 @@ export default function BuildingDetails() {
           amount: row.amount,
           notes: row.notes,
           sourceMode: undefined,
+          sourceKey: undefined,
         }));
       }
 
@@ -2427,7 +2311,8 @@ export default function BuildingDetails() {
         transactionType: "مستحق",
         amount: Number(charge.amount) || 0,
         notes: charge.notes || "لا توجد تفاصيل",
-        sourceMode: "charge",
+        sourceMode: "charge" as const,
+        sourceKey: getChargeRecordKey(charge, "مستحق"),
       }));
     };
 
@@ -2455,7 +2340,8 @@ export default function BuildingDetails() {
         transactionType: "تحصيل",
         amount: Number(collection.amount) || 0,
         notes: collection.notes || "لا توجد تفاصيل",
-        sourceMode: "collection",
+        sourceMode: "collection" as const,
+        sourceKey: getChargeRecordKey(collection, "تحصيل"),
       }));
     };
 
@@ -8275,7 +8161,7 @@ export default function BuildingDetails() {
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <button
                   type="button"
-                  onClick={async () => {
+                  onClick={() => {
                     if (selectedChargeApartments.length === 0) {
                       window.alert("من فضلك اختر شقة واحدة على الأقل");
                       return;
@@ -8354,36 +8240,23 @@ export default function BuildingDetails() {
                         }
                       );
 
-                      const createdCharges = newCharges.map((item) => ({
-                        ...item,
-                        id: item.id || `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-                      }));
-
-                      const nextCharges = editingChargeSignature
-                        ? currentCharges.map((item) =>
-                            getChargeSignature(item) === editingChargeSignature
-                              ? { ...createdCharges[0], id: item.id || createdCharges[0].id }
-                              : item
+                      const chargesToSave = editingChargeKey
+                        ? currentCharges.map((record) =>
+                            getChargeRecordKey(
+                              record,
+                              chargeModalMode === "collection" ? "تحصيل" : "مستحق"
+                            ) === editingChargeKey
+                              ? { ...newCharges[0], id: record.id || `${Date.now()}` }
+                              : record
                           )
-                        : [...currentCharges, ...createdCharges];
+                        : [...currentCharges, ...newCharges.map((record) => ({
+                            ...record,
+                            id: record.id || `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+                          }))];
 
-                      window.localStorage.setItem(storageKey, JSON.stringify(nextCharges));
-
-                      const otherCharges = readStoredCharges(
-                        chargeModalMode === "collection"
-                          ? "tumouh_star_building_charges"
-                          : "tumouh_star_building_collections"
-                      );
-
-                      await saveBuildingStateToSupabase(
-                        chargeModalMode === "collection"
-                          ? { buildingCollections: nextCharges, buildingCharges: otherCharges }
-                          : { buildingCharges: nextCharges, buildingCollections: otherCharges }
-                      );
-                      setReportRefreshKey((value) => value + 1);
-                    } catch (error) {
-                      console.error("خطأ في حفظ العملية ومزامنتها:", error);
-                      window.alert("تم حفظ العملية محليًا، لكن تعذر حفظها في قاعدة البيانات. تحقق من اتصال Supabase.");
+                      window.localStorage.setItem(storageKey, JSON.stringify(chargesToSave));
+                    } catch {
+                      // تجاهل خطأ التخزين المحلي مع إغلاق النموذج.
                     }
 
                     setChargeForm({
@@ -8397,7 +8270,7 @@ export default function BuildingDetails() {
                     setApartmentStatusFilter("");
                     setApartmentSearch("");
                     setRentCollectionMonths(1);
-                    setEditingChargeSignature(null);
+                    setEditingChargeKey(null);
                     setIsChargeModalOpen(false);
                   }}
                   className={`flex h-14 items-center justify-center gap-2 rounded-2xl border px-5 text-base font-black transition sm:text-lg ${
@@ -8927,9 +8800,6 @@ export default function BuildingDetails() {
                             <th className="border-b border-white/10 px-4 py-3 text-center">
                               تفاصيل / ملاحظات
                             </th>
-                            <th className="border-b border-white/10 px-4 py-3 text-center">
-                              الإجراءات
-                            </th>
                           </tr>
                         </thead>
 
@@ -8961,21 +8831,12 @@ export default function BuildingDetails() {
                                 <td className="px-4 py-3 text-center font-semibold leading-6 text-gray-400">
                                   {row.notes}
                                 </td>
-                                <td className="px-4 py-3 text-center">
-                                  {("sourceMode" in row && row.sourceMode) ? (
-                                    <div className="flex items-center justify-center gap-1">
-                                      <button type="button" onClick={() => window.alert(`التفاصيل: ${row.notes || "لا توجد تفاصيل"}`)} className="rounded-lg border border-blue-400/30 bg-blue-500/10 px-2 py-1 text-xs font-black text-blue-300">عرض</button>
-                                      <button type="button" onClick={() => openChargeForReportRow(row)} className="rounded-lg border border-amber-400/30 bg-amber-500/10 px-2 py-1 text-xs font-black text-amber-300">تعديل</button>
-                                      <button type="button" onClick={() => void deleteChargeForReportRow(row)} className="rounded-lg border border-red-400/30 bg-red-500/10 px-2 py-1 text-xs font-black text-red-300">حذف</button>
-                                    </div>
-                                  ) : <span className="text-xs text-gray-600">تلقائي</span>}
-                                </td>
                               </tr>
                             ))
                           ) : (
                             <tr>
                               <td
-                                colSpan={8}
+                                colSpan={7}
                                 className="px-5 py-16 text-center"
                               >
                                 <Receipt
@@ -9192,13 +9053,33 @@ export default function BuildingDetails() {
                                   {row.notes}
                                 </td>
                                 <td className="px-4 py-3 text-center">
-                                  {("sourceMode" in row && row.sourceMode) ? (
-                                    <div className="flex items-center justify-center gap-1">
-                                      <button type="button" onClick={() => window.alert(`التفاصيل: ${row.notes || "لا توجد تفاصيل"}`)} className="rounded-lg border border-blue-400/30 bg-blue-500/10 px-2 py-1 text-xs font-black text-blue-300">عرض</button>
-                                      <button type="button" onClick={() => openChargeForReportRow(row)} className="rounded-lg border border-amber-400/30 bg-amber-500/10 px-2 py-1 text-xs font-black text-amber-300">تعديل</button>
-                                      <button type="button" onClick={() => void deleteChargeForReportRow(row)} className="rounded-lg border border-red-400/30 bg-red-500/10 px-2 py-1 text-xs font-black text-red-300">حذف</button>
-                                    </div>
-                                  ) : <span className="text-xs text-gray-600">تلقائي</span>}
+                                  <div className="flex items-center justify-center gap-1.5">
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        row.sourceMode && row.sourceKey
+                                          ? window.alert(row.notes || "لا توجد تفاصيل إضافية")
+                                          : window.alert("هذه العملية محسوبة تلقائيًا ولا يوجد سجل مستقل لها.")
+                                      }
+                                      className="rounded-lg border border-blue-400/30 bg-blue-500/10 px-2.5 py-1.5 text-xs font-black text-blue-300 transition hover:bg-blue-500/20"
+                                    >
+                                      عرض
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => openChargeForReportRow(row)}
+                                      className="rounded-lg border border-amber-400/30 bg-amber-500/10 px-2.5 py-1.5 text-xs font-black text-amber-300 transition hover:bg-amber-500/20"
+                                    >
+                                      تعديل
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => deleteChargeForReportRow(row)}
+                                      className="rounded-lg border border-red-400/30 bg-red-500/10 px-2.5 py-1.5 text-xs font-black text-red-300 transition hover:bg-red-500/20"
+                                    >
+                                      حذف
+                                    </button>
+                                  </div>
                                 </td>
                               </tr>
                             ))
@@ -9331,7 +9212,6 @@ export default function BuildingDetails() {
                             <th className="border-b border-white/10 px-4 py-3 text-center">نوع العملية</th>
                             <th className="border-b border-white/10 px-4 py-3 text-center">المبلغ</th>
                             <th className="border-b border-white/10 px-4 py-3 text-center">التفاصيل</th>
-                            <th className="border-b border-white/10 px-4 py-3 text-center">الإجراءات</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -9343,13 +9223,6 @@ export default function BuildingDetails() {
                                 <td className="px-4 py-3 text-center font-black text-white">{row.type || "غير محدد"}</td>
                                 <td className="px-4 py-3 text-center font-black text-green-300">{(Number(row.amount) || 0).toLocaleString("ar-SA")} ريال</td>
                                 <td className="px-4 py-3 text-center font-semibold text-gray-400">{row.notes || "لا توجد تفاصيل"}</td>
-                                <td className="px-4 py-3 text-center">
-                                  <div className="flex items-center justify-center gap-1">
-                                    <button type="button" onClick={() => window.alert(`التفاصيل: ${row.notes || "لا توجد تفاصيل"}`)} className="rounded-lg border border-blue-400/30 bg-blue-500/10 px-2 py-1 text-xs font-black text-blue-300">عرض</button>
-                                    <button type="button" onClick={() => openChargeForReportRow({ ...row, transactionType: "تحصيل" })} className="rounded-lg border border-amber-400/30 bg-amber-500/10 px-2 py-1 text-xs font-black text-amber-300">تعديل</button>
-                                    <button type="button" onClick={() => void deleteChargeForReportRow({ ...row, transactionType: "تحصيل" })} className="rounded-lg border border-red-400/30 bg-red-500/10 px-2 py-1 text-xs font-black text-red-300">حذف</button>
-                                  </div>
-                                </td>
                               </tr>
                             ))
                           ) : (
