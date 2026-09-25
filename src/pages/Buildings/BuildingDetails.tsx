@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "../../utils/supabase";
 import {
   X,
@@ -483,6 +483,192 @@ export default function BuildingDetails() {
       return createDefaultApartments();
     }
   });
+
+
+  // مزامنة بيانات العمارة مع Supabase بدل الاعتماد على localStorage فقط.
+  const remoteStateHydratedRef = useRef(false);
+  const [remoteSyncVersion, setRemoteSyncVersion] = useState(0);
+
+  const getCurrentBuildingId = () => {
+    const match = window.location.pathname.match(/\/buildings\/(\d+)/);
+    return match ? Number(match[1]) : null;
+  };
+
+  const readBuildingChargesFromStorage = (key: string): BuildingCharge[] => {
+    try {
+      const saved = window.localStorage.getItem(key);
+      return saved ? (JSON.parse(saved) as BuildingCharge[]) : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const persistBuildingStateToSupabase = async (
+    apartmentsOverride?: Apartment[]
+  ) => {
+    const buildingId = getCurrentBuildingId();
+    if (!buildingId) return;
+
+    const { error } = await supabase.from("building_state").upsert(
+      {
+        building_id: buildingId,
+        apartments: apartmentsOverride ?? apartments,
+        apartment_types: apartmentTypes,
+        custom_apartment_types: customApartmentTypes,
+        custom_apartment_statuses: customApartmentStatuses,
+        apartment_type_rents: apartmentTypeRents,
+        apartment_extra_info: apartmentExtraInfo,
+        apartment_tenant_info: apartmentTenantInfo,
+        apartment_contract_info: apartmentContractInfo,
+        building_charges: readBuildingChargesFromStorage(
+          "tumouh_star_building_charges"
+        ),
+        building_collections: readBuildingChargesFromStorage(
+          "tumouh_star_building_collections"
+        ),
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "building_id" }
+    );
+
+    if (error) throw error;
+  };
+
+  // تحميل آخر نسخة محفوظة على Supabase عند فتح العمارة على أي جهاز.
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadBuildingStateFromSupabase = async () => {
+      const buildingId = getCurrentBuildingId();
+      if (!buildingId) {
+        remoteStateHydratedRef.current = true;
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("building_state")
+        .select(
+          "apartments, apartment_types, custom_apartment_types, custom_apartment_statuses, apartment_type_rents, apartment_extra_info, apartment_tenant_info, apartment_contract_info, building_charges, building_collections"
+        )
+        .eq("building_id", buildingId)
+        .maybeSingle();
+
+      if (cancelled) return;
+
+      if (error) {
+        console.error("تعذر تحميل بيانات العمارة من Supabase:", error);
+      } else if (data) {
+        if (Array.isArray(data.apartments)) {
+          const normalizedApartments = (data.apartments as Apartment[]).map(
+            (apartment) => ({ ...apartment, number: String(apartment.number) })
+          );
+          setApartments(normalizedApartments);
+          window.localStorage.setItem(
+            "tumouh_star_building_apartments",
+            JSON.stringify(normalizedApartments)
+          );
+        }
+
+        if (data.apartment_types && typeof data.apartment_types === "object") {
+          setApartmentTypes(data.apartment_types as Record<string, string>);
+          window.localStorage.setItem(
+            "tumouh_star_apartment_types",
+            JSON.stringify(data.apartment_types)
+          );
+        }
+
+        if (Array.isArray(data.custom_apartment_types)) {
+          setCustomApartmentTypes(data.custom_apartment_types as string[]);
+          window.localStorage.setItem(
+            "tumouh_star_custom_apartment_types",
+            JSON.stringify(data.custom_apartment_types)
+          );
+        }
+
+        if (Array.isArray(data.custom_apartment_statuses)) {
+          setCustomApartmentStatuses(data.custom_apartment_statuses as string[]);
+          window.localStorage.setItem(
+            "tumouh_star_custom_apartment_statuses",
+            JSON.stringify(data.custom_apartment_statuses)
+          );
+        }
+
+        if (data.apartment_type_rents && typeof data.apartment_type_rents === "object") {
+          setApartmentTypeRents(data.apartment_type_rents as Record<string, number>);
+          window.localStorage.setItem(
+            "tumouh_star_apartment_type_rents",
+            JSON.stringify(data.apartment_type_rents)
+          );
+        }
+
+        if (data.apartment_extra_info && typeof data.apartment_extra_info === "object") {
+          setApartmentExtraInfo(data.apartment_extra_info as Record<string, ApartmentExtraInfo>);
+          window.localStorage.setItem(
+            "tumouh_star_apartment_extra_info",
+            JSON.stringify(data.apartment_extra_info)
+          );
+        }
+
+        if (data.apartment_tenant_info && typeof data.apartment_tenant_info === "object") {
+          setApartmentTenantInfo(data.apartment_tenant_info as Record<string, ApartmentTenantInfo>);
+          window.localStorage.setItem(
+            "tumouh_star_apartment_tenant_info",
+            JSON.stringify(data.apartment_tenant_info)
+          );
+        }
+
+        if (data.apartment_contract_info && typeof data.apartment_contract_info === "object") {
+          setApartmentContractInfo(data.apartment_contract_info as Record<string, ApartmentContractInfo>);
+          window.localStorage.setItem(
+            "tumouh_star_apartment_contract_info",
+            JSON.stringify(data.apartment_contract_info)
+          );
+        }
+
+        if (Array.isArray(data.building_charges)) {
+          window.localStorage.setItem(
+            "tumouh_star_building_charges",
+            JSON.stringify(data.building_charges)
+          );
+        }
+
+        if (Array.isArray(data.building_collections)) {
+          window.localStorage.setItem(
+            "tumouh_star_building_collections",
+            JSON.stringify(data.building_collections)
+          );
+        }
+      }
+
+      remoteStateHydratedRef.current = true;
+      setRemoteSyncVersion((current) => current + 1);
+    };
+
+    void loadBuildingStateFromSupabase();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // إرسال أي تغيير محلي إلى Supabase بعد انتهاء تحميل النسخة البعيدة.
+  useEffect(() => {
+    if (!remoteStateHydratedRef.current) return;
+
+    void persistBuildingStateToSupabase().catch((error) => {
+      console.error("تعذر مزامنة بيانات العمارة مع Supabase:", error);
+    });
+  }, [
+    apartments,
+    apartmentTypes,
+    customApartmentTypes,
+    customApartmentStatuses,
+    apartmentTypeRents,
+    apartmentExtraInfo,
+    apartmentTenantInfo,
+    apartmentContractInfo,
+    remoteSyncVersion,
+  ]);
 
   const addApartment = () => {
     setApartments((current) => {
@@ -1553,8 +1739,6 @@ export default function BuildingDetails() {
     const phone = tenantInfo.phone.trim();
     const identityNumber = tenantInfo.identityNumber.trim();
 
-    // اسم المستأجر اختياري عند حفظ حالة الشقة أو بياناتها.
-    // إذا لم يوجد اسم، نحفظ البيانات المحلية فقط بدون إيقاف عملية الحفظ.
     if (!fullName) {
       return;
     }
@@ -1713,15 +1897,8 @@ export default function BuildingDetails() {
     setApartments(updatedApartments);
 
     try {
-      const selectedTenantInfo = getApartmentTenantInfo(selectedApartment);
-      const hasTenantName = selectedTenantInfo.tenantName.trim().length > 0;
-
       await saveTenantDataToSupabase(selectedApartment);
-      window.alert(
-        hasTenantName
-          ? "تم حفظ بيانات الشقة والمستأجر في قاعدة البيانات بنجاح."
-          : "تم حفظ بيانات الشقة بنجاح. يمكنك إضافة اسم المستأجر لاحقًا."
-      );
+      window.alert("تم حفظ بيانات المستأجر في قاعدة البيانات بنجاح.");
       closeApartment();
     } catch (error) {
       console.error("خطأ في حفظ بيانات المستأجر في Supabase:", error);
@@ -8148,6 +8325,7 @@ export default function BuildingDetails() {
                         storageKey,
                         JSON.stringify([...currentCharges, ...newCharges])
                       );
+                      setRemoteSyncVersion((current) => current + 1);
                     } catch {
                       // تجاهل خطأ التخزين المحلي مع إغلاق النموذج.
                     }
