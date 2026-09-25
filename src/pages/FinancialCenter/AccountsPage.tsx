@@ -176,7 +176,7 @@ export default function AccountsPage({
 
       {/* ================= Header ================= */}
 
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-col items-stretch justify-between gap-4 sm:flex-row sm:items-center">
 
         <div>
           <h2 className="text-3xl font-bold text-white">
@@ -188,7 +188,7 @@ export default function AccountsPage({
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
 
           {/* إجمالي العهد */}
 
@@ -257,7 +257,7 @@ export default function AccountsPage({
             type="button"
             onClick={onAddAccount}
             className="
-              flex h-14 items-center gap-2
+              flex min-h-14 w-full items-center justify-center gap-2 sm:w-auto
               rounded-2xl
               border border-green-400/30
               bg-green-500/10
@@ -285,7 +285,7 @@ export default function AccountsPage({
     {/* ================= Accounts ================= */}
 
 {accounts.length > 0 && (
-  <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+  <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 xl:grid-cols-3">
 
     {accounts.map((account) => (
 
@@ -306,11 +306,11 @@ export default function AccountsPage({
         "
       >
 
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
 
           {/* ================= Card Header ================= */}
 
-          <div className="flex items-start justify-between gap-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
 
             <div className="min-w-0 flex-1">
 
@@ -331,7 +331,7 @@ export default function AccountsPage({
 
             </div>
 
-            <div className="flex shrink-0 items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
 
               {/* تعديل */}
               <button
@@ -518,7 +518,7 @@ export default function AccountsPage({
 
                 {/* ================= Actions ================= */}
 
-                <div className="mt-6 grid grid-cols-2 gap-3">
+                <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
 
                   {/* عرض */}
 
@@ -607,7 +607,7 @@ export default function AccountsPage({
             dir="rtl"
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
+            <div className="flex flex-col gap-3 border-b border-white/10 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
               <div>
                 <h3 className="text-xl font-extrabold text-white">
                   عمليات تغذية العهدة — {selectedAccountForView.name}
@@ -625,7 +625,7 @@ export default function AccountsPage({
               </button>
             </div>
 
-            <div className="max-h-[70vh] overflow-auto p-4">
+            <div className="max-h-[70vh] overflow-auto p-3 sm:p-4">
               {(() => {
                 const rows = funding
                   .filter((item) => Number(item?.account_id) === Number(selectedAccountForView.id))
@@ -690,7 +690,7 @@ export default function AccountsPage({
                               <td className="px-4 py-3 text-gray-300">{String(getRef(item))}</td>
                               <td className="px-4 py-3 font-extrabold text-green-400">{Number(item?.amount ?? 0).toLocaleString()} ريال</td>
                               <td className="px-4 py-3 text-gray-300">{getPayment(item)}</td>
-                              <td className="max-w-[280px] px-4 py-3 text-gray-300">{getDescription(item)}</td>
+                              <td className="max-w-[280px] whitespace-normal break-words px-4 py-3 text-gray-300">{getDescription(item)}</td>
                               <td className="px-4 py-3 text-center">
                                 {attachments.length ? (
                                   <details className="inline-block">

@@ -672,16 +672,16 @@ export default function FundingPage({
   return (
     <div
       dir="rtl"
-      className="space-y-6"
+      className="w-full min-w-0 space-y-4 sm:space-y-6"
     >
 
       {/* ================= Header ================= */}
 
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-center sm:gap-4">
 
         <div>
 
-          <h2 className="text-3xl font-bold text-white">
+          <h2 className="text-2xl font-bold text-white sm:text-3xl">
             التغذية المالية
           </h2>
 
@@ -691,7 +691,7 @@ export default function FundingPage({
 
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
 
           <button
             type="button"
@@ -737,7 +737,7 @@ export default function FundingPage({
               <ChevronDown size={16} />
             </button>
             {exportOpen && (
-              <div className="absolute right-0 top-14 z-50 w-52 overflow-hidden rounded-2xl border border-white/10 bg-[#073529] p-1 shadow-2xl">
+              <div className="absolute right-0 top-12 z-50 w-[min(13rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-white/10 bg-[#073529] p-1 shadow-2xl">
                 <button onClick={exportAllFunding} className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-right text-sm text-white hover:bg-white/10"><FileSpreadsheet size={18} className="text-emerald-300" /> Excel</button>
                 <button onClick={exportPrint} className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-right text-sm text-white hover:bg-white/10"><FileText size={18} className="text-red-400" /> PDF / حفظ PDF</button>
                 <button onClick={exportPrint} className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-right text-sm text-white hover:bg-white/10"><Printer size={18} className="text-[#F6D878]" /> طباعة</button>
@@ -782,7 +782,7 @@ export default function FundingPage({
 
      {/* ================= Statistics ================= */}
 
-<div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
+<div className="grid min-w-0 grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2 xl:grid-cols-4">
 
   {/* ================= اليوم ================= */}
 
@@ -821,7 +821,7 @@ export default function FundingPage({
       />
     </div>
 
-    <h2 className="mt-3 text-3xl font-bold text-[#F6D878]">
+    <h2 className="mt-2 text-2xl font-bold text-[#F6D878] sm:mt-3 sm:text-3xl">
       {formatMoney(todayFunding)} ريال
     </h2>
 
@@ -832,7 +832,7 @@ export default function FundingPage({
     </p>
 
     {/* تصدير الفترة */}
-    <div className="relative mt-4 flex justify-end">
+    <div className="relative mt-3 flex flex-wrap justify-end gap-2 sm:mt-4">
       <button
         type="button"
         onClick={(e) => {
@@ -879,7 +879,7 @@ export default function FundingPage({
           <button
             type="button"
             onClick={() => handlePeriodExport("day", "pdf")}
-            className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-right text-sm text-white transition hover:bg-white/10"
+            className="flex min-w-0 w-full items-center gap-2 rounded-lg px-3 py-3 text-right text-sm text-white transition hover:bg-white/10"
           >
             <FileText size={17} className="text-red-400" />
             PDF / حفظ PDF
@@ -888,7 +888,7 @@ export default function FundingPage({
           <button
             type="button"
             onClick={() => handlePeriodExport("day", "excel")}
-            className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-right text-sm text-white transition hover:bg-white/10"
+            className="flex min-w-0 w-full items-center gap-2 rounded-lg px-3 py-3 text-right text-sm text-white transition hover:bg-white/10"
           >
             <FileSpreadsheet size={17} className="text-emerald-300" />
             Excel
@@ -897,7 +897,7 @@ export default function FundingPage({
           <button
             type="button"
             onClick={() => handlePeriodExport("day", "print")}
-            className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-right text-sm text-white transition hover:bg-white/10"
+            className="flex min-w-0 w-full items-center gap-2 rounded-lg px-3 py-3 text-right text-sm text-white transition hover:bg-white/10"
           >
             <Printer size={17} className="text-[#F6D878]" />
             طباعة
@@ -926,7 +926,7 @@ export default function FundingPage({
       تغذية الأسبوع
     </p>
 
-    <div className="mt-3 grid grid-cols-2 gap-2">
+    <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
 
       <input
         type="date"
@@ -970,7 +970,7 @@ export default function FundingPage({
 
     </div>
 
-    <h2 className="mt-3 text-3xl font-bold text-[#F6D878]">
+    <h2 className="mt-2 text-2xl font-bold text-[#F6D878] sm:mt-3 sm:text-3xl">
       {formatMoney(weekFunding)} ريال
     </h2>
 
@@ -981,7 +981,7 @@ export default function FundingPage({
     </p>
 
     {/* تصدير الفترة */}
-    <div className="relative mt-4 flex justify-end">
+    <div className="relative mt-3 flex flex-wrap justify-end gap-2 sm:mt-4">
       <button
         type="button"
         onClick={(e) => {
@@ -1028,7 +1028,7 @@ export default function FundingPage({
           <button
             type="button"
             onClick={() => handlePeriodExport("week", "pdf")}
-            className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-right text-sm text-white transition hover:bg-white/10"
+            className="flex min-w-0 w-full items-center gap-2 rounded-lg px-3 py-3 text-right text-sm text-white transition hover:bg-white/10"
           >
             <FileText size={17} className="text-red-400" />
             PDF / حفظ PDF
@@ -1037,7 +1037,7 @@ export default function FundingPage({
           <button
             type="button"
             onClick={() => handlePeriodExport("week", "excel")}
-            className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-right text-sm text-white transition hover:bg-white/10"
+            className="flex min-w-0 w-full items-center gap-2 rounded-lg px-3 py-3 text-right text-sm text-white transition hover:bg-white/10"
           >
             <FileSpreadsheet size={17} className="text-emerald-300" />
             Excel
@@ -1046,7 +1046,7 @@ export default function FundingPage({
           <button
             type="button"
             onClick={() => handlePeriodExport("week", "print")}
-            className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-right text-sm text-white transition hover:bg-white/10"
+            className="flex min-w-0 w-full items-center gap-2 rounded-lg px-3 py-3 text-right text-sm text-white transition hover:bg-white/10"
           >
             <Printer size={17} className="text-[#F6D878]" />
             طباعة
@@ -1098,7 +1098,7 @@ export default function FundingPage({
 
     </div>
 
-    <h2 className="mt-3 text-3xl font-bold text-[#F6D878]">
+    <h2 className="mt-2 text-2xl font-bold text-[#F6D878] sm:mt-3 sm:text-3xl">
       {formatMoney(monthFunding)} ريال
     </h2>
 
@@ -1109,7 +1109,7 @@ export default function FundingPage({
     </p>
 
     {/* تصدير الفترة */}
-    <div className="relative mt-4 flex justify-end">
+    <div className="relative mt-3 flex flex-wrap justify-end gap-2 sm:mt-4">
       <button
         type="button"
         onClick={(e) => {
@@ -1156,7 +1156,7 @@ export default function FundingPage({
           <button
             type="button"
             onClick={() => handlePeriodExport("month", "pdf")}
-            className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-right text-sm text-white transition hover:bg-white/10"
+            className="flex min-w-0 w-full items-center gap-2 rounded-lg px-3 py-3 text-right text-sm text-white transition hover:bg-white/10"
           >
             <FileText size={17} className="text-red-400" />
             PDF / حفظ PDF
@@ -1165,7 +1165,7 @@ export default function FundingPage({
           <button
             type="button"
             onClick={() => handlePeriodExport("month", "excel")}
-            className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-right text-sm text-white transition hover:bg-white/10"
+            className="flex min-w-0 w-full items-center gap-2 rounded-lg px-3 py-3 text-right text-sm text-white transition hover:bg-white/10"
           >
             <FileSpreadsheet size={17} className="text-emerald-300" />
             Excel
@@ -1174,7 +1174,7 @@ export default function FundingPage({
           <button
             type="button"
             onClick={() => handlePeriodExport("month", "print")}
-            className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-right text-sm text-white transition hover:bg-white/10"
+            className="flex min-w-0 w-full items-center gap-2 rounded-lg px-3 py-3 text-right text-sm text-white transition hover:bg-white/10"
           >
             <Printer size={17} className="text-[#F6D878]" />
             طباعة

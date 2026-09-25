@@ -1396,15 +1396,15 @@ const handleDeleteAccount = async (account: any) => {
 
   return (
 
-    <div className="space-y-8">
+    <div className="w-full min-w-0 space-y-6 sm:space-y-8">
 
-      <div className="rounded-[28px] border border-white/10 bg-gradient-to-br from-[#0B4537] via-[#073529] to-[#05261F] p-8 text-center">
+      <div className="w-full min-w-0 rounded-[28px] border border-white/10 bg-gradient-to-br from-[#0B4537] via-[#073529] to-[#05261F] p-4 text-center sm:p-6 lg:p-8">
 
-        <h1 className="text-4xl font-bold text-white">
+        <h1 className="text-2xl font-bold text-white sm:text-3xl lg:text-4xl">
           💰 المركز المالي
         </h1>
 
-        <p className="mt-3 text-lg text-[#B4CEC5]">
+        <p className="mt-2 text-sm text-[#B4CEC5] sm:mt-3 sm:text-base lg:text-lg">
           إدارة المصروفات والعهد والتغذية والبنود المالية
         </p>
 
@@ -1415,7 +1415,7 @@ const handleDeleteAccount = async (account: any) => {
 
 <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
 
-  <div className="rounded-[28px] border border-emerald-400/20 bg-[#073529] p-6">
+  <div className="min-w-0 rounded-[28px] border border-emerald-400/20 bg-[#073529] p-4 sm:p-6">
     <p className="text-sm text-[#B4CEC5]">
       إجمالي الأرصدة
     </p>
@@ -1438,7 +1438,7 @@ const handleDeleteAccount = async (account: any) => {
     </span>
   </div>
 
-  <div className="rounded-[28px] border border-red-400/20 bg-[#073529] p-6">
+  <div className="min-w-0 rounded-[28px] border border-red-400/20 bg-[#073529] p-4 sm:p-6">
     <p className="text-sm text-[#B4CEC5]">
       إجمالي المصروفات
     </p>
@@ -1452,7 +1452,7 @@ const handleDeleteAccount = async (account: any) => {
     </span>
   </div>
 
-  <div className="rounded-[28px] border border-[#C49A3A]/20 bg-[#073529] p-6">
+  <div className="min-w-0 rounded-[28px] border border-[#C49A3A]/20 bg-[#073529] p-4 sm:p-6">
     <p className="text-sm text-[#B4CEC5]">
       إجمالي التغذية
     </p>
@@ -1466,7 +1466,7 @@ const handleDeleteAccount = async (account: any) => {
     </span>
   </div>
 
-  <div className="rounded-[28px] border border-[#C49A3A]/20 bg-[#073529] p-6">
+  <div className="min-w-0 rounded-[28px] border border-[#C49A3A]/20 bg-[#073529] p-4 sm:p-6">
     <p className="text-sm text-[#B4CEC5]">
       عدد العمليات
     </p>
@@ -1484,12 +1484,12 @@ const handleDeleteAccount = async (account: any) => {
 
         <div className="w-full">
 
-          <div className="rounded-[28px] border border-white/10 bg-gradient-to-br from-[#0B4537] via-[#073529] to-[#05261F] p-6">
+          <div className="w-full min-w-0 rounded-[28px] border border-white/10 bg-gradient-to-br from-[#0B4537] via-[#073529] to-[#05261F] p-4 sm:p-6">
 
             <div className="relative mb-8 flex items-center justify-center text-center">
 
               <div>
-                <h2 className="text-3xl font-bold text-white">
+                <h2 className="text-2xl font-bold text-white sm:text-3xl">
                   الأقسام المالية
                 </h2>
                 <p className="mt-2 text-[#B4CEC5]">
@@ -1539,7 +1539,7 @@ const handleDeleteAccount = async (account: any) => {
 
   </div>
 
-  <h3 className="mt-7 text-[30px] font-extrabold">
+  <h3 className="mt-5 text-2xl font-extrabold sm:mt-7 sm:text-[30px]">
     المصروفات
   </h3>
 
@@ -1627,7 +1627,7 @@ const handleDeleteAccount = async (account: any) => {
 
   </div>
 
-  <h3 className="mt-7 text-[30px] font-extrabold">
+  <h3 className="mt-5 text-2xl font-extrabold sm:mt-7 sm:text-[30px]">
     العهد المالية
   </h3>
 
@@ -1715,7 +1715,7 @@ const handleDeleteAccount = async (account: any) => {
 
   </div>
 
-  <h3 className="mt-7 text-[30px] font-extrabold">
+  <h3 className="mt-5 text-2xl font-extrabold sm:mt-7 sm:text-[30px]">
     التغذية
   </h3>
 
@@ -1803,7 +1803,7 @@ const handleDeleteAccount = async (account: any) => {
 
   </div>
 
-  <h3 className="mt-7 text-[30px] font-extrabold">
+  <h3 className="mt-5 text-2xl font-extrabold sm:mt-7 sm:text-[30px]">
     البنود
   </h3>
 
@@ -1925,7 +1925,7 @@ const handleDeleteAccount = async (account: any) => {
               <div className="flex items-start justify-between gap-4">
 
   <div className="min-w-0 flex-1">
-    <h3 className="text-2xl font-extrabold text-white">
+    <h3 className="text-xl font-extrabold text-white sm:text-2xl">
       {account.name}
     </h3>
 
@@ -2456,8 +2456,8 @@ const handleDeleteAccount = async (account: any) => {
 )}
   {/* نافذة إضافة مرحلة */}
   {openStageModal && (
-    <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/70 p-4">
-      <div className="w-full max-w-lg rounded-3xl border border-white/10 bg-gradient-to-br from-[#0B4537] via-[#073529] to-[#05261F] p-7 shadow-2xl">
+    <div className="fixed inset-0 z-[400] flex items-start justify-center overflow-y-auto bg-black/70 p-3 sm:items-center sm:p-4">
+      <div className="w-full max-w-lg max-h-[calc(100dvh-1.5rem)] overflow-y-auto rounded-3xl border border-white/10 bg-gradient-to-br from-[#0B4537] via-[#073529] to-[#05261F] p-4 shadow-2xl sm:max-h-[calc(100dvh-2rem)] sm:p-7">
         <div className="mb-6 flex items-center justify-between">
           <div>
             <h3 className="text-2xl font-bold text-white">إضافة مرحلة جديدة</h3>
@@ -2466,7 +2466,7 @@ const handleDeleteAccount = async (account: any) => {
           <button type="button" onClick={() => setOpenStageModal(false)} className="text-2xl text-[#B4CEC5] hover:text-red-400">×</button>
         </div>
         <input value={newStageName} onChange={(e) => setNewStageName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleAddStage()} autoFocus placeholder="اسم المرحلة" className="w-full rounded-2xl border border-white/10 bg-[#073529] px-4 py-4 text-white outline-none focus:border-[#C49A3A]" />
-        <div className="mt-6 grid grid-cols-2 gap-3">
+        <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <button type="button" onClick={() => setOpenStageModal(false)} className="h-12 rounded-xl border border-white/10 bg-white/5 font-bold text-[#B4CEC5]">إلغاء</button>
           <button type="button" onClick={handleAddStage} className="h-12 rounded-xl bg-[#D4AD4D] font-bold text-[#081B33]">+ إضافة المرحلة</button>
         </div>
@@ -2476,8 +2476,8 @@ const handleDeleteAccount = async (account: any) => {
 
   {/* نافذة إضافة تصنيف */}
   {openCategoryModal && (
-    <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/70 p-4">
-      <div className="w-full max-w-lg rounded-3xl border border-white/10 bg-gradient-to-br from-[#0B4537] via-[#073529] to-[#05261F] p-7 shadow-2xl">
+    <div className="fixed inset-0 z-[400] flex items-start justify-center overflow-y-auto bg-black/70 p-3 sm:items-center sm:p-4">
+      <div className="w-full max-w-lg max-h-[calc(100dvh-1.5rem)] overflow-y-auto rounded-3xl border border-white/10 bg-gradient-to-br from-[#0B4537] via-[#073529] to-[#05261F] p-4 shadow-2xl sm:max-h-[calc(100dvh-2rem)] sm:p-7">
         <div className="mb-6 flex items-center justify-between">
           <div>
             <h3 className="text-2xl font-bold text-white">إضافة تصنيف جديد</h3>
@@ -2486,7 +2486,7 @@ const handleDeleteAccount = async (account: any) => {
           <button type="button" onClick={() => setOpenCategoryModal(false)} className="text-2xl text-[#B4CEC5] hover:text-red-400">×</button>
         </div>
         <input value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleAddCategory()} autoFocus placeholder="اسم التصنيف" className="w-full rounded-2xl border border-white/10 bg-[#073529] px-4 py-4 text-white outline-none focus:border-[#D4AD4D]" />
-        <div className="mt-6 grid grid-cols-2 gap-3">
+        <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <button type="button" onClick={() => setOpenCategoryModal(false)} className="h-12 rounded-xl border border-white/10 bg-white/5 font-bold text-[#B4CEC5]">إلغاء</button>
           <button type="button" onClick={handleAddCategory} className="h-12 rounded-xl bg-[#C49A3A] font-bold text-white">+ إضافة التصنيف</button>
         </div>
@@ -2496,8 +2496,8 @@ const handleDeleteAccount = async (account: any) => {
 
   {/* نافذة إضافة بند */}
   {openItemModal && (
-    <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/70 p-4">
-      <div className="w-full max-w-lg rounded-3xl border border-white/10 bg-gradient-to-br from-[#0B4537] via-[#073529] to-[#05261F] p-7 shadow-2xl">
+    <div className="fixed inset-0 z-[400] flex items-start justify-center overflow-y-auto bg-black/70 p-3 sm:items-center sm:p-4">
+      <div className="w-full max-w-lg max-h-[calc(100dvh-1.5rem)] overflow-y-auto rounded-3xl border border-white/10 bg-gradient-to-br from-[#0B4537] via-[#073529] to-[#05261F] p-4 shadow-2xl sm:max-h-[calc(100dvh-2rem)] sm:p-7">
         <div className="mb-6 flex items-center justify-between">
           <div>
             <h3 className="text-2xl font-bold text-white">إضافة بند جديد</h3>
@@ -2512,7 +2512,7 @@ const handleDeleteAccount = async (account: any) => {
           ))}
         </select>
         <input value={newItemName} onChange={(e) => setNewItemName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleAddItem()} placeholder="اسم البند" className="w-full rounded-2xl border border-white/10 bg-[#073529] px-4 py-4 text-white outline-none focus:border-[#D4AD4D]" />
-        <div className="mt-6 grid grid-cols-2 gap-3">
+        <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <button type="button" onClick={() => setOpenItemModal(false)} className="h-12 rounded-xl border border-white/10 bg-white/5 font-bold text-[#B4CEC5]">إلغاء</button>
           <button type="button" onClick={handleAddItem} className="h-12 rounded-xl bg-[#C49A3A] font-bold text-white">+ إضافة البند</button>
         </div>
@@ -2528,13 +2528,13 @@ const handleDeleteAccount = async (account: any) => {
   selectedAccountId={selectedAccountId}
 />
 {selectedAccount && (
-  <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/70 p-4">
-    <div className="w-full max-w-5xl rounded-3xl border border-white/10 bg-gradient-to-br from-[#0B4537] via-[#073529] to-[#05261F] p-7 shadow-2xl">
+  <div className="fixed inset-0 z-[300] flex items-start justify-center overflow-y-auto bg-black/70 p-3 sm:items-center sm:p-4">
+    <div className="w-full max-w-5xl max-h-[calc(100dvh-1.5rem)] overflow-y-auto rounded-3xl border border-white/10 bg-gradient-to-br from-[#0B4537] via-[#073529] to-[#05261F] p-4 shadow-2xl sm:max-h-[calc(100dvh-2rem)] sm:p-7">
 
       {/* العنوان */}
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-extrabold text-white">
+          <h2 className="text-xl font-extrabold text-white sm:text-2xl">
             تفاصيل العهدة
           </h2>
 
@@ -2558,7 +2558,7 @@ const handleDeleteAccount = async (account: any) => {
           اسم العهدة
         </p>
 
-        <h3 className="mt-2 text-3xl font-extrabold text-white">
+        <h3 className="mt-2 break-words text-2xl font-extrabold text-white sm:text-3xl">
           {selectedAccount.name}
         </h3>
 
@@ -2568,7 +2568,7 @@ const handleDeleteAccount = async (account: any) => {
       </div>
 
       {/* البيانات المالية */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
 
         {/* الرصيد الحالي */}
         <div className="rounded-2xl border border-[#C49A3A]/20 bg-[#C49A3A]/10 p-5 text-center">
@@ -2664,9 +2664,9 @@ const handleDeleteAccount = async (account: any) => {
         </div>
 
         {/* الجدول */}
-        <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#073529]">
+        <div className="overflow-x-auto rounded-2xl border border-white/10 bg-[#073529]">
 
-          <div className="max-h-[280px] overflow-y-auto">
+          <div className="max-h-[280px] overflow-auto">
 
             <table className="w-full min-w-[700px] text-sm">
 
@@ -2835,7 +2835,7 @@ const handleDeleteAccount = async (account: any) => {
       </div>
 
       {/* الأزرار */}
-      <div className="mt-7 grid grid-cols-2 gap-3">
+      <div className="mt-7 grid grid-cols-1 gap-3 sm:grid-cols-2">
 
         <button
           type="button"
@@ -2870,9 +2870,9 @@ const handleDeleteAccount = async (account: any) => {
   {/* نافذة إضافة عهدة */}
   {openAccountModal && (
     
-    <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/70 p-4">
+    <div className="fixed inset-0 z-[300] flex items-start justify-center overflow-y-auto bg-black/70 p-3 sm:items-center sm:p-4">
 
-      <div className="w-full max-w-lg rounded-3xl border border-white/10 bg-gradient-to-br from-[#0B4537] via-[#073529] to-[#05261F] p-7 shadow-2xl">
+      <div className="w-full max-w-lg max-h-[calc(100dvh-1.5rem)] overflow-y-auto rounded-3xl border border-white/10 bg-gradient-to-br from-[#0B4537] via-[#073529] to-[#05261F] p-4 shadow-2xl sm:max-h-[calc(100dvh-2rem)] sm:p-7">
 
         {/* العنوان */}
 

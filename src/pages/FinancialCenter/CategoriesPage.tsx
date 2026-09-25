@@ -280,7 +280,7 @@ export default function CategoriesPage() {
 
       {/* ================= Main Summary Card ================= */}
 
-      <div className="rounded-3xl border border-white/10 bg-[#102947] p-6">
+      <div className="rounded-3xl border border-white/10 bg-[#102947] p-4 sm:p-6">
 
         {/* عنوان الكارت */}
 
@@ -480,7 +480,7 @@ export default function CategoriesPage() {
 
       {/* ================= Add Cards ================= */}
 
-      <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-3">
 
         {/* إضافة بند */}
 
@@ -492,7 +492,7 @@ export default function CategoriesPage() {
             rounded-3xl
             border border-emerald-400/20
             bg-[#102947]
-            p-6
+            p-4 sm:p-6
             text-right
             transition
             hover:-translate-y-1
@@ -547,7 +547,7 @@ export default function CategoriesPage() {
             rounded-3xl
             border border-sky-400/20
             bg-[#102947]
-            p-6
+            p-4 sm:p-6
             text-right
             transition
             hover:-translate-y-1
@@ -602,7 +602,7 @@ export default function CategoriesPage() {
             rounded-3xl
             border border-yellow-400/20
             bg-[#102947]
-            p-6
+            p-4 sm:p-6
             text-right
             transition
             hover:-translate-y-1
@@ -651,7 +651,7 @@ export default function CategoriesPage() {
 
       {/* ================= Tables ================= */}
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:gap-6 xl:grid-cols-3">
 
         {/* ================= Items ================= */}
 
@@ -700,9 +700,9 @@ export default function CategoriesPage() {
 
           </div>
 
-          <div className="max-h-[430px] overflow-y-auto">
+          <div className="max-h-[430px] overflow-x-auto overflow-y-auto">
 
-            <table className="w-full text-sm">
+            <table className="min-w-[420px] w-full text-sm">
 
               <thead className="sticky top-0 bg-[#102947]">
 
@@ -824,9 +824,9 @@ export default function CategoriesPage() {
 
           </div>
 
-          <div className="max-h-[430px] overflow-y-auto">
+          <div className="max-h-[430px] overflow-x-auto overflow-y-auto">
 
-            <table className="w-full text-sm">
+            <table className="min-w-[420px] w-full text-sm">
 
               <thead className="sticky top-0 bg-[#102947]">
 
@@ -963,9 +963,9 @@ export default function CategoriesPage() {
 
           </div>
 
-          <div className="max-h-[430px] overflow-y-auto">
+          <div className="max-h-[430px] overflow-x-auto overflow-y-auto">
 
-            <table className="w-full text-sm">
+            <table className="min-w-[420px] w-full text-sm">
 
               <thead className="sticky top-0 bg-[#102947]">
 
@@ -1075,7 +1075,7 @@ export default function CategoriesPage() {
               rounded-3xl
               border border-yellow-400/20
               bg-[#081B33]
-              p-6
+              p-4 sm:p-6
               shadow-2xl
             "
           >
@@ -1165,7 +1165,7 @@ export default function CategoriesPage() {
               rounded-3xl
               border border-sky-400/20
               bg-[#081B33]
-              p-6
+              p-4 sm:p-6
               shadow-2xl
             "
           >
@@ -1255,7 +1255,7 @@ export default function CategoriesPage() {
               rounded-3xl
               border border-emerald-400/20
               bg-[#081B33]
-              p-6
+              p-4 sm:p-6
               shadow-2xl
             "
           >

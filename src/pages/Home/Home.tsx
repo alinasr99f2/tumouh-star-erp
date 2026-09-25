@@ -69,10 +69,12 @@ export default function Home() {
           pointer-events-none
           absolute
           left-1/2
-          top-[48%]
+          top-[42%]
           z-0
-          h-[650px]
-          w-[650px]
+          h-[420px]
+          w-[420px]
+          sm:h-[650px]
+          sm:w-[650px]
           -translate-x-1/2
           -translate-y-1/2
           rounded-full
@@ -95,8 +97,9 @@ export default function Home() {
           max-w-[1550px]
           flex-col
           items-center
-          px-5
+          px-3
           pt-2
+          sm:px-5
           lg:px-8
         "
       >
@@ -106,7 +109,7 @@ export default function Home() {
 
         <div
           className="
-            mb-7
+            mb-5
             flex
             flex-col
             items-center
@@ -136,10 +139,11 @@ export default function Home() {
           <h1
             className="
               aqar-home-title
-              text-4xl
+              text-3xl
               font-extrabold
               leading-tight
               text-white
+              sm:text-4xl
               md:text-5xl
             "
           >
@@ -168,7 +172,8 @@ export default function Home() {
             grid
             w-full
             grid-cols-1
-            gap-5
+            gap-4
+            sm:gap-5
             md:grid-cols-2
             xl:grid-cols-4
             lg:gap-6
@@ -189,13 +194,15 @@ export default function Home() {
                   group
                   relative
                   flex
-                  min-h-[390px]
+                  min-h-[340px]
                   flex-col
                   items-center
                   overflow-hidden
-                  rounded-[30px]
+                  rounded-2xl
                   border
-                  p-7
+                  p-4
+                  sm:rounded-[30px]
+                  sm:p-7
                   text-center
                   shadow-2xl
                   backdrop-blur-xl
@@ -285,10 +292,13 @@ export default function Home() {
                   className={`
                     relative
                     z-10
-                    mb-6
+                    mb-4
                     flex
-                    h-[120px]
-                    w-[120px]
+                    h-24
+                    w-24
+                    sm:mb-6
+                    sm:h-[120px]
+                    sm:w-[120px]
                     shrink-0
                     items-center
                     justify-center
@@ -334,9 +344,13 @@ export default function Home() {
                   `}
                 >
                   <Icon
-                    size={62}
+                    size={56}
                     strokeWidth={1.8}
                     className={`
+                      h-12
+                      w-12
+                      sm:h-[62px]
+                      sm:w-[62px]
                       aqar-card-icon
                       transition-transform
                       duration-500
@@ -363,7 +377,8 @@ export default function Home() {
                     aqar-card-title
                     relative
                     z-10
-                    text-[29px]
+                    text-2xl
+                    sm:text-[29px]
                     font-extrabold
                     leading-tight
                     text-white
@@ -381,10 +396,13 @@ export default function Home() {
                     aqar-card-description
                     relative
                     z-10
-                    mt-4
-                    min-h-[58px]
+                    mt-3
+                    min-h-0
                     max-w-[340px]
-                    text-[15px]
+                    text-sm
+                    sm:mt-4
+                    sm:min-h-[58px]
+                    sm:text-[15px]
                     font-medium
                     leading-7
                     text-gray-300
@@ -406,16 +424,20 @@ export default function Home() {
                     z-10
                     mt-auto
                     flex
-                    min-w-[210px]
+                    w-full
+                    min-w-0
                     items-center
+                    sm:min-w-[210px]
                     justify-center
                     gap-3
                     rounded-full
                     border
-                    px-6
+                    px-4
                     py-3
-                    text-[17px]
+                    sm:px-6
+                    text-[15px]
                     font-bold
+                    sm:text-[17px]
                     transition-all
                     duration-300
                     hover:scale-105
