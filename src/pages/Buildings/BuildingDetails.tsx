@@ -71,6 +71,7 @@ type ApartmentContractInfo = {
 };
 
 type BuildingCharge = {
+  id?: string;
   type: string;
   amount: string;
   date: string;
@@ -368,30 +369,12 @@ export default function BuildingDetails() {
 
   const [isChargeModalOpen, setIsChargeModalOpen] = useState(false);
   const [chargeModalMode, setChargeModalMode] = useState<"charge" | "collection">("charge");
+  const [editingChargeId, setEditingChargeId] = useState<string | null>(null);
   const [chargeForm, setChargeForm] = useState<BuildingCharge>({
     type: "إيجار",
     amount: "",
     date: new Date().toISOString().slice(0, 10),
     notes: "",
-  });
-
-  // المستحقات والتحصيلات: حالة مشتركة يتم حفظها في Supabase لضمان ظهورها على كل الأجهزة.
-  const [buildingCharges, setBuildingCharges] = useState<BuildingCharge[]>(() => {
-    try {
-      const saved = window.localStorage.getItem("tumouh_star_building_charges");
-      return saved ? (JSON.parse(saved) as BuildingCharge[]) : [];
-    } catch {
-      return [];
-    }
-  });
-
-  const [buildingCollections, setBuildingCollections] = useState<BuildingCharge[]>(() => {
-    try {
-      const saved = window.localStorage.getItem("tumouh_star_building_collections");
-      return saved ? (JSON.parse(saved) as BuildingCharge[]) : [];
-    } catch {
-      return [];
-    }
   });
 
   const [selectedChargeApartments, setSelectedChargeApartments] =
@@ -520,7 +503,7 @@ export default function BuildingDetails() {
     const { data, error } = await supabase
       .from("building_state")
       .select(
-        "apartments, apartment_types, custom_apartment_types, custom_apartment_statuses, apartment_type_rents, apartment_extra_info, apartment_tenant_info, apartment_contract_info, building_charges, building_collections"
+        "apartments, apartment_types, custom_apartment_types, custom_apartment_statuses, apartment_type_rents, apartment_extra_info, apartment_tenant_info, apartment_contract_info"
       )
       .eq("building_id", buildingId)
       .maybeSingle();
@@ -572,22 +555,6 @@ export default function BuildingDetails() {
       setApartmentContractInfo(data.apartment_contract_info as Record<string, ApartmentContractInfo>);
     }
 
-    if (Array.isArray(data.building_charges)) {
-      setBuildingCharges(data.building_charges as BuildingCharge[]);
-      window.localStorage.setItem(
-        "tumouh_star_building_charges",
-        JSON.stringify(data.building_charges)
-      );
-    }
-
-    if (Array.isArray(data.building_collections)) {
-      setBuildingCollections(data.building_collections as BuildingCharge[]);
-      window.localStorage.setItem(
-        "tumouh_star_building_collections",
-        JSON.stringify(data.building_collections)
-      );
-    }
-
     hasLoadedBuildingStateRef.current = true;
   };
 
@@ -613,8 +580,6 @@ export default function BuildingDetails() {
         apartment_extra_info: apartmentExtraInfo,
         apartment_tenant_info: apartmentTenantInfo,
         apartment_contract_info: apartmentContractInfo,
-        building_charges: buildingCharges,
-        building_collections: buildingCollections,
         updated_at: new Date().toISOString(),
       },
       { onConflict: "building_id" }
@@ -648,8 +613,6 @@ export default function BuildingDetails() {
           apartment_extra_info: apartmentExtraInfo,
           apartment_tenant_info: apartmentTenantInfo,
           apartment_contract_info: apartmentContractInfo,
-          building_charges: buildingCharges,
-          building_collections: buildingCollections,
           updated_at: new Date().toISOString(),
         },
         { onConflict: "building_id" }
@@ -672,8 +635,6 @@ export default function BuildingDetails() {
     apartmentExtraInfo,
     apartmentTenantInfo,
     apartmentContractInfo,
-    buildingCharges,
-    buildingCollections,
   ]);
 
   const addApartment = () => {
@@ -1554,22 +1515,6 @@ export default function BuildingDetails() {
       // تجاهل خطأ قراءة المستحقات مع حفظ بيانات الشقة بشكل طبيعي.
     }
 
-    setBuildingCharges((current) =>
-      current.map((charge) =>
-        charge.apartmentNumber === oldNumber
-          ? { ...charge, apartmentNumber: newNumber }
-          : charge
-      )
-    );
-
-    setBuildingCollections((current) =>
-      current.map((charge) =>
-        charge.apartmentNumber === oldNumber
-          ? { ...charge, apartmentNumber: newNumber }
-          : charge
-      )
-    );
-
     setSelectedChargeApartments((current) =>
       current.map((number) =>
         number === oldNumber ? newNumber : number
@@ -2412,6 +2357,7 @@ if (existingLease?.id && existingLease.tenant_id !== tenantId) {
     ) => {
       if (type === "rent") {
         return monthlyRentRows.map((row) => ({
+          id: undefined,
           apartmentNumber: row.apartmentNumber,
           tenant: row.tenant,
           date: row.date,
@@ -2430,6 +2376,7 @@ if (existingLease?.id && existingLease.tenant_id !== tenantId) {
           : charges.filter((charge) => charge.type?.trim() !== "إيجار");
 
       return filteredCharges.map((charge) => ({
+        id: charge.id,
         apartmentNumber: charge.apartmentNumber,
         tenant: getTenantForApartment(charge.apartmentNumber),
         date: charge.date,
@@ -2457,6 +2404,7 @@ if (existingLease?.id && existingLease.tenant_id !== tenantId) {
           : collections;
 
       return filteredCollections.map((collection) => ({
+        id: collection.id,
         apartmentNumber: collection.apartmentNumber,
         tenant: getTenantForApartment(collection.apartmentNumber),
         date: collection.date,
@@ -4486,6 +4434,46 @@ if (existingLease?.id && existingLease.tenant_id !== tenantId) {
       </div>
     );
   }
+
+  const getStableChargeId = (item: BuildingCharge, index: number) =>
+    item.id || `${item.date}-${item.apartmentNumber || "building"}-${item.type}-${item.amount}-${index}`;
+
+  const openChargeForEdit = (item: BuildingCharge, mode: "charge" | "collection") => {
+    setEditingChargeId(item.id || null);
+    setChargeModalMode(mode);
+    setChargeForm({
+      type: item.type || "إيجار",
+      amount: String(item.amount || ""),
+      date: item.date || new Date().toISOString().slice(0, 10),
+      notes: item.notes || "",
+      apartmentNumber: item.apartmentNumber,
+      rentMonths: item.rentMonths,
+    });
+    setSelectedChargeApartments(item.apartmentNumber ? [String(item.apartmentNumber)] : []);
+    setRentCollectionMonths(item.rentMonths || 1);
+    setIsChargeModalOpen(true);
+  };
+
+  const deleteCharge = (item: BuildingCharge, mode: "charge" | "collection", index: number) => {
+    if (!window.confirm("هل أنت متأكد من حذف هذه العملية؟ لا يمكن التراجع عن الحذف.")) return;
+    const storageKey = mode === "collection"
+      ? "tumouh_star_building_collections"
+      : "tumouh_star_building_charges";
+    try {
+      const saved = window.localStorage.getItem(storageKey);
+      const current = saved ? (JSON.parse(saved) as BuildingCharge[]) : [];
+      const targetId = getStableChargeId(item, index);
+      const next = current.filter((entry, entryIndex) =>
+        getStableChargeId(entry, entryIndex) !== targetId
+      );
+      window.localStorage.setItem(storageKey, JSON.stringify(next));
+      window.dispatchEvent(new Event("storage"));
+      setIsMonthlyCollectionReportOpen(false);
+      setIsMonthlyDueReportOpen(false);
+    } catch {
+      window.alert("تعذر حذف العملية، حاول مرة أخرى.");
+    }
+  };
 
   return (
     <div
@@ -8325,10 +8313,15 @@ if (existingLease?.id && existingLease.tenant_id !== tenantId) {
                     }
 
                     try {
-                      const currentCharges =
+                      const storageKey =
                         chargeModalMode === "collection"
-                          ? buildingCollections
-                          : buildingCharges;
+                          ? "tumouh_star_building_collections"
+                          : "tumouh_star_building_charges";
+
+                      const saved = window.localStorage.getItem(storageKey);
+                      const currentCharges: BuildingCharge[] = saved
+                        ? JSON.parse(saved)
+                        : [];
 
                       const newCharges = selectedChargeApartments.map(
                         (apartmentNumber) => {
@@ -8342,6 +8335,7 @@ if (existingLease?.id && existingLease.tenant_id !== tenantId) {
                               : undefined;
 
                           return {
+                            id: editingChargeId || `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
                             ...chargeForm,
                             amount:
                               chargeForm.type === "إيجار"
@@ -8357,25 +8351,21 @@ if (existingLease?.id && existingLease.tenant_id !== tenantId) {
                         }
                       );
 
-                      const updatedCharges = [...currentCharges, ...newCharges];
+                      const nextCharges = editingChargeId
+                        ? currentCharges.map((item) =>
+                            item.id === editingChargeId ? newCharges[0] : item
+                          )
+                        : [...currentCharges, ...newCharges];
 
-                      if (chargeModalMode === "collection") {
-                        setBuildingCollections(updatedCharges);
-                        window.localStorage.setItem(
-                          "tumouh_star_building_collections",
-                          JSON.stringify(updatedCharges)
-                        );
-                      } else {
-                        setBuildingCharges(updatedCharges);
-                        window.localStorage.setItem(
-                          "tumouh_star_building_charges",
-                          JSON.stringify(updatedCharges)
-                        );
-                      }
+                      window.localStorage.setItem(
+                        storageKey,
+                        JSON.stringify(nextCharges)
+                      );
                     } catch {
                       // تجاهل خطأ التخزين المحلي مع إغلاق النموذج.
                     }
 
+                    setEditingChargeId(null);
                     setChargeForm({
                       type: "إيجار",
                       amount: "",
@@ -8916,6 +8906,7 @@ if (existingLease?.id && existingLease.tenant_id !== tenantId) {
                             <th className="border-b border-white/10 px-4 py-3 text-center">
                               تفاصيل / ملاحظات
                             </th>
+                            <th className="border-b border-white/10 px-4 py-3 text-center">الإجراءات</th>
                           </tr>
                         </thead>
 
@@ -8946,6 +8937,25 @@ if (existingLease?.id && existingLease.tenant_id !== tenantId) {
                                 </td>
                                 <td className="px-4 py-3 text-center font-semibold leading-6 text-gray-400">
                                   {row.notes}
+                                </td>
+                                <td className="px-4 py-3 text-center">
+                                  <div className="flex items-center justify-center gap-2">
+                                    <button type="button" onClick={() => window.alert(`التفاصيل: ${row.notes || "لا توجد تفاصيل"}`)} className="rounded-lg border border-blue-400/30 bg-blue-500/10 px-3 py-2 text-xs font-black text-blue-300">عرض</button>
+                                    <button type="button" onClick={() => {
+                                      const mode = "charge" as const;
+                                      const source = getBuildingChargesForPeriod();
+                                      const item = source.find((entry) => String(entry.date) === String(row.date) && String(entry.apartmentNumber || "") === String(row.apartmentNumber || "") && entry.type === row.type && Number(entry.amount) === Number(row.amount) && (entry.notes || "لا توجد تفاصيل") === (row.notes || "لا توجد تفاصيل"));
+                                      if (item) openChargeForEdit(item, mode);
+                                      else window.alert("تعذر تحديد العملية للتعديل.");
+                                    }} className="rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs font-black text-amber-300">تعديل</button>
+                                    <button type="button" onClick={() => {
+                                      const mode = "charge" as const;
+                                      const source = getBuildingChargesForPeriod();
+                                      const itemIndex = source.findIndex((entry) => String(entry.date) === String(row.date) && String(entry.apartmentNumber || "") === String(row.apartmentNumber || "") && entry.type === row.type && Number(entry.amount) === Number(row.amount) && (entry.notes || "لا توجد تفاصيل") === (row.notes || "لا توجد تفاصيل"));
+                                      if (itemIndex >= 0) deleteCharge(source[itemIndex], mode, itemIndex);
+                                      else window.alert("تعذر تحديد العملية للحذف.");
+                                    }} className="rounded-lg border border-red-400/30 bg-red-500/10 px-3 py-2 text-xs font-black text-red-300">حذف</button>
+                                  </div>
                                 </td>
                               </tr>
                             ))
@@ -9170,7 +9180,7 @@ if (existingLease?.id && existingLease.tenant_id !== tenantId) {
                           ) : (
                             <tr>
                               <td
-                                colSpan={8}
+                                colSpan={9}
                                 className="px-5 py-16 text-center"
                               >
                                 <Receipt
