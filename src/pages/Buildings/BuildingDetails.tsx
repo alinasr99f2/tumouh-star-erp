@@ -375,6 +375,25 @@ export default function BuildingDetails() {
     notes: "",
   });
 
+  // المستحقات والتحصيلات: حالة مشتركة يتم حفظها في Supabase لضمان ظهورها على كل الأجهزة.
+  const [buildingCharges, setBuildingCharges] = useState<BuildingCharge[]>(() => {
+    try {
+      const saved = window.localStorage.getItem("tumouh_star_building_charges");
+      return saved ? (JSON.parse(saved) as BuildingCharge[]) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [buildingCollections, setBuildingCollections] = useState<BuildingCharge[]>(() => {
+    try {
+      const saved = window.localStorage.getItem("tumouh_star_building_collections");
+      return saved ? (JSON.parse(saved) as BuildingCharge[]) : [];
+    } catch {
+      return [];
+    }
+  });
+
   const [selectedChargeApartments, setSelectedChargeApartments] =
     useState<string[]>([]);
   const [apartmentTypeFilter, setApartmentTypeFilter] = useState("");
@@ -501,7 +520,7 @@ export default function BuildingDetails() {
     const { data, error } = await supabase
       .from("building_state")
       .select(
-        "apartments, apartment_types, custom_apartment_types, custom_apartment_statuses, apartment_type_rents, apartment_extra_info, apartment_tenant_info, apartment_contract_info"
+        "apartments, apartment_types, custom_apartment_types, custom_apartment_statuses, apartment_type_rents, apartment_extra_info, apartment_tenant_info, apartment_contract_info, building_charges, building_collections"
       )
       .eq("building_id", buildingId)
       .maybeSingle();
@@ -553,6 +572,22 @@ export default function BuildingDetails() {
       setApartmentContractInfo(data.apartment_contract_info as Record<string, ApartmentContractInfo>);
     }
 
+    if (Array.isArray(data.building_charges)) {
+      setBuildingCharges(data.building_charges as BuildingCharge[]);
+      window.localStorage.setItem(
+        "tumouh_star_building_charges",
+        JSON.stringify(data.building_charges)
+      );
+    }
+
+    if (Array.isArray(data.building_collections)) {
+      setBuildingCollections(data.building_collections as BuildingCharge[]);
+      window.localStorage.setItem(
+        "tumouh_star_building_collections",
+        JSON.stringify(data.building_collections)
+      );
+    }
+
     hasLoadedBuildingStateRef.current = true;
   };
 
@@ -578,6 +613,8 @@ export default function BuildingDetails() {
         apartment_extra_info: apartmentExtraInfo,
         apartment_tenant_info: apartmentTenantInfo,
         apartment_contract_info: apartmentContractInfo,
+        building_charges: buildingCharges,
+        building_collections: buildingCollections,
         updated_at: new Date().toISOString(),
       },
       { onConflict: "building_id" }
@@ -611,6 +648,8 @@ export default function BuildingDetails() {
           apartment_extra_info: apartmentExtraInfo,
           apartment_tenant_info: apartmentTenantInfo,
           apartment_contract_info: apartmentContractInfo,
+          building_charges: buildingCharges,
+          building_collections: buildingCollections,
           updated_at: new Date().toISOString(),
         },
         { onConflict: "building_id" }
@@ -633,6 +672,8 @@ export default function BuildingDetails() {
     apartmentExtraInfo,
     apartmentTenantInfo,
     apartmentContractInfo,
+    buildingCharges,
+    buildingCollections,
   ]);
 
   const addApartment = () => {
@@ -1512,6 +1553,22 @@ export default function BuildingDetails() {
     } catch {
       // تجاهل خطأ قراءة المستحقات مع حفظ بيانات الشقة بشكل طبيعي.
     }
+
+    setBuildingCharges((current) =>
+      current.map((charge) =>
+        charge.apartmentNumber === oldNumber
+          ? { ...charge, apartmentNumber: newNumber }
+          : charge
+      )
+    );
+
+    setBuildingCollections((current) =>
+      current.map((charge) =>
+        charge.apartmentNumber === oldNumber
+          ? { ...charge, apartmentNumber: newNumber }
+          : charge
+      )
+    );
 
     setSelectedChargeApartments((current) =>
       current.map((number) =>
@@ -8268,15 +8325,10 @@ if (existingLease?.id && existingLease.tenant_id !== tenantId) {
                     }
 
                     try {
-                      const storageKey =
+                      const currentCharges =
                         chargeModalMode === "collection"
-                          ? "tumouh_star_building_collections"
-                          : "tumouh_star_building_charges";
-
-                      const saved = window.localStorage.getItem(storageKey);
-                      const currentCharges: BuildingCharge[] = saved
-                        ? JSON.parse(saved)
-                        : [];
+                          ? buildingCollections
+                          : buildingCharges;
 
                       const newCharges = selectedChargeApartments.map(
                         (apartmentNumber) => {
@@ -8305,10 +8357,21 @@ if (existingLease?.id && existingLease.tenant_id !== tenantId) {
                         }
                       );
 
-                      window.localStorage.setItem(
-                        storageKey,
-                        JSON.stringify([...currentCharges, ...newCharges])
-                      );
+                      const updatedCharges = [...currentCharges, ...newCharges];
+
+                      if (chargeModalMode === "collection") {
+                        setBuildingCollections(updatedCharges);
+                        window.localStorage.setItem(
+                          "tumouh_star_building_collections",
+                          JSON.stringify(updatedCharges)
+                        );
+                      } else {
+                        setBuildingCharges(updatedCharges);
+                        window.localStorage.setItem(
+                          "tumouh_star_building_charges",
+                          JSON.stringify(updatedCharges)
+                        );
+                      }
                     } catch {
                       // تجاهل خطأ التخزين المحلي مع إغلاق النموذج.
                     }
