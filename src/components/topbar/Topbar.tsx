@@ -9,25 +9,93 @@ import {
 
 function Topbar() {
   return (
-    <header className="h-20 bg-[#062B24] border-b border-white/10 px-8 flex items-center justify-between">
+    <header
+      className="
+        flex
+        h-16
+        min-w-0
+        w-full
+        items-center
+        justify-between
+        gap-2
+        overflow-hidden
+        border-b
+        border-white/10
+        bg-[#062B24]
+        px-3
+        sm:h-20
+        sm:px-5
+        lg:px-8
+      "
+    >
 
       {/* Left */}
 
-      <div className="flex items-center gap-4">
+      <div className="flex shrink-0 items-center gap-2 sm:gap-4">
 
-        <button className="w-11 h-11 rounded-xl bg-[#0B4034] hover:bg-[#145545] transition flex items-center justify-center">
+        <button
+          type="button"
+          aria-label="الإشعارات"
+          className="
+            flex
+            h-10
+            w-10
+            shrink-0
+            items-center
+            justify-center
+            rounded-xl
+            bg-[#0B4034]
+            transition
+            hover:bg-[#145545]
+            sm:h-11
+            sm:w-11
+          "
+        >
 
-          <Bell size={20} />
+          <Bell size={19} />
 
         </button>
 
-        <button className="w-11 h-11 rounded-xl bg-[#0B4034] hover:bg-[#145545] transition flex items-center justify-center">
+        <button
+          type="button"
+          aria-label="الوضع الليلي"
+          className="
+            flex
+            h-10
+            w-10
+            shrink-0
+            items-center
+            justify-center
+            rounded-xl
+            bg-[#0B4034]
+            transition
+            hover:bg-[#145545]
+            sm:h-11
+            sm:w-11
+          "
+        >
 
-          <Moon size={18} />
+          <Moon size={17} />
 
         </button>
 
-        <button className="w-11 h-11 rounded-xl bg-[#0B4034] hover:bg-[#145545] transition flex items-center justify-center">
+        <button
+          type="button"
+          aria-label="اللغة"
+          className="
+            hidden
+            h-11
+            w-11
+            shrink-0
+            items-center
+            justify-center
+            rounded-xl
+            bg-[#0B4034]
+            transition
+            hover:bg-[#145545]
+            sm:flex
+          "
+        >
 
           <Globe size={18} />
 
@@ -37,19 +105,43 @@ function Topbar() {
 
       {/* Center */}
 
-      <div className="flex-1 flex justify-center">
+      <div
+        className="
+          flex
+          min-w-0
+          flex-1
+          justify-center
+          px-2
+          sm:px-4
+        "
+      >
 
-        <div className="relative w-[450px]">
+        <div className="relative hidden w-full max-w-[450px] sm:block">
 
           <Search
             size={18}
-            className="absolute top-1/2 -translate-y-1/2 right-4 text-emerald-200/70"
+            className="absolute right-4 top-1/2 -translate-y-1/2 text-emerald-200/70"
           />
 
           <input
             type="text"
             placeholder="ابحث داخل النظام..."
-            className="w-full h-12 rounded-2xl bg-[#0B4034] border border-white/10 pr-12 pl-4 outline-none text-white placeholder:text-emerald-100/50 focus:border-yellow-400 transition"
+            className="
+              h-11
+              w-full
+              rounded-2xl
+              border
+              border-white/10
+              bg-[#0B4034]
+              pl-4
+              pr-12
+              text-white
+              outline-none
+              placeholder:text-emerald-100/50
+              transition
+              focus:border-yellow-400
+              sm:h-12
+            "
           />
 
         </div>
@@ -58,9 +150,17 @@ function Topbar() {
 
       {/* Right */}
 
-      <div className="flex items-center gap-5">
+      <div
+        className="
+          flex
+          shrink-0
+          items-center
+          gap-2
+          sm:gap-5
+        "
+      >
 
-        <div className="text-left">
+        <div className="hidden text-left sm:block">
 
           <h3 className="font-semibold">
             علي نصر
@@ -72,17 +172,49 @@ function Topbar() {
 
         </div>
 
-        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center font-bold text-[#062B24]">
+        <div
+          className="
+            flex
+            h-10
+            w-10
+            shrink-0
+            items-center
+            justify-center
+            rounded-full
+            bg-gradient-to-br
+            from-yellow-400
+            to-yellow-600
+            text-sm
+            font-bold
+            text-[#062B24]
+            sm:h-12
+            sm:w-12
+            sm:text-base
+          "
+        >
           A
         </div>
 
-        <ChevronDown size={18} className="text-emerald-200/70" />
+        <ChevronDown
+          size={18}
+          className="hidden text-emerald-200/70 sm:block"
+        />
 
-        <div className="flex items-center gap-2 text-emerald-100/80 mr-6">
+        <div
+          className="
+            hidden
+            items-center
+            gap-2
+            text-emerald-100/80
+            sm:flex
+            sm:mr-2
+            lg:mr-6
+          "
+        >
 
           <CalendarDays size={18} />
 
-          <span className="text-sm">
+          <span className="whitespace-nowrap text-sm">
             28 يوليو 2026
           </span>
 

@@ -56,6 +56,9 @@ export default function Home() {
         relative
         min-h-full
         overflow-hidden
+        w-full
+        min-w-0
+        max-w-full
         pb-10
         aqar-home-page
       "
@@ -95,6 +98,8 @@ export default function Home() {
           flex
           w-full
           max-w-[1550px]
+          min-w-0
+          max-w-full
           flex-col
           items-center
           px-3
@@ -171,6 +176,8 @@ export default function Home() {
           className="
             grid
             w-full
+            min-w-0
+            max-w-full
             grid-cols-1
             gap-4
             sm:gap-5
@@ -195,6 +202,9 @@ export default function Home() {
                   relative
                   flex
                   min-h-[340px]
+                  w-full
+                  min-w-0
+                  max-w-full
                   flex-col
                   items-center
                   overflow-hidden
@@ -398,7 +408,9 @@ export default function Home() {
                     z-10
                     mt-3
                     min-h-0
+                    w-full
                     max-w-[340px]
+                    break-words
                     text-sm
                     sm:mt-4
                     sm:min-h-[58px]
@@ -426,6 +438,7 @@ export default function Home() {
                     flex
                     w-full
                     min-w-0
+                    max-w-full
                     items-center
                     sm:min-w-[210px]
                     justify-center

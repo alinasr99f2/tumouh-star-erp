@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
 
@@ -76,7 +75,15 @@ function MainLayout() {
 
   return (
     <div
-      className="flex h-screen overflow-hidden bg-[#031F1B]"
+      className="
+        flex
+        h-screen
+        w-full
+        min-w-0
+        max-w-full
+        overflow-hidden
+        bg-[#031F1B]
+      "
       dir="rtl"
     >
 
@@ -84,19 +91,32 @@ function MainLayout() {
           SIDEBAR
       ========================================== */}
 
-      <Sidebar
-        onLogout={() => setShowLogoutModal(true)}
-      />
+      <div className="shrink-0">
+        <Sidebar
+          onLogout={() => setShowLogoutModal(true)}
+        />
+      </div>
 
       {/* ==========================================
           MAIN CONTENT
       ========================================== */}
 
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+      <div
+        className="
+          flex
+          min-w-0
+          max-w-full
+          flex-1
+          flex-col
+          overflow-hidden
+        "
+      >
 
         {/* Top Navigation */}
 
-        <Topbar />
+        <div className="min-w-0 max-w-full shrink-0">
+          <Topbar />
+        </div>
 
         {/* ==========================================
             PAGE CONTENT
@@ -106,10 +126,14 @@ function MainLayout() {
           className="
             relative
             flex-1
+            min-w-0
+            max-w-full
+            overflow-x-hidden
             overflow-y-auto
             bg-[#031F1B]
-            p-4
-            sm:p-6
+            p-3
+            sm:p-4
+            md:p-6
           "
         >
 
@@ -230,6 +254,8 @@ function MainLayout() {
               z-10
               mx-auto
               min-h-full
+              w-full
+              min-w-0
               max-w-[1700px]
             "
           >
@@ -255,8 +281,10 @@ function MainLayout() {
             flex
             items-center
             justify-center
+            overflow-y-auto
             bg-black/60
-            p-6
+            p-4
+            sm:p-6
             backdrop-blur-md
           "
           onClick={() => {
@@ -272,11 +300,15 @@ function MainLayout() {
             className="
               w-full
               max-w-md
-              rounded-[28px]
+              max-h-[calc(100vh-2rem)]
+              overflow-y-auto
+              rounded-[24px]
+              sm:rounded-[28px]
               border
               border-[#C49A3A]/20
               bg-[#062D27]
-              p-8
+              p-5
+              sm:p-8
               text-center
               shadow-2xl
             "
@@ -292,8 +324,10 @@ function MainLayout() {
                 mx-auto
                 mb-5
                 flex
-                h-20
-                w-20
+                h-16
+                w-16
+                sm:h-20
+                sm:w-20
                 items-center
                 justify-center
                 rounded-3xl
@@ -329,9 +363,10 @@ function MainLayout() {
 
             <h2
               className="
-                text-2xl
+                text-xl
                 font-black
                 text-white
+                sm:text-2xl
               "
             >
               تسجيل الخروج
@@ -353,10 +388,13 @@ function MainLayout() {
 
             <div
               className="
-                mt-8
+                mt-6
                 grid
-                grid-cols-2
-                gap-4
+                grid-cols-1
+                gap-3
+                sm:mt-8
+                sm:grid-cols-2
+                sm:gap-4
               "
             >
 
@@ -369,6 +407,7 @@ function MainLayout() {
                   setShowLogoutModal(false)
                 }
                 className="
+                  min-h-12
                   rounded-2xl
                   border
                   border-white/10
@@ -395,6 +434,7 @@ function MainLayout() {
                 disabled={loggingOut}
                 onClick={handleLogout}
                 className="
+                  min-h-12
                   rounded-2xl
                   bg-red-500
                   px-5

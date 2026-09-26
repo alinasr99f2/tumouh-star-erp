@@ -16,21 +16,114 @@ type SidebarProps = {
 
 function Sidebar({ onLogout }: SidebarProps) {
   const [buildingsOpen, setBuildingsOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  const handleMobileNavigate = () => {
+    setMobileOpen(false);
+  };
 
   return (
-    <aside
-      className="
-        w-[290px]
-        shrink-0
-        h-screen
-        flex
-        flex-col
-        bg-[#668C7A]
-        border-l
-        border-[#C49A3A]/35
-        text-white
-      "
-    >
+    <>
+      {/* Mobile menu button */}
+      <button
+        type="button"
+        aria-label="فتح القائمة الجانبية"
+        aria-expanded={mobileOpen}
+        onClick={() => setMobileOpen(true)}
+        className="
+          fixed
+          right-3
+          top-3
+          z-[10001]
+          flex
+          h-11
+          w-11
+          items-center
+          justify-center
+          rounded-xl
+          border
+          border-[#C49A3A]/35
+          bg-[#0B4034]
+          text-white
+          shadow-lg
+          transition
+          hover:bg-[#145545]
+          lg:hidden
+        "
+      >
+        <span className="text-2xl leading-none">☰</span>
+      </button>
+
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <button
+          type="button"
+          aria-label="إغلاق القائمة الجانبية"
+          onClick={() => setMobileOpen(false)}
+          className="
+            fixed
+            inset-0
+            z-[9998]
+            bg-black/55
+            backdrop-blur-[2px]
+            lg:hidden
+          "
+        />
+      )}
+
+      <aside
+        className={`
+          fixed
+          inset-y-0
+          right-0
+          z-[10000]
+          flex
+          h-screen
+          w-[min(290px,88vw)]
+          shrink-0
+          flex-col
+          overflow-hidden
+          bg-[#668C7A]
+          text-white
+          border-l
+          border-[#C49A3A]/35
+          shadow-2xl
+          transition-transform
+          duration-300
+          ease-out
+          lg:static
+          lg:w-[290px]
+          lg:translate-x-0
+          lg:shadow-none
+          ${mobileOpen ? "translate-x-0" : "translate-x-full"}
+        `}
+      >
+      {/* Mobile close button */}
+      <button
+        type="button"
+        aria-label="إغلاق القائمة الجانبية"
+        onClick={() => setMobileOpen(false)}
+        className="
+          absolute
+          left-3
+          top-3
+          z-[20]
+          flex
+          h-9
+          w-9
+          items-center
+          justify-center
+          rounded-xl
+          bg-black/15
+          text-white
+          transition
+          hover:bg-black/25
+          lg:hidden
+        "
+      >
+        <span className="text-xl leading-none">×</span>
+      </button>
+
       {/* Header - Official Logo */}
       <div
         className="
@@ -41,6 +134,8 @@ function Sidebar({ onLogout }: SidebarProps) {
           overflow-hidden
           px-4
           py-3
+          pt-12
+          lg:pt-3
           border-b
           border-[#C49A3A]/40
           bg-[#668C7A]
@@ -68,7 +163,8 @@ function Sidebar({ onLogout }: SidebarProps) {
             z-10
             w-full
             max-w-[255px]
-            h-[135px]
+            h-[110px]
+            sm:h-[135px]
             object-contain
             drop-shadow-[0_3px_5px_rgba(0,0,0,0.25)]
           "
@@ -175,6 +271,7 @@ function Sidebar({ onLogout }: SidebarProps) {
                 <div className="relative">
                   <NavLink
                     to={item.path}
+                    onClick={handleMobileNavigate}
                     end={
                       item.path === "/" ||
                       item.path === "/buildings"
@@ -309,6 +406,7 @@ function Sidebar({ onLogout }: SidebarProps) {
                         <NavLink
                           key={child.title}
                           to={child.path}
+                          onClick={handleMobileNavigate}
                           className={({ isActive }) =>
                             `
                             group
@@ -430,6 +528,7 @@ function Sidebar({ onLogout }: SidebarProps) {
         </button>
       </div>
     </aside>
+    </>
   );
 }
 
