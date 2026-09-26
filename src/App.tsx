@@ -4,10 +4,11 @@ import {
   Route,
   Navigate,
 } from "react-router-dom";
+import { useEffect, useState } from "react";
 
 import MainLayout from "./layouts/MainLayout";
-
 import Login from "./pages/Login/Login";
+import { supabase } from "./utils/supabase";
 
 import Home from "./pages/Home/Home";
 import CompanyDashboard from "./pages/Dashboard/CompanyDashboard";
@@ -22,24 +23,64 @@ import FinancialDetails from "./pages/Buildings/FinancialDetails";
 import TenantDetails from "./pages/Buildings/TenantDetails";
 import FinancialCenter from "./pages/FinancialCenter/FinancialCenter";
 
-function App() {
-  const isDevMode =
-    import.meta.env.VITE_DEV_MODE === "true";
+function ProtectedRoute() {
+  const [sessionReady, setSessionReady] = useState(false);
+  const [hasSession, setHasSession] = useState(false);
 
+  useEffect(() => {
+    let mounted = true;
+
+    const checkSession = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!mounted) return;
+
+      setHasSession(!!session);
+      setSessionReady(true);
+    };
+
+    void checkSession();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!mounted) return;
+
+      setHasSession(!!session);
+      setSessionReady(true);
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  if (!sessionReady) {
+    return null;
+  }
+
+  if (!hasSession) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return <MainLayout />;
+}
+
+function App() {
   return (
     <BrowserRouter>
       <Routes>
+        {/* صفحة تسجيل الدخول متاحة بدون Session */}
         <Route path="/login" element={<Login />} />
 
-        <Route element={<MainLayout />}>
+        {/* جميع صفحات النظام محمية بتسجيل الدخول */}
+        <Route element={<ProtectedRoute />}>
           <Route
             path="/"
-            element={
-              <Navigate
-                to={isDevMode ? "/home" : "/login"}
-                replace
-              />
-            }
+            element={<Navigate to="/home" replace />}
           />
 
           <Route path="/home" element={<Home />} />
@@ -106,16 +147,18 @@ function App() {
             path="/financial"
             element={<FinancialCenter />}
           />
+
+          {/* أي رابط غير معروف داخل النظام */}
+          <Route
+            path="*"
+            element={<Navigate to="/home" replace />}
+          />
         </Route>
 
+        {/* أي رابط غير معروف وغير محمي */}
         <Route
           path="*"
-          element={
-            <Navigate
-              to={isDevMode ? "/home" : "/login"}
-              replace
-            />
-          }
+          element={<Navigate to="/login" replace />}
         />
       </Routes>
     </BrowserRouter>
