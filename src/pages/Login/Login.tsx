@@ -50,18 +50,52 @@ export default function Login() {
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
 
   useEffect(() => {
+    let isMounted = true;
+
+    const showRecoveryMode = () => {
+      if (!isMounted) return;
+
+      setRecoveryMode(true);
+      setResetMode(false);
+      setResetSent(false);
+      setError("");
+    };
+
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event) => {
       if (event === "PASSWORD_RECOVERY") {
-        setRecoveryMode(true);
-        setResetMode(false);
-        setResetSent(false);
-        setError("");
+        showRecoveryMode();
       }
     });
 
+    // Supabase may restore the recovery session before PASSWORD_RECOVERY
+    // is received by this component. Check the recovery URL/session as well.
+    const checkRecoverySession = async () => {
+      try {
+        const hash = window.location.hash;
+        const isRecoveryUrl =
+          hash.includes("type=recovery") ||
+          new URLSearchParams(window.location.search).get("type") === "recovery";
+
+        if (!isRecoveryUrl) return;
+
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        if (session) {
+          showRecoveryMode();
+        }
+      } catch (recoveryCheckError) {
+        console.error(recoveryCheckError);
+      }
+    };
+
+    void checkRecoverySession();
+
     return () => {
+      isMounted = false;
       subscription.unsubscribe();
     };
   }, []);
@@ -89,9 +123,14 @@ export default function Login() {
     try {
       setLoading(true);
 
+      const redirectUrl =
+        window.location.hostname === "localhost"
+          ? `${window.location.origin}/login`
+          : "https://tumouh-star-aur5dcxur-alinasr99f2s-projects.vercel.app/login";
+
       const { error: resetError } =
         await supabase.auth.resetPasswordForEmail(emailToReset, {
-          redirectTo: `${window.location.origin}/login`,
+          redirectTo: redirectUrl,
         });
 
       if (resetError) {
