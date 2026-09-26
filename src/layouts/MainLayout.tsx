@@ -19,22 +19,8 @@ function MainLayout() {
       setLoggingOut(true);
 
       // ==========================================
-      // LOCAL DEVELOPMENT MODE
-      // لا يوجد اتصال بـ Supabase
-      // ==========================================
-      if (import.meta.env.VITE_DEV_MODE === "true") {
-        setShowLogoutModal(false);
-
-        navigate("/home", {
-          replace: true,
-        });
-
-        return;
-      }
-
-      // ==========================================
-      // PRODUCTION MODE
       // تسجيل خروج حقيقي من Supabase
+      // يجب تنفيذ تسجيل الخروج في جميع البيئات
       // ==========================================
       const { error } =
         await supabase.auth.signOut();
