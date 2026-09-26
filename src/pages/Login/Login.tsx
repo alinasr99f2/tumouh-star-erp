@@ -61,6 +61,16 @@ export default function Login() {
       setError("");
     };
 
+    const recoveryParam =
+      new URLSearchParams(window.location.search).get("recovery") === "1";
+
+    // The recovery query parameter is intentionally added to the redirect URL.
+    // Supabase can consume the hash before this component mounts, so the query
+    // parameter gives the page a reliable way to recognize a password reset.
+    if (recoveryParam) {
+      showRecoveryMode();
+    }
+
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event) => {
@@ -69,23 +79,22 @@ export default function Login() {
       }
     });
 
-    // Supabase may restore the recovery session before PASSWORD_RECOVERY
-    // is received by this component. Check the recovery URL/session as well.
     const checkRecoverySession = async () => {
       try {
-        const hash = window.location.hash;
-        const isRecoveryUrl =
-          hash.includes("type=recovery") ||
-          new URLSearchParams(window.location.search).get("type") === "recovery";
+        if (!recoveryParam) return;
 
-        if (!isRecoveryUrl) return;
+        // Give Supabase Auth a moment to finish restoring the recovery session.
+        for (let attempt = 0; attempt < 10; attempt += 1) {
+          const {
+            data: { session },
+          } = await supabase.auth.getSession();
 
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
+          if (session) {
+            showRecoveryMode();
+            return;
+          }
 
-        if (session) {
-          showRecoveryMode();
+          await new Promise((resolve) => setTimeout(resolve, 200));
         }
       } catch (recoveryCheckError) {
         console.error(recoveryCheckError);
@@ -125,8 +134,8 @@ export default function Login() {
 
       const redirectUrl =
         window.location.hostname === "localhost"
-          ? `${window.location.origin}/login`
-          : "https://tumouh-star-aur5dcxur-alinasr99f2s-projects.vercel.app/login";
+          ? `${window.location.origin}/login?recovery=1`
+          : "https://tumouh-star-aur5dcxur-alinasr99f2s-projects.vercel.app/login?recovery=1";
 
       const { error: resetError } =
         await supabase.auth.resetPasswordForEmail(emailToReset, {
