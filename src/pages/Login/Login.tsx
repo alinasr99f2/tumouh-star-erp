@@ -101,7 +101,7 @@ export default function Login() {
               كارت تسجيل الدخول - الشمال
           ===================================== */}
           <section className="login-section" dir="rtl" style={{ alignSelf: "stretch", display: "flex" }}>
-            <div className="login-card" style={{ height: "100%", boxSizing: "border-box" }}>
+            <div className="login-card" style={{ boxSizing: "border-box" }}>
               <div className="login-card-top-line" />
 
               {/* رأس الكارت */}
@@ -113,10 +113,6 @@ export default function Login() {
                     className="login-logo"
                   />
                 </div>
-
-                <h1 className="login-brand-title">عقار سمارت</h1>
-
-                <p className="login-brand-english">Aqar Smart</p>
 
                 <h2 className="login-welcome-title">
                   مرحبًا بك مرة أخرى
@@ -245,26 +241,6 @@ export default function Login() {
                   )}
                 </button>
               </form>
-
-              {/* الفاصل */}
-              <div className="login-divider">
-                <span />
-                <strong>أو</strong>
-                <span />
-              </div>
-
-              {/* الدخول بحساب الشركة */}
-              <button
-                type="button"
-                className="company-login-button"
-                onClick={() =>
-                  setError("خدمة الدخول بحساب الشركة ستكون متاحة قريبًا")
-                }
-              >
-                <Building2 size={21} />
-                الدخول بحساب الشركة
-              </button>
-
               {/* المزايا */}
               <div className="login-benefits">
                 {loginBenefits.map((benefit) => {
@@ -293,7 +269,7 @@ export default function Login() {
               الكارت التعريفي الزجاجي - اليمين
           ===================================== */}
           <section className="hero-section" dir="rtl" style={{ alignSelf: "stretch", display: "flex" }}>
-            <div className="hero-panel" style={{ height: "100%", boxSizing: "border-box", width: "100%" }}>
+            <div className="hero-panel" style={{ boxSizing: "border-box", width: "100%" }}>
               {/* صورة الخلفية */}
               <div className="hero-background-image" />
 
@@ -313,7 +289,7 @@ export default function Login() {
               <div className="hero-decoration hero-decoration-two" />
 
               {/* محتوى الكارت */}
-              <div className="hero-content">
+              <div className="hero-content" style={{ paddingBottom: "22px" }}>
                 {/* اللوجو */}
                 <div className="hero-logo-wrapper">
                   <img
@@ -365,17 +341,6 @@ export default function Login() {
                       </div>
                     );
                   })}
-                </div>
-
-                {/* الصورة السفلية */}
-                <div className="hero-bottom-image">
-                  <div className="hero-bottom-background" />
-                  <div className="hero-bottom-overlay" />
-
-                  <div className="hero-bottom-content">
-                    <p>عقاراتك تحت السيطرة</p>
-                    <span>إدارة احترافية في مكان واحد</span>
-                  </div>
                 </div>
               </div>
             </div>
