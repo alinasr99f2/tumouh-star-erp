@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Eye,
   EyeOff,
@@ -34,21 +34,6 @@ const loginBenefits = [
 
 export default function Login() {
   const navigate = useNavigate();
-
-  /*
-   * وضع جهاز العمل:
-   * أضف VITE_WORK_DEVICE_MODE=true داخل ملف .env.local
-   * ويمكن أيضًا استخدام VITE_DEV_MODE=true كما كان سابقًا.
-   */
-  const workDeviceMode =
-    import.meta.env.VITE_WORK_DEVICE_MODE === "true" ||
-    import.meta.env.VITE_DEV_MODE === "true";
-
-  useEffect(() => {
-    if (workDeviceMode) {
-      navigate("/home", { replace: true });
-    }
-  }, [navigate, workDeviceMode]);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -89,11 +74,6 @@ export default function Login() {
     }
   };
 
-  // منع ظهور صفحة تسجيل الدخول لحظة واحدة أثناء التحويل في وضع جهاز العمل.
-  if (workDeviceMode) {
-    return null;
-  }
-
   return (
     <div className="login-page" dir="rtl">
       {/* الخلفية العامة */}
@@ -116,12 +96,12 @@ export default function Login() {
 
       {/* الهيكل الرئيسي */}
       <main className="login-main" dir="ltr">
-        <div className="login-layout">
+        <div className="login-layout" style={{ alignItems: "stretch" }}>
           {/* =====================================
               كارت تسجيل الدخول - الشمال
           ===================================== */}
-          <section className="login-section" dir="rtl">
-            <div className="login-card">
+          <section className="login-section" dir="rtl" style={{ alignSelf: "stretch", display: "flex" }}>
+            <div className="login-card" style={{ height: "100%", boxSizing: "border-box" }}>
               <div className="login-card-top-line" />
 
               {/* رأس الكارت */}
@@ -301,12 +281,6 @@ export default function Login() {
                   );
                 })}
               </div>
-
-              {/* الحساب التجريبي */}
-              <div className="demo-account-box">
-                <p>المستخدم التجريبي الحالي</p>
-                <strong>test@tumouh-star.local</strong>
-              </div>
             </div>
 
             <div className="login-footer">
@@ -318,8 +292,8 @@ export default function Login() {
           {/* =====================================
               الكارت التعريفي الزجاجي - اليمين
           ===================================== */}
-          <section className="hero-section" dir="rtl">
-            <div className="hero-panel">
+          <section className="hero-section" dir="rtl" style={{ alignSelf: "stretch", display: "flex" }}>
+            <div className="hero-panel" style={{ height: "100%", boxSizing: "border-box", width: "100%" }}>
               {/* صورة الخلفية */}
               <div className="hero-background-image" />
 
