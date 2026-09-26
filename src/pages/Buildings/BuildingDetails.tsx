@@ -1792,7 +1792,8 @@ export default function BuildingDetails() {
     const identityNumber = tenantInfo.identityNumber.trim();
 
     if (!fullName) {
-      throw new Error("اكتب اسم المستأجر أولًا.");
+      // اسم المستأجر اختياري؛ حفظ بيانات العمارة لا يتوقف عليه.
+      return;
     }
 
     /*
