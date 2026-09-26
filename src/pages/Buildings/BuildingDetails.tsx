@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "../../utils/supabase";
 import {
   X,
@@ -485,6 +485,242 @@ export default function BuildingDetails() {
       return createDefaultApartments();
     }
   });
+
+  // مزامنة بيانات العمارة مع Supabase حتى تظهر نفس البيانات على أي جهاز.
+  const remoteStateHydratedRef = useRef(false);
+  const [chargeSyncVersion, setChargeSyncVersion] = useState(0);
+
+  const getCurrentBuildingId = () => {
+    const match = window.location.pathname.match(/\/buildings\/(\d+)/);
+    return match ? Number(match[1]) : null;
+  };
+
+  const readBuildingChargesFromStorage = (key: string): BuildingCharge[] => {
+    try {
+      const saved = window.localStorage.getItem(key);
+      if (!saved) {
+        return [];
+      }
+
+      const parsed = JSON.parse(saved);
+      return Array.isArray(parsed) ? (parsed as BuildingCharge[]) : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const getBuildingStatePayload = (
+    updatedApartments: Apartment[] = apartments
+  ) => ({
+    building_id: getCurrentBuildingId(),
+    apartments: updatedApartments,
+    apartment_types: apartmentTypes,
+    custom_apartment_types: customApartmentTypes,
+    custom_apartment_statuses: customApartmentStatuses,
+    apartment_type_rents: apartmentTypeRents,
+    apartment_extra_info: apartmentExtraInfo,
+    apartment_tenant_info: apartmentTenantInfo,
+    apartment_contract_info: apartmentContractInfo,
+    building_charges: readBuildingChargesFromStorage(
+      "tumouh_star_building_charges"
+    ),
+    building_collections: readBuildingChargesFromStorage(
+      "tumouh_star_building_collections"
+    ),
+    updated_at: new Date().toISOString(),
+  });
+
+  const saveBuildingStateToSupabase = async (
+    updatedApartments: Apartment[] = apartments
+  ) => {
+    const buildingId = getCurrentBuildingId();
+
+    if (!buildingId) {
+      throw new Error("لم يتم التعرف على رقم العمارة من الرابط.");
+    }
+
+    const { error } = await supabase
+      .from("building_state")
+      .upsert(
+        getBuildingStatePayload(updatedApartments),
+        { onConflict: "building_id" }
+      );
+
+    if (error) {
+      throw error;
+    }
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadBuildingStateFromSupabase = async () => {
+      const buildingId = getCurrentBuildingId();
+
+      if (!buildingId) {
+        remoteStateHydratedRef.current = true;
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("building_state")
+        .select(
+          "apartments, apartment_types, custom_apartment_types, custom_apartment_statuses, apartment_type_rents, apartment_extra_info, apartment_tenant_info, apartment_contract_info, building_charges, building_collections"
+        )
+        .eq("building_id", buildingId)
+        .maybeSingle();
+
+      if (cancelled) {
+        return;
+      }
+
+      if (error) {
+        console.error("خطأ في تحميل بيانات العمارة من Supabase:", error);
+        return;
+      }
+
+      if (data) {
+        if (Array.isArray(data.apartments)) {
+          const remoteApartments = data.apartments.map(
+            (apartment: Apartment) => ({
+              ...apartment,
+              number: String(apartment.number),
+            })
+          );
+
+          setApartments(remoteApartments);
+          window.localStorage.setItem(
+            "tumouh_star_building_apartments",
+            JSON.stringify(remoteApartments)
+          );
+        }
+
+        if (data.apartment_types) {
+          const remoteApartmentTypes =
+            data.apartment_types as Record<string, string>;
+          setApartmentTypes(remoteApartmentTypes);
+          window.localStorage.setItem(
+            "tumouh_star_apartment_types",
+            JSON.stringify(remoteApartmentTypes)
+          );
+        }
+
+        if (Array.isArray(data.custom_apartment_types)) {
+          const remoteCustomTypes =
+            data.custom_apartment_types as string[];
+          setCustomApartmentTypes(remoteCustomTypes);
+          window.localStorage.setItem(
+            "tumouh_star_custom_apartment_types",
+            JSON.stringify(remoteCustomTypes)
+          );
+        }
+
+        if (Array.isArray(data.custom_apartment_statuses)) {
+          const remoteCustomStatuses =
+            data.custom_apartment_statuses as string[];
+          setCustomApartmentStatuses(remoteCustomStatuses);
+          window.localStorage.setItem(
+            "tumouh_star_custom_apartment_statuses",
+            JSON.stringify(remoteCustomStatuses)
+          );
+        }
+
+        if (data.apartment_type_rents) {
+          const remoteTypeRents =
+            data.apartment_type_rents as Record<string, number>;
+          setApartmentTypeRents(remoteTypeRents);
+          window.localStorage.setItem(
+            "tumouh_star_apartment_type_rents",
+            JSON.stringify(remoteTypeRents)
+          );
+        }
+
+        if (data.apartment_extra_info) {
+          const remoteExtraInfo =
+            data.apartment_extra_info as Record<string, ApartmentExtraInfo>;
+          setApartmentExtraInfo(remoteExtraInfo);
+          window.localStorage.setItem(
+            "tumouh_star_apartment_extra_info",
+            JSON.stringify(remoteExtraInfo)
+          );
+        }
+
+        if (data.apartment_tenant_info) {
+          const remoteTenantInfo =
+            data.apartment_tenant_info as Record<string, ApartmentTenantInfo>;
+          setApartmentTenantInfo(remoteTenantInfo);
+          window.localStorage.setItem(
+            "tumouh_star_apartment_tenant_info",
+            JSON.stringify(remoteTenantInfo)
+          );
+        }
+
+        if (data.apartment_contract_info) {
+          const remoteContractInfo =
+            data.apartment_contract_info as Record<string, ApartmentContractInfo>;
+          setApartmentContractInfo(remoteContractInfo);
+          window.localStorage.setItem(
+            "tumouh_star_apartment_contract_info",
+            JSON.stringify(remoteContractInfo)
+          );
+        }
+
+        if (Array.isArray(data.building_charges)) {
+          window.localStorage.setItem(
+            "tumouh_star_building_charges",
+            JSON.stringify(data.building_charges)
+          );
+        }
+
+        if (Array.isArray(data.building_collections)) {
+          window.localStorage.setItem(
+            "tumouh_star_building_collections",
+            JSON.stringify(data.building_collections)
+          );
+        }
+      } else {
+        // أول تشغيل لهذه العمارة: ننقل النسخة الحالية إلى قاعدة البيانات.
+        await saveBuildingStateToSupabase();
+      }
+
+      remoteStateHydratedRef.current = true;
+      setChargeSyncVersion((value) => value + 1);
+    };
+
+    void loadBuildingStateFromSupabase().catch((error) => {
+      console.error("فشل تحميل بيانات العمارة:", error);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!remoteStateHydratedRef.current) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      void saveBuildingStateToSupabase().catch((error) => {
+        console.error("خطأ في الحفظ التلقائي لبيانات العمارة:", error);
+      });
+    }, 400);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [
+    apartments,
+    apartmentTypes,
+    customApartmentTypes,
+    customApartmentStatuses,
+    apartmentTypeRents,
+    apartmentExtraInfo,
+    apartmentTenantInfo,
+    apartmentContractInfo,
+    chargeSyncVersion,
+  ]);
 
   const addApartment = () => {
     setApartments((current) => {
@@ -1820,6 +2056,7 @@ export default function BuildingDetails() {
 
     const updated = records.filter((_, recordIndex) => recordIndex !== index);
     window.localStorage.setItem(storageKey, JSON.stringify(updated));
+    setChargeSyncVersion((value) => value + 1);
     window.dispatchEvent(new Event("storage"));
     setIsChargeModalOpen(false);
     window.alert("تم حذف العملية بنجاح.");
@@ -4320,7 +4557,7 @@ export default function BuildingDetails() {
     return (
       <div
         dir="rtl"
-        className="min-h-screen bg-[#061426] p-6 text-white"
+        className="min-h-screen w-full min-w-0 max-w-full overflow-x-hidden bg-[#061426] p-3 text-white sm:p-4 lg:p-6"
       >
         <div className="mx-auto min-h-[calc(100vh-3rem)] max-w-7xl rounded-3xl border border-[#d89b18]/40 bg-[#07182b] p-6 shadow-[0_20px_80px_rgba(0,0,0,0.35)]">
           <div className="flex items-center justify-between border-b border-white/10 pb-5">
@@ -4342,7 +4579,7 @@ export default function BuildingDetails() {
               </p>
             </div>
 
-            <div className="w-[110px]" />
+            <div className="hidden w-[110px] sm:block" />
           </div>
 
           <div className="flex min-h-[70vh] items-center justify-center">
@@ -4375,25 +4612,25 @@ export default function BuildingDetails() {
       {/* HEADER                                                 */}
       {/* ===================================================== */}
 
-      <div className="mb-6 rounded-2xl border border-[#d89b18] bg-[#050505] p-6 shadow-lg">
+      <div className="mb-4 rounded-2xl border border-[#d89b18] bg-[#050505] p-3 shadow-lg sm:mb-6 sm:p-4 lg:p-6">
 
         <div className="flex flex-col items-center justify-center gap-2 text-center">
 
-          <div className="flex items-center justify-center gap-5 text-center">
+          <div className="flex flex-wrap items-center justify-center gap-2 text-center sm:gap-5">
 
-            <h1 className="text-4xl font-bold text-[#f0ad18]">
+            <h1 className="text-2xl font-bold text-[#f0ad18] sm:text-3xl lg:text-4xl">
               عمارة سنتر
             </h1>
 
-            <div className="text-3xl font-bold text-white">
+            <div className="text-xl font-bold text-white sm:text-2xl lg:text-3xl">
               Tumouh Star
             </div>
 
           </div>
 
-          <div className="flex items-center justify-center gap-4 text-center">
+          <div className="flex flex-wrap items-center justify-center gap-2 text-center sm:gap-4">
 
-            <p className="text-lg text-gray-300">
+            <p className="text-sm text-gray-300 sm:text-lg">
               تفاصيل الاستثمار والعقود والإيرادات
             </p>
 
@@ -4724,7 +4961,7 @@ export default function BuildingDetails() {
       {/* MONTHLY FINANCIAL SUMMARY - 8 LARGE GLASS CARDS        */}
       {/* ===================================================== */}
 
-      <div className="mb-6 rounded-3xl border border-white/10 bg-white/[0.025] p-4 shadow-[0_14px_45px_rgba(0,0,0,0.18)] backdrop-blur-xl sm:p-5">
+      <div className="mb-4 min-w-0 rounded-3xl border border-white/10 bg-white/[0.025] p-3 shadow-[0_14px_45px_rgba(0,0,0,0.18)] backdrop-blur-xl sm:mb-6 sm:p-4 lg:p-5">
         <div className="relative mb-5 min-h-[76px]">
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-32 text-center">
             <div>
@@ -4737,7 +4974,7 @@ export default function BuildingDetails() {
             </div>
           </div>
 
-          <div className="relative z-10 flex items-center justify-between gap-3">
+          <div className="relative z-10 flex flex-wrap items-center justify-between gap-3">
             <div className="flex shrink-0 items-center gap-3">
               <button
                 type="button"
@@ -4758,7 +4995,7 @@ export default function BuildingDetails() {
               </button>
             </div>
 
-            <div className="w-full max-w-[560px] ml-auto grid grid-cols-2 gap-3">
+            <div className="ml-auto grid w-full max-w-[560px] grid-cols-1 gap-3 sm:grid-cols-2">
             <label className="text-center text-xs font-bold text-gray-400">
               من تاريخ
               <input
@@ -5065,7 +5302,7 @@ export default function BuildingDetails() {
       {/* APARTMENT TYPES                                       */}
       {/* ===================================================== */}
 
-      <div className="mb-6 rounded-2xl border border-[#173858] bg-[#0b2039] p-6">
+      <div className="mb-4 min-w-0 rounded-2xl border border-[#173858] bg-[#0b2039] p-4 sm:mb-6 sm:p-6">
 
         <h2 className="mb-6 text-center text-2xl font-bold text-[#f0ad18]">
           أنواع الشقق وأسعار الإيجار
@@ -5123,7 +5360,7 @@ export default function BuildingDetails() {
             );
 
           return (
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            <div className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2 lg:gap-6">
               {apartmentTypeGroups.map((group) => {
                 const percentage =
                   totalApartments > 0
@@ -5201,7 +5438,7 @@ export default function BuildingDetails() {
                       </div>
                     </div>
 
-                    <div className="mb-3 flex items-center justify-between gap-3">
+                    <div className="mb-3 flex min-w-0 flex-wrap items-center justify-between gap-3">
                       <h4 className="text-base font-black text-white">
                         توزيع الشقق حسب الحالة
                       </h4>
@@ -5372,7 +5609,7 @@ export default function BuildingDetails() {
         >
           <div
             dir="rtl"
-            className="relative flex max-h-[calc(100vh-24px)] w-full max-w-[760px] flex-col overflow-hidden rounded-[30px] border border-red-400/55 bg-[#061426]/[0.97] shadow-[0_0_100px_rgba(0,0,0,0.55)]"
+            className="relative flex max-h-[calc(100vh-12px)] w-full max-w-[760px] sm:max-h-[calc(100vh-24px)] flex-col overflow-hidden rounded-[30px] border border-red-400/55 bg-[#061426]/[0.97] shadow-[0_0_100px_rgba(0,0,0,0.55)]"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-red-400 to-transparent" />
@@ -5539,7 +5776,7 @@ export default function BuildingDetails() {
         >
 
           <div
-            className="relative flex max-h-[calc(100vh-16px)] w-full max-w-[1420px] flex-col overflow-hidden rounded-[28px] border border-[#d89b18]/70 bg-[#061426]/98 shadow-[0_0_80px_rgba(216,155,24,0.18)] sm:max-h-[calc(100vh-32px)]"
+            className="relative flex max-h-[calc(100vh-12px)] w-full max-w-[1420px] sm:max-h-[calc(100vh-16px)] flex-col overflow-hidden rounded-[28px] border border-[#d89b18]/70 bg-[#061426]/98 shadow-[0_0_80px_rgba(216,155,24,0.18)] sm:max-h-[calc(100vh-32px)]"
             onClick={(event) =>
               event.stopPropagation()
             }
@@ -5629,7 +5866,7 @@ export default function BuildingDetails() {
                           setEditedApartmentNumber(event.target.value)
                         }
                         autoFocus
-                        className="w-full rounded-2xl border border-[#f0ad18]/60 bg-[#061426]/90 px-4 py-3 text-center text-4xl font-black text-[#f6c84a] outline-none focus:ring-2 focus:ring-[#f0ad18]/20"
+                        className="w-full min-w-0 rounded-2xl border border-[#f0ad18]/60 bg-[#061426]/90 px-3 py-2 text-center text-2xl font-black sm:px-4 sm:py-3 sm:text-4xl text-[#f6c84a] outline-none focus:ring-2 focus:ring-[#f0ad18]/20"
                       />
 
                       <div className="grid grid-cols-2 gap-2">
@@ -5651,7 +5888,7 @@ export default function BuildingDetails() {
                       </div>
                     </div>
                   ) : (
-                    <div className="mt-1 text-[76px] font-black leading-none text-[#f6c84a] drop-shadow-[0_0_25px_rgba(246,200,74,0.25)]">
+                    <div className="mt-1 text-5xl font-black leading-none sm:text-[76px] text-[#f6c84a] drop-shadow-[0_0_25px_rgba(246,200,74,0.25)]">
                       {selectedApartment.number}
                     </div>
                   )}
@@ -6112,7 +6349,7 @@ export default function BuildingDetails() {
               {activeTab ===
                 "البيانات الأساسية" && (
 
-                <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+                <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-5">
 
                   <div className="order-2 rounded-3xl border border-[#285273] bg-white/[0.025] p-6 backdrop-blur-xl lg:order-2">
 
@@ -6499,7 +6736,7 @@ export default function BuildingDetails() {
               {activeTab ===
                 "بيانات المستأجر" && (
 
-                <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+                <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
 
                   <div className="rounded-3xl border border-[#285273] bg-white/[0.025] p-7 backdrop-blur-xl">
 
@@ -6517,7 +6754,7 @@ export default function BuildingDetails() {
                       </p>
                     </div>
 
-                    <div className="grid gap-5 md:grid-cols-2">
+                    <div className="grid min-w-0 gap-4 md:grid-cols-2 lg:gap-5">
 
                       {/* الاسم */}
                       <div className="rounded-2xl border border-white/5 bg-[#061a2d] p-5">
@@ -6667,7 +6904,7 @@ export default function BuildingDetails() {
 
               {activeTab === "العقد" && (
 
-                <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+                <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-5">
 
                   {(() => {
                     const contractInfo = getApartmentContractInfo(
@@ -7213,7 +7450,7 @@ export default function BuildingDetails() {
               {activeTab ===
                 "المستندات" && (
 
-                <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+                <div className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 lg:gap-5">
 
                   {[
                     "عقد الإيجار",
@@ -7263,7 +7500,7 @@ export default function BuildingDetails() {
               {activeTab ===
                 "الملاحظات" && (
 
-                <div className="rounded-3xl border border-[#285273] bg-white/[0.025] p-6">
+                <div className="min-w-0 rounded-3xl border border-[#285273] bg-white/[0.025] p-4 sm:p-6">
 
                   <div className="mb-6 flex items-center gap-3">
 
@@ -8255,6 +8492,7 @@ export default function BuildingDetails() {
                           }))];
 
                       window.localStorage.setItem(storageKey, JSON.stringify(chargesToSave));
+                      setChargeSyncVersion((value) => value + 1);
                     } catch {
                       // تجاهل خطأ التخزين المحلي مع إغلاق النموذج.
                     }
@@ -8382,7 +8620,7 @@ export default function BuildingDetails() {
                     </div>
                   </div>
 
-                  <div className="min-h-0 flex-1 overflow-auto p-4">
+                  <div className="min-h-0 flex-1 overflow-auto p-3 sm:p-4">
                     <div className="overflow-x-auto rounded-2xl border border-white/10">
                       <table className="w-full min-w-[2200px] border-collapse text-xs">
                         <thead className="sticky top-0 z-10 bg-[#0b2039]">
@@ -8506,7 +8744,7 @@ export default function BuildingDetails() {
                     </div>
                   </div>
 
-                  <div className="shrink-0 border-t border-white/10 bg-[#061426] p-4">
+                  <div className="shrink-0 border-t border-white/10 bg-[#061426] p-3 sm:p-4">
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                       <button
                         type="button"
@@ -8616,8 +8854,8 @@ export default function BuildingDetails() {
                     </div>
                   </div>
 
-                  <div className="min-h-0 flex-1 overflow-auto p-4">
-                    <div className="overflow-hidden rounded-2xl border border-white/10">
+                  <div className="min-h-0 flex-1 overflow-auto p-3 sm:p-4">
+                    <div className="min-w-0 overflow-x-auto rounded-2xl border border-white/10">
                       <table className="w-full min-w-[760px] border-collapse text-sm">
                         <thead className="sticky top-0 z-10 bg-[#0b2039]">
                           <tr className="text-gray-300">
@@ -8668,7 +8906,7 @@ export default function BuildingDetails() {
                     </div>
                   </div>
 
-                  <div className="shrink-0 border-t border-white/10 bg-[#061426] p-4">
+                  <div className="shrink-0 border-t border-white/10 bg-[#061426] p-3 sm:p-4">
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                       <button
                         type="button"
@@ -8774,8 +9012,8 @@ export default function BuildingDetails() {
                     </div>
                   </div>
 
-                  <div className="min-h-0 flex-1 overflow-auto p-4">
-                    <div className="overflow-hidden rounded-2xl border border-white/10">
+                  <div className="min-h-0 flex-1 overflow-auto p-3 sm:p-4">
+                    <div className="min-w-0 overflow-x-auto rounded-2xl border border-white/10">
                       <table className="w-full min-w-[1050px] border-collapse text-sm">
                         <thead className="sticky top-0 z-10 bg-[#0b2039]">
                           <tr className="text-gray-300">
@@ -8857,7 +9095,7 @@ export default function BuildingDetails() {
                     </div>
                   </div>
 
-                  <div className="shrink-0 border-t border-white/10 bg-[#061426] p-4">
+                  <div className="shrink-0 border-t border-white/10 bg-[#061426] p-3 sm:p-4">
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                       <button
                         type="button"
@@ -8972,8 +9210,8 @@ export default function BuildingDetails() {
                     </div>
                   </div>
 
-                  <div className="min-h-0 flex-1 overflow-auto p-4">
-                    <div className="overflow-hidden rounded-2xl border border-white/10">
+                  <div className="min-h-0 flex-1 overflow-auto p-3 sm:p-4">
+                    <div className="min-w-0 overflow-x-auto rounded-2xl border border-white/10">
                       <table className="w-full min-w-[1200px] border-collapse text-sm">
                         <thead className="sticky top-0 z-10 bg-[#0b2039]">
                           <tr className="text-gray-300">
@@ -9108,7 +9346,7 @@ export default function BuildingDetails() {
                     </div>
                   </div>
 
-                  <div className="shrink-0 border-t border-white/10 bg-[#061426] p-4">
+                  <div className="shrink-0 border-t border-white/10 bg-[#061426] p-3 sm:p-4">
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                       <button
                         type="button"
@@ -9202,8 +9440,8 @@ export default function BuildingDetails() {
                     </div>
                   </div>
 
-                  <div className="min-h-0 flex-1 overflow-auto p-4">
-                    <div className="overflow-hidden rounded-2xl border border-white/10">
+                  <div className="min-h-0 flex-1 overflow-auto p-3 sm:p-4">
+                    <div className="min-w-0 overflow-x-auto rounded-2xl border border-white/10">
                       <table className="w-full min-w-[850px] border-collapse text-sm">
                         <thead className="sticky top-0 z-10 bg-[#0b2039]">
                           <tr className="text-gray-300">
@@ -9235,7 +9473,7 @@ export default function BuildingDetails() {
                     </div>
                   </div>
 
-                  <div className="shrink-0 border-t border-white/10 bg-[#061426] p-4">
+                  <div className="shrink-0 border-t border-white/10 bg-[#061426] p-3 sm:p-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
                         <button
