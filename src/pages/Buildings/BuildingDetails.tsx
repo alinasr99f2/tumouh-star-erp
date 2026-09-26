@@ -31,6 +31,7 @@ import {
   Check,
   Banknote,
   CircleDollarSign,
+  RefreshCw,
   Download,
   Printer,
 } from "lucide-react";
@@ -489,6 +490,7 @@ export default function BuildingDetails() {
   // مزامنة بيانات العمارة مع Supabase حتى تظهر نفس البيانات على أي جهاز.
   const remoteStateHydratedRef = useRef(false);
   const [chargeSyncVersion, setChargeSyncVersion] = useState(0);
+  const [buildingRefreshVersion, setBuildingRefreshVersion] = useState(0);
 
   const getCurrentBuildingId = () => {
     const match = window.location.pathname.match(/\/buildings\/(\d+)/);
@@ -694,7 +696,7 @@ export default function BuildingDetails() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [buildingRefreshVersion]);
 
   useEffect(() => {
     if (!remoteStateHydratedRef.current) {
@@ -5529,6 +5531,17 @@ export default function BuildingDetails() {
             >
               <Trash2 size={20} />
               حذف شقة
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setBuildingRefreshVersion((value) => value + 1)}
+              className="inline-flex items-center gap-2 rounded-xl border border-blue-400/30 bg-blue-500/10 px-6 py-3 text-base font-bold text-blue-300 transition hover:border-blue-300/70 hover:bg-blue-500/20"
+              title="تحديث بيانات الشقق من قاعدة البيانات"
+              aria-label="تحديث بيانات الشقق من قاعدة البيانات"
+            >
+              <RefreshCw size={20} />
+              تحديث
             </button>
 
           </div>
