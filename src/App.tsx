@@ -3,6 +3,7 @@ import {
   Routes,
   Route,
   Navigate,
+  Outlet,
 } from "react-router-dom";
 import { useEffect, useState } from "react";
 
@@ -66,7 +67,7 @@ function ProtectedRoute() {
     return <Navigate to="/login" replace />;
   }
 
-  return <MainLayout />;
+  return <Outlet />;
 }
 
 function App() {
@@ -76,83 +77,86 @@ function App() {
         {/* صفحة تسجيل الدخول متاحة بدون Session */}
         <Route path="/login" element={<Login />} />
 
-        {/* جميع صفحات النظام محمية بتسجيل الدخول */}
+        {/* حماية جميع صفحات النظام */}
         <Route element={<ProtectedRoute />}>
-          <Route
-            path="/"
-            element={<Navigate to="/home" replace />}
-          />
+          {/* الـ Layout يظهر فقط بعد تسجيل الدخول */}
+          <Route element={<MainLayout />}>
+            <Route
+              path="/"
+              element={<Navigate to="/home" replace />}
+            />
 
-          <Route path="/home" element={<Home />} />
+            <Route path="/home" element={<Home />} />
 
-          <Route
-            path="/dashboard"
-            element={<CompanyDashboard />}
-          />
+            <Route
+              path="/dashboard"
+              element={<CompanyDashboard />}
+            />
 
-          <Route
-            path="/projects"
-            element={<Projects />}
-          />
+            <Route
+              path="/projects"
+              element={<Projects />}
+            />
 
-          {/* الرسوم البيانية للمشروع */}
-          <Route
-            path="/projects/:id/charts"
-            element={<ProjectCharts />}
-          />
+            {/* الرسوم البيانية للمشروع */}
+            <Route
+              path="/projects/:id/charts"
+              element={<ProjectCharts />}
+            />
 
-          {/* الكميات المستخدمة للمشروع */}
-          <Route
-            path="/projects/:id/quantities"
-            element={<ProjectQuantities />}
-          />
+            {/* الكميات المستخدمة للمشروع */}
+            <Route
+              path="/projects/:id/quantities"
+              element={<ProjectQuantities />}
+            />
 
-          {/* تفاصيل المشروع */}
-          <Route
-            path="/projects/:id"
-            element={<ProjectDetails />}
-          />
+            {/* تفاصيل المشروع */}
+            <Route
+              path="/projects/:id"
+              element={<ProjectDetails />}
+            />
 
-          {/* مصاريف المشروع */}
-          <Route
-            path="/projects/:id/expenses"
-            element={<ProjectExpenses />}
-          />
+            {/* مصاريف المشروع */}
+            <Route
+              path="/projects/:id/expenses"
+              element={<ProjectExpenses />}
+            />
 
-          {/* العمائر */}
-          <Route
-            path="/buildings"
-            element={<Buildings />}
-          />
+            {/* العمائر */}
+            <Route
+              path="/buildings"
+              element={<Buildings />}
+            />
 
-          {/* تفاصيل العمارة */}
-          <Route
-            path="/buildings/:id"
-            element={<BuildingDetails />}
-          />
+            {/* تفاصيل العمارة */}
+            <Route
+              path="/buildings/:id"
+              element={<BuildingDetails />}
+            />
 
-          {/* صفحات فرعية للعمائر */}
-          <Route
-            path="/buildings/financial-details"
-            element={<FinancialDetails />}
-          />
+            {/* صفحات فرعية للعمائر */}
+            <Route
+              path="/buildings/financial-details"
+              element={<FinancialDetails />}
+            />
 
-          <Route
-            path="/buildings/tenant-details"
-            element={<TenantDetails />}
-          />
+            <Route
+              path="/buildings/tenant-details"
+              element={<TenantDetails />}
+            />
 
-          {/* المركز المالي */}
-          <Route
-            path="/financial"
-            element={<FinancialCenter />}
-          />
+            {/* المركز المالي */}
+            <Route
+              path="/financial"
+              element={<FinancialCenter />}
+            />
 
-          {/* أي رابط غير معروف داخل النظام */}
-          <Route
-            path="*"
-            element={<Navigate to="/home" replace />}
-          />
+            {/* أي رابط غير معروف داخل النظام */}
+            <Route
+              path="*"
+              element={<Navigate to="/home" replace />}
+            />
+          </Route>
         </Route>
 
         {/* أي رابط غير معروف وغير محمي */}
