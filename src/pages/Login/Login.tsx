@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Eye,
   EyeOff,
@@ -40,6 +40,128 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // استعادة كلمة المرور
+  const [resetMode, setResetMode] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetSent, setResetSent] = useState(false);
+  const [recoveryMode, setRecoveryMode] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+
+  useEffect(() => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "PASSWORD_RECOVERY") {
+        setRecoveryMode(true);
+        setResetMode(false);
+        setResetSent(false);
+        setError("");
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const handleForgotPassword = () => {
+    setError("");
+    setResetEmail(email);
+    setResetSent(false);
+    setResetMode(true);
+  };
+
+  const handleSendResetEmail = async (
+    e: React.FormEvent<HTMLFormElement>
+  ) => {
+    e.preventDefault();
+    setError("");
+
+    const emailToReset = resetEmail.trim();
+
+    if (!emailToReset) {
+      setError("من فضلك أدخل البريد الإلكتروني أولًا");
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const { error: resetError } =
+        await supabase.auth.resetPasswordForEmail(emailToReset, {
+          redirectTo: `${window.location.origin}/login`,
+        });
+
+      if (resetError) {
+        console.error(resetError);
+        setError(
+          "تعذر إرسال رابط استعادة كلمة المرور. تأكد من البريد الإلكتروني وحاول مرة أخرى."
+        );
+        return;
+      }
+
+      setResetSent(true);
+    } catch (resetException) {
+      console.error(resetException);
+      setError("حدث خطأ أثناء إرسال رابط الاستعادة، حاول مرة أخرى");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdatePassword = async (
+    e: React.FormEvent<HTMLFormElement>
+  ) => {
+    e.preventDefault();
+    setError("");
+
+    if (!newPassword || !confirmNewPassword) {
+      setError("من فضلك أدخل كلمة المرور الجديدة وتأكيدها");
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setError("كلمة المرور يجب أن تكون 6 أحرف أو أكثر");
+      return;
+    }
+
+    if (newPassword !== confirmNewPassword) {
+      setError("كلمتا المرور غير متطابقتين");
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (updateError) {
+        console.error(updateError);
+        setError(
+          "تعذر تغيير كلمة المرور. قد يكون رابط الاستعادة منتهي الصلاحية، أعد طلب رابط جديد."
+        );
+        return;
+      }
+
+      await supabase.auth.signOut();
+      setRecoveryMode(false);
+      setResetMode(false);
+      setNewPassword("");
+      setConfirmNewPassword("");
+      setResetEmail("");
+      setResetSent(false);
+      setError("تم تغيير كلمة المرور بنجاح. يمكنك الآن تسجيل الدخول.");
+    } catch (updateException) {
+      console.error(updateException);
+      setError("حدث خطأ أثناء تغيير كلمة المرور، حاول مرة أخرى");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -124,7 +246,13 @@ export default function Login() {
               </div>
 
               {/* نموذج الدخول */}
-              <form onSubmit={handleLogin} className="login-form">
+              <form
+                onSubmit={handleLogin}
+                className="login-form"
+                style={{
+                  display: resetMode || recoveryMode ? "none" : undefined,
+                }}
+              >
                 {/* اسم المستخدم */}
                 <div className="login-field">
                   <label htmlFor="email" className="login-field-label">
@@ -203,16 +331,13 @@ export default function Login() {
                   </label>
 
                   <button
-                    type="button"
-                    className="forgot-password-button"
-                    onClick={() =>
-                      setError(
-                        "يرجى التواصل مع مسؤول النظام لاستعادة كلمة المرور"
-                      )
-                    }
-                  >
-                    نسيت كلمة المرور؟
-                  </button>
+                      type="button"
+                      className="forgot-password-button"
+                      onClick={handleForgotPassword}
+                      disabled={loading}
+                    >
+                      نسيت كلمة المرور؟
+                    </button>
                 </div>
 
                 {/* رسالة الخطأ */}
@@ -241,6 +366,252 @@ export default function Login() {
                   )}
                 </button>
               </form>
+              {recoveryMode ? (
+                <form onSubmit={handleUpdatePassword} className="login-form">
+                  <div style={{ textAlign: "center", marginBottom: "18px" }}>
+                    <h3
+                      style={{
+                        margin: 0,
+                        fontSize: "22px",
+                        color: "#064f3f",
+                        fontWeight: 800,
+                      }}
+                    >
+                      تغيير كلمة المرور
+                    </h3>
+                    <p
+                      style={{
+                        margin: "8px 0 0",
+                        color: "#718096",
+                        fontSize: "14px",
+                        lineHeight: 1.7,
+                      }}
+                    >
+                      أدخل كلمة المرور الجديدة لحسابك
+                    </p>
+                  </div>
+
+                  <div className="login-field">
+                    <label htmlFor="new-password" className="login-field-label">
+                      كلمة المرور الجديدة
+                    </label>
+                    <div className="login-input-wrapper">
+                      <LockKeyhole className="login-input-icon" size={21} />
+                      <input
+                        id="new-password"
+                        type={showPassword ? "text" : "password"}
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="أدخل كلمة المرور الجديدة"
+                        autoComplete="new-password"
+                        disabled={loading}
+                        className="login-input login-password-input"
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setShowPassword((current) => !current)
+                        }
+                        disabled={loading}
+                        aria-label={
+                          showPassword
+                            ? "إخفاء كلمة المرور"
+                            : "إظهار كلمة المرور"
+                        }
+                        className="password-toggle-button"
+                      >
+                        {showPassword ? (
+                          <EyeOff size={21} />
+                        ) : (
+                          <Eye size={21} />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="login-field">
+                    <label
+                      htmlFor="confirm-new-password"
+                      className="login-field-label"
+                    >
+                      تأكيد كلمة المرور
+                    </label>
+                    <div className="login-input-wrapper">
+                      <LockKeyhole className="login-input-icon" size={21} />
+                      <input
+                        id="confirm-new-password"
+                        type="password"
+                        value={confirmNewPassword}
+                        onChange={(e) =>
+                          setConfirmNewPassword(e.target.value)
+                        }
+                        placeholder="أعد إدخال كلمة المرور"
+                        autoComplete="new-password"
+                        disabled={loading}
+                        className="login-input login-password-input"
+                      />
+                    </div>
+                  </div>
+
+                  {error && (
+                    <div className="login-error-message">{error}</div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="login-submit-button"
+                  >
+                    {loading ? (
+                      <>
+                        <span className="login-spinner" />
+                        جاري تغيير كلمة المرور...
+                      </>
+                    ) : (
+                      <>
+                        حفظ كلمة المرور
+                        <LogIn size={22} />
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={loading}
+                    onClick={() => {
+                      setRecoveryMode(false);
+                      setResetMode(false);
+                      setNewPassword("");
+                      setConfirmNewPassword("");
+                      setError("");
+                    }}
+                    style={{
+                      width: "100%",
+                      marginTop: "10px",
+                      border: "none",
+                      background: "transparent",
+                      color: "#0b6b57",
+                      cursor: loading ? "not-allowed" : "pointer",
+                      fontWeight: 700,
+                      padding: "8px",
+                    }}
+                  >
+                    العودة لتسجيل الدخول
+                  </button>
+                </form>
+              ) : resetMode ? (
+                <form onSubmit={handleSendResetEmail} className="login-form">
+                  <div style={{ textAlign: "center", marginBottom: "18px" }}>
+                    <h3
+                      style={{
+                        margin: 0,
+                        fontSize: "22px",
+                        color: "#064f3f",
+                        fontWeight: 800,
+                      }}
+                    >
+                      استعادة كلمة المرور
+                    </h3>
+                    <p
+                      style={{
+                        margin: "8px 0 0",
+                        color: "#718096",
+                        fontSize: "14px",
+                        lineHeight: 1.7,
+                      }}
+                    >
+                      أدخل بريدك الإلكتروني وسنرسل لك رابطًا آمنًا لتغيير كلمة
+                      المرور.
+                    </p>
+                  </div>
+
+                  <div className="login-field">
+                    <label htmlFor="reset-email" className="login-field-label">
+                      البريد الإلكتروني
+                    </label>
+                    <div className="login-input-wrapper">
+                      <Mail className="login-input-icon" size={21} />
+                      <input
+                        id="reset-email"
+                        type="email"
+                        value={resetEmail}
+                        onChange={(e) => setResetEmail(e.target.value)}
+                        placeholder="أدخل بريدك الإلكتروني"
+                        autoComplete="email"
+                        disabled={loading || resetSent}
+                        className="login-input"
+                      />
+                    </div>
+                  </div>
+
+                  {resetSent && (
+                    <div
+                      style={{
+                        marginBottom: "14px",
+                        padding: "12px 14px",
+                        borderRadius: "10px",
+                        background: "#edf9f3",
+                        border: "1px solid #b7e5cf",
+                        color: "#176b4d",
+                        fontSize: "14px",
+                        lineHeight: 1.7,
+                        textAlign: "center",
+                      }}
+                    >
+                      تم إرسال رابط استعادة كلمة المرور إلى بريدك الإلكتروني.
+                      افتح الرسالة واضغط على الرابط لتعيين كلمة مرور جديدة.
+                    </div>
+                  )}
+
+                  {error && (
+                    <div className="login-error-message">{error}</div>
+                  )}
+
+                  {!resetSent && (
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="login-submit-button"
+                    >
+                      {loading ? (
+                        <>
+                          <span className="login-spinner" />
+                          جاري إرسال الرابط...
+                        </>
+                      ) : (
+                        <>
+                          إرسال رابط الاستعادة
+                          <Mail size={22} />
+                        </>
+                      )}
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    disabled={loading}
+                    onClick={() => {
+                      setResetMode(false);
+                      setResetSent(false);
+                      setResetEmail("");
+                      setError("");
+                    }}
+                    style={{
+                      width: "100%",
+                      marginTop: "10px",
+                      border: "none",
+                      background: "transparent",
+                      color: "#0b6b57",
+                      cursor: loading ? "not-allowed" : "pointer",
+                      fontWeight: 700,
+                      padding: "8px",
+                    }}
+                  >
+                    العودة لتسجيل الدخول
+                  </button>
+                </form>
+              ) : null}
+
               {/* المزايا */}
               <div className="login-benefits">
                 {loginBenefits.map((benefit) => {
