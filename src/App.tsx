@@ -20,6 +20,7 @@ import ProjectQuantities from "./pages/Projects/ProjectQuantities";
 import ProjectCharts from "./pages/Projects/ProjectCharts";
 import Buildings from "./pages/Buildings/Buildings";
 import BuildingDetails from "./pages/Buildings/BuildingDetails";
+import ApartmentMap from "./pages/Buildings/ApartmentMap";
 import FinancialDetails from "./pages/Buildings/FinancialDetails";
 import TenantDetails from "./pages/Buildings/TenantDetails";
 import FinancialCenter from "./pages/FinancialCenter/FinancialCenter";
@@ -32,26 +33,27 @@ function ProtectedRoute() {
     let mounted = true;
 
     const checkSession = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      if (!mounted) return;
-
-      setHasSession(!!session);
-      setSessionReady(true);
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!mounted) return;
+        setHasSession(!!user);
+      } catch (error) {
+        console.error("خطأ أثناء التحقق من تسجيل الدخول:", error);
+        if (!mounted) return;
+        setHasSession(false);
+      } finally {
+        if (mounted) setSessionReady(true);
+      }
     };
 
     void checkSession();
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!mounted) return;
-
-      setHasSession(!!session);
-      setSessionReady(true);
-    });
+    const { data: { subscription } } =
+      supabase.auth.onAuthStateChange((_event, session) => {
+        if (!mounted) return;
+        setHasSession(!!session);
+        setSessionReady(true);
+      });
 
     return () => {
       mounted = false;
@@ -59,13 +61,8 @@ function ProtectedRoute() {
     };
   }, []);
 
-  if (!sessionReady) {
-    return null;
-  }
-
-  if (!hasSession) {
-    return <Navigate to="/login" replace />;
-  }
+  if (!sessionReady) return null;
+  if (!hasSession) return <Navigate to="/login" replace />;
 
   return <Outlet />;
 }
@@ -74,96 +71,29 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* صفحة تسجيل الدخول متاحة بدون Session */}
         <Route path="/login" element={<Login />} />
 
-        {/* حماية جميع صفحات النظام */}
         <Route element={<ProtectedRoute />}>
-          {/* الـ Layout يظهر فقط بعد تسجيل الدخول */}
           <Route element={<MainLayout />}>
-            <Route
-              path="/"
-              element={<Navigate to="/home" replace />}
-            />
-
+            <Route path="/" element={<Navigate to="/home" replace />} />
             <Route path="/home" element={<Home />} />
-
-            <Route
-              path="/dashboard"
-              element={<CompanyDashboard />}
-            />
-
-            <Route
-              path="/projects"
-              element={<Projects />}
-            />
-
-            {/* الرسوم البيانية للمشروع */}
-            <Route
-              path="/projects/:id/charts"
-              element={<ProjectCharts />}
-            />
-
-            {/* الكميات المستخدمة للمشروع */}
-            <Route
-              path="/projects/:id/quantities"
-              element={<ProjectQuantities />}
-            />
-
-            {/* تفاصيل المشروع */}
-            <Route
-              path="/projects/:id"
-              element={<ProjectDetails />}
-            />
-
-            {/* مصاريف المشروع */}
-            <Route
-              path="/projects/:id/expenses"
-              element={<ProjectExpenses />}
-            />
-
-            {/* العمائر */}
-            <Route
-              path="/buildings"
-              element={<Buildings />}
-            />
-
-            {/* تفاصيل العمارة */}
-            <Route
-              path="/buildings/:id"
-              element={<BuildingDetails />}
-            />
-
-            {/* صفحات فرعية للعمائر */}
-            <Route
-              path="/buildings/financial-details"
-              element={<FinancialDetails />}
-            />
-
-            <Route
-              path="/buildings/tenant-details"
-              element={<TenantDetails />}
-            />
-
-            {/* المركز المالي */}
-            <Route
-              path="/financial"
-              element={<FinancialCenter />}
-            />
-
-            {/* أي رابط غير معروف داخل النظام */}
-            <Route
-              path="*"
-              element={<Navigate to="/home" replace />}
-            />
+            <Route path="/dashboard" element={<CompanyDashboard />} />
+            <Route path="/projects" element={<Projects />} />
+            <Route path="/projects/:id/charts" element={<ProjectCharts />} />
+            <Route path="/projects/:id/quantities" element={<ProjectQuantities />} />
+            <Route path="/projects/:id" element={<ProjectDetails />} />
+            <Route path="/projects/:id/expenses" element={<ProjectExpenses />} />
+            <Route path="/buildings" element={<Buildings />} />
+            <Route path="/buildings/:id/apartments" element={<ApartmentMap />} />
+            <Route path="/buildings/:id" element={<BuildingDetails />} />
+            <Route path="/buildings/financial-details" element={<FinancialDetails />} />
+            <Route path="/buildings/tenant-details" element={<TenantDetails />} />
+            <Route path="/financial" element={<FinancialCenter />} />
+            <Route path="*" element={<Navigate to="/home" replace />} />
           </Route>
         </Route>
 
-        {/* أي رابط غير معروف وغير محمي */}
-        <Route
-          path="*"
-          element={<Navigate to="/login" replace />}
-        />
+        <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </BrowserRouter>
   );
