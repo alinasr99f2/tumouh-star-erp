@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
 import { supabase } from "../../utils/supabase";
 import {
   X,
@@ -31,7 +32,6 @@ import {
   Check,
   Banknote,
   CircleDollarSign,
-  RefreshCw,
   Download,
   Printer,
 } from "lucide-react";
@@ -39,7 +39,7 @@ import {
 type ApartmentStatus = string;
 
 type Apartment = {
-  number: string;
+  number: number;
   type: string;
   rent: number;
   status: ApartmentStatus;
@@ -72,14 +72,52 @@ type ApartmentContractInfo = {
 };
 
 type BuildingCharge = {
-  id?: string;
   type: string;
   amount: string;
   date: string;
   notes: string;
-  apartmentNumber?: string;
+  apartmentNumber?: number;
   rentMonths?: number;
 };
+
+const getCurrentBuildingIdFromPath = () => {
+  if (typeof window === "undefined") return null;
+  const match = window.location.pathname.match(/\/buildings\/(\d+)/);
+  return match ? Number(match[1]) : null;
+};
+
+const getBuildingStorageKey = (baseKey: string) => {
+  const buildingId = getCurrentBuildingIdFromPath();
+  return buildingId ? `${baseKey}_${buildingId}` : baseKey;
+};
+
+const getBuildingStorageValue = (baseKey: string) => {
+  if (typeof window === "undefined") return null;
+  const scopedKey = getBuildingStorageKey(baseKey);
+  const scopedValue = window.localStorage.getItem(scopedKey);
+  if (scopedValue !== null) return scopedValue;
+
+  const buildingId = getCurrentBuildingIdFromPath();
+  if (buildingId === 1) {
+    return window.localStorage.getItem(baseKey);
+  }
+
+  return null;
+};
+
+const setBuildingStorageValue = (baseKey: string, value: string) => {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(getBuildingStorageKey(baseKey), value);
+};
+
+const createBlankApartments = (count: number): Apartment[] =>
+  Array.from({ length: Math.max(0, count) }, (_, index) => ({
+    number: index + 1,
+    type: "غرفة وصالة",
+    rent: 0,
+    status: "شاغرة",
+    tenant: "لا يوجد مستأجر",
+  }));
 
 const DEFAULT_APARTMENT_EXTRA_INFO: ApartmentExtraInfo = {
   floor: "",
@@ -244,7 +282,7 @@ const formatContractDuration = (
   return `${count} شهر`;
 };
 
-const createDefaultApartmentContractInfo = (apartmentNumber: string): ApartmentContractInfo => ({
+const createDefaultApartmentContractInfo = (apartmentNumber: number): ApartmentContractInfo => ({
   contractNumber: `CNT-001-${apartmentNumber}`,
   startDate: DEFAULT_APARTMENT_CONTRACT_START_DATE,
   endDate: addContractDuration(
@@ -267,23 +305,23 @@ type ApartmentTab =
   | "الملاحظات";
 
 export default function BuildingDetails() {
+  const { id: buildingIdParam } = useParams<{ id: string }>();
+  const currentBuildingId = Number.isFinite(Number(buildingIdParam))
+    ? Number(buildingIdParam)
+    : null;
+
   const [selectedApartment, setSelectedApartment] =
     useState<Apartment | null>(null);
 
-  const [isEditingApartmentNumber, setIsEditingApartmentNumber] =
-    useState(false);
-
-  const [editedApartmentNumber, setEditedApartmentNumber] =
-    useState("");
-
   // أنواع الشقق المخصصة لكل شقة + الأنواع الجديدة المحفوظة
   const [apartmentTypes, setApartmentTypes] =
-    useState<Record<string, string>>(() => {
+    useState<Record<number, string>>(() => {
       try {
-        const saved = window.localStorage.getItem(
-          "tumouh_star_apartment_types"
-        );
-        return saved ? JSON.parse(saved) : {};
+        const saved = getBuildingStorageValue("tumouh_star_apartment_types");
+        const parsed = saved ? JSON.parse(saved) : {};
+        return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+          ? parsed
+          : {};
       } catch {
         return {};
       }
@@ -292,10 +330,9 @@ export default function BuildingDetails() {
   const [customApartmentTypes, setCustomApartmentTypes] =
     useState<string[]>(() => {
       try {
-        const saved = window.localStorage.getItem(
-          "tumouh_star_custom_apartment_types"
-        );
-        return saved ? JSON.parse(saved) : [];
+        const saved = getBuildingStorageValue("tumouh_star_custom_apartment_types");
+        const parsed = saved ? JSON.parse(saved) : [];
+        return Array.isArray(parsed) ? parsed : [];
       } catch {
         return [];
       }
@@ -305,10 +342,9 @@ export default function BuildingDetails() {
   const [customApartmentStatuses, setCustomApartmentStatuses] =
     useState<string[]>(() => {
       try {
-        const saved = window.localStorage.getItem(
-          "tumouh_star_custom_apartment_statuses"
-        );
-        return saved ? JSON.parse(saved) : [];
+        const saved = getBuildingStorageValue("tumouh_star_custom_apartment_statuses");
+        const parsed = saved ? JSON.parse(saved) : [];
+        return Array.isArray(parsed) ? parsed : [];
       } catch {
         return [];
       }
@@ -317,46 +353,50 @@ export default function BuildingDetails() {
   const [apartmentTypeRents, setApartmentTypeRents] =
     useState<Record<string, number>>(() => {
       try {
-        const saved = window.localStorage.getItem(
-          "tumouh_star_apartment_type_rents"
-        );
-        return saved ? JSON.parse(saved) : {};
+        const saved = getBuildingStorageValue("tumouh_star_apartment_type_rents");
+        const parsed = saved ? JSON.parse(saved) : {};
+        return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+          ? parsed
+          : {};
       } catch {
         return {};
       }
     });
 
   const [apartmentExtraInfo, setApartmentExtraInfo] =
-    useState<Record<string, ApartmentExtraInfo>>(() => {
+    useState<Record<number, ApartmentExtraInfo>>(() => {
       try {
-        const saved = window.localStorage.getItem(
-          "tumouh_star_apartment_extra_info"
-        );
-        return saved ? JSON.parse(saved) : {};
+        const saved = getBuildingStorageValue("tumouh_star_apartment_extra_info");
+        const parsed = saved ? JSON.parse(saved) : {};
+        return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+          ? parsed
+          : {};
       } catch {
         return {};
       }
     });
 
   const [apartmentTenantInfo, setApartmentTenantInfo] =
-    useState<Record<string, ApartmentTenantInfo>>(() => {
+    useState<Record<number, ApartmentTenantInfo>>(() => {
       try {
-        const saved = window.localStorage.getItem(
-          "tumouh_star_apartment_tenant_info"
-        );
-        return saved ? JSON.parse(saved) : {};
+        const saved = getBuildingStorageValue("tumouh_star_apartment_tenant_info");
+        const parsed = saved ? JSON.parse(saved) : {};
+        return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+          ? parsed
+          : {};
       } catch {
         return {};
       }
     });
 
   const [apartmentContractInfo, setApartmentContractInfo] =
-    useState<Record<string, ApartmentContractInfo>>(() => {
+    useState<Record<number, ApartmentContractInfo>>(() => {
       try {
-        const saved = window.localStorage.getItem(
-          "tumouh_star_apartment_contract_info"
-        );
-        return saved ? JSON.parse(saved) : {};
+        const saved = getBuildingStorageValue("tumouh_star_apartment_contract_info");
+        const parsed = saved ? JSON.parse(saved) : {};
+        return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+          ? parsed
+          : {};
       } catch {
         return {};
       }
@@ -369,7 +409,6 @@ export default function BuildingDetails() {
   const [toDate, setToDate] = useState("2026-09-30");
 
   const [isChargeModalOpen, setIsChargeModalOpen] = useState(false);
-  const [editingChargeKey, setEditingChargeKey] = useState<string | null>(null);
   const [chargeModalMode, setChargeModalMode] = useState<"charge" | "collection">("charge");
   const [chargeForm, setChargeForm] = useState<BuildingCharge>({
     type: "إيجار",
@@ -379,7 +418,7 @@ export default function BuildingDetails() {
   });
 
   const [selectedChargeApartments, setSelectedChargeApartments] =
-    useState<string[]>([]);
+    useState<number[]>([]);
   const [apartmentTypeFilter, setApartmentTypeFilter] = useState("");
   const [apartmentStatusFilter, setApartmentStatusFilter] = useState("");
   const [apartmentSearch, setApartmentSearch] = useState("");
@@ -408,7 +447,7 @@ export default function BuildingDetails() {
   const [selectedApartmentType, setSelectedApartmentType] =
     useState("");
   const [selectedTypeApartments, setSelectedTypeApartments] =
-    useState<string[]>([]);
+    useState<number[]>([]);
   const [selectedApartmentTypeReport, setSelectedApartmentTypeReport] =
     useState<string | null>(null);
   const [apartmentTypeSearch, setApartmentTypeSearch] = useState("");
@@ -418,322 +457,174 @@ export default function BuildingDetails() {
   const [isDeleteApartmentModalOpen, setIsDeleteApartmentModalOpen] =
     useState(false);
   const [selectedDeleteApartments, setSelectedDeleteApartments] =
-    useState<string[]>([]);
+    useState<number[]>([]);
   const [deleteApartmentSearch, setDeleteApartmentSearch] = useState("");
 
   const [apartments, setApartments] = useState<Apartment[]>(() => {
-    const createDefaultApartments = (): Apartment[] =>
-      Array.from(
-        { length: 44 },
-        (_, index) => {
-          const number = index + 1;
-
-          const vacant = number >= 40;
-
-          const company = [
-            5,
-            6,
-            7,
-            8,
-            9,
-            15,
-            16,
-            17,
-            18,
-            19,
-            20,
-          ].includes(number);
-
-          return {
-            number: String(number),
-            type:
-              number <= 20
-                ? "غرفتين وصالة"
-                : "غرفة وصالة",
-            rent:
-              number <= 20
-                ? 4000
-                : 3000,
-            status: vacant
-              ? "شاغرة"
-              : company
-              ? "مؤجرة للشركة"
-              : "مؤجرة",
-            tenant: vacant
-              ? "لا يوجد مستأجر"
-              : company
-              ? "شركة طموح ستار"
-              : "اسم المستأجر غير مضاف",
-          };
-        }
-      );
-
     try {
-      const saved = window.localStorage.getItem(
-        "tumouh_star_building_apartments"
-      );
-
-      if (saved) {
-        const parsed = JSON.parse(saved) as Apartment[];
-        return parsed.map((apartment) => ({
-          ...apartment,
-          number: String(apartment.number),
-        }));
-      }
-
-      return createDefaultApartments();
-    } catch {
-      return createDefaultApartments();
-    }
-  });
-
-  // مزامنة بيانات العمارة مع Supabase حتى تظهر نفس البيانات على أي جهاز.
-  const remoteStateHydratedRef = useRef(false);
-  const [chargeSyncVersion, setChargeSyncVersion] = useState(0);
-  const [buildingRefreshVersion, setBuildingRefreshVersion] = useState(0);
-
-  const getCurrentBuildingId = () => {
-    const match = window.location.pathname.match(/\/buildings\/(\d+)/);
-    return match ? Number(match[1]) : null;
-  };
-
-  const readBuildingChargesFromStorage = (key: string): BuildingCharge[] => {
-    try {
-      const saved = window.localStorage.getItem(key);
-      if (!saved) {
-        return [];
-      }
-
-      const parsed = JSON.parse(saved);
-      return Array.isArray(parsed) ? (parsed as BuildingCharge[]) : [];
+      const saved = getBuildingStorageValue("tumouh_star_building_apartments");
+      const parsed = saved ? JSON.parse(saved) : null;
+      return Array.isArray(parsed)
+        ? parsed.map((apartment) => ({
+            ...apartment,
+            number: Number(apartment.number),
+          }))
+        : [];
     } catch {
       return [];
     }
-  };
-
-  const getBuildingStatePayload = (
-    updatedApartments: Apartment[] = apartments
-  ) => ({
-    building_id: getCurrentBuildingId(),
-    apartments: updatedApartments,
-    apartment_types: apartmentTypes,
-    custom_apartment_types: customApartmentTypes,
-    custom_apartment_statuses: customApartmentStatuses,
-    apartment_type_rents: apartmentTypeRents,
-    apartment_extra_info: apartmentExtraInfo,
-    apartment_tenant_info: apartmentTenantInfo,
-    apartment_contract_info: apartmentContractInfo,
-    building_charges: readBuildingChargesFromStorage(
-      "tumouh_star_building_charges"
-    ),
-    building_collections: readBuildingChargesFromStorage(
-      "tumouh_star_building_collections"
-    ),
-    updated_at: new Date().toISOString(),
   });
 
-  const saveBuildingStateToSupabase = async (
-    updatedApartments: Apartment[] = apartments
-  ) => {
-    const buildingId = getCurrentBuildingId();
+  const [buildingName, setBuildingName] = useState("العمارة");
 
-    if (!buildingId) {
-      throw new Error("لم يتم التعرف على رقم العمارة من الرابط.");
-    }
+  // عند الانتقال بين عمارتين بدون إعادة تحميل الصفحة، يجب إعادة تحميل
+  // كل حالة العمارة من الـ storage الخاص بنفس رقم العمارة فقط.
+  useEffect(() => {
+    const readJson = <T,>(key: string, fallback: T): T => {
+      try {
+        const saved = getBuildingStorageValue(key);
+        if (!saved) return fallback;
+        const parsed = JSON.parse(saved);
+        return parsed as T;
+      } catch {
+        return fallback;
+      }
+    };
 
-    const { error } = await supabase
-      .from("building_state")
-      .upsert(
-        getBuildingStatePayload(updatedApartments),
-        { onConflict: "building_id" }
-      );
+    const savedApartments = readJson<unknown>(
+      "tumouh_star_building_apartments",
+      null
+    );
 
-    if (error) {
-      throw error;
-    }
-  };
+    setApartments(
+      Array.isArray(savedApartments)
+        ? savedApartments.map((apartment) => ({
+            ...(apartment as Apartment),
+            number: Number((apartment as Apartment).number),
+          }))
+        : []
+    );
+
+    const savedTypes = readJson<unknown>("tumouh_star_apartment_types", {});
+    setApartmentTypes(
+      savedTypes && typeof savedTypes === "object" && !Array.isArray(savedTypes)
+        ? (savedTypes as Record<number, string>)
+        : {}
+    );
+
+    const savedCustomTypes = readJson<unknown>(
+      "tumouh_star_custom_apartment_types",
+      []
+    );
+    setCustomApartmentTypes(
+      Array.isArray(savedCustomTypes) ? (savedCustomTypes as string[]) : []
+    );
+
+    const savedCustomStatuses = readJson<unknown>(
+      "tumouh_star_custom_apartment_statuses",
+      []
+    );
+    setCustomApartmentStatuses(
+      Array.isArray(savedCustomStatuses) ? (savedCustomStatuses as string[]) : []
+    );
+
+    const savedTypeRents = readJson<unknown>(
+      "tumouh_star_apartment_type_rents",
+      {}
+    );
+    setApartmentTypeRents(
+      savedTypeRents && typeof savedTypeRents === "object" && !Array.isArray(savedTypeRents)
+        ? (savedTypeRents as Record<string, number>)
+        : {}
+    );
+
+    const savedExtraInfo = readJson<unknown>(
+      "tumouh_star_apartment_extra_info",
+      {}
+    );
+    setApartmentExtraInfo(
+      savedExtraInfo && typeof savedExtraInfo === "object" && !Array.isArray(savedExtraInfo)
+        ? (savedExtraInfo as Record<number, ApartmentExtraInfo>)
+        : {}
+    );
+
+    const savedTenantInfo = readJson<unknown>(
+      "tumouh_star_apartment_tenant_info",
+      {}
+    );
+    setApartmentTenantInfo(
+      savedTenantInfo && typeof savedTenantInfo === "object" && !Array.isArray(savedTenantInfo)
+        ? (savedTenantInfo as Record<number, ApartmentTenantInfo>)
+        : {}
+    );
+
+    const savedContractInfo = readJson<unknown>(
+      "tumouh_star_apartment_contract_info",
+      {}
+    );
+    setApartmentContractInfo(
+      savedContractInfo && typeof savedContractInfo === "object" && !Array.isArray(savedContractInfo)
+        ? (savedContractInfo as Record<number, ApartmentContractInfo>)
+        : {}
+    );
+
+    setBuildingName(currentBuildingId ? `العمارة ${currentBuildingId}` : "العمارة");
+    setSelectedApartment(null);
+    setSelectedChargeApartments([]);
+    setSelectedTypeApartments([]);
+    setSelectedApartmentTypeReport(null);
+  }, [currentBuildingId]);
 
   useEffect(() => {
     let cancelled = false;
 
-    const loadBuildingStateFromSupabase = async () => {
-      const buildingId = getCurrentBuildingId();
-
-      if (!buildingId) {
-        remoteStateHydratedRef.current = true;
-        return;
-      }
+    const loadBuildingInfo = async () => {
+      const buildingId = currentBuildingId;
+      if (!buildingId) return;
 
       const { data, error } = await supabase
-        .from("building_state")
-        .select(
-          "apartments, apartment_types, custom_apartment_types, custom_apartment_statuses, apartment_type_rents, apartment_extra_info, apartment_tenant_info, apartment_contract_info, building_charges, building_collections"
-        )
-        .eq("building_id", buildingId)
+        .from("buildings")
+        .select("name, units_count")
+        .eq("id", buildingId)
         .maybeSingle();
 
-      if (cancelled) {
-        return;
-      }
+      if (cancelled) return;
 
       if (error) {
-        console.error("خطأ في تحميل بيانات العمارة من Supabase:", error);
+        console.error("خطأ في تحميل بيانات العمارة:", error);
         return;
       }
 
-      if (data) {
-        if (Array.isArray(data.apartments)) {
-          const remoteApartments = data.apartments.map(
-            (apartment: Apartment) => ({
-              ...apartment,
-              number: String(apartment.number),
-            })
-          );
+      const unitsCount = Math.max(0, Number(data?.units_count) || 0);
+      setBuildingName(data?.name?.trim() || `العمارة ${buildingId}`);
 
-          setApartments(remoteApartments);
-          window.localStorage.setItem(
-            "tumouh_star_building_apartments",
-            JSON.stringify(remoteApartments)
-          );
-        }
+      const existingApartments = getBuildingStorageValue(
+        "tumouh_star_building_apartments"
+      );
 
-        if (data.apartment_types) {
-          const remoteApartmentTypes =
-            data.apartment_types as Record<string, string>;
-          setApartmentTypes(remoteApartmentTypes);
-          window.localStorage.setItem(
-            "tumouh_star_apartment_types",
-            JSON.stringify(remoteApartmentTypes)
-          );
-        }
-
-        if (Array.isArray(data.custom_apartment_types)) {
-          const remoteCustomTypes =
-            data.custom_apartment_types as string[];
-          setCustomApartmentTypes(remoteCustomTypes);
-          window.localStorage.setItem(
-            "tumouh_star_custom_apartment_types",
-            JSON.stringify(remoteCustomTypes)
-          );
-        }
-
-        if (Array.isArray(data.custom_apartment_statuses)) {
-          const remoteCustomStatuses =
-            data.custom_apartment_statuses as string[];
-          setCustomApartmentStatuses(remoteCustomStatuses);
-          window.localStorage.setItem(
-            "tumouh_star_custom_apartment_statuses",
-            JSON.stringify(remoteCustomStatuses)
-          );
-        }
-
-        if (data.apartment_type_rents) {
-          const remoteTypeRents =
-            data.apartment_type_rents as Record<string, number>;
-          setApartmentTypeRents(remoteTypeRents);
-          window.localStorage.setItem(
-            "tumouh_star_apartment_type_rents",
-            JSON.stringify(remoteTypeRents)
-          );
-        }
-
-        if (data.apartment_extra_info) {
-          const remoteExtraInfo =
-            data.apartment_extra_info as Record<string, ApartmentExtraInfo>;
-          setApartmentExtraInfo(remoteExtraInfo);
-          window.localStorage.setItem(
-            "tumouh_star_apartment_extra_info",
-            JSON.stringify(remoteExtraInfo)
-          );
-        }
-
-        if (data.apartment_tenant_info) {
-          const remoteTenantInfo =
-            data.apartment_tenant_info as Record<string, ApartmentTenantInfo>;
-          setApartmentTenantInfo(remoteTenantInfo);
-          window.localStorage.setItem(
-            "tumouh_star_apartment_tenant_info",
-            JSON.stringify(remoteTenantInfo)
-          );
-        }
-
-        if (data.apartment_contract_info) {
-          const remoteContractInfo =
-            data.apartment_contract_info as Record<string, ApartmentContractInfo>;
-          setApartmentContractInfo(remoteContractInfo);
-          window.localStorage.setItem(
-            "tumouh_star_apartment_contract_info",
-            JSON.stringify(remoteContractInfo)
-          );
-        }
-
-        if (Array.isArray(data.building_charges)) {
-          window.localStorage.setItem(
-            "tumouh_star_building_charges",
-            JSON.stringify(data.building_charges)
-          );
-        }
-
-        if (Array.isArray(data.building_collections)) {
-          window.localStorage.setItem(
-            "tumouh_star_building_collections",
-            JSON.stringify(data.building_collections)
-          );
-        }
-      } else {
-        // أول تشغيل لهذه العمارة: ننقل النسخة الحالية إلى قاعدة البيانات.
-        await saveBuildingStateToSupabase();
+      if (!existingApartments && unitsCount > 0) {
+        const blankApartments = createBlankApartments(unitsCount);
+        setApartments(blankApartments);
+        setBuildingStorageValue(
+          "tumouh_star_building_apartments",
+          JSON.stringify(blankApartments)
+        );
       }
-
-      remoteStateHydratedRef.current = true;
-      setChargeSyncVersion((value) => value + 1);
     };
 
-    void loadBuildingStateFromSupabase().catch((error) => {
-      console.error("فشل تحميل بيانات العمارة:", error);
-    });
+    void loadBuildingInfo();
 
     return () => {
       cancelled = true;
     };
-  }, [buildingRefreshVersion]);
-
-  useEffect(() => {
-    if (!remoteStateHydratedRef.current) {
-      return;
-    }
-
-    const timeoutId = window.setTimeout(() => {
-      void saveBuildingStateToSupabase().catch((error) => {
-        console.error("خطأ في الحفظ التلقائي لبيانات العمارة:", error);
-      });
-    }, 400);
-
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, [
-    apartments,
-    apartmentTypes,
-    customApartmentTypes,
-    customApartmentStatuses,
-    apartmentTypeRents,
-    apartmentExtraInfo,
-    apartmentTenantInfo,
-    apartmentContractInfo,
-    chargeSyncVersion,
-  ]);
+  }, [currentBuildingId]);
 
   const addApartment = () => {
     setApartments((current) => {
       const nextNumber =
         current.length > 0
-          ? String(
-              Math.max(
-                ...current.map((apartment) => Number(apartment.number) || 0)
-              ) + 1
-            )
-          : "1";
+          ? Math.max(...current.map((apartment) => apartment.number)) + 1
+          : 1;
 
       const updated = [
         ...current,
@@ -746,8 +637,7 @@ export default function BuildingDetails() {
         },
       ];
 
-      window.localStorage.setItem(
-        "tumouh_star_building_apartments",
+      setBuildingStorageValue("tumouh_star_building_apartments",
         JSON.stringify(updated)
       );
 
@@ -932,10 +822,10 @@ export default function BuildingDetails() {
   ];
 
   const getApartmentExtraInfo = (
-    apartmentNumber: string
+    apartmentNumber: number
   ): ApartmentExtraInfo => {
     return (
-      apartmentExtraInfo[apartmentNumber] ??
+      (apartmentExtraInfo ?? {})[apartmentNumber] ??
       DEFAULT_APARTMENT_EXTRA_INFO
     );
   };
@@ -944,7 +834,7 @@ export default function BuildingDetails() {
     apartment: Apartment
   ): ApartmentTenantInfo => {
     return (
-      apartmentTenantInfo[apartment.number] ??
+      (apartmentTenantInfo ?? {})[apartment.number] ??
       {
         status: apartment.status,
         tenantName:
@@ -974,7 +864,7 @@ export default function BuildingDetails() {
   };
 
   const updateApartmentExtraInfo = <K extends keyof ApartmentExtraInfo>(
-    apartmentNumber: string,
+    apartmentNumber: number,
     key: K,
     value: ApartmentExtraInfo[K]
   ) => {
@@ -988,12 +878,12 @@ export default function BuildingDetails() {
   };
 
   const getApartmentType = (apartment: Apartment) => {
-    return apartmentTypes[apartment.number] ?? apartment.type;
+    return (apartmentTypes ?? {})[apartment.number] ?? apartment.type;
   };
 
   const getApartmentRent = (apartment: Apartment) => {
     const type = getApartmentType(apartment);
-    const typeRent = apartmentTypeRents[type];
+    const typeRent = (apartmentTypeRents ?? {})[type];
 
     if (typeof typeRent === "number" && typeRent > 0) {
       return typeRent;
@@ -1018,7 +908,7 @@ export default function BuildingDetails() {
     setDeleteApartmentSearch("");
   };
 
-  const toggleDeleteApartment = (apartmentNumber: string) => {
+  const toggleDeleteApartment = (apartmentNumber: number) => {
     setSelectedDeleteApartments((current) =>
       current.includes(apartmentNumber)
         ? current.filter((number) => number !== apartmentNumber)
@@ -1077,8 +967,7 @@ export default function BuildingDetails() {
         (apartment) => !selectedNumbers.has(apartment.number)
       );
 
-      window.localStorage.setItem(
-        "tumouh_star_building_apartments",
+      setBuildingStorageValue("tumouh_star_building_apartments",
         JSON.stringify(updated)
       );
 
@@ -1092,8 +981,7 @@ export default function BuildingDetails() {
         delete updated[apartmentNumber];
       });
 
-      window.localStorage.setItem(
-        "tumouh_star_apartment_types",
+      setBuildingStorageValue("tumouh_star_apartment_types",
         JSON.stringify(updated)
       );
 
@@ -1139,8 +1027,7 @@ export default function BuildingDetails() {
         [type]: Number.isFinite(numericValue) ? numericValue : 0,
       };
 
-      window.localStorage.setItem(
-        "tumouh_star_apartment_type_rents",
+      setBuildingStorageValue("tumouh_star_apartment_type_rents",
         JSON.stringify(updated)
       );
 
@@ -1201,7 +1088,7 @@ export default function BuildingDetails() {
     );
   };
 
-  const toggleTypeApartment = (apartmentNumber: string) => {
+  const toggleTypeApartment = (apartmentNumber: number) => {
     setSelectedTypeApartments((current) =>
       current.includes(apartmentNumber)
         ? current.filter((number) => number !== apartmentNumber)
@@ -1249,8 +1136,7 @@ export default function BuildingDetails() {
 
     setCustomApartmentTypes((current) => {
       const updated = [...current, type];
-      window.localStorage.setItem(
-        "tumouh_star_custom_apartment_types",
+      setBuildingStorageValue("tumouh_star_custom_apartment_types",
         JSON.stringify(updated)
       );
       return updated;
@@ -1281,8 +1167,7 @@ export default function BuildingDetails() {
         }
       });
 
-      window.localStorage.setItem(
-        "tumouh_star_apartment_types",
+      setBuildingStorageValue("tumouh_star_apartment_types",
         JSON.stringify(updated)
       );
 
@@ -1310,8 +1195,7 @@ export default function BuildingDetails() {
           ? current
           : [...current, newType];
 
-        window.localStorage.setItem(
-          "tumouh_star_custom_apartment_types",
+        setBuildingStorageValue("tumouh_star_custom_apartment_types",
           JSON.stringify(updated)
         );
 
@@ -1328,8 +1212,7 @@ export default function BuildingDetails() {
           [apartment.number]: newType,
         };
 
-        window.localStorage.setItem(
-          "tumouh_star_apartment_types",
+        setBuildingStorageValue("tumouh_star_apartment_types",
           JSON.stringify(updated)
         );
 
@@ -1345,8 +1228,7 @@ export default function BuildingDetails() {
         [apartment.number]: value,
       };
 
-      window.localStorage.setItem(
-        "tumouh_star_apartment_types",
+      setBuildingStorageValue("tumouh_star_apartment_types",
         JSON.stringify(updated)
       );
 
@@ -1379,8 +1261,7 @@ export default function BuildingDetails() {
 
     setCustomApartmentStatuses((current) => {
       const updated = [...current, newStatus];
-      window.localStorage.setItem(
-        "tumouh_star_custom_apartment_statuses",
+      setBuildingStorageValue("tumouh_star_custom_apartment_statuses",
         JSON.stringify(updated)
       );
       return updated;
@@ -1417,8 +1298,7 @@ export default function BuildingDetails() {
         item.number === apartment.number ? updatedApartment : item
       );
 
-      window.localStorage.setItem(
-        "tumouh_star_building_apartments",
+      setBuildingStorageValue("tumouh_star_building_apartments",
         JSON.stringify(updated)
       );
 
@@ -1447,170 +1327,6 @@ export default function BuildingDetails() {
     setSelectedApartment(null);
     setActiveTab("البيانات الأساسية");
     setIsPaymentExportMenuOpen(false);
-    setIsEditingApartmentNumber(false);
-    setEditedApartmentNumber("");
-  };
-
-  const startEditingApartmentNumber = () => {
-    if (!selectedApartment) {
-      return;
-    }
-
-    setEditedApartmentNumber(String(selectedApartment.number));
-    setIsEditingApartmentNumber(true);
-  };
-
-  const cancelEditingApartmentNumber = () => {
-    setIsEditingApartmentNumber(false);
-    setEditedApartmentNumber("");
-  };
-
-  const saveApartmentNumber = () => {
-    if (!selectedApartment) {
-      return;
-    }
-
-    const newNumber = editedApartmentNumber.trim();
-
-    if (!newNumber) {
-      window.alert("من فضلك أدخل رقم شقة صحيح.");
-      return;
-    }
-
-    const oldNumber = selectedApartment.number;
-
-    if (newNumber === oldNumber) {
-      cancelEditingApartmentNumber();
-      return;
-    }
-
-    const duplicateApartment = apartments.some(
-      (apartment) =>
-        apartment.number === newNumber &&
-        apartment.number !== oldNumber
-    );
-
-    if (duplicateApartment) {
-      window.alert("رقم الشقة الجديد مستخدم بالفعل. اختر رقمًا آخر.");
-      return;
-    }
-
-    const updatedApartment = {
-      ...selectedApartment,
-      number: newNumber,
-    };
-
-    setApartments((current) => {
-      const updated = current.map((apartment) =>
-        apartment.number === oldNumber
-          ? { ...apartment, number: newNumber }
-          : apartment
-      );
-
-      window.localStorage.setItem(
-        "tumouh_star_building_apartments",
-        JSON.stringify(updated)
-      );
-
-      return updated;
-    });
-
-    setApartmentTypes((current) => {
-      const updated = { ...current };
-
-      if (Object.prototype.hasOwnProperty.call(updated, oldNumber)) {
-        updated[newNumber] = updated[oldNumber];
-        delete updated[oldNumber];
-      }
-
-      window.localStorage.setItem(
-        "tumouh_star_apartment_types",
-        JSON.stringify(updated)
-      );
-
-      return updated;
-    });
-
-    setApartmentExtraInfo((current) => {
-      const updated = { ...current };
-
-      if (Object.prototype.hasOwnProperty.call(updated, oldNumber)) {
-        updated[newNumber] = updated[oldNumber];
-        delete updated[oldNumber];
-      }
-
-      window.localStorage.setItem(
-        "tumouh_star_apartment_extra_info",
-        JSON.stringify(updated)
-      );
-
-      return updated;
-    });
-
-    setApartmentTenantInfo((current) => {
-      const updated = { ...current };
-
-      if (Object.prototype.hasOwnProperty.call(updated, oldNumber)) {
-        updated[newNumber] = updated[oldNumber];
-        delete updated[oldNumber];
-      }
-
-      window.localStorage.setItem(
-        "tumouh_star_apartment_tenant_info",
-        JSON.stringify(updated)
-      );
-
-      return updated;
-    });
-
-    setApartmentContractInfo((current) => {
-      const updated = { ...current };
-
-      if (Object.prototype.hasOwnProperty.call(updated, oldNumber)) {
-        updated[newNumber] = updated[oldNumber];
-        delete updated[oldNumber];
-      }
-
-      window.localStorage.setItem(
-        "tumouh_star_apartment_contract_info",
-        JSON.stringify(updated)
-      );
-
-      return updated;
-    });
-
-    try {
-      const savedCharges = window.localStorage.getItem(
-        "tumouh_star_building_charges"
-      );
-
-      if (savedCharges) {
-        const charges = JSON.parse(savedCharges) as BuildingCharge[];
-
-        const updatedCharges = charges.map((charge) =>
-          charge.apartmentNumber === oldNumber
-            ? { ...charge, apartmentNumber: newNumber }
-            : charge
-        );
-
-        window.localStorage.setItem(
-          "tumouh_star_building_charges",
-          JSON.stringify(updatedCharges)
-        );
-      }
-    } catch {
-      // تجاهل خطأ قراءة المستحقات مع حفظ بيانات الشقة بشكل طبيعي.
-    }
-
-    setSelectedChargeApartments((current) =>
-      current.map((number) =>
-        number === oldNumber ? newNumber : number
-      )
-    );
-
-    setSelectedApartment(updatedApartment);
-    setIsEditingApartmentNumber(false);
-    setEditedApartmentNumber("");
   };
 
   const saveApartmentTenantField = <
@@ -1635,8 +1351,7 @@ export default function BuildingDetails() {
         [apartment.number]: updatedTenantInfo,
       };
 
-      window.localStorage.setItem(
-        "tumouh_star_apartment_tenant_info",
+      setBuildingStorageValue("tumouh_star_apartment_tenant_info",
         JSON.stringify(updated)
       );
 
@@ -1655,8 +1370,7 @@ export default function BuildingDetails() {
             : item
         );
 
-        window.localStorage.setItem(
-          "tumouh_star_building_apartments",
+        setBuildingStorageValue("tumouh_star_building_apartments",
           JSON.stringify(updated)
         );
 
@@ -1675,7 +1389,7 @@ export default function BuildingDetails() {
     }
   };
 
-  const saveApartmentFloor = (apartmentNumber: string) => {
+  const saveApartmentFloor = (apartmentNumber: number) => {
     const extraInfo = getApartmentExtraInfo(apartmentNumber);
 
     setApartmentExtraInfo((current) => {
@@ -1684,8 +1398,7 @@ export default function BuildingDetails() {
         [apartmentNumber]: extraInfo,
       };
 
-      window.localStorage.setItem(
-        "tumouh_star_apartment_extra_info",
+      setBuildingStorageValue("tumouh_star_apartment_extra_info",
         JSON.stringify(updated)
       );
 
@@ -1693,9 +1406,9 @@ export default function BuildingDetails() {
     });
   };
 
-  const getApartmentContractInfo = (apartmentNumber: string) => {
+  const getApartmentContractInfo = (apartmentNumber: number) => {
     return (
-      apartmentContractInfo[apartmentNumber] ??
+      (apartmentContractInfo ?? {})[apartmentNumber] ??
       createDefaultApartmentContractInfo(apartmentNumber)
     );
   };
@@ -1703,7 +1416,7 @@ export default function BuildingDetails() {
   const updateApartmentContractField = <
     K extends keyof ApartmentContractInfo
   >(
-    apartmentNumber: string,
+    apartmentNumber: number,
     key: K,
     value: ApartmentContractInfo[K]
   ) => {
@@ -1717,7 +1430,7 @@ export default function BuildingDetails() {
   };
 
   const updateApartmentContractStartDate = (
-    apartmentNumber: string,
+    apartmentNumber: number,
     startDate: string
   ) => {
     const currentInfo = getApartmentContractInfo(apartmentNumber);
@@ -1738,7 +1451,7 @@ export default function BuildingDetails() {
   };
 
   const updateApartmentContractDuration = (
-    apartmentNumber: string,
+    apartmentNumber: number,
     durationUnit: "day" | "month" | "year",
     durationValue: number
   ) => {
@@ -1761,7 +1474,7 @@ export default function BuildingDetails() {
     }));
   };
 
-  const saveApartmentContractInfo = (apartmentNumber: string) => {
+  const saveApartmentContractInfo = (apartmentNumber: number) => {
     const contractInfo = getApartmentContractInfo(apartmentNumber);
 
     setApartmentContractInfo((current) => {
@@ -1770,8 +1483,7 @@ export default function BuildingDetails() {
         [apartmentNumber]: contractInfo,
       };
 
-      window.localStorage.setItem(
-        "tumouh_star_apartment_contract_info",
+      setBuildingStorageValue("tumouh_star_apartment_contract_info",
         JSON.stringify(updated)
       );
 
@@ -1779,134 +1491,7 @@ export default function BuildingDetails() {
     });
   };
 
-  const saveTenantDataToSupabase = async (apartment: Apartment) => {
-    const tenantInfo = getApartmentTenantInfo(apartment);
-    const contractInfo = getApartmentContractInfo(apartment.number);
-    const buildingIdMatch = window.location.pathname.match(/\/buildings\/(\d+)/);
-    const buildingId = buildingIdMatch ? Number(buildingIdMatch[1]) : null;
-
-    if (!buildingId) {
-      throw new Error("لم يتم التعرف على رقم العمارة من الرابط.");
-    }
-
-    const fullName = tenantInfo.tenantName.trim();
-    const phone = tenantInfo.phone.trim();
-    const identityNumber = tenantInfo.identityNumber.trim();
-
-    if (!fullName) {
-      // اسم المستأجر اختياري؛ حفظ بيانات العمارة لا يتوقف عليه.
-      return;
-    }
-
-    /*
-     * أولًا: البحث عن المستأجر الحالي.
-     * نستخدم رقم الهوية عند توفره، ثم الجوال + الاسم، ثم الاسم.
-     */
-    let tenantQuery = supabase
-      .from("tenants")
-      .select("id")
-      .limit(1);
-
-    if (identityNumber) {
-      tenantQuery = tenantQuery.eq("identity_number", identityNumber);
-    } else if (phone) {
-      tenantQuery = tenantQuery
-        .eq("phone", phone)
-        .eq("full_name", fullName);
-    } else {
-      tenantQuery = tenantQuery.eq("full_name", fullName);
-    }
-
-    const { data: existingTenant, error: tenantLookupError } =
-      await tenantQuery.maybeSingle();
-
-    if (tenantLookupError) {
-      throw tenantLookupError;
-    }
-
-    let tenantId = existingTenant?.id as string | undefined;
-
-    const tenantData = {
-      full_name: fullName,
-      phone: phone || null,
-      identity_number: identityNumber || null,
-    };
-
-    if (tenantId) {
-      const { error: updateTenantError } = await supabase
-        .from("tenants")
-        .update(tenantData)
-        .eq("id", tenantId);
-
-      if (updateTenantError) {
-        throw updateTenantError;
-      }
-    } else {
-      const { data: insertedTenant, error: insertTenantError } =
-        await supabase
-          .from("tenants")
-          .insert(tenantData)
-          .select("id")
-          .single();
-
-      if (insertTenantError) {
-        throw insertTenantError;
-      }
-
-      tenantId = insertedTenant?.id as string | undefined;
-    }
-
-    if (!tenantId) {
-      throw new Error("لم يتم الحصول على رقم المستأجر من قاعدة البيانات.");
-    }
-
-    /*
-     * مهم:
-     * البحث عن العقد يكون بالعمارة + رقم الشقة فقط،
-     * وليس tenant_id؛ لأن المستأجر قد يتغير عند تعديل البيانات.
-     * بهذه الطريقة نحدّث نفس الصف بدل إنشاء صف جديد كل مرة.
-     */
-    const { data: existingLease, error: leaseLookupError } = await supabase
-      .from("tenant_leases")
-      .select("id")
-      .eq("building_id", buildingId)
-      .eq("apartment_number", String(apartment.number))
-      .order("created_at", { ascending: true })
-      .limit(1)
-      .maybeSingle();
-
-    if (leaseLookupError) {
-      throw leaseLookupError;
-    }
-
-    const leaseData = {
-      tenant_id: tenantId,
-      building_id: buildingId,
-      apartment_number: String(apartment.number),
-      contract_number: contractInfo.contractNumber || null,
-    };
-
-    if (existingLease?.id) {
-      const { error: updateLeaseError } = await supabase
-        .from("tenant_leases")
-        .update(leaseData)
-        .eq("id", existingLease.id);
-
-      if (updateLeaseError) {
-        throw updateLeaseError;
-      }
-    } else {
-      const { error: insertLeaseError } = await supabase
-        .from("tenant_leases")
-        .insert(leaseData);
-
-      if (insertLeaseError) {
-        throw insertLeaseError;
-      }
-    }
-  };
-
-  const saveApartmentDetails = async () => {
+  const saveApartmentDetails = () => {
     if (!selectedApartment) {
       return;
     }
@@ -1924,153 +1509,35 @@ export default function BuildingDetails() {
         : apartment;
     });
 
-    window.localStorage.setItem(
-      "tumouh_star_building_apartments",
+    setBuildingStorageValue("tumouh_star_building_apartments",
       JSON.stringify(updatedApartments)
     );
 
-    window.localStorage.setItem(
-      "tumouh_star_apartment_types",
+    setBuildingStorageValue("tumouh_star_apartment_types",
       JSON.stringify(apartmentTypes)
     );
 
-    window.localStorage.setItem(
-      "tumouh_star_apartment_extra_info",
+    setBuildingStorageValue("tumouh_star_apartment_extra_info",
       JSON.stringify(apartmentExtraInfo)
     );
 
-    window.localStorage.setItem(
-      "tumouh_star_apartment_tenant_info",
+    setBuildingStorageValue("tumouh_star_apartment_tenant_info",
       JSON.stringify(apartmentTenantInfo)
     );
 
-    window.localStorage.setItem(
-      "tumouh_star_apartment_contract_info",
+    setBuildingStorageValue("tumouh_star_apartment_contract_info",
       JSON.stringify(apartmentContractInfo)
     );
 
     setApartments(updatedApartments);
-
-    try {
-      await saveTenantDataToSupabase(selectedApartment);
-      window.alert("تم حفظ بيانات المستأجر في قاعدة البيانات بنجاح.");
-      closeApartment();
-    } catch (error) {
-      console.error("خطأ في حفظ بيانات المستأجر في Supabase:", error);
-      const message =
-        error instanceof Error
-          ? error.message
-          : "حدث خطأ غير معروف أثناء الحفظ في قاعدة البيانات.";
-
-      window.alert(
-        `تم حفظ البيانات محليًا، لكن تعذر الحفظ في قاعدة البيانات.\n${message}`
-      );
-    }
-  };
-
-  const getChargeRecordKey = (charge: Partial<BuildingCharge>, transactionType?: string) =>
-    [
-      transactionType || "",
-      charge.date || "",
-      charge.apartmentNumber || "",
-      charge.type || "",
-      String(charge.amount ?? ""),
-      charge.notes || "",
-    ].join("|");
-
-  const findStoredChargeByKey = (mode: "charge" | "collection", key: string) => {
-    const storageKey =
-      mode === "collection"
-        ? "tumouh_star_building_collections"
-        : "tumouh_star_building_charges";
-
-    try {
-      const saved = window.localStorage.getItem(storageKey);
-      const records = saved ? (JSON.parse(saved) as BuildingCharge[]) : [];
-      const index = records.findIndex((record) =>
-        getChargeRecordKey(record, mode === "collection" ? "تحصيل" : "مستحق") === key
-      );
-      return { storageKey, records, index };
-    } catch {
-      return { storageKey, records: [] as BuildingCharge[], index: -1 };
-    }
-  };
-
-  const openChargeForReportRow = (row: {
-    sourceMode?: "charge" | "collection";
-    sourceKey?: string;
-    date: string;
-    type: string;
-    amount: number;
-    notes: string;
-    apartmentNumber?: string;
-  }) => {
-    if (!row.sourceMode || !row.sourceKey) {
-      window.alert("هذه العملية محسوبة تلقائيًا وليست سجلًا محفوظًا يمكن تعديله.");
-      return;
-    }
-
-    const { records, index } = findStoredChargeByKey(row.sourceMode, row.sourceKey);
-    if (index < 0) {
-      window.alert("تعذر العثور على العملية المحفوظة. حدّث الصفحة وحاول مرة أخرى.");
-      return;
-    }
-
-    const record = records[index];
-    setEditingChargeKey(row.sourceKey);
-    setChargeModalMode(row.sourceMode);
-    setChargeForm({
-      type: record.type || row.type || "إيجار",
-      amount: String(record.amount ?? row.amount ?? ""),
-      date: record.date || row.date,
-      notes: record.notes || row.notes || "",
-    });
-    setSelectedChargeApartments(record.apartmentNumber ? [String(record.apartmentNumber)] : []);
-    setRentCollectionMonths(record.rentMonths || 1);
-    setApartmentTypeFilter("");
-    setApartmentStatusFilter("");
-    setApartmentSearch("");
-    setIsChargeModalOpen(true);
-  };
-
-  const deleteChargeForReportRow = (row: {
-    sourceMode?: "charge" | "collection";
-    sourceKey?: string;
-    date: string;
-    type: string;
-    amount: number;
-    notes: string;
-    apartmentNumber?: string;
-  }) => {
-    if (!row.sourceMode || !row.sourceKey) {
-      window.alert("هذه العملية محسوبة تلقائيًا ولا يوجد سجل مستقل لحذفه.");
-      return;
-    }
-
-    if (!window.confirm("هل أنت متأكد من حذف هذه العملية؟ لا يمكن التراجع عن الحذف.")) {
-      return;
-    }
-
-    const { storageKey, records, index } = findStoredChargeByKey(row.sourceMode, row.sourceKey);
-    if (index < 0) {
-      window.alert("تعذر العثور على العملية المحفوظة.");
-      return;
-    }
-
-    const updated = records.filter((_, recordIndex) => recordIndex !== index);
-    window.localStorage.setItem(storageKey, JSON.stringify(updated));
-    setChargeSyncVersion((value) => value + 1);
-    window.dispatchEvent(new Event("storage"));
-    setIsChargeModalOpen(false);
-    window.alert("تم حذف العملية بنجاح.");
+    closeApartment();
   };
 
   const openChargeModal = (
     mode: "charge" | "collection",
     type: string,
-    apartmentNumber?: string
+    apartmentNumber?: number
   ) => {
-    setEditingChargeKey(null);
     setChargeModalMode(mode);
     setChargeForm({
       type,
@@ -2088,7 +1555,7 @@ export default function BuildingDetails() {
     setIsChargeModalOpen(true);
   };
 
-  const toggleChargeApartment = (apartmentNumber: string) => {
+  const toggleChargeApartment = (apartmentNumber: number) => {
     setSelectedChargeApartments((current) =>
       current.includes(apartmentNumber)
         ? current.filter((number) => number !== apartmentNumber)
@@ -2166,7 +1633,7 @@ export default function BuildingDetails() {
     return Math.max(1, Math.ceil(value / 30));
   };
 
-  const getApartmentRentCollected = (apartmentNumber: string) => {
+  const getApartmentRentCollected = (apartmentNumber: number) => {
     return getApartmentPayments(apartmentNumber)
       .filter((payment) => payment.type?.trim() === "إيجار")
       .reduce((sum, payment) => sum + (Number(payment.amount) || 0), 0);
@@ -2219,7 +1686,7 @@ export default function BuildingDetails() {
     if (apartmentReportType === "total") {
       return {
         title: "تقرير إجمالي الشقق",
-        subtitle: `جميع الشقق المسجلة في عمارة سنتر (${totalApartments} شقة)`,
+        subtitle: `جميع الشقق المسجلة في ${buildingName} (${totalApartments} شقة)`,
         data: apartments,
       };
     }
@@ -2291,9 +1758,7 @@ export default function BuildingDetails() {
 
   const getBuildingChargesForPeriod = (): BuildingCharge[] => {
     try {
-      const saved = window.localStorage.getItem(
-        "tumouh_star_building_charges"
-      );
+      const saved = getBuildingStorageValue("tumouh_star_building_charges");
 
       if (!saved) {
         return [];
@@ -2373,7 +1838,7 @@ export default function BuildingDetails() {
         .map((charge) => {
           const apartment = apartments.find(
             (item) =>
-              String(item.number) === String(charge.apartmentNumber)
+              Number(item.number) === Number(charge.apartmentNumber)
           );
           const tenantInfo = apartment
             ? getApartmentTenantInfo(apartment)
@@ -2406,7 +1871,7 @@ export default function BuildingDetails() {
         .map((charge) => {
           const apartment = apartments.find(
             (item) =>
-              String(item.number) === String(charge.apartmentNumber)
+              Number(item.number) === Number(charge.apartmentNumber)
           );
           const tenantInfo = apartment
             ? getApartmentTenantInfo(apartment)
@@ -2436,7 +1901,7 @@ export default function BuildingDetails() {
     const rows = charges.map((charge) => {
       const apartment = apartments.find(
         (item) =>
-          String(item.number) === String(charge.apartmentNumber)
+          Number(item.number) === Number(charge.apartmentNumber)
       );
       const tenantInfo = apartment
         ? getApartmentTenantInfo(apartment)
@@ -2465,9 +1930,7 @@ export default function BuildingDetails() {
 
   const getBuildingCollectionsForPeriod = (): BuildingCharge[] => {
     try {
-      const saved = window.localStorage.getItem(
-        "tumouh_star_building_collections"
-      );
+      const saved = getBuildingStorageValue("tumouh_star_building_collections");
 
       if (!saved) {
         return [];
@@ -2505,9 +1968,9 @@ export default function BuildingDetails() {
 
     const monthlyRentRows = getMonthlyRentRows();
 
-    const getTenantForApartment = (apartmentNumber?: string) => {
+    const getTenantForApartment = (apartmentNumber?: number) => {
       const apartment = apartments.find(
-        (item) => String(item.number) === String(apartmentNumber)
+        (item) => Number(item.number) === Number(apartmentNumber)
       );
 
       if (!apartment) {
@@ -2531,8 +1994,6 @@ export default function BuildingDetails() {
           transactionType: "مستحق",
           amount: row.amount,
           notes: row.notes,
-          sourceMode: undefined,
-          sourceKey: undefined,
         }));
       }
 
@@ -2551,8 +2012,6 @@ export default function BuildingDetails() {
         transactionType: "مستحق",
         amount: Number(charge.amount) || 0,
         notes: charge.notes || "لا توجد تفاصيل",
-        sourceMode: "charge" as const,
-        sourceKey: getChargeRecordKey(charge, "مستحق"),
       }));
     };
 
@@ -2580,8 +2039,6 @@ export default function BuildingDetails() {
         transactionType: "تحصيل",
         amount: Number(collection.amount) || 0,
         notes: collection.notes || "لا توجد تفاصيل",
-        sourceMode: "collection" as const,
-        sourceKey: getChargeRecordKey(collection, "تحصيل"),
       }));
     };
 
@@ -3265,11 +2722,9 @@ export default function BuildingDetails() {
       .replace(/"/g, "&quot;")
       .replace(/'/g, "&#039;");
 
-  function getApartmentPayments(apartmentNumber: string): BuildingCharge[] {
+  const getApartmentPayments = (apartmentNumber: number): BuildingCharge[] => {
     try {
-      const saved = window.localStorage.getItem(
-        "tumouh_star_building_collections"
-      );
+      const saved = getBuildingStorageValue("tumouh_star_building_collections");
 
       if (!saved) {
         return [];
@@ -3281,13 +2736,13 @@ export default function BuildingDetails() {
         .filter(
           (payment) =>
             payment &&
-            String(payment.apartmentNumber) === String(apartmentNumber)
+            Number(payment.apartmentNumber) === Number(apartmentNumber)
         )
         .sort((a, b) => String(b.date ?? "").localeCompare(String(a.date ?? "")));
     } catch {
       return [];
     }
-  }
+  };
 
   const formatPaymentDate = (value: string) => {
     return formatContractDate(value);
@@ -3312,9 +2767,7 @@ export default function BuildingDetails() {
     }
 
     try {
-      const saved = window.localStorage.getItem(
-        "tumouh_star_building_charges"
-      );
+      const saved = getBuildingStorageValue("tumouh_star_building_charges");
 
       if (!saved) {
         return [];
@@ -3324,7 +2777,7 @@ export default function BuildingDetails() {
 
       return charges.filter(
         (charge) =>
-          String(charge.apartmentNumber) === String(selectedApartment.number) &&
+          Number(charge.apartmentNumber) === Number(selectedApartment.number) &&
           Boolean(charge.date) &&
           charge.date >= fromDate &&
           charge.date <= toDate
@@ -3630,13 +3083,11 @@ export default function BuildingDetails() {
   };
 
   const getApartmentCharges = (
-    apartmentNumber: string,
+    apartmentNumber: number,
     fromDate?: string
   ): BuildingCharge[] => {
     try {
-      const saved = window.localStorage.getItem(
-        "tumouh_star_building_charges"
-      );
+      const saved = getBuildingStorageValue("tumouh_star_building_charges");
 
       if (!saved) {
         return [];
@@ -3647,7 +3098,7 @@ export default function BuildingDetails() {
 
       return charges.filter(
         (charge) =>
-          String(charge.apartmentNumber) === String(apartmentNumber) &&
+          Number(charge.apartmentNumber) === Number(apartmentNumber) &&
           Boolean(charge.date) &&
           charge.date <= today &&
           (!fromDate || charge.date >= fromDate) &&
@@ -4560,7 +4011,7 @@ export default function BuildingDetails() {
     return (
       <div
         dir="rtl"
-        className="min-h-screen w-full min-w-0 max-w-full overflow-x-hidden bg-[#061426] p-3 text-white sm:p-4 lg:p-6"
+        className="min-h-screen bg-[#061426] p-6 text-white"
       >
         <div className="mx-auto min-h-[calc(100vh-3rem)] max-w-7xl rounded-3xl border border-[#d89b18]/40 bg-[#07182b] p-6 shadow-[0_20px_80px_rgba(0,0,0,0.35)]">
           <div className="flex items-center justify-between border-b border-white/10 pb-5">
@@ -4582,7 +4033,7 @@ export default function BuildingDetails() {
               </p>
             </div>
 
-            <div className="hidden w-[110px] sm:block" />
+            <div className="w-[110px]" />
           </div>
 
           <div className="flex min-h-[70vh] items-center justify-center">
@@ -4615,25 +4066,25 @@ export default function BuildingDetails() {
       {/* HEADER                                                 */}
       {/* ===================================================== */}
 
-      <div className="mb-4 rounded-2xl border border-[#d89b18] bg-[#050505] p-3 shadow-lg sm:mb-6 sm:p-4 lg:p-6">
+      <div className="mb-6 rounded-2xl border border-[#d89b18] bg-[#050505] p-6 shadow-lg">
 
         <div className="flex flex-col items-center justify-center gap-2 text-center">
 
-          <div className="flex flex-wrap items-center justify-center gap-2 text-center sm:gap-5">
+          <div className="flex items-center justify-center gap-5 text-center">
 
-            <h1 className="text-2xl font-bold text-[#f0ad18] sm:text-3xl lg:text-4xl">
-              عمارة سنتر
+            <h1 className="text-4xl font-bold text-[#f0ad18]">
+              {buildingName}
             </h1>
 
-            <div className="text-xl font-bold text-white sm:text-2xl lg:text-3xl">
+            <div className="text-3xl font-bold text-white">
               Tumouh Star
             </div>
 
           </div>
 
-          <div className="flex flex-wrap items-center justify-center gap-2 text-center sm:gap-4">
+          <div className="flex items-center justify-center gap-4 text-center">
 
-            <p className="text-sm text-gray-300 sm:text-lg">
+            <p className="text-lg text-gray-300">
               تفاصيل الاستثمار والعقود والإيرادات
             </p>
 
@@ -4964,7 +4415,7 @@ export default function BuildingDetails() {
       {/* MONTHLY FINANCIAL SUMMARY - 8 LARGE GLASS CARDS        */}
       {/* ===================================================== */}
 
-      <div className="mb-4 min-w-0 rounded-3xl border border-white/10 bg-white/[0.025] p-3 shadow-[0_14px_45px_rgba(0,0,0,0.18)] backdrop-blur-xl sm:mb-6 sm:p-4 lg:p-5">
+      <div className="mb-6 rounded-3xl border border-white/10 bg-white/[0.025] p-4 shadow-[0_14px_45px_rgba(0,0,0,0.18)] backdrop-blur-xl sm:p-5">
         <div className="relative mb-5 min-h-[76px]">
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-32 text-center">
             <div>
@@ -4977,7 +4428,7 @@ export default function BuildingDetails() {
             </div>
           </div>
 
-          <div className="relative z-10 flex flex-wrap items-center justify-between gap-3">
+          <div className="relative z-10 flex items-center justify-between gap-3">
             <div className="flex shrink-0 items-center gap-3">
               <button
                 type="button"
@@ -4998,7 +4449,7 @@ export default function BuildingDetails() {
               </button>
             </div>
 
-            <div className="ml-auto grid w-full max-w-[560px] grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="w-full max-w-[560px] ml-auto grid grid-cols-2 gap-3">
             <label className="text-center text-xs font-bold text-gray-400">
               من تاريخ
               <input
@@ -5305,7 +4756,7 @@ export default function BuildingDetails() {
       {/* APARTMENT TYPES                                       */}
       {/* ===================================================== */}
 
-      <div className="mb-4 min-w-0 rounded-2xl border border-[#173858] bg-[#0b2039] p-4 sm:mb-6 sm:p-6">
+      <div className="mb-6 rounded-2xl border border-[#173858] bg-[#0b2039] p-6">
 
         <h2 className="mb-6 text-center text-2xl font-bold text-[#f0ad18]">
           أنواع الشقق وأسعار الإيجار
@@ -5363,7 +4814,7 @@ export default function BuildingDetails() {
             );
 
           return (
-            <div className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2 lg:gap-6">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               {apartmentTypeGroups.map((group) => {
                 const percentage =
                   totalApartments > 0
@@ -5441,7 +4892,7 @@ export default function BuildingDetails() {
                       </div>
                     </div>
 
-                    <div className="mb-3 flex min-w-0 flex-wrap items-center justify-between gap-3">
+                    <div className="mb-3 flex items-center justify-between gap-3">
                       <h4 className="text-base font-black text-white">
                         توزيع الشقق حسب الحالة
                       </h4>
@@ -5506,40 +4957,32 @@ export default function BuildingDetails() {
 
       {/* ===================================================== */}
 
-      {/* ===================================================== */}
-      {/* APARTMENT MAP PAGE BUTTON                             */}
-      {/* ===================================================== */}
-
-      <button
-        type="button"
-        onClick={() => {
-          const buildingId = getCurrentBuildingId();
-
-          if (!buildingId) {
-            window.alert("لم يتم التعرف على رقم العمارة.");
-            return;
-          }
-
-          window.location.href = `/buildings/${buildingId}/apartments`;
-        }}
-        className="group relative mt-6 flex min-h-[150px] w-full items-center justify-center overflow-hidden rounded-3xl border border-[#f0ad18]/40 bg-gradient-to-br from-[#0b2039] via-[#0a1c31] to-[#07182b] px-6 py-8 text-center shadow-[0_15px_55px_rgba(0,0,0,0.25)] transition-all duration-300 hover:-translate-y-1 hover:border-[#f0ad18]/80 hover:shadow-[0_20px_65px_rgba(240,173,24,0.12)]"
-      >
-        <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-[#f0ad18] to-transparent opacity-70 transition-opacity group-hover:opacity-100" />
-
-        <div className="flex flex-col items-center justify-center">
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-[#f0ad18]/30 bg-[#f0ad18]/10 text-[#f6c84a] shadow-[0_0_30px_rgba(240,173,24,0.10)]">
+      {/* APARTMENT MAP */}
+      <div className="rounded-2xl border border-[#173858] bg-[#0b2039] p-4 sm:p-6">
+        <button
+          type="button"
+          onClick={() => {
+            const buildingId = getCurrentBuildingIdFromPath();
+            if (!buildingId) {
+              window.alert("لم يتم التعرف على رقم العمارة من الرابط.");
+              return;
+            }
+            window.location.href = `/buildings/${buildingId}/apartments`;
+          }}
+          className="group flex w-full flex-col items-center justify-center rounded-2xl border border-[#d89b18]/70 bg-gradient-to-br from-[#0b2039] via-[#0a1b2f] to-[#061426] px-6 py-8 text-center transition-all duration-300 hover:-translate-y-1 hover:border-[#f6c84a] hover:shadow-[0_0_40px_rgba(216,155,24,0.14)]"
+        >
+          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-[#d89b18]/60 bg-[#d89b18]/10 text-[#f6c84a] transition-transform duration-300 group-hover:scale-105">
             <Building2 size={34} />
           </div>
-
-          <h2 className="mt-4 text-2xl font-black text-white sm:text-3xl">
-            خريطة الشقق
-          </h2>
-
-          <p className="mt-2 text-sm font-semibold text-gray-400 sm:text-base">
-            اضغط هنا لفتح صفحة الشقق وجميع بياناتها
+          <h2 className="text-3xl font-black text-[#f6c84a]">خريطة الشقق</h2>
+          <p className="mt-2 text-base font-semibold text-gray-300">
+            اضغط هنا لفتح صفحة خريطة الشقق وإدارة جميع الشقق وتفاصيلها
           </p>
-        </div>
-      </button>
+          <div className="mt-5 rounded-xl border border-[#d89b18]/40 bg-[#d89b18]/10 px-6 py-3 text-sm font-black text-[#f6c84a]">
+            فتح خريطة الشقق ←
+          </div>
+        </button>
+      </div>
 
       {/* DELETE APARTMENTS MODAL                                */}
       {/* ===================================================== */}
@@ -5551,7 +4994,7 @@ export default function BuildingDetails() {
         >
           <div
             dir="rtl"
-            className="relative flex max-h-[calc(100vh-12px)] w-full max-w-[760px] sm:max-h-[calc(100vh-24px)] flex-col overflow-hidden rounded-[30px] border border-red-400/55 bg-[#061426]/[0.97] shadow-[0_0_100px_rgba(0,0,0,0.55)]"
+            className="relative flex max-h-[calc(100vh-24px)] w-full max-w-[760px] flex-col overflow-hidden rounded-[30px] border border-red-400/55 bg-[#061426]/[0.97] shadow-[0_0_100px_rgba(0,0,0,0.55)]"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-red-400 to-transparent" />
@@ -5718,7 +5161,7 @@ export default function BuildingDetails() {
         >
 
           <div
-            className="relative flex max-h-[calc(100vh-12px)] w-full max-w-[1420px] sm:max-h-[calc(100vh-16px)] flex-col overflow-hidden rounded-[28px] border border-[#d89b18]/70 bg-[#061426]/98 shadow-[0_0_80px_rgba(216,155,24,0.18)] sm:max-h-[calc(100vh-32px)]"
+            className="relative flex max-h-[calc(100vh-16px)] w-full max-w-[1420px] flex-col overflow-hidden rounded-[28px] border border-[#d89b18]/70 bg-[#061426]/98 shadow-[0_0_80px_rgba(216,155,24,0.18)] sm:max-h-[calc(100vh-32px)]"
             onClick={(event) =>
               event.stopPropagation()
             }
@@ -5748,7 +5191,7 @@ export default function BuildingDetails() {
                     تفاصيل الشقة
                   </h2>
                   <p className="mt-1 text-base font-semibold text-gray-300 lg:text-lg">
-                    عمارة سنتر
+                    {buildingName}
                   </p>
                 </div>
 
@@ -5781,59 +5224,10 @@ export default function BuildingDetails() {
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#020813]/95 via-[#061426]/35 to-transparent" />
                 <div className="absolute inset-x-0 bottom-0 p-5 text-right" dir="rtl">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="text-sm font-medium text-gray-300">
-                      شقة رقم
-                    </div>
-
-                    {!isEditingApartmentNumber && (
-                      <button
-                        type="button"
-                        onClick={startEditingApartmentNumber}
-                        title="تعديل رقم الشقة"
-                        className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#f0ad18]/40 bg-[#f0ad18]/10 text-[#f6c84a] transition hover:border-[#f6c84a] hover:bg-[#f0ad18]/20"
-                      >
-                        <Edit3 size={17} />
-                      </button>
-                    )}
+                  <div className="text-sm font-medium text-gray-300">شقة رقم</div>
+                  <div className="mt-1 text-[76px] font-black leading-none text-[#f6c84a] drop-shadow-[0_0_25px_rgba(246,200,74,0.25)]">
+                    {selectedApartment.number}
                   </div>
-
-                  {isEditingApartmentNumber ? (
-                    <div className="mt-3 space-y-3">
-                      <input
-                        type="text"
-                        inputMode="text"
-                        value={editedApartmentNumber}
-                        onChange={(event) =>
-                          setEditedApartmentNumber(event.target.value)
-                        }
-                        autoFocus
-                        className="w-full min-w-0 rounded-2xl border border-[#f0ad18]/60 bg-[#061426]/90 px-3 py-2 text-center text-2xl font-black sm:px-4 sm:py-3 sm:text-4xl text-[#f6c84a] outline-none focus:ring-2 focus:ring-[#f0ad18]/20"
-                      />
-
-                      <div className="grid grid-cols-2 gap-2">
-                        <button
-                          type="button"
-                          onClick={saveApartmentNumber}
-                          className="rounded-xl bg-gradient-to-r from-[#c49a3a] to-[#f6d878] px-3 py-2 text-sm font-black text-[#16352b] transition hover:brightness-110"
-                        >
-                          حفظ
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={cancelEditingApartmentNumber}
-                          className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-bold text-gray-200 transition hover:bg-white/10"
-                        >
-                          إلغاء
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="mt-1 text-5xl font-black leading-none sm:text-[76px] text-[#f6c84a] drop-shadow-[0_0_25px_rgba(246,200,74,0.25)]">
-                      {selectedApartment.number}
-                    </div>
-                  )}
                   <div className={`mt-4 inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold backdrop-blur-md ${getStatusColor(selectedApartment.status).badge}`}>
                     <span className={`h-2.5 w-2.5 rounded-full ${getStatusColor(selectedApartment.status).dot}`} />
                     {selectedApartment.status}
@@ -6291,7 +5685,7 @@ export default function BuildingDetails() {
               {activeTab ===
                 "البيانات الأساسية" && (
 
-                <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-5">
+                <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
 
                   <div className="order-2 rounded-3xl border border-[#285273] bg-white/[0.025] p-6 backdrop-blur-xl lg:order-2">
 
@@ -6375,7 +5769,7 @@ export default function BuildingDetails() {
                                 "tenantName"
                               )
                             }
-                            className="hidden"
+                            className="shrink-0 rounded-lg border border-green-400/40 bg-green-500/10 px-3 py-1.5 text-sm font-black text-green-400 transition hover:bg-green-500/20"
                           >
                             حفظ
                           </button>
@@ -6418,7 +5812,7 @@ export default function BuildingDetails() {
                                 "phone"
                               )
                             }
-                            className="hidden"
+                            className="shrink-0 rounded-lg border border-green-400/40 bg-green-500/10 px-3 py-1.5 text-sm font-black text-green-400 transition hover:bg-green-500/20"
                           >
                             حفظ
                           </button>
@@ -6462,7 +5856,7 @@ export default function BuildingDetails() {
                                 "identityNumber"
                               )
                             }
-                            className="hidden"
+                            className="shrink-0 rounded-lg border border-green-400/40 bg-green-500/10 px-3 py-1.5 text-sm font-black text-green-400 transition hover:bg-green-500/20"
                           >
                             حفظ
                           </button>
@@ -6523,7 +5917,7 @@ export default function BuildingDetails() {
                             onClick={() =>
                               saveApartmentFloor(selectedApartment.number)
                             }
-                            className="hidden"
+                            className="shrink-0 rounded-lg border border-green-400/40 bg-green-500/10 px-3 py-1.5 text-sm font-black text-green-400 transition hover:bg-green-500/20"
                           >
                             حفظ
                           </button>
@@ -6678,7 +6072,7 @@ export default function BuildingDetails() {
               {activeTab ===
                 "بيانات المستأجر" && (
 
-                <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
+                <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
 
                   <div className="rounded-3xl border border-[#285273] bg-white/[0.025] p-7 backdrop-blur-xl">
 
@@ -6696,7 +6090,7 @@ export default function BuildingDetails() {
                       </p>
                     </div>
 
-                    <div className="grid min-w-0 gap-4 md:grid-cols-2 lg:gap-5">
+                    <div className="grid gap-5 md:grid-cols-2">
 
                       {/* الاسم */}
                       <div className="rounded-2xl border border-white/5 bg-[#061a2d] p-5">
@@ -6846,7 +6240,7 @@ export default function BuildingDetails() {
 
               {activeTab === "العقد" && (
 
-                <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-5">
+                <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
 
                   {(() => {
                     const contractInfo = getApartmentContractInfo(
@@ -6888,7 +6282,7 @@ export default function BuildingDetails() {
                                   selectedApartment.number
                                 )
                               }
-                              className="hidden"
+                              className="shrink-0 rounded-lg border border-green-400/40 bg-green-500/10 px-3 py-2 text-sm font-black text-green-400 transition hover:bg-green-500/20"
                             >
                               حفظ
                             </button>
@@ -7392,7 +6786,7 @@ export default function BuildingDetails() {
               {activeTab ===
                 "المستندات" && (
 
-                <div className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 lg:gap-5">
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
 
                   {[
                     "عقد الإيجار",
@@ -7442,7 +6836,7 @@ export default function BuildingDetails() {
               {activeTab ===
                 "الملاحظات" && (
 
-                <div className="min-w-0 rounded-3xl border border-[#285273] bg-white/[0.025] p-4 sm:p-6">
+                <div className="rounded-3xl border border-[#285273] bg-white/[0.025] p-6">
 
                   <div className="mb-6 flex items-center gap-3">
 
@@ -8419,22 +7813,10 @@ export default function BuildingDetails() {
                         }
                       );
 
-                      const chargesToSave = editingChargeKey
-                        ? currentCharges.map((record) =>
-                            getChargeRecordKey(
-                              record,
-                              chargeModalMode === "collection" ? "تحصيل" : "مستحق"
-                            ) === editingChargeKey
-                              ? { ...newCharges[0], id: record.id || `${Date.now()}` }
-                              : record
-                          )
-                        : [...currentCharges, ...newCharges.map((record) => ({
-                            ...record,
-                            id: record.id || `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-                          }))];
-
-                      window.localStorage.setItem(storageKey, JSON.stringify(chargesToSave));
-                      setChargeSyncVersion((value) => value + 1);
+                      window.localStorage.setItem(
+                        storageKey,
+                        JSON.stringify([...currentCharges, ...newCharges])
+                      );
                     } catch {
                       // تجاهل خطأ التخزين المحلي مع إغلاق النموذج.
                     }
@@ -8450,7 +7832,6 @@ export default function BuildingDetails() {
                     setApartmentStatusFilter("");
                     setApartmentSearch("");
                     setRentCollectionMonths(1);
-                    setEditingChargeKey(null);
                     setIsChargeModalOpen(false);
                   }}
                   className={`flex h-14 items-center justify-center gap-2 rounded-2xl border px-5 text-base font-black transition sm:text-lg ${
@@ -8562,7 +7943,7 @@ export default function BuildingDetails() {
                     </div>
                   </div>
 
-                  <div className="min-h-0 flex-1 overflow-auto p-3 sm:p-4">
+                  <div className="min-h-0 flex-1 overflow-auto p-4">
                     <div className="overflow-x-auto rounded-2xl border border-white/10">
                       <table className="w-full min-w-[2200px] border-collapse text-xs">
                         <thead className="sticky top-0 z-10 bg-[#0b2039]">
@@ -8686,7 +8067,7 @@ export default function BuildingDetails() {
                     </div>
                   </div>
 
-                  <div className="shrink-0 border-t border-white/10 bg-[#061426] p-3 sm:p-4">
+                  <div className="shrink-0 border-t border-white/10 bg-[#061426] p-4">
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                       <button
                         type="button"
@@ -8796,8 +8177,8 @@ export default function BuildingDetails() {
                     </div>
                   </div>
 
-                  <div className="min-h-0 flex-1 overflow-auto p-3 sm:p-4">
-                    <div className="min-w-0 overflow-x-auto rounded-2xl border border-white/10">
+                  <div className="min-h-0 flex-1 overflow-auto p-4">
+                    <div className="overflow-hidden rounded-2xl border border-white/10">
                       <table className="w-full min-w-[760px] border-collapse text-sm">
                         <thead className="sticky top-0 z-10 bg-[#0b2039]">
                           <tr className="text-gray-300">
@@ -8848,7 +8229,7 @@ export default function BuildingDetails() {
                     </div>
                   </div>
 
-                  <div className="shrink-0 border-t border-white/10 bg-[#061426] p-3 sm:p-4">
+                  <div className="shrink-0 border-t border-white/10 bg-[#061426] p-4">
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                       <button
                         type="button"
@@ -8954,8 +8335,8 @@ export default function BuildingDetails() {
                     </div>
                   </div>
 
-                  <div className="min-h-0 flex-1 overflow-auto p-3 sm:p-4">
-                    <div className="min-w-0 overflow-x-auto rounded-2xl border border-white/10">
+                  <div className="min-h-0 flex-1 overflow-auto p-4">
+                    <div className="overflow-hidden rounded-2xl border border-white/10">
                       <table className="w-full min-w-[1050px] border-collapse text-sm">
                         <thead className="sticky top-0 z-10 bg-[#0b2039]">
                           <tr className="text-gray-300">
@@ -9037,7 +8418,7 @@ export default function BuildingDetails() {
                     </div>
                   </div>
 
-                  <div className="shrink-0 border-t border-white/10 bg-[#061426] p-3 sm:p-4">
+                  <div className="shrink-0 border-t border-white/10 bg-[#061426] p-4">
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                       <button
                         type="button"
@@ -9152,8 +8533,8 @@ export default function BuildingDetails() {
                     </div>
                   </div>
 
-                  <div className="min-h-0 flex-1 overflow-auto p-3 sm:p-4">
-                    <div className="min-w-0 overflow-x-auto rounded-2xl border border-white/10">
+                  <div className="min-h-0 flex-1 overflow-auto p-4">
+                    <div className="overflow-hidden rounded-2xl border border-white/10">
                       <table className="w-full min-w-[1200px] border-collapse text-sm">
                         <thead className="sticky top-0 z-10 bg-[#0b2039]">
                           <tr className="text-gray-300">
@@ -9180,9 +8561,6 @@ export default function BuildingDetails() {
                             </th>
                             <th className="border-b border-white/10 px-4 py-3 text-center">
                               تفاصيل / ملاحظات
-                            </th>
-                            <th className="border-b border-white/10 px-4 py-3 text-center">
-                              الإجراءات
                             </th>
                           </tr>
                         </thead>
@@ -9232,41 +8610,12 @@ export default function BuildingDetails() {
                                 <td className="px-4 py-3 text-center font-semibold leading-6 text-gray-400">
                                   {row.notes}
                                 </td>
-                                <td className="px-4 py-3 text-center">
-                                  <div className="flex items-center justify-center gap-1.5">
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        row.sourceMode && row.sourceKey
-                                          ? window.alert(row.notes || "لا توجد تفاصيل إضافية")
-                                          : window.alert("هذه العملية محسوبة تلقائيًا ولا يوجد سجل مستقل لها.")
-                                      }
-                                      className="rounded-lg border border-blue-400/30 bg-blue-500/10 px-2.5 py-1.5 text-xs font-black text-blue-300 transition hover:bg-blue-500/20"
-                                    >
-                                      عرض
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => openChargeForReportRow(row)}
-                                      className="rounded-lg border border-amber-400/30 bg-amber-500/10 px-2.5 py-1.5 text-xs font-black text-amber-300 transition hover:bg-amber-500/20"
-                                    >
-                                      تعديل
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => deleteChargeForReportRow(row)}
-                                      className="rounded-lg border border-red-400/30 bg-red-500/10 px-2.5 py-1.5 text-xs font-black text-red-300 transition hover:bg-red-500/20"
-                                    >
-                                      حذف
-                                    </button>
-                                  </div>
-                                </td>
                               </tr>
                             ))
                           ) : (
                             <tr>
                               <td
-                                colSpan={9}
+                                colSpan={8}
                                 className="px-5 py-16 text-center"
                               >
                                 <Receipt
@@ -9288,7 +8637,7 @@ export default function BuildingDetails() {
                     </div>
                   </div>
 
-                  <div className="shrink-0 border-t border-white/10 bg-[#061426] p-3 sm:p-4">
+                  <div className="shrink-0 border-t border-white/10 bg-[#061426] p-4">
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                       <button
                         type="button"
@@ -9382,8 +8731,8 @@ export default function BuildingDetails() {
                     </div>
                   </div>
 
-                  <div className="min-h-0 flex-1 overflow-auto p-3 sm:p-4">
-                    <div className="min-w-0 overflow-x-auto rounded-2xl border border-white/10">
+                  <div className="min-h-0 flex-1 overflow-auto p-4">
+                    <div className="overflow-hidden rounded-2xl border border-white/10">
                       <table className="w-full min-w-[850px] border-collapse text-sm">
                         <thead className="sticky top-0 z-10 bg-[#0b2039]">
                           <tr className="text-gray-300">
@@ -9415,7 +8764,7 @@ export default function BuildingDetails() {
                     </div>
                   </div>
 
-                  <div className="shrink-0 border-t border-white/10 bg-[#061426] p-3 sm:p-4">
+                  <div className="shrink-0 border-t border-white/10 bg-[#061426] p-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
                         <button
@@ -9468,7 +8817,7 @@ export default function BuildingDetails() {
       {/* ===================================================== */}
 
       <div className="mt-6 text-center text-sm text-gray-500">
-        Tumouh Star ERP System — تفاصيل عمارة سنتر
+        Tumouh Star ERP System — تفاصيل {buildingName}
       </div>
 
     </div>

@@ -1,6 +1,7 @@
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "../../utils/supabase";
 
 import {
   Building2,
@@ -16,6 +17,8 @@ import {
   X,
   Save,
   DoorOpen,
+  Plus,
+  Trash2,
 } from "lucide-react";
 
 type BuildingStatus =
@@ -26,6 +29,7 @@ type BuildingStatus =
 type Building = {
   id: number;
   name: string;
+  buildingNumber: string;
   city: string;
   status: BuildingStatus;
   units: number;
@@ -38,6 +42,7 @@ const initialBuildings: Building[] = [
   {
     id: 1,
     name: "عمارة سنتر",
+    buildingNumber: "1",
     city: "تبوك",
     status: "قيد التنفيذ",
     units: 44,
@@ -67,6 +72,153 @@ export default function Buildings() {
   const [editCity, setEditCity] = useState("");
   const [editStatus, setEditStatus] =
     useState<BuildingStatus>("قيد التنفيذ");
+
+  const [isSavingBuilding, setIsSavingBuilding] = useState(false);
+  const [deletingBuildingId, setDeletingBuildingId] = useState<number | null>(null);
+
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [newBuildingName, setNewBuildingName] = useState("");
+  const [newBuildingNumber, setNewBuildingNumber] = useState("");
+  const [newBuildingAddress, setNewBuildingAddress] = useState("");
+  const [newBuildingUnits, setNewBuildingUnits] = useState("");
+  const [isCreatingBuilding, setIsCreatingBuilding] = useState(false);
+
+  // تحميل العمائر الفعلية من جدول buildings.
+  // العمارة التجريبية الحالية تبقى ظاهرة حتى يتم نقل بياناتها إلى الجدول الموحد.
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadBuildings = async () => {
+      const { data, error } = await supabase
+        .from("buildings")
+        .select("id, name, address, building_number, units_count, status")
+        .order("id", { ascending: true });
+
+      if (cancelled) return;
+
+      if (error) {
+        console.error("خطأ في تحميل العمائر من Supabase:", error);
+        return;
+      }
+
+      if (!data) return;
+
+      const normalized = data.map((row) => ({
+        id: Number(row.id),
+        name: row.name || "عمارة بدون اسم",
+        buildingNumber: row.building_number || "",
+        city: row.address || "",
+        status: (
+          row.status === "مكتمل" || row.status === "completed"
+            ? "مكتمل"
+            : row.status === "متوقف" || row.status === "stopped"
+            ? "متوقف"
+            : "قيد التنفيذ"
+        ) as BuildingStatus,
+        units: Number(row.units_count) || 0,
+        occupiedUnits: 0,
+        progress: 0,
+        annualRent: 0,
+      }));
+
+      setBuildings((current) => {
+        const currentById = new Map<number, Building>(current.map((item) => [item.id, item] as [number, Building]));
+        normalized.forEach((item) => {
+          currentById.set(item.id, {
+            ...currentById.get(item.id),
+            ...item,
+            // لا نفقد بيانات الكارت القديمة إن كانت موجودة محليًا.
+            occupiedUnits: currentById.get(item.id)?.occupiedUnits ?? item.occupiedUnits,
+            progress: currentById.get(item.id)?.progress ?? item.progress,
+            annualRent: currentById.get(item.id)?.annualRent ?? item.annualRent,
+          });
+        });
+        return Array.from(currentById.values());
+      });
+    };
+
+    void loadBuildings();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const openCreateModal = () => {
+    setNewBuildingName("");
+    setNewBuildingNumber("");
+    setNewBuildingAddress("");
+    setNewBuildingUnits("");
+    setIsCreateModalOpen(true);
+  };
+
+  const closeCreateModal = () => {
+    if (isCreatingBuilding) return;
+    setIsCreateModalOpen(false);
+    setNewBuildingName("");
+    setNewBuildingNumber("");
+    setNewBuildingAddress("");
+    setNewBuildingUnits("");
+  };
+
+  const createBuilding = async () => {
+    if (isCreatingBuilding) return;
+
+    const name = newBuildingName.trim();
+    const buildingNumber = newBuildingNumber.trim();
+    const address = newBuildingAddress.trim();
+    const unitsCount = Number(newBuildingUnits);
+
+    if (!name || !buildingNumber || !address || !Number.isInteger(unitsCount) || unitsCount < 1) {
+      alert("من فضلك أدخل اسم العمارة ورقمها والعنوان وعدد الشقق بشكل صحيح.");
+      return;
+    }
+
+    setIsCreatingBuilding(true);
+
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+
+      const { data, error } = await supabase
+        .from("buildings")
+        .insert({
+          name,
+          building_number: buildingNumber,
+          address,
+          building_type: "عمارة سكنية",
+          units_count: unitsCount,
+          status: "active",
+          created_by: userData.user?.id ?? null,
+        })
+        .select("id, name, address, building_number, units_count, status")
+        .single();
+
+      if (error) throw error;
+
+      const newBuilding: Building = {
+        id: Number(data.id),
+        name: data.name,
+        buildingNumber: data.building_number || buildingNumber,
+        city: data.address || address,
+        status: "قيد التنفيذ",
+        units: Number(data.units_count) || 0,
+        occupiedUnits: 0,
+        progress: 0,
+        annualRent: 0,
+      };
+
+      setBuildings((current) => [...current, newBuilding]);
+      closeCreateModal();
+
+      // فتح صفحة العمارة الجديدة مباشرة بعد إنشائها.
+      navigate(`/buildings/${newBuilding.id}`);
+    } catch (error) {
+      console.error("خطأ في إنشاء العمارة:", error);
+      alert("تعذر إنشاء العمارة. تأكد من صلاحيات قاعدة البيانات ثم حاول مرة أخرى.");
+    } finally {
+      setIsCreatingBuilding(false);
+    }
+  };
 
   const filteredBuildings = useMemo(() => {
     return buildings.filter((building) => {
@@ -152,8 +304,8 @@ export default function Buildings() {
     setEditStatus("قيد التنفيذ");
   };
 
-  const saveBuildingChanges = () => {
-    if (!editingBuilding) return;
+  const saveBuildingChanges = async () => {
+    if (!editingBuilding || isSavingBuilding) return;
 
     const trimmedName = editName.trim();
     const trimmedCity = editCity.trim();
@@ -163,20 +315,85 @@ export default function Buildings() {
       return;
     }
 
-    setBuildings((previousBuildings) =>
-      previousBuildings.map((building) =>
-        building.id === editingBuilding.id
-          ? {
-              ...building,
-              name: trimmedName,
-              city: trimmedCity,
-              status: editStatus,
-            }
-          : building
-      )
+    setIsSavingBuilding(true);
+
+    try {
+      const databaseStatus =
+        editStatus === "مكتمل"
+          ? "completed"
+          : editStatus === "متوقف"
+          ? "stopped"
+          : "active";
+
+      const { error } = await supabase
+        .from("buildings")
+        .update({
+          name: trimmedName,
+          address: trimmedCity,
+          status: databaseStatus,
+        })
+        .eq("id", editingBuilding.id);
+
+      if (error) {
+        throw error;
+      }
+
+      setBuildings((previousBuildings) =>
+        previousBuildings.map((building) =>
+          building.id === editingBuilding.id
+            ? {
+                ...building,
+                name: trimmedName,
+                city: trimmedCity,
+                status: editStatus,
+              }
+            : building
+        )
+      );
+
+      closeEditModal();
+    } catch (error) {
+      console.error("خطأ في حفظ بيانات العمارة:", error);
+      alert(
+        "تعذر حفظ بيانات العمارة في قاعدة البيانات. تأكد من إضافة حقول بيانات العمارة إلى جدول building_state."
+      );
+    } finally {
+      setIsSavingBuilding(false);
+    }
+  };
+
+  const deleteBuilding = async (building: Building) => {
+    if (deletingBuildingId !== null) return;
+
+    const confirmed = window.confirm(
+      `هل أنت متأكد من حذف العمارة "${building.name}"؟\n\nسيتم حذف العمارة من قائمة العمائر. لا يمكن التراجع عن هذا الإجراء.`
     );
 
-    closeEditModal();
+    if (!confirmed) return;
+
+    setDeletingBuildingId(building.id);
+
+    try {
+      const { error } = await supabase
+        .from("buildings")
+        .delete()
+        .eq("id", building.id);
+
+      if (error) throw error;
+
+      setBuildings((previousBuildings) =>
+        previousBuildings.filter((item) => item.id !== building.id)
+      );
+
+      if (editingBuilding?.id === building.id) closeEditModal();
+    } catch (error) {
+      console.error("خطأ في حذف العمارة:", error);
+      alert(
+        "تعذر حذف العمارة. قد تكون مرتبطة ببيانات أخرى في النظام، وفي هذه الحالة يجب حذف أو فك الارتباط بالبيانات المرتبطة أولًا."
+      );
+    } finally {
+      setDeletingBuildingId(null);
+    }
   };
 
   return (
@@ -202,6 +419,7 @@ export default function Buildings() {
 
           <button
             type="button"
+            onClick={openCreateModal}
             className="
               rounded-2xl
               border border-[#D4AD4D]
@@ -506,7 +724,7 @@ export default function Buildings() {
                     <div
                       className="
                         border-b border-white/10
-                        p-6
+                        px-7 py-7
                       "
                     >
                       <div className="flex items-start justify-between gap-4">
@@ -556,32 +774,41 @@ export default function Buildings() {
                             >
                               <MapPin size={16} />
                               <span>{building.city}</span>
+                              {building.buildingNumber && (
+                                <span className="mr-2 text-[#F6D878]">
+                                  • رقم {building.buildingNumber}
+                                </span>
+                              )}
                             </div>
                           </div>
                         </div>
 
-                        {/* زر التعديل بالقلم */}
-                        <button
-                          type="button"
-                          title="تعديل بيانات العمارة"
-                          onClick={() =>
-                            openEditModal(building)
-                          }
-                          className="
-                            flex h-11 w-11 shrink-0
-                            items-center justify-center
-                            rounded-xl
-                            border border-[#C49A3A]/40
-                            bg-[#C49A3A]/10
-                            text-[#F6D878]
-                            transition-all duration-300
-                            hover:-translate-y-0.5
-                            hover:border-[#D4AD4D]
-                            hover:bg-[#C49A3A]/25
-                          "
-                        >
-                          <Edit3 size={19} />
-                        </button>
+                        {/* أزرار تعديل وحذف العمارة */}
+                        <div className="flex shrink-0 items-center gap-2">
+                          <button
+                            type="button"
+                            title="تعديل بيانات العمارة"
+                            onClick={() => openEditModal(building)}
+                            disabled={deletingBuildingId === building.id}
+                            className="flex h-11 w-11 items-center justify-center rounded-xl border border-[#C49A3A]/40 bg-[#C49A3A]/10 text-[#F6D878] transition-all duration-300 hover:-translate-y-0.5 hover:border-[#D4AD4D] hover:bg-[#C49A3A]/25 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            <Edit3 size={19} />
+                          </button>
+
+                          <button
+                            type="button"
+                            title="حذف العمارة"
+                            onClick={() => void deleteBuilding(building)}
+                            disabled={deletingBuildingId === building.id}
+                            className="flex h-11 w-11 items-center justify-center rounded-xl border border-red-400/35 bg-red-500/10 text-red-300 transition-all duration-300 hover:-translate-y-0.5 hover:border-red-400/70 hover:bg-red-500/20 hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {deletingBuildingId === building.id ? (
+                              <span className="text-xs font-extrabold">...</span>
+                            ) : (
+                              <Trash2 size={19} />
+                            )}
+                          </button>
+                        </div>
                       </div>
                     </div>
 
@@ -601,7 +828,7 @@ export default function Buildings() {
                       "
                     >
                       {/* إجمالي الشقق */}
-                      <div className="p-5 text-center">
+                      <div className="flex min-h-[142px] flex-col items-center justify-center p-5 text-center">
                         <Home
                           size={21}
                           className="mx-auto mb-3 text-[#F6D878]"
@@ -617,7 +844,7 @@ export default function Buildings() {
                       </div>
 
                       {/* الشقق الفارغة */}
-                      <div className="p-5 text-center">
+                      <div className="flex min-h-[142px] flex-col items-center justify-center p-5 text-center">
                         <DoorOpen
                           size={21}
                           className="mx-auto mb-3 text-emerald-300"
@@ -633,7 +860,7 @@ export default function Buildings() {
                       </div>
 
                       {/* الإيجار السنوي */}
-                      <div className="p-5 text-center">
+                      <div className="flex min-h-[142px] flex-col items-center justify-center p-5 text-center">
                         <Wallet
                           size={21}
                           className="mx-auto mb-3 text-[#F6D878]"
@@ -652,7 +879,7 @@ export default function Buildings() {
                       </div>
 
                       {/* نسبة الإشغال */}
-                      <div className="p-5 text-center">
+                      <div className="flex min-h-[142px] flex-col items-center justify-center p-5 text-center">
                         <Building2
                           size={21}
                           className="mx-auto mb-3 text-[#D4AD4D]"
@@ -675,7 +902,7 @@ export default function Buildings() {
                     <div
                       className="
                         border-t border-white/10
-                        p-6
+                        px-7 py-7
                       "
                     >
                       <div className="mb-3 flex items-center justify-between text-sm">
@@ -720,14 +947,15 @@ export default function Buildings() {
                           )
                         }
                         className="
-                          mt-5
-                          flex w-full
+                          mt-6
+                          flex min-h-[58px] w-full
                           items-center justify-center
                           gap-2
                           rounded-2xl
                           border border-[#C49A3A]/40
                           bg-[#C49A3A]/10
-                          px-5 py-4
+                          px-6 py-5
+                          text-base
                           font-extrabold
                           text-[#F6D878]
                           transition-all duration-300
@@ -750,6 +978,64 @@ export default function Buildings() {
           )}
         </div>
       </div>
+
+      {/* =========================
+          نافذة إنشاء عمارة جديدة
+      ========================= */}
+
+      {isCreateModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+          dir="rtl"
+        >
+          <div className="w-full max-w-lg overflow-hidden rounded-3xl border border-[#C49A3A]/40 bg-gradient-to-br from-[#0B4537] via-[#073529] to-[#05261F] shadow-2xl shadow-black/40">
+            <div className="flex items-center justify-between border-b border-white/10 px-6 py-5">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-[#C49A3A]/40 bg-[#C49A3A]/10">
+                  <Plus size={20} className="text-[#F6D878]" />
+                </div>
+                <h2 className="text-xl font-extrabold text-white">إنشاء عمارة جديدة</h2>
+              </div>
+              <button type="button" onClick={closeCreateModal} disabled={isCreatingBuilding} className="flex h-10 w-10 items-center justify-center rounded-xl text-[#B4CEC5] transition hover:bg-white/10 hover:text-white" title="إغلاق">
+                <X size={21} />
+              </button>
+            </div>
+
+            <div className="space-y-5 p-6">
+              <div>
+                <label className="mb-2 block text-sm font-bold text-[#D5E5DE]">اسم العمارة</label>
+                <input autoFocus value={newBuildingName} onChange={(event) => setNewBuildingName(event.target.value)} placeholder="مثال: عمارة النخيل" className="w-full rounded-xl border border-[#C49A3A]/30 bg-[#031F18]/70 px-4 py-3 text-white outline-none transition placeholder:text-[#8EADA2] focus:border-[#D4AD4D] focus:ring-2 focus:ring-[#D4AD4D]/20" />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-bold text-[#D5E5DE]">رقم العمارة</label>
+                <input value={newBuildingNumber} onChange={(event) => setNewBuildingNumber(event.target.value)} placeholder="مثال: 2" className="w-full rounded-xl border border-[#C49A3A]/30 bg-[#031F18]/70 px-4 py-3 text-white outline-none transition placeholder:text-[#8EADA2] focus:border-[#D4AD4D] focus:ring-2 focus:ring-[#D4AD4D]/20" />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-bold text-[#D5E5DE]">العنوان</label>
+                <input value={newBuildingAddress} onChange={(event) => setNewBuildingAddress(event.target.value)} placeholder="مثال: الجبيل البلد" className="w-full rounded-xl border border-[#C49A3A]/30 bg-[#031F18]/70 px-4 py-3 text-white outline-none transition placeholder:text-[#8EADA2] focus:border-[#D4AD4D] focus:ring-2 focus:ring-[#D4AD4D]/20" />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-bold text-[#D5E5DE]">عدد الشقق</label>
+                <input type="number" min="1" step="1" value={newBuildingUnits} onChange={(event) => setNewBuildingUnits(event.target.value)} placeholder="مثال: 24" className="w-full rounded-xl border border-[#C49A3A]/30 bg-[#031F18]/70 px-4 py-3 text-white outline-none transition placeholder:text-[#8EADA2] focus:border-[#D4AD4D] focus:ring-2 focus:ring-[#D4AD4D]/20" />
+                <p className="mt-2 text-xs font-semibold text-[#8EADA2]">سيتم إنشاء هذا العدد من الشقق فارغًا داخل العمارة الجديدة.</p>
+              </div>
+
+              <div className="flex flex-col gap-3 pt-2 sm:flex-row">
+                <button type="button" onClick={createBuilding} disabled={isCreatingBuilding} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#C49A3A] to-[#F6D878] px-5 py-3 font-extrabold text-[#16352B] shadow-lg shadow-[#C49A3A]/10 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60">
+                  <Save size={18} />
+                  {isCreatingBuilding ? "جارٍ الإنشاء..." : "حفظ"}
+                </button>
+                <button type="button" onClick={closeCreateModal} disabled={isCreatingBuilding} className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/5 px-5 py-3 font-bold text-[#D5E5DE] transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60">
+                  إلغاء
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* =========================
           نافذة تعديل بيانات العمارة
@@ -960,10 +1246,13 @@ export default function Buildings() {
                     shadow-lg shadow-[#C49A3A]/10
                     transition
                     hover:brightness-110
+                    disabled:cursor-not-allowed
+                    disabled:opacity-60
                   "
+                  disabled={isSavingBuilding}
                 >
                   <Save size={18} />
-                  حفظ التعديلات
+                  {isSavingBuilding ? "جارٍ الحفظ..." : "حفظ التعديلات"}
                 </button>
 
                 <button

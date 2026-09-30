@@ -5,6 +5,9 @@ import {
   Building2,
   LayoutDashboard,
   WalletCards,
+  LayoutGrid,
+  ShieldCheck,
+  Headset,
 } from "lucide-react";
 
 import { useNavigate } from "react-router-dom";
@@ -46,6 +49,30 @@ export default function Home() {
       icon: WalletCards,
       path: "/financial",
       color: "yellow",
+    },
+    {
+      title: "الشقق المتاحة / المؤجرة",
+      description:
+        "إدارة الشقق المستقلة ومتابعة الشقق المتاحة والمؤجرة وتفاصيلها",
+      icon: LayoutGrid,
+      path: "/apartments",
+      color: "green",
+    },
+    {
+      title: "المستخدمين والصلاحيات",
+      description:
+        "إدارة المستخدمين وتحديد الصلاحيات والوصول إلى أقسام النظام",
+      icon: ShieldCheck,
+      path: "/users-permissions",
+      color: "building",
+    },
+    {
+      title: "تواصل معنا",
+      description:
+        "تواصل مع فريق عقار سمارت للحصول على المساعدة والدعم",
+      icon: Headset,
+      path: "/contact-us",
+      color: "blue",
     },
   ];
 

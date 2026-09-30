@@ -6,6 +6,9 @@ import {
   Receipt,
   BarChart3,
   UsersRound,
+  LayoutGrid,
+  ShieldCheck,
+  Headset,
 } from "lucide-react";
 
 export const sidebarMenu = [
@@ -33,10 +36,17 @@ export const sidebarMenu = [
     path: "/buildings",
     children: [
       {
+        title: "خريطة الشقق",
+        icon: LayoutGrid,
+        path: "/buildings/1/apartments",
+      },
+
+      {
         title: "التفاصيل المالية",
         icon: BarChart3,
         path: "/buildings/financial-details",
       },
+
       {
         title: "تفاصيل المستأجرين",
         icon: UsersRound,
@@ -46,8 +56,26 @@ export const sidebarMenu = [
   },
 
   {
+    title: "الشقق المتاحة / المؤجرة",
+    icon: LayoutGrid,
+    path: "/apartments",
+  },
+
+  {
     title: "المركز المالي",
     icon: Receipt,
     path: "/financial",
+  },
+
+  {
+    title: "المستخدمين والصلاحيات",
+    icon: ShieldCheck,
+    path: "/users-permissions",
+  },
+
+  {
+    title: "تواصل معنا",
+    icon: Headset,
+    path: "/contact-us",
   },
 ];

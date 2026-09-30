@@ -266,6 +266,16 @@ type ApartmentTab =
   | "المستندات"
   | "الملاحظات";
 
+const getBuildingIdFromPath = () => {
+  const match = window.location.pathname.match(/\/buildings\/(\d+)/);
+  return match ? Number(match[1]) : null;
+};
+
+const getBuildingStorageKey = (baseKey: string) => {
+  const buildingId = getBuildingIdFromPath();
+  return `${baseKey}:${buildingId ?? "unknown"}`;
+};
+
 export default function ApartmentMap() {
   const [selectedApartment, setSelectedApartment] =
     useState<Apartment | null>(null);
@@ -281,7 +291,7 @@ export default function ApartmentMap() {
     useState<Record<string, string>>(() => {
       try {
         const saved = window.localStorage.getItem(
-          "tumouh_star_apartment_types"
+          getBuildingStorageKey("tumouh_star_apartment_types")
         );
         return saved ? JSON.parse(saved) : {};
       } catch {
@@ -293,7 +303,7 @@ export default function ApartmentMap() {
     useState<string[]>(() => {
       try {
         const saved = window.localStorage.getItem(
-          "tumouh_star_custom_apartment_types"
+          getBuildingStorageKey("tumouh_star_custom_apartment_types")
         );
         return saved ? JSON.parse(saved) : [];
       } catch {
@@ -306,7 +316,7 @@ export default function ApartmentMap() {
     useState<string[]>(() => {
       try {
         const saved = window.localStorage.getItem(
-          "tumouh_star_custom_apartment_statuses"
+          getBuildingStorageKey("tumouh_star_custom_apartment_statuses")
         );
         return saved ? JSON.parse(saved) : [];
       } catch {
@@ -318,7 +328,7 @@ export default function ApartmentMap() {
     useState<Record<string, number>>(() => {
       try {
         const saved = window.localStorage.getItem(
-          "tumouh_star_apartment_type_rents"
+          getBuildingStorageKey("tumouh_star_apartment_type_rents")
         );
         return saved ? JSON.parse(saved) : {};
       } catch {
@@ -330,7 +340,7 @@ export default function ApartmentMap() {
     useState<Record<string, ApartmentExtraInfo>>(() => {
       try {
         const saved = window.localStorage.getItem(
-          "tumouh_star_apartment_extra_info"
+          getBuildingStorageKey("tumouh_star_apartment_extra_info")
         );
         return saved ? JSON.parse(saved) : {};
       } catch {
@@ -342,7 +352,7 @@ export default function ApartmentMap() {
     useState<Record<string, ApartmentTenantInfo>>(() => {
       try {
         const saved = window.localStorage.getItem(
-          "tumouh_star_apartment_tenant_info"
+          getBuildingStorageKey("tumouh_star_apartment_tenant_info")
         );
         return saved ? JSON.parse(saved) : {};
       } catch {
@@ -354,7 +364,7 @@ export default function ApartmentMap() {
     useState<Record<string, ApartmentContractInfo>>(() => {
       try {
         const saved = window.localStorage.getItem(
-          "tumouh_star_apartment_contract_info"
+          getBuildingStorageKey("tumouh_star_apartment_contract_info")
         );
         return saved ? JSON.parse(saved) : {};
       } catch {
@@ -420,82 +430,16 @@ export default function ApartmentMap() {
   const [selectedDeleteApartments, setSelectedDeleteApartments] =
     useState<string[]>([]);
   const [deleteApartmentSearch, setDeleteApartmentSearch] = useState("");
+  const [mapApartmentSearch, setMapApartmentSearch] = useState("");
 
-  const [apartments, setApartments] = useState<Apartment[]>(() => {
-    const createDefaultApartments = (): Apartment[] =>
-      Array.from(
-        { length: 44 },
-        (_, index) => {
-          const number = index + 1;
-
-          const vacant = number >= 40;
-
-          const company = [
-            5,
-            6,
-            7,
-            8,
-            9,
-            15,
-            16,
-            17,
-            18,
-            19,
-            20,
-          ].includes(number);
-
-          return {
-            number: String(number),
-            type:
-              number <= 20
-                ? "غرفتين وصالة"
-                : "غرفة وصالة",
-            rent:
-              number <= 20
-                ? 4000
-                : 3000,
-            status: vacant
-              ? "شاغرة"
-              : company
-              ? "مؤجرة للشركة"
-              : "مؤجرة",
-            tenant: vacant
-              ? "لا يوجد مستأجر"
-              : company
-              ? "شركة طموح ستار"
-              : "اسم المستأجر غير مضاف",
-          };
-        }
-      );
-
-    try {
-      const saved = window.localStorage.getItem(
-        "tumouh_star_building_apartments"
-      );
-
-      if (saved) {
-        const parsed = JSON.parse(saved) as Apartment[];
-        return parsed.map((apartment) => ({
-          ...apartment,
-          number: String(apartment.number),
-        }));
-      }
-
-      return createDefaultApartments();
-    } catch {
-      return createDefaultApartments();
-    }
-  });
+  const [apartments, setApartments] = useState<Apartment[]>([]);
 
   // مزامنة بيانات العمارة مع Supabase حتى تظهر نفس البيانات على أي جهاز.
   const remoteStateHydratedRef = useRef(false);
   const [chargeSyncVersion, setChargeSyncVersion] = useState(0);
   const [buildingRefreshVersion, setBuildingRefreshVersion] = useState(0);
 
-  const getCurrentBuildingId = () => {
-    const match = window.location.pathname.match(/\/buildings\/(\d+)/);
-    return match ? Number(match[1]) : null;
-  };
+  const getCurrentBuildingId = getBuildingIdFromPath;
 
   const readBuildingChargesFromStorage = (key: string): BuildingCharge[] => {
     try {
@@ -524,10 +468,10 @@ export default function ApartmentMap() {
     apartment_tenant_info: apartmentTenantInfo,
     apartment_contract_info: apartmentContractInfo,
     building_charges: readBuildingChargesFromStorage(
-      "tumouh_star_building_charges"
+      getBuildingStorageKey("tumouh_star_building_charges")
     ),
     building_collections: readBuildingChargesFromStorage(
-      "tumouh_star_building_collections"
+      getBuildingStorageKey("tumouh_star_building_collections")
     ),
     updated_at: new Date().toISOString(),
   });
@@ -592,7 +536,7 @@ export default function ApartmentMap() {
 
           setApartments(remoteApartments);
           window.localStorage.setItem(
-            "tumouh_star_building_apartments",
+            getBuildingStorageKey("tumouh_star_building_apartments"),
             JSON.stringify(remoteApartments)
           );
         }
@@ -602,7 +546,7 @@ export default function ApartmentMap() {
             data.apartment_types as Record<string, string>;
           setApartmentTypes(remoteApartmentTypes);
           window.localStorage.setItem(
-            "tumouh_star_apartment_types",
+            getBuildingStorageKey("tumouh_star_apartment_types"),
             JSON.stringify(remoteApartmentTypes)
           );
         }
@@ -612,7 +556,7 @@ export default function ApartmentMap() {
             data.custom_apartment_types as string[];
           setCustomApartmentTypes(remoteCustomTypes);
           window.localStorage.setItem(
-            "tumouh_star_custom_apartment_types",
+            getBuildingStorageKey("tumouh_star_custom_apartment_types"),
             JSON.stringify(remoteCustomTypes)
           );
         }
@@ -622,7 +566,7 @@ export default function ApartmentMap() {
             data.custom_apartment_statuses as string[];
           setCustomApartmentStatuses(remoteCustomStatuses);
           window.localStorage.setItem(
-            "tumouh_star_custom_apartment_statuses",
+            getBuildingStorageKey("tumouh_star_custom_apartment_statuses"),
             JSON.stringify(remoteCustomStatuses)
           );
         }
@@ -632,7 +576,7 @@ export default function ApartmentMap() {
             data.apartment_type_rents as Record<string, number>;
           setApartmentTypeRents(remoteTypeRents);
           window.localStorage.setItem(
-            "tumouh_star_apartment_type_rents",
+            getBuildingStorageKey("tumouh_star_apartment_type_rents"),
             JSON.stringify(remoteTypeRents)
           );
         }
@@ -642,7 +586,7 @@ export default function ApartmentMap() {
             data.apartment_extra_info as Record<string, ApartmentExtraInfo>;
           setApartmentExtraInfo(remoteExtraInfo);
           window.localStorage.setItem(
-            "tumouh_star_apartment_extra_info",
+            getBuildingStorageKey("tumouh_star_apartment_extra_info"),
             JSON.stringify(remoteExtraInfo)
           );
         }
@@ -652,7 +596,7 @@ export default function ApartmentMap() {
             data.apartment_tenant_info as Record<string, ApartmentTenantInfo>;
           setApartmentTenantInfo(remoteTenantInfo);
           window.localStorage.setItem(
-            "tumouh_star_apartment_tenant_info",
+            getBuildingStorageKey("tumouh_star_apartment_tenant_info"),
             JSON.stringify(remoteTenantInfo)
           );
         }
@@ -662,27 +606,104 @@ export default function ApartmentMap() {
             data.apartment_contract_info as Record<string, ApartmentContractInfo>;
           setApartmentContractInfo(remoteContractInfo);
           window.localStorage.setItem(
-            "tumouh_star_apartment_contract_info",
+            getBuildingStorageKey("tumouh_star_apartment_contract_info"),
             JSON.stringify(remoteContractInfo)
           );
         }
 
         if (Array.isArray(data.building_charges)) {
           window.localStorage.setItem(
-            "tumouh_star_building_charges",
+            getBuildingStorageKey("tumouh_star_building_charges"),
             JSON.stringify(data.building_charges)
           );
         }
 
         if (Array.isArray(data.building_collections)) {
           window.localStorage.setItem(
-            "tumouh_star_building_collections",
+            getBuildingStorageKey("tumouh_star_building_collections"),
             JSON.stringify(data.building_collections)
           );
         }
       } else {
-        // أول تشغيل لهذه العمارة: ننقل النسخة الحالية إلى قاعدة البيانات.
-        await saveBuildingStateToSupabase();
+        // أول تشغيل لهذه العمارة: نبني الخريطة من عدد الشقق المسجل في جدول العمائر.
+        // لا نستخدم أي بيانات افتراضية قديمة مثل 44 شقة أو بيانات عمارة أخرى.
+        const { data: buildingData, error: buildingError } = await supabase
+          .from("buildings")
+          .select("name, units_count")
+          .eq("id", buildingId)
+          .maybeSingle();
+
+        if (cancelled) {
+          return;
+        }
+
+        if (buildingError) {
+          throw buildingError;
+        }
+
+        const unitsCount = Math.max(0, Number(buildingData?.units_count) || 0);
+        const emptyApartments: Apartment[] = Array.from(
+          { length: unitsCount },
+          (_, index) => ({
+            number: String(index + 1),
+            type: "غير محدد",
+            rent: 0,
+            status: "شاغرة",
+            tenant: "لا يوجد مستأجر",
+          })
+        );
+
+        // العمارة الجديدة تبدأ نظيفة بالكامل: لا مستأجرين، لا عقود،
+        // لا مستحقات، لا تحصيلات، ولا إعدادات من عمارة أخرى.
+        setApartments(emptyApartments);
+        setApartmentTypes({});
+        setCustomApartmentTypes([]);
+        setCustomApartmentStatuses([]);
+        setApartmentTypeRents({});
+        setApartmentExtraInfo({});
+        setApartmentTenantInfo({});
+        setApartmentContractInfo({});
+
+        window.localStorage.setItem(
+          getBuildingStorageKey("tumouh_star_building_apartments"),
+          JSON.stringify(emptyApartments)
+        );
+        window.localStorage.setItem(
+          getBuildingStorageKey("tumouh_star_apartment_types"),
+          JSON.stringify({})
+        );
+        window.localStorage.setItem(
+          getBuildingStorageKey("tumouh_star_custom_apartment_types"),
+          JSON.stringify([])
+        );
+        window.localStorage.setItem(
+          getBuildingStorageKey("tumouh_star_custom_apartment_statuses"),
+          JSON.stringify([])
+        );
+        window.localStorage.setItem(
+          getBuildingStorageKey("tumouh_star_apartment_type_rents"),
+          JSON.stringify({})
+        );
+        window.localStorage.setItem(
+          getBuildingStorageKey("tumouh_star_apartment_extra_info"),
+          JSON.stringify({})
+        );
+        window.localStorage.setItem(
+          getBuildingStorageKey("tumouh_star_apartment_tenant_info"),
+          JSON.stringify({})
+        );
+        window.localStorage.setItem(
+          getBuildingStorageKey("tumouh_star_apartment_contract_info"),
+          JSON.stringify({})
+        );
+        window.localStorage.setItem(
+          getBuildingStorageKey("tumouh_star_building_charges"),
+          JSON.stringify([])
+        );
+        window.localStorage.setItem(
+          getBuildingStorageKey("tumouh_star_building_collections"),
+          JSON.stringify([])
+        );
       }
 
       remoteStateHydratedRef.current = true;
@@ -747,7 +768,7 @@ export default function ApartmentMap() {
       ];
 
       window.localStorage.setItem(
-        "tumouh_star_building_apartments",
+        getBuildingStorageKey("tumouh_star_building_apartments"),
         JSON.stringify(updated)
       );
 
@@ -1078,7 +1099,7 @@ export default function ApartmentMap() {
       );
 
       window.localStorage.setItem(
-        "tumouh_star_building_apartments",
+        getBuildingStorageKey("tumouh_star_building_apartments"),
         JSON.stringify(updated)
       );
 
@@ -1093,7 +1114,7 @@ export default function ApartmentMap() {
       });
 
       window.localStorage.setItem(
-        "tumouh_star_apartment_types",
+        getBuildingStorageKey("tumouh_star_apartment_types"),
         JSON.stringify(updated)
       );
 
@@ -1140,7 +1161,7 @@ export default function ApartmentMap() {
       };
 
       window.localStorage.setItem(
-        "tumouh_star_apartment_type_rents",
+        getBuildingStorageKey("tumouh_star_apartment_type_rents"),
         JSON.stringify(updated)
       );
 
@@ -1250,7 +1271,7 @@ export default function ApartmentMap() {
     setCustomApartmentTypes((current) => {
       const updated = [...current, type];
       window.localStorage.setItem(
-        "tumouh_star_custom_apartment_types",
+        getBuildingStorageKey("tumouh_star_custom_apartment_types"),
         JSON.stringify(updated)
       );
       return updated;
@@ -1282,7 +1303,7 @@ export default function ApartmentMap() {
       });
 
       window.localStorage.setItem(
-        "tumouh_star_apartment_types",
+        getBuildingStorageKey("tumouh_star_apartment_types"),
         JSON.stringify(updated)
       );
 
@@ -1311,7 +1332,7 @@ export default function ApartmentMap() {
           : [...current, newType];
 
         window.localStorage.setItem(
-          "tumouh_star_custom_apartment_types",
+          getBuildingStorageKey("tumouh_star_custom_apartment_types"),
           JSON.stringify(updated)
         );
 
@@ -1329,7 +1350,7 @@ export default function ApartmentMap() {
         };
 
         window.localStorage.setItem(
-          "tumouh_star_apartment_types",
+          getBuildingStorageKey("tumouh_star_apartment_types"),
           JSON.stringify(updated)
         );
 
@@ -1346,7 +1367,7 @@ export default function ApartmentMap() {
       };
 
       window.localStorage.setItem(
-        "tumouh_star_apartment_types",
+        getBuildingStorageKey("tumouh_star_apartment_types"),
         JSON.stringify(updated)
       );
 
@@ -1380,7 +1401,7 @@ export default function ApartmentMap() {
     setCustomApartmentStatuses((current) => {
       const updated = [...current, newStatus];
       window.localStorage.setItem(
-        "tumouh_star_custom_apartment_statuses",
+        getBuildingStorageKey("tumouh_star_custom_apartment_statuses"),
         JSON.stringify(updated)
       );
       return updated;
@@ -1418,7 +1439,7 @@ export default function ApartmentMap() {
       );
 
       window.localStorage.setItem(
-        "tumouh_star_building_apartments",
+        getBuildingStorageKey("tumouh_star_building_apartments"),
         JSON.stringify(updated)
       );
 
@@ -1508,7 +1529,7 @@ export default function ApartmentMap() {
       );
 
       window.localStorage.setItem(
-        "tumouh_star_building_apartments",
+        getBuildingStorageKey("tumouh_star_building_apartments"),
         JSON.stringify(updated)
       );
 
@@ -1524,7 +1545,7 @@ export default function ApartmentMap() {
       }
 
       window.localStorage.setItem(
-        "tumouh_star_apartment_types",
+        getBuildingStorageKey("tumouh_star_apartment_types"),
         JSON.stringify(updated)
       );
 
@@ -1540,7 +1561,7 @@ export default function ApartmentMap() {
       }
 
       window.localStorage.setItem(
-        "tumouh_star_apartment_extra_info",
+        getBuildingStorageKey("tumouh_star_apartment_extra_info"),
         JSON.stringify(updated)
       );
 
@@ -1556,7 +1577,7 @@ export default function ApartmentMap() {
       }
 
       window.localStorage.setItem(
-        "tumouh_star_apartment_tenant_info",
+        getBuildingStorageKey("tumouh_star_apartment_tenant_info"),
         JSON.stringify(updated)
       );
 
@@ -1572,7 +1593,7 @@ export default function ApartmentMap() {
       }
 
       window.localStorage.setItem(
-        "tumouh_star_apartment_contract_info",
+        getBuildingStorageKey("tumouh_star_apartment_contract_info"),
         JSON.stringify(updated)
       );
 
@@ -1581,7 +1602,7 @@ export default function ApartmentMap() {
 
     try {
       const savedCharges = window.localStorage.getItem(
-        "tumouh_star_building_charges"
+        getBuildingStorageKey("tumouh_star_building_charges")
       );
 
       if (savedCharges) {
@@ -1594,7 +1615,7 @@ export default function ApartmentMap() {
         );
 
         window.localStorage.setItem(
-          "tumouh_star_building_charges",
+          getBuildingStorageKey("tumouh_star_building_charges"),
           JSON.stringify(updatedCharges)
         );
       }
@@ -1636,7 +1657,7 @@ export default function ApartmentMap() {
       };
 
       window.localStorage.setItem(
-        "tumouh_star_apartment_tenant_info",
+        getBuildingStorageKey("tumouh_star_apartment_tenant_info"),
         JSON.stringify(updated)
       );
 
@@ -1656,7 +1677,7 @@ export default function ApartmentMap() {
         );
 
         window.localStorage.setItem(
-          "tumouh_star_building_apartments",
+          getBuildingStorageKey("tumouh_star_building_apartments"),
           JSON.stringify(updated)
         );
 
@@ -1685,7 +1706,7 @@ export default function ApartmentMap() {
       };
 
       window.localStorage.setItem(
-        "tumouh_star_apartment_extra_info",
+        getBuildingStorageKey("tumouh_star_apartment_extra_info"),
         JSON.stringify(updated)
       );
 
@@ -1771,7 +1792,7 @@ export default function ApartmentMap() {
       };
 
       window.localStorage.setItem(
-        "tumouh_star_apartment_contract_info",
+        getBuildingStorageKey("tumouh_star_apartment_contract_info"),
         JSON.stringify(updated)
       );
 
@@ -1925,27 +1946,27 @@ export default function ApartmentMap() {
     });
 
     window.localStorage.setItem(
-      "tumouh_star_building_apartments",
+      getBuildingStorageKey("tumouh_star_building_apartments"),
       JSON.stringify(updatedApartments)
     );
 
     window.localStorage.setItem(
-      "tumouh_star_apartment_types",
+      getBuildingStorageKey("tumouh_star_apartment_types"),
       JSON.stringify(apartmentTypes)
     );
 
     window.localStorage.setItem(
-      "tumouh_star_apartment_extra_info",
+      getBuildingStorageKey("tumouh_star_apartment_extra_info"),
       JSON.stringify(apartmentExtraInfo)
     );
 
     window.localStorage.setItem(
-      "tumouh_star_apartment_tenant_info",
+      getBuildingStorageKey("tumouh_star_apartment_tenant_info"),
       JSON.stringify(apartmentTenantInfo)
     );
 
     window.localStorage.setItem(
-      "tumouh_star_apartment_contract_info",
+      getBuildingStorageKey("tumouh_star_apartment_contract_info"),
       JSON.stringify(apartmentContractInfo)
     );
 
@@ -1981,8 +2002,8 @@ export default function ApartmentMap() {
   const findStoredChargeByKey = (mode: "charge" | "collection", key: string) => {
     const storageKey =
       mode === "collection"
-        ? "tumouh_star_building_collections"
-        : "tumouh_star_building_charges";
+        ? getBuildingStorageKey("tumouh_star_building_collections")
+        : getBuildingStorageKey("tumouh_star_building_charges");
 
     try {
       const saved = window.localStorage.getItem(storageKey);
@@ -2292,7 +2313,7 @@ export default function ApartmentMap() {
   const getBuildingChargesForPeriod = (): BuildingCharge[] => {
     try {
       const saved = window.localStorage.getItem(
-        "tumouh_star_building_charges"
+        getBuildingStorageKey("tumouh_star_building_charges")
       );
 
       if (!saved) {
@@ -2466,7 +2487,7 @@ export default function ApartmentMap() {
   const getBuildingCollectionsForPeriod = (): BuildingCharge[] => {
     try {
       const saved = window.localStorage.getItem(
-        "tumouh_star_building_collections"
+        getBuildingStorageKey("tumouh_star_building_collections")
       );
 
       if (!saved) {
@@ -3268,7 +3289,7 @@ export default function ApartmentMap() {
   function getApartmentPayments(apartmentNumber: string): BuildingCharge[] {
     try {
       const saved = window.localStorage.getItem(
-        "tumouh_star_building_collections"
+        getBuildingStorageKey("tumouh_star_building_collections")
       );
 
       if (!saved) {
@@ -3313,7 +3334,7 @@ export default function ApartmentMap() {
 
     try {
       const saved = window.localStorage.getItem(
-        "tumouh_star_building_charges"
+        getBuildingStorageKey("tumouh_star_building_charges")
       );
 
       if (!saved) {
@@ -3635,7 +3656,7 @@ export default function ApartmentMap() {
   ): BuildingCharge[] => {
     try {
       const saved = window.localStorage.getItem(
-        "tumouh_star_building_charges"
+        getBuildingStorageKey("tumouh_star_building_charges")
       );
 
       if (!saved) {
@@ -4551,105 +4572,251 @@ export default function ApartmentMap() {
     window.location.href = "/buildings/tenant-details";
   };
 
+  // ترتيب الشقق حسب الدور مع وضع الشقق التي لا تحتوي على دور في قسم مستقل.
+  const apartmentFloors = Array.from(
+    new Set(
+      apartments
+        .map((apartment) => getApartmentExtraInfo(apartment.number).floor.trim())
+        .filter(Boolean)
+    )
+  ).sort((a, b) => {
+    const aNumber = Number(a);
+    const bNumber = Number(b);
+    if (Number.isFinite(aNumber) && Number.isFinite(bNumber)) return aNumber - bNumber;
+    if (Number.isFinite(aNumber)) return -1;
+    if (Number.isFinite(bNumber)) return 1;
+    return a.localeCompare(b, "ar");
+  });
+
+  const mapFilteredApartments = apartments.filter((apartment) => {
+    const search = mapApartmentSearch.trim().toLowerCase();
+    if (!search) return true;
+    return (
+      apartment.number.toLowerCase().includes(search) ||
+      getApartmentType(apartment).toLowerCase().includes(search)
+    );
+  });
+
+  const apartmentsByMapFloor = (floor: string) =>
+    mapFilteredApartments
+      .filter((apartment) => {
+        const apartmentFloor = getApartmentExtraInfo(apartment.number).floor.trim();
+        return floor === "غير محدد" ? !apartmentFloor : apartmentFloor === floor;
+      })
+      .sort((a, b) =>
+        String(a.number).localeCompare(String(b.number), "ar", { numeric: true })
+      );
+
+  const orderedMapFloors = [
+    ...apartmentFloors,
+    ...(mapFilteredApartments.some(
+      (apartment) => !getApartmentExtraInfo(apartment.number).floor.trim()
+    )
+      ? ["غير محدد"]
+      : []),
+  ];
 
   return (
-    <div dir="rtl" className="min-h-screen w-full min-w-0 max-w-full overflow-x-hidden bg-[#061426] p-3 text-white sm:p-4 lg:p-6">
-      <div className="rounded-2xl border border-[#173858] bg-[#0b2039] p-6">
-        <div className="mb-6 flex items-center justify-between gap-4">
-          <button
-            type="button"
-            onClick={() => {
-              const buildingId = getCurrentBuildingId();
-              if (buildingId) {
-                window.location.href = `/buildings/${buildingId}`;
-              }
-            }}
-            className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-black text-gray-300 transition hover:border-[#f0ad18]/40 hover:bg-[#f0ad18]/10 hover:text-[#f6c84a]"
-          >
-            العودة لتفاصيل العمارة
-          </button>
+    <div
+      dir="rtl"
+      className="min-h-screen w-full min-w-0 overflow-x-hidden bg-[#031522] p-2 text-white sm:p-3 lg:p-4"
+      style={{
+        backgroundImage:
+          "radial-gradient(circle at 12% 8%, rgba(33,150,243,0.16), transparent 26%), radial-gradient(circle at 88% 16%, rgba(240,173,24,0.13), transparent 24%), linear-gradient(145deg, #071d2f 0%, #031522 48%, #02101c 100%)",
+      }}
+    >
+      <div className="relative mx-auto max-w-[1700px] overflow-hidden rounded-[28px] border border-cyan-300/10 bg-[#061a2b]/90 shadow-[0_25px_90px_rgba(0,0,0,0.45)] backdrop-blur-2xl">
+        <div className="pointer-events-none absolute -left-32 -top-40 h-96 w-96 rounded-full bg-cyan-400/10 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-40 -right-32 h-96 w-96 rounded-full bg-[#f6c84a]/10 blur-3xl" />
 
-          <div className="text-center">
-            <h1 className="text-2xl font-black text-[#f0ad18] sm:text-3xl">
+        {/* HEADER */}
+        <div className="relative overflow-hidden border-b border-white/10 px-5 py-6 sm:px-8 lg:px-10">
+          <div className="absolute inset-0 bg-gradient-to-b from-white/[0.055] to-transparent" />
+          <div className="relative flex flex-col items-center justify-center gap-3 text-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-[22px] border border-[#f6c84a]/35 bg-[#f6c84a]/10 shadow-[0_0_35px_rgba(246,200,74,0.12)] backdrop-blur-xl">
+              <Building2 size={34} className="text-[#f6c84a]" />
+            </div>
+            <h1 className="text-3xl font-black tracking-tight text-[#f6c84a] sm:text-4xl lg:text-5xl">
               خريطة الشقق
             </h1>
-            <p className="mt-1 text-sm font-semibold text-gray-400">
-              إدارة الشقق وجميع بياناتها
+            <p className="text-sm font-semibold text-cyan-100/65 sm:text-base">
+              إدارة الشقق وجميع بياناتها وتوزيعها حسب الأدوار
             </p>
+            <button
+              type="button"
+              onClick={() => {
+                const buildingId = getCurrentBuildingId();
+                if (buildingId) window.location.href = `/buildings/${buildingId}`;
+              }}
+              className="absolute right-0 top-0 hidden items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm font-black text-gray-300 transition hover:border-[#f6c84a]/40 hover:bg-[#f6c84a]/10 hover:text-[#f6c84a] sm:flex"
+            >
+              العودة لتفاصيل العمارة <ArrowUpRight size={17} />
+            </button>
+          </div>
+        </div>
+
+        {/* STAT CARDS */}
+        <div className="relative grid grid-cols-2 gap-3 p-4 sm:grid-cols-3 lg:grid-cols-5 lg:p-6">
+          {([
+            { label: "إجمالي الشقق", value: totalApartments, sub: "وحدة", valueClass: "text-white", borderClass: "border-blue-300/20", bgClass: "bg-blue-400/10", Icon: Building2 },
+            { label: "الشقق المؤجرة", value: rentedApartments, sub: `نسبة الإشغال ${occupancyRate}%`, valueClass: "text-emerald-300", borderClass: "border-emerald-300/20", bgClass: "bg-emerald-400/10", Icon: CheckCircle2 },
+            { label: "الشقق الشاغرة", value: vacantApartments, sub: "متاحة للتأجير", valueClass: "text-red-300", borderClass: "border-red-300/20", bgClass: "bg-red-400/10", Icon: Home },
+            { label: "تحت الصيانة", value: maintenanceApartments, sub: "قيد الصيانة", valueClass: "text-yellow-300", borderClass: "border-yellow-300/20", bgClass: "bg-yellow-400/10", Icon: AlertCircle },
+            { label: "محجوزة", value: reservedApartments, sub: "محجوزة للمستأجرين", valueClass: "text-blue-300", borderClass: "border-blue-300/20", bgClass: "bg-blue-400/10", Icon: CalendarDays },
+          ] as const).map(({ label, value, sub, valueClass, borderClass, bgClass, Icon }) => (
+            <div key={label} className={`group relative overflow-hidden rounded-[22px] border ${borderClass} bg-white/[0.045] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_12px_35px_rgba(0,0,0,0.14)] backdrop-blur-xl transition hover:-translate-y-0.5`}>
+              <div className={`absolute -left-8 -top-8 h-24 w-24 rounded-full ${bgClass} blur-2xl`} />
+              <div className="relative flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-sm font-bold text-gray-300">{label}</div>
+                  <div className={`mt-2 text-3xl font-black ${valueClass}`}>{value}</div>
+                  <div className="mt-1 text-[11px] font-semibold text-gray-500">{sub}</div>
+                </div>
+                <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border ${borderClass} ${bgClass}`}>
+                  <Icon size={24} className={valueClass} />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* SEARCH + ACTIONS */}
+        <div className="relative grid grid-cols-1 gap-3 px-4 pb-5 sm:grid-cols-[1fr_1.8fr] lg:px-6">
+          <div className="relative order-2 sm:order-1">
+            <Search size={20} className="absolute right-4 top-1/2 -translate-y-1/2 text-cyan-200/50" />
+            <input
+              value={mapApartmentSearch}
+              onChange={(event) => setMapApartmentSearch(event.target.value)}
+              placeholder="ابحث عن رقم الشقة..."
+              className="h-[74px] w-full rounded-[22px] border border-white/10 bg-white/[0.045] pl-4 pr-12 text-base font-bold text-white outline-none backdrop-blur-xl transition placeholder:text-gray-500 focus:border-cyan-300/35 focus:bg-white/[0.07]"
+            />
           </div>
 
-          <div className="hidden w-[150px] sm:block" />
-        </div>
-
-        <div className="mb-6 flex flex-wrap items-center justify-center gap-2 md:justify-start">
-          <button
-            type="button"
-            onClick={addApartment}
-            className="inline-flex items-center gap-2 rounded-xl border border-green-400/30 bg-green-500/10 px-6 py-3 text-base font-bold text-green-300 transition hover:border-green-300/70 hover:bg-green-500/20"
-          >
-            <Plus size={20} />
-            إضافة شقة
-          </button>
-
-          <button
-            type="button"
-            onClick={openDeleteApartmentModal}
-            className="inline-flex items-center gap-2 rounded-xl border border-red-400/30 bg-red-500/10 px-6 py-3 text-base font-bold text-red-300 transition hover:border-red-300/70 hover:bg-red-500/20"
-          >
-            <Trash2 size={20} />
-            حذف شقة
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setBuildingRefreshVersion((value) => value + 1)}
-            className="inline-flex items-center gap-2 rounded-xl border border-blue-400/30 bg-blue-500/10 px-6 py-3 text-base font-bold text-blue-300 transition hover:border-blue-300/70 hover:bg-blue-500/20"
-            title="تحديث بيانات الشقق من قاعدة البيانات"
-            aria-label="تحديث بيانات الشقق من قاعدة البيانات"
-          >
-            <RefreshCw size={20} />
-            تحديث
-          </button>
-        </div>
-
-        <div className="mb-6 flex flex-wrap justify-center gap-4 text-base md:justify-end">
-          <span>
-            <span className="ml-2 inline-block h-3 w-3 rounded-full bg-green-500" />
-            مؤجرة
-          </span>
-          <span>
-            <span className="ml-2 inline-block h-3 w-3 rounded-full bg-yellow-400" />
-            تحت الصيانة
-          </span>
-          <span>
-            <span className="ml-2 inline-block h-3 w-3 rounded-full bg-red-500" />
-            فارغة
-          </span>
-          <span>
-            <span className="ml-2 inline-block h-3 w-3 rounded-full bg-blue-500" />
-            محجوزة
-          </span>
-          <span>
-            <span className="ml-2 inline-block h-3 w-3 rounded-full bg-emerald-500" />
-            مؤجرة للشركة
-          </span>
-        </div>
-
-        <div className="grid grid-cols-4 gap-3 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-11">
-          {apartments.map((apartment) => (
-            <button
-              key={apartment.number}
-              type="button"
-              onClick={() => openApartment(apartment)}
-              className={`h-12 rounded-lg border border-white/10 font-bold text-lg text-white transition duration-200 hover:scale-105 ${getApartmentColor(
-                apartment.status
-              )}`}
-            >
-              {apartment.number}
+          <div className="order-1 grid grid-cols-3 gap-3 sm:order-2">
+            <button type="button" onClick={addApartment} className="group relative min-h-[74px] overflow-hidden rounded-[22px] border border-emerald-300/35 bg-gradient-to-br from-emerald-400/20 to-white/[0.035] px-3 py-3 shadow-[0_12px_35px_rgba(16,185,129,0.12)] backdrop-blur-xl transition hover:-translate-y-1 hover:border-emerald-300/65">
+              <div className="flex h-full items-center justify-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-400/15 text-emerald-300"><Plus size={28} /></div>
+                <div className="text-right"><div className="text-base font-black text-white sm:text-lg">إضافة شقة</div><div className="text-[10px] font-semibold text-emerald-100/60 sm:text-xs">إضافة وحدة جديدة</div></div>
+              </div>
             </button>
+
+            <button type="button" onClick={openDeleteApartmentModal} className="group relative min-h-[74px] overflow-hidden rounded-[22px] border border-red-300/35 bg-gradient-to-br from-red-400/20 to-white/[0.035] px-3 py-3 shadow-[0_12px_35px_rgba(239,68,68,0.12)] backdrop-blur-xl transition hover:-translate-y-1 hover:border-red-300/65">
+              <div className="flex h-full items-center justify-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-red-400/15 text-red-300"><Trash2 size={27} /></div>
+                <div className="text-right"><div className="text-base font-black text-white sm:text-lg">حذف شقة</div><div className="text-[10px] font-semibold text-red-100/60 sm:text-xs">إدارة وحذف الوحدات</div></div>
+              </div>
+            </button>
+
+            <button type="button" onClick={() => setBuildingRefreshVersion((value) => value + 1)} className="group relative min-h-[74px] overflow-hidden rounded-[22px] border border-blue-300/35 bg-gradient-to-br from-blue-400/20 to-white/[0.035] px-3 py-3 shadow-[0_12px_35px_rgba(59,130,246,0.12)] backdrop-blur-xl transition hover:-translate-y-1 hover:border-blue-300/65">
+              <div className="flex h-full items-center justify-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-400/15 text-blue-300"><RefreshCw size={27} /></div>
+                <div className="text-right"><div className="text-base font-black text-white sm:text-lg">تحديث</div><div className="text-[10px] font-semibold text-blue-100/60 sm:text-xs">إعادة تحميل البيانات</div></div>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        {/* FLOOR MAP */}
+        <div className="relative mx-4 mb-5 overflow-hidden rounded-[26px] border border-white/10 bg-white/[0.025] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-xl lg:mx-6">
+          <div className="border-b border-white/10 px-5 py-4 text-center">
+            <div className="text-xl font-black text-white sm:text-2xl">توزيع الشقق حسب الأدوار</div>
+            <div className="mt-1 text-xs font-semibold text-gray-500">كل دور في صف مستقل — اضغط على الشقة لعرض تفاصيلها</div>
+          </div>
+
+          <div className="space-y-3 p-3 sm:p-4">
+            {orderedMapFloors.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-white/10 py-16 text-center text-gray-500">لا توجد شقق مطابقة للبحث.</div>
+            ) : (
+              orderedMapFloors.map((floor) => {
+                const floorApartments = apartmentsByMapFloor(floor);
+                if (!floorApartments.length) return null;
+                return (
+                  <section key={floor} className="grid grid-cols-1 gap-3 rounded-[22px] border border-white/10 bg-white/[0.025] p-3 lg:grid-cols-[190px_1fr] lg:items-stretch">
+                    <div className="flex min-h-[82px] items-center gap-3 rounded-[18px] border border-blue-300/15 bg-gradient-to-br from-blue-400/10 to-white/[0.025] px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-blue-300/15 bg-blue-400/10 text-blue-200"><Building2 size={25} /></div>
+                      <div className="min-w-0">
+                        <div className="text-base font-black text-white">{floor === "غير محدد" ? "غير محدد" : `الدور ${floor}`}</div>
+                        <div className="mt-1 text-xs font-bold text-gray-500">{floorApartments.length} شقة</div>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 md:grid-cols-6 xl:grid-cols-11">
+                      {floorApartments.map((apartment) => (
+                        <button key={apartment.number} type="button" onClick={() => openApartment(apartment)} className={`group relative min-h-[62px] rounded-[16px] border border-white/10 px-2 py-2 text-center font-black text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_8px_20px_rgba(0,0,0,0.12)] transition duration-200 hover:-translate-y-0.5 hover:scale-[1.015] ${getApartmentColor(apartment.status)}`}>
+                          <span className="relative z-10 text-base sm:text-lg">{apartment.number}</span>
+                          {getApartmentType(apartment) !== "" && <span className="relative z-10 mt-1 block truncate text-[9px] font-semibold text-white/65">{getApartmentType(apartment)}</span>}
+                        </button>
+                      ))}
+                    </div>
+                  </section>
+                );
+              })
+            )}
+          </div>
+        </div>
+
+        {/* LEGEND */}
+        <div className="relative mx-4 mb-5 grid grid-cols-2 gap-2 rounded-[22px] border border-white/10 bg-white/[0.035] p-3 text-xs font-bold backdrop-blur-xl sm:grid-cols-3 lg:grid-cols-6 lg:mx-6">
+          {[
+            ["bg-green-500", "شقة مؤجرة", "يوجد مستأجر"],
+            ["bg-red-500", "شقة شاغرة", "لا يوجد مستأجر"],
+            ["bg-yellow-400", "تحت الصيانة", "قيد الصيانة"],
+            ["bg-blue-500", "محجوزة", "محجوزة لمستأجر"],
+            ["bg-emerald-500", "مؤجرة للشركة", "يوجد مستأجر"],
+            ["bg-gray-500", "غير محدد", "لم يتم تحديد الحالة"],
+          ].map(([dot, title, sub]) => (
+            <div key={title} className="flex items-center gap-3 rounded-2xl border border-white/5 bg-white/[0.025] px-3 py-3">
+              <span className={`h-4 w-4 shrink-0 rounded-full ${dot}`} />
+              <div><div className="font-black text-gray-200">{title}</div><div className="mt-0.5 text-[10px] text-gray-500">{sub}</div></div>
+            </div>
           ))}
         </div>
       </div>
+
+      {/* DELETE APARTMENTS MODAL */}
+      {isDeleteApartmentModalOpen && (
+        <div className="fixed inset-0 z-[10050] flex items-center justify-center bg-black/75 p-3 backdrop-blur-xl sm:p-5" onClick={closeDeleteApartmentModal}>
+          <div dir="rtl" className="relative flex max-h-[calc(100vh-30px)] w-full max-w-[980px] flex-col overflow-hidden rounded-[30px] border border-red-300/25 bg-[#061426]/[0.98] shadow-[0_0_90px_rgba(239,68,68,0.16)]" onClick={(event) => event.stopPropagation()}>
+            <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-red-400 to-transparent" />
+            <div className="shrink-0 border-b border-white/10 bg-gradient-to-r from-[#081827] via-[#102b42] to-[#081827] px-5 py-5 sm:px-7">
+              <div className="flex items-center justify-between gap-4">
+                <button type="button" onClick={closeDeleteApartmentModal} className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-gray-400 transition hover:border-red-300/40 hover:bg-red-500/10 hover:text-red-300"><X size={23} /></button>
+                <div className="text-center"><div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-2xl border border-red-300/20 bg-red-400/10 text-red-300"><Trash2 size={24} /></div><h2 className="text-xl font-black text-white sm:text-2xl">حذف الشقق</h2><p className="mt-1 text-xs font-semibold text-gray-500">حدد الشقق التي تريد حذفها من هذه العمارة</p></div>
+                <div className="min-w-[80px] text-left text-sm font-black text-red-300">{selectedDeleteApartments.length} محددة</div>
+              </div>
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
+              <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto_auto]">
+                <div className="relative"><Search size={19} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500" /><input value={deleteApartmentSearch} onChange={(event) => setDeleteApartmentSearch(event.target.value)} placeholder="ابحث عن رقم الشقة أو النوع..." className="h-12 w-full rounded-xl border border-white/10 bg-[#07182b] pl-4 pr-10 text-sm font-bold text-white outline-none focus:border-red-300/40" /></div>
+                <button type="button" onClick={toggleAllDeleteApartments} className="h-12 rounded-xl border border-white/10 bg-white/[0.04] px-5 text-sm font-black text-gray-300 transition hover:bg-white/[0.08]">{filteredDeleteApartments.length > 0 && filteredDeleteApartments.every((a) => selectedDeleteApartments.includes(a.number)) ? "إلغاء تحديد الكل" : "تحديد الكل"}</button>
+                <button type="button" onClick={() => setSelectedDeleteApartments([])} className="h-12 rounded-xl border border-white/10 bg-white/[0.04] px-5 text-sm font-black text-gray-300 transition hover:bg-white/[0.08]">إلغاء التحديد</button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 lg:grid-cols-6">
+                {filteredDeleteApartments.map((apartment) => {
+                  const selected = selectedDeleteApartments.includes(apartment.number);
+                  return (
+                    <button key={apartment.number} type="button" onClick={() => toggleDeleteApartment(apartment.number)} className={`relative rounded-2xl border p-3 text-right transition ${selected ? "border-red-300/70 bg-red-500/15 shadow-[0_0_25px_rgba(239,68,68,0.12)]" : "border-white/10 bg-white/[0.035] hover:border-white/20 hover:bg-white/[0.06]"}`}>
+                      <div className="flex items-center justify-between gap-2"><span className={`text-lg font-black ${selected ? "text-red-300" : "text-white"}`}>{apartment.number}</span><span className={`flex h-6 w-6 items-center justify-center rounded-full border ${selected ? "border-red-300 bg-red-400 text-white" : "border-white/15 text-transparent"}`}><Check size={14} /></span></div>
+                      <div className="mt-1 truncate text-[10px] font-semibold text-gray-500">{getApartmentType(apartment)}</div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="shrink-0 border-t border-white/10 bg-[#061426] p-4 sm:p-5">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="text-sm font-bold text-gray-500">سيتم حذف {selectedDeleteApartments.length} شقة بعد التأكيد.</div>
+                <div className="grid grid-cols-2 gap-3 sm:min-w-[340px]">
+                  <button type="button" onClick={closeDeleteApartmentModal} className="h-12 rounded-xl border border-white/10 bg-white/[0.04] text-sm font-black text-gray-300 transition hover:bg-white/[0.08]">إلغاء</button>
+                  <button type="button" onClick={deleteSelectedApartments} className="h-12 rounded-xl border border-red-300/35 bg-red-500/15 text-sm font-black text-red-300 transition hover:bg-red-500/25"><Trash2 size={17} className="mr-2 inline" />تأكيد الحذف</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {selectedApartment && (
 
@@ -7325,8 +7492,8 @@ export default function ApartmentMap() {
                     try {
                       const storageKey =
                         chargeModalMode === "collection"
-                          ? "tumouh_star_building_collections"
-                          : "tumouh_star_building_charges";
+                          ? getBuildingStorageKey("tumouh_star_building_collections")
+                          : getBuildingStorageKey("tumouh_star_building_charges");
 
                       const saved = window.localStorage.getItem(storageKey);
                       const currentCharges: BuildingCharge[] = saved

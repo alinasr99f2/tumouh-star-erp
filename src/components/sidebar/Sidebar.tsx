@@ -1,6 +1,6 @@
 
-import { useState } from "react";
-import { NavLink } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { NavLink, useLocation } from "react-router-dom";
 import {
   LogOut,
   Circle,
@@ -15,7 +15,21 @@ type SidebarProps = {
 };
 
 function Sidebar({ onLogout }: SidebarProps) {
-  const [buildingsOpen, setBuildingsOpen] = useState(false);
+  const location = useLocation();
+
+  const [buildingsOpen, setBuildingsOpen] = useState(() =>
+    location.pathname === "/buildings" ||
+    location.pathname.startsWith("/buildings/")
+  );
+
+  useEffect(() => {
+    if (
+      location.pathname === "/buildings" ||
+      location.pathname.startsWith("/buildings/")
+    ) {
+      setBuildingsOpen(true);
+    }
+  }, [location.pathname]);
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const handleMobileNavigate = () => {
@@ -272,10 +286,7 @@ function Sidebar({ onLogout }: SidebarProps) {
                   <NavLink
                     to={item.path}
                     onClick={handleMobileNavigate}
-                    end={
-                      item.path === "/" ||
-                      item.path === "/buildings"
-                    }
+                    end={item.path === "/"}
                     className={({ isActive }) =>
                       `
                       group
