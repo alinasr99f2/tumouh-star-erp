@@ -22,6 +22,9 @@ export default function Home() {
   const [showWelcome, setShowWelcome] = useState(false);
   const [welcomeName, setWelcomeName] = useState("بك");
   const [welcomeGreeting, setWelcomeGreeting] = useState("أهلاً بك");
+  const [welcomeMessage, setWelcomeMessage] = useState(
+    "نتمنى لك يومًا موفقًا ومليئًا بالإنجاز."
+  );
 
   useEffect(() => {
     let mounted = true;
@@ -29,30 +32,54 @@ export default function Home() {
 
     const loadWelcome = async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
         if (!mounted || !user) return;
 
-        const metadata = (user.user_metadata ?? {}) as Record<string, unknown>;
-        const name = String(
-          metadata.name ?? metadata.full_name ?? metadata.display_name ?? metadata.username ?? ""
-        ).trim() || String(user.email ?? "").split("@")[0] || "بك";
+        const { data: profile } = await supabase
+          .from("users")
+          .select("name")
+          .eq("email", user.email ?? "")
+          .maybeSingle();
 
+        const name = String(profile?.name ?? "").trim() || "بك";
         const hour = new Date().getHours();
-        const greeting = hour >= 5 && hour < 12 ? "صباح الخير" : "مساء الخير";
+
+        let greeting = "مساء الخير";
+        let message =
+          "نتمنى لك مساءً هادئًا ومثمرًا، وبداية موفقة في كل أعمالك.";
+
+        if (hour >= 5 && hour < 12) {
+          greeting = "صباح الخير";
+          message =
+            "نتمنى لك صباحًا موفقًا ومليئًا بالإنجاز، وبداية قوية ليومك.";
+        } else if (hour >= 12 && hour < 17) {
+          greeting = "أهلاً بك";
+          message =
+            "نتمنى لك يومًا موفقًا ومليئًا بالإنجاز، وكل التوفيق في أعمالك.";
+        }
+
+        const welcomeKey = `aqar-smart-welcome-${user.id}`;
+        if (sessionStorage.getItem(welcomeKey)) return;
 
         setWelcomeName(name);
         setWelcomeGreeting(greeting);
+        setWelcomeMessage(message);
         setShowWelcome(true);
+        sessionStorage.setItem(welcomeKey, "1");
 
         timer = setTimeout(() => {
           if (mounted) setShowWelcome(false);
         }, 5000);
       } catch (error) {
-        console.error("تعذر تحميل بيانات رسالة الترحيب:", error);
+        console.error("تعذر تحميل اسم المستخدم لرسالة الترحيب:", error);
       }
     };
 
     void loadWelcome();
+
     return () => {
       mounted = false;
       if (timer) clearTimeout(timer);
@@ -124,50 +151,91 @@ export default function Home() {
     <>
       {showWelcome && (
         <div
-          className="fixed inset-0 z-[999] flex items-center justify-center bg-black/55 px-4 backdrop-blur-[3px] animate-in fade-in duration-300"
+          dir="rtl"
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#020b09]/75 px-4 backdrop-blur-md animate-in fade-in duration-300"
           onClick={closeWelcome}
         >
           <div
-            dir="rtl"
             onClick={(event) => event.stopPropagation()}
-            className="relative w-full max-w-[520px] overflow-hidden rounded-[30px] border border-yellow-400/30 bg-gradient-to-br from-[#0c4035] via-[#082d27] to-[#061b18] p-7 text-center shadow-2xl shadow-black/40 animate-in zoom-in-95 duration-300 sm:p-9"
+            className="relative w-full max-w-[560px] overflow-hidden rounded-[32px] border border-yellow-300/30 bg-[#062b24] shadow-[0_30px_100px_rgba(0,0,0,0.65)] animate-in zoom-in-95 slide-in-from-bottom-3 duration-300"
           >
-            <div className="pointer-events-none absolute -right-16 -top-20 h-48 w-48 rounded-full bg-yellow-400/10 blur-3xl" />
-            <div className="pointer-events-none absolute -bottom-20 -left-16 h-44 w-44 rounded-full bg-emerald-400/10 blur-3xl" />
+            <div className="pointer-events-none absolute -right-28 -top-28 h-72 w-72 rounded-full bg-yellow-400/10 blur-3xl" />
+            <div className="pointer-events-none absolute -bottom-32 -left-24 h-72 w-72 rounded-full bg-emerald-400/10 blur-3xl" />
+            <div className="pointer-events-none absolute inset-x-12 top-0 h-px bg-gradient-to-r from-transparent via-yellow-300/70 to-transparent" />
 
             <button
               type="button"
               onClick={closeWelcome}
-              aria-label="إغلاق"
-              className="absolute left-4 top-4 flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-gray-300 transition hover:bg-white/10 hover:text-white"
+              aria-label="إغلاق رسالة الترحيب"
+              className="absolute left-5 top-5 z-20 flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 text-xl text-white/70 transition hover:border-yellow-300/30 hover:bg-yellow-300/10 hover:text-white"
             >
               ×
             </button>
 
-            <div className="relative mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-[24px] border border-yellow-300/30 bg-gradient-to-br from-yellow-300/20 to-yellow-500/5 text-4xl shadow-lg shadow-yellow-500/10">
-              ✦
-            </div>
+            <div className="relative px-7 pb-7 pt-9 sm:px-10 sm:pb-9 sm:pt-11">
+              <div className="mx-auto flex h-28 w-28 items-center justify-center rounded-[32px] border border-yellow-300/35 bg-gradient-to-br from-yellow-300/20 via-yellow-400/10 to-transparent shadow-[0_12px_45px_rgba(234,179,8,0.14)]">
+                <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border border-yellow-300/25 bg-[#071f1a]">
+                  <img
+                    src="/aqar-smart-logo.png"
+                    alt="عقار سمارت"
+                    className="h-16 w-16 object-contain"
+                  />
+                </div>
+              </div>
 
-            <div className="relative">
-              <p className="mb-2 text-sm font-semibold text-yellow-300/90">AQAR SMART ERP</p>
-              <h2 className="text-3xl font-black leading-tight text-white sm:text-4xl">
-                {welcomeGreeting}، {welcomeName}
-              </h2>
-              <p className="mx-auto mt-4 max-w-[410px] text-sm leading-7 text-emerald-100/75 sm:text-base">
-                يسعدنا وجودك معنا. نتمنى لك يومًا موفقًا ومليئًا بالإنجاز، وكل ما تحتاجه لإدارة أعمالك أصبح جاهزًا أمامك.
-              </p>
-              <button
-                type="button"
-                onClick={closeWelcome}
-                className="mt-7 w-full rounded-2xl border border-yellow-300/40 bg-gradient-to-r from-yellow-400 to-yellow-500 px-6 py-3.5 text-base font-black text-[#062B24] shadow-lg shadow-yellow-500/10 transition hover:-translate-y-0.5 hover:shadow-yellow-500/20"
-              >
-                متابعة إلى النظام
-              </button>
-              <p className="mt-3 text-xs text-white/35">ستختفي هذه الرسالة تلقائيًا خلال ثوانٍ</p>
+              <div className="mt-6 text-center">
+                <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-yellow-300/20 bg-yellow-300/[0.07] px-4 py-1.5 text-[11px] font-black tracking-[0.18em] text-yellow-300">
+                  <span>✦</span>
+                  AQAR SMART ERP
+                  <span>✦</span>
+                </div>
+
+                <h2 className="mt-5 text-[30px] font-black leading-tight text-white sm:text-[38px]">
+                  {welcomeGreeting}
+                </h2>
+
+                <h3 className="mt-2 text-[26px] font-black leading-tight text-yellow-300 sm:text-[32px]">
+                  {welcomeName}
+                </h3>
+
+                <div className="mx-auto mt-5 h-px w-24 bg-gradient-to-r from-transparent via-yellow-300/60 to-transparent" />
+
+                <p className="mx-auto mt-5 max-w-[430px] text-[15px] font-semibold leading-8 text-emerald-50/75 sm:text-base">
+                  {welcomeMessage}
+                  <br />
+                  <span className="text-white/55">
+                    كل ما تحتاجه لإدارة أعمالك جاهز أمامك.
+                  </span>
+                </p>
+
+                <button
+                  type="button"
+                  onClick={closeWelcome}
+                  className="mt-7 flex w-full items-center justify-center gap-2 rounded-2xl border border-yellow-300/50 bg-gradient-to-r from-[#d9ad2f] via-[#f1c64d] to-[#d9ad2f] px-6 py-4 text-base font-black text-[#08251f] shadow-[0_10px_35px_rgba(217,173,47,0.18)] transition duration-300 hover:-translate-y-0.5 hover:brightness-110"
+                >
+                  متابعة إلى النظام
+                  <ArrowLeft size={19} />
+                </button>
+
+                <div className="mx-auto mt-4 h-1 max-w-[180px] overflow-hidden rounded-full bg-white/10">
+                  <div className="h-full w-full origin-right rounded-full bg-yellow-300 animate-[welcomeProgress_5s_linear_forwards]" />
+                </div>
+
+                <p className="mt-2 text-[11px] font-semibold text-white/30">
+                  سيتم الانتقال تلقائيًا خلال لحظات
+                </p>
+              </div>
             </div>
           </div>
         </div>
       )}
+
+      <style>{`
+        @keyframes welcomeProgress {
+          from { transform: scaleX(1); }
+          to { transform: scaleX(0); }
+        }
+      `}</style>
 
     <div
       dir="rtl"
