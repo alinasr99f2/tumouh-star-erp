@@ -275,6 +275,18 @@ const glass =
 export default function UsersPermissions() {
   const [currentUser, setCurrentUser] = useState<UserRow | null>(null);
   const [users, setUsers] = useState<UserRow[]>([]);
+  const isSystemOwner =
+    currentUser?.email?.trim().toLowerCase() === SYSTEM_OWNER_EMAIL.toLowerCase();
+  const isManager = currentUser?.role?.trim() === "مدير";
+  const canManageUsers = isSystemOwner || isManager;
+  const protectedPermissionKeys = new Set<PermissionKey>([
+    "users_view",
+    "users_add",
+    "users_edit",
+    "settings_view",
+    "settings_add",
+    "settings_edit",
+  ]);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [savingUsers, setSavingUsers] = useState(false);
   const [databaseError, setDatabaseError] = useState<string | null>(null);
@@ -303,19 +315,6 @@ export default function UsersPermissions() {
   const [editPermissions, setEditPermissions] =
     useState<Record<PermissionKey, boolean>>(getRolePermissions("موظف"));
 
-  const isSystemOwner =
-    currentUser?.email?.toLowerCase() === SYSTEM_OWNER_EMAIL.toLowerCase();
-  const isManager = currentUser?.role === "مدير";
-  const canManageUsers = isSystemOwner || isManager;
-  const protectedPermissionKeys = new Set<PermissionKey>([
-    "users_view",
-    "users_add",
-    "users_edit",
-    "settings_view",
-    "settings_add",
-    "settings_edit",
-  ]);
-
   const normalizePermissions = (
     value: unknown,
   ): Record<PermissionKey, boolean> => ({
@@ -329,54 +328,51 @@ export default function UsersPermissions() {
     setLoadingUsers(true);
     setDatabaseError(null);
 
-    try {
-      const { data: authData, error: authError } = await supabase.auth.getUser();
-      if (authError || !authData.user) {
-        throw authError ?? new Error("لم يتم العثور على المستخدم الحالي.");
-      }
+    const { data, error } = await supabase
+      .from("users")
+      .select("id, name, email, role, active, permissions")
+      .order("id", { ascending: true });
 
-      const { data, error } = await supabase
-        .from("users")
-        .select("id, name, email, role, active, permissions")
-        .order("id", { ascending: true });
-
-      if (error) throw error;
-
-      const rows: UserRow[] = (data ?? []).map((row) => ({
-        id: Number(row.id),
-        name: String(row.name ?? ""),
-        email: String(row.email ?? ""),
-        role: (row.role as Role) ?? "موظف",
-        active: Boolean(row.active),
-        permissions: normalizePermissions(row.permissions),
-      }));
-
-      const authEmail = authData.user.email?.toLowerCase() ?? "";
-      const me = rows.find((user) => user.email.toLowerCase() === authEmail) ?? null;
-      setCurrentUser(me);
-
-      const owner = authEmail === SYSTEM_OWNER_EMAIL.toLowerCase();
-      const manager = me?.role === "مدير";
-
-      const visibleRows = owner
-        ? rows
-        : manager
-          ? rows.filter(
-              (user) => user.email.toLowerCase() !== SYSTEM_OWNER_EMAIL.toLowerCase(),
-            )
-          : me
-            ? rows.filter((user) => user.id === me.id)
-            : [];
-
-      setUsers(visibleRows);
-    } catch (error) {
+    if (error) {
       console.error("خطأ في تحميل المستخدمين من Supabase:", error);
-      setDatabaseError(error instanceof Error ? error.message : "خطأ غير معروف");
+      setDatabaseError(error.message);
       setUsers([]);
-      setCurrentUser(null);
-    } finally {
       setLoadingUsers(false);
+      return;
     }
+
+    const rows: UserRow[] = (data ?? []).map((row) => ({
+      id: Number(row.id),
+      name: String(row.name ?? ""),
+      email: String(row.email ?? ""),
+      role: (row.role as Role) ?? "موظف",
+      active: Boolean(row.active),
+      permissions: normalizePermissions(row.permissions),
+    }));
+
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const authEmail = authUser?.email?.trim().toLowerCase() ?? "";
+    const me = rows.find(
+      (user) => user.email.trim().toLowerCase() === authEmail,
+    );
+
+    setCurrentUser(me ?? null);
+
+    const ownerEmail = SYSTEM_OWNER_EMAIL.toLowerCase();
+    let visibleUsers: UserRow[] = [];
+
+    if (authEmail === ownerEmail) {
+      visibleUsers = rows;
+    } else if (me?.role?.trim() === "مدير") {
+      visibleUsers = rows.filter(
+        (user) => user.email.trim().toLowerCase() !== ownerEmail,
+      );
+    } else if (me) {
+      visibleUsers = rows.filter((user) => user.id === me.id);
+    }
+
+    setUsers(visibleUsers);
+    setLoadingUsers(false);
   };
 
   useEffect(() => {
@@ -386,14 +382,8 @@ export default function UsersPermissions() {
   // تحميل الصلاحيات الافتراضية تلقائيًا عند تغيير نوع المستخدم،
   // مع بقاء إمكانية تعديل أي مربع يدويًا بعد ذلك.
   useEffect(() => {
-    const next = getRolePermissions(newRole);
-    if (isManager) {
-      protectedPermissionKeys.forEach((key) => {
-        next[key] = false;
-      });
-    }
-    setSelectedPermissions(next);
-  }, [newRole, isManager]);
+    setSelectedPermissions(getRolePermissions(newRole));
+  }, [newRole]);
 
   const filteredUsers = useMemo(() => {
     return users.filter((user) => {
@@ -424,9 +414,6 @@ export default function UsersPermissions() {
   }, [users]);
 
   const togglePermission = (key: PermissionKey) => {
-    if (!canManageUsers) return;
-    if (isManager && protectedPermissionKeys.has(key)) return;
-
     setSelectedPermissions((current) => ({
       ...current,
       [key]: !current[key],
@@ -439,7 +426,7 @@ export default function UsersPermissions() {
       return;
     }
 
-    if (isManager && newRole === "مسؤول النظام") {
+    if (!isSystemOwner && newRole === "مسؤول النظام") {
       alert("لا يمكن للمدير إنشاء مسؤول نظام.");
       return;
     }
@@ -466,7 +453,7 @@ export default function UsersPermissions() {
           active: true,
           permissions: {
             ...selectedPermissions,
-            ...(isManager
+            ...(isManager && !isSystemOwner
               ? {
                   users_view: false,
                   users_add: false,
@@ -555,7 +542,7 @@ export default function UsersPermissions() {
       return;
     }
 
-    if (user.email.toLowerCase() === SYSTEM_OWNER_EMAIL.toLowerCase()) {
+    if (user.email.trim().toLowerCase() === SYSTEM_OWNER_EMAIL.toLowerCase()) {
       alert("لا يمكن حذف مسؤول النظام الحالي.");
       return;
     }
@@ -602,16 +589,16 @@ export default function UsersPermissions() {
       return;
     }
 
-    const previousUser = users.find((user) => user.id === id);
-    if (!previousUser) return;
-
-    if (previousUser.email.toLowerCase() === SYSTEM_OWNER_EMAIL.toLowerCase() && !isSystemOwner) {
-      alert("لا يمكن تعديل مسؤول النظام الأساسي.");
+    if (isManager && protectedPermissionKeys.has(key)) {
+      alert("هذه الصلاحية محمية ولا يمكن للمدير تعديلها.");
       return;
     }
 
-    if (isManager && protectedPermissionKeys.has(key)) {
-      alert("هذه الصلاحية محمية ولا يمكن للمدير تعديلها.");
+    const previousUser = users.find((user) => user.id === id);
+    if (!previousUser) return;
+
+    if (previousUser.email.trim().toLowerCase() === SYSTEM_OWNER_EMAIL.toLowerCase() && !isSystemOwner) {
+      alert("لا يمكن تعديل مسؤول النظام الأساسي.");
       return;
     }
 
@@ -646,8 +633,8 @@ export default function UsersPermissions() {
       return;
     }
 
-    if (user.email.toLowerCase() === SYSTEM_OWNER_EMAIL.toLowerCase() && !isSystemOwner) {
-      alert("لا يمكن تعديل بيانات مسؤول النظام الأساسي.");
+    if (user.email.trim().toLowerCase() === SYSTEM_OWNER_EMAIL.toLowerCase() && !isSystemOwner) {
+      alert("لا يمكن تعديل مسؤول النظام الأساسي.");
       return;
     }
 
@@ -665,7 +652,11 @@ export default function UsersPermissions() {
 
   const toggleEditPermission = (key: PermissionKey) => {
     if (!canManageUsers) return;
-    if (isManager && protectedPermissionKeys.has(key)) return;
+
+    if (isManager && protectedPermissionKeys.has(key)) {
+      alert("هذه الصلاحية محمية ولا يمكن للمدير تعديلها.");
+      return;
+    }
 
     setEditPermissions((current) => ({
       ...current,
@@ -674,16 +665,21 @@ export default function UsersPermissions() {
   };
 
   const changeEditRole = (role: Role) => {
+    if (isManager && editingUser?.id === currentUser?.id) {
+      alert("لا يمكنك تغيير نوع حساب المدير الخاص بك.");
+      return;
+    }
+
     if (isManager && role === "مسؤول النظام") {
-      alert("لا يمكن للمدير تعيين مسؤول نظام.");
+      alert("لا يمكن للمدير إنشاء مسؤول نظام.");
       return;
     }
 
     setEditRole(role);
     const next = getRolePermissions(role);
-    if (isManager && editingUser) {
+    if (isManager) {
       protectedPermissionKeys.forEach((key) => {
-        next[key] = editingUser.permissions[key];
+        next[key] = editingUser?.permissions[key] ?? false;
       });
     }
     setEditPermissions(next);
@@ -697,13 +693,13 @@ export default function UsersPermissions() {
       return;
     }
 
-    if (editingUser.email.toLowerCase() === SYSTEM_OWNER_EMAIL.toLowerCase() && !isSystemOwner) {
-      alert("لا يمكن تعديل بيانات مسؤول النظام الأساسي.");
+    if (editingUser.email.trim().toLowerCase() === SYSTEM_OWNER_EMAIL.toLowerCase() && !isSystemOwner) {
+      alert("لا يمكن تعديل مسؤول النظام الأساسي.");
       return;
     }
 
     if (isManager && editRole === "مسؤول النظام") {
-      alert("لا يمكن للمدير تعيين مسؤول نظام.");
+      alert("لا يمكن للمدير إنشاء مسؤول نظام.");
       return;
     }
 
@@ -725,12 +721,14 @@ export default function UsersPermissions() {
           permissions: {
             ...editPermissions,
             ...(isManager
-              ? Object.fromEntries(
-                  Array.from(protectedPermissionKeys).map((key) => [
-                    key,
-                    editingUser.permissions[key],
-                  ]),
-                ) as Record<PermissionKey, boolean>
+              ? {
+                  users_view: editingUser.permissions.users_view,
+                  users_add: editingUser.permissions.users_add,
+                  users_edit: editingUser.permissions.users_edit,
+                  settings_view: editingUser.permissions.settings_view,
+                  settings_add: editingUser.permissions.settings_add,
+                  settings_edit: editingUser.permissions.settings_edit,
+                }
               : {}),
           },
         })
@@ -761,50 +759,6 @@ export default function UsersPermissions() {
       console.error("خطأ في تعديل المستخدم:", error);
       alert(
         `تعذر حفظ تعديلات المستخدم:\n${
-          error instanceof Error ? error.message : "خطأ غير معروف"
-        }`,
-      );
-    } finally {
-      setSavingUsers(false);
-    }
-  };
-
-  const changeCurrentPassword = async () => {
-    if (!currentUser?.email) {
-      alert("تعذر تحديد الحساب الحالي.");
-      return;
-    }
-
-    if (!currentPassword || !newCurrentPassword) {
-      alert("يرجى إدخال كلمة المرور الحالية والجديدة.");
-      return;
-    }
-
-    if (newCurrentPassword.length < 6) {
-      alert("كلمة المرور الجديدة يجب أن تكون 6 أحرف على الأقل.");
-      return;
-    }
-
-    setSavingUsers(true);
-    try {
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: currentUser.email,
-        password: currentPassword,
-      });
-      if (signInError) throw signInError;
-
-      const { error: updateError } = await supabase.auth.updateUser({
-        password: newCurrentPassword,
-      });
-      if (updateError) throw updateError;
-
-      setCurrentPassword("");
-      setNewCurrentPassword("");
-      alert("تم تغيير كلمة المرور بنجاح.");
-    } catch (error) {
-      console.error("خطأ في تغيير كلمة المرور:", error);
-      alert(
-        `تعذر تغيير كلمة المرور:\n${
           error instanceof Error ? error.message : "خطأ غير معروف"
         }`,
       );
@@ -846,16 +800,14 @@ export default function UsersPermissions() {
             </div>
 
             <div className="rounded-2xl border border-amber-300/20 bg-amber-300/[0.06] px-4 py-3 text-center">
-              <div className="text-xs text-slate-400">{canManageUsers ? "إجمالي المستخدمين" : "المستخدم الحالي"}</div>
-              <div className="text-lg font-black text-white">
-                {canManageUsers ? roleCounts.total : currentUser?.name ?? ""}
+              <div className="text-xs text-slate-400">إجمالي المستخدمين</div>
+              <div className="text-2xl font-black text-white">
+                {roleCounts.total}
               </div>
             </div>
           </div>
         </section>
 
-        {canManageUsers && (
-          <>
         {/* Statistics */}
         <section className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-6">
           <StatCard
@@ -895,12 +847,9 @@ export default function UsersPermissions() {
             tone="red"
           />
         </section>
-          </>
-        )}
 
-        {canManageUsers && (
-          <>
         {/* Add User + Roles */}
+        {canManageUsers && (
         <section className="mb-5 grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
           <div className={`${glass} rounded-[26px] p-4 sm:p-5`}>
             <div className="mb-4 flex items-center justify-between border-b border-white/10 pb-4">
@@ -964,11 +913,7 @@ export default function UsersPermissions() {
                   label="نوع المستخدم"
                   value={newRole}
                   onChange={(value) => setNewRole(value as Role)}
-                  options={
-                    (Object.keys(roleMeta) as Role[]).filter(
-                      (role) => !isManager || role !== "مسؤول النظام",
-                    )
-                  }
+                  options={Object.keys(roleMeta) as Role[]}
                 />
                 <Field
                   label="كلمة المرور"
@@ -1072,22 +1017,6 @@ export default function UsersPermissions() {
             </div>
           </div>
         </section>
-          </>
-        )}
-
-        {!canManageUsers && currentUser && (
-          <section className={`${glass} mb-5 rounded-[26px] p-4 sm:p-5`}>
-            <div className="flex items-center gap-4">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-amber-300/25 bg-amber-400/10 text-amber-100">
-                <UserCog size={26} />
-              </div>
-              <div>
-                <div className="text-xs text-slate-400">حسابي</div>
-                <div className="text-xl font-black text-white">{currentUser.name}</div>
-                <div className="mt-1 text-sm text-slate-400">{currentUser.email}</div>
-              </div>
-            </div>
-          </section>
         )}
 
         {/* Current Password */}
@@ -1125,9 +1054,7 @@ export default function UsersPermissions() {
             />
             <button
               type="button"
-              onClick={() => void changeCurrentPassword()}
-              disabled={savingUsers}
-              className="mt-auto flex h-11 items-center justify-center gap-2 rounded-xl border border-violet-300/30 bg-violet-400/10 px-6 text-sm font-black text-violet-100 transition hover:bg-violet-400/20 disabled:cursor-not-allowed disabled:opacity-50"
+              className="mt-auto flex h-11 items-center justify-center gap-2 rounded-xl border border-violet-300/30 bg-violet-400/10 px-6 text-sm font-black text-violet-100 transition hover:bg-violet-400/20"
             >
               <Save size={17} />
               حفظ التغيير
@@ -1135,8 +1062,6 @@ export default function UsersPermissions() {
           </div>
         </section>
 
-        {canManageUsers && (
-          <>
         {/* Users + Permission Matrix */}
         <section className={`${glass} overflow-hidden rounded-[26px]`}>
           <div className="border-b border-white/10 p-4 sm:p-5">
@@ -1344,12 +1269,11 @@ export default function UsersPermissions() {
                           >
                             <PermissionBox
                               checked={user.permissions[child.key]}
-                              disabled={
-                                (isManager && protectedPermissionKeys.has(child.key)) ||
-                                (user.email.toLowerCase() === SYSTEM_OWNER_EMAIL.toLowerCase() && !isSystemOwner)
-                              }
-                              onClick={() =>
-                                toggleUserPermission(user.id, child.key)
+                              onClick={
+                                canManageUsers &&
+                                !(isManager && protectedPermissionKeys.has(child.key))
+                                  ? () => toggleUserPermission(user.id, child.key)
+                                  : undefined
                               }
                             />
                           </td>
@@ -1358,21 +1282,25 @@ export default function UsersPermissions() {
 
                       <td className="border border-white/[0.07] px-3 py-3">
                         <div className="flex items-center justify-center gap-1">
-                          <ActionButton
-                            icon={MoreHorizontal}
-                            label="المزيد"
-                          />
-                          <ActionButton
-                            icon={Pencil}
-                            label="تعديل"
-                            onClick={() => openEditUser(user)}
-                          />
-                          <ActionButton
-                            icon={Trash2}
-                            label="حذف"
-                            danger
-                            onClick={() => deleteUser(user)}
-                          />
+                          {canManageUsers && (
+                            <>
+                              <ActionButton
+                                icon={MoreHorizontal}
+                                label="المزيد"
+                              />
+                              <ActionButton
+                                icon={Pencil}
+                                label="تعديل"
+                                onClick={() => openEditUser(user)}
+                              />
+                              <ActionButton
+                                icon={Trash2}
+                                label="حذف"
+                                danger
+                                onClick={() => deleteUser(user)}
+                              />
+                            </>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -1416,8 +1344,6 @@ export default function UsersPermissions() {
             </div>
           </div>
         </section>
-          </>
-        )}
 
         {deleteUserTarget && (
           <div
@@ -1553,10 +1479,10 @@ export default function UsersPermissions() {
                     value={editRole}
                     onChange={(value) => changeEditRole(value as Role)}
                     options={
-                    (Object.keys(roleMeta) as Role[]).filter(
-                      (role) => !isManager || role !== "مسؤول النظام",
-                    )
-                  }
+                      (isSystemOwner
+                        ? Object.keys(roleMeta)
+                        : Object.keys(roleMeta).filter((role) => role !== "مسؤول النظام")) as Role[]
+                    }
                   />
                   <SelectField
                     label="حالة الحساب"
@@ -1791,24 +1717,22 @@ function PermissionGroupCard({
         {permissions.map((permission) => {
           const disabled = disabledKeys?.has(permission.key) ?? false;
           return (
-            <button
-              key={permission.key}
-              type="button"
-              onClick={() => {
-                if (!disabled) onChange(permission.key);
-              }}
-              disabled={disabled}
-              className={`flex flex-col items-center justify-center gap-1 rounded-lg border px-1 py-2 transition ${
-                values[permission.key]
-                  ? "border-emerald-300/30 bg-emerald-400/10"
-                  : "border-white/10 bg-black/10 hover:bg-white/[0.04]"
-              } ${disabled ? "cursor-not-allowed opacity-45" : ""}`}
-            >
-              <PermissionBox checked={values[permission.key]} disabled={disabled} />
-              <span className="text-[10px] font-bold text-slate-300">
-                {permission.title}
-              </span>
-            </button>
+          <button
+            key={permission.key}
+            type="button"
+            disabled={disabled}
+            onClick={() => onChange(permission.key)}
+            className={`flex flex-col items-center justify-center gap-1 rounded-lg border px-1 py-2 transition ${
+              values[permission.key]
+                ? "border-emerald-300/30 bg-emerald-400/10"
+                : "border-white/10 bg-black/10 hover:bg-white/[0.04]"
+            } ${disabled ? "cursor-not-allowed opacity-50" : ""}`}
+          >
+            <PermissionBox checked={values[permission.key]} />
+            <span className="text-[10px] font-bold text-slate-300">
+              {permission.title}
+            </span>
+          </button>
           );
         })}
       </div>
@@ -1819,17 +1743,13 @@ function PermissionGroupCard({
 function PermissionBox({
   checked,
   onClick,
-  disabled = false,
 }: {
   checked: boolean;
   onClick?: () => void;
-  disabled?: boolean;
 }) {
   const content = (
     <span
       className={`flex h-5 w-5 items-center justify-center rounded-md border transition ${
-        disabled ? "opacity-50" : ""
-      } ${
         checked
           ? "border-emerald-300/50 bg-emerald-500 text-white shadow-[0_0_12px_rgba(16,185,129,0.25)]"
           : "border-slate-500/50 bg-black/10 text-transparent"
