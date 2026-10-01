@@ -30,7 +30,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../utils/supabase";
-
+const SYSTEM_OWNER_EMAIL = "alinasr99f@gmail.com";
 type Role =
   | "مسؤول النظام"
   | "مدير"
@@ -273,7 +273,13 @@ const glass =
   "border border-white/10 bg-white/[0.035] backdrop-blur-xl shadow-[0_20px_60px_rgba(0,0,0,0.18)]";
 
 export default function UsersPermissions() {
+  const [currentUser, setCurrentUser] = useState<UserRow | null>(null);
   const [users, setUsers] = useState<UserRow[]>([]);
+
+  const isSystemOwner =
+    currentUser?.email?.toLowerCase() === SYSTEM_OWNER_EMAIL.toLowerCase();
+  const isManager = currentUser?.role === "مدير";
+  const canManageUsers = isSystemOwner || isManager;
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [savingUsers, setSavingUsers] = useState(false);
   const [databaseError, setDatabaseError] = useState<string | null>(null);
@@ -337,7 +343,27 @@ export default function UsersPermissions() {
       permissions: normalizePermissions(row.permissions),
     }));
 
-    setUsers(rows);
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+
+    const me = rows.find(
+      (user) => user.email.toLowerCase() === authUser?.email?.toLowerCase()
+    );
+
+    setCurrentUser(me ?? null);
+
+    let visibleUsers = rows;
+
+    if (me?.email.toLowerCase() === SYSTEM_OWNER_EMAIL.toLowerCase()) {
+      visibleUsers = rows;
+    } else if (me?.role === "مدير") {
+      visibleUsers = rows.filter(
+        (user) => user.email.toLowerCase() !== SYSTEM_OWNER_EMAIL.toLowerCase()
+      );
+    } else if (me) {
+      visibleUsers = rows.filter((user) => user.id === me.id);
+    }
+
+    setUsers(visibleUsers);
     setLoadingUsers(false);
   };
 
@@ -387,6 +413,16 @@ export default function UsersPermissions() {
   };
 
   const addUser = async () => {
+    if (!isSystemOwner && !isManager) {
+      alert("لا تملك صلاحية إضافة مستخدمين.");
+      return;
+    }
+
+    if (!isSystemOwner && newRole === "مسؤول النظام") {
+      alert("لا يمكن للمدير إنشاء مسؤول نظام.");
+      return;
+    }
+
     if (!newName.trim() || !newEmail.trim() || !newPassword.trim()) {
       alert("يرجى استكمال بيانات المستخدم.");
       return;
@@ -481,8 +517,8 @@ export default function UsersPermissions() {
   };
 
   const deleteUser = (user: UserRow) => {
-    if (user.id === 1) {
-      alert("لا يمكن حذف مسؤول النظام الحالي.");
+    if (user.email.toLowerCase() === SYSTEM_OWNER_EMAIL.toLowerCase()) {
+      alert("لا يمكن حذف مسؤول النظام الأساسي.");
       return;
     }
 
@@ -552,6 +588,11 @@ export default function UsersPermissions() {
   };
 
   const openEditUser = (user: UserRow) => {
+    if (user.email.toLowerCase() === SYSTEM_OWNER_EMAIL.toLowerCase() && !isSystemOwner) {
+      alert("لا يمكن تعديل مسؤول النظام الأساسي.");
+      return;
+    }
+
     setEditingUser(user);
     setEditName(user.name);
     setEditEmail(user.email);
@@ -578,6 +619,16 @@ export default function UsersPermissions() {
 
   const saveEditedUser = async () => {
     if (!editingUser) return;
+
+    if (editingUser.email.toLowerCase() === SYSTEM_OWNER_EMAIL.toLowerCase() && !isSystemOwner) {
+      alert("لا يمكن تعديل مسؤول النظام الأساسي.");
+      return;
+    }
+
+    if (!isSystemOwner && editRole === "مسؤول النظام") {
+      alert("لا يمكن إنشاء مسؤول نظام.");
+      return;
+    }
 
     if (!editName.trim() || !editEmail.trim()) {
       alert("يرجى استكمال اسم المستخدم والبريد الإلكتروني.");
@@ -776,7 +827,7 @@ export default function UsersPermissions() {
                   label="نوع المستخدم"
                   value={newRole}
                   onChange={(value) => setNewRole(value as Role)}
-                  options={Object.keys(roleMeta) as Role[]}
+                  options={(isSystemOwner ? Object.keys(roleMeta) : Object.keys(roleMeta).filter((role) => role !== "مسؤول النظام")) as Role[]}
                 />
                 <Field
                   label="كلمة المرور"
