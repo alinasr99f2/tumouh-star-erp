@@ -33,10 +33,20 @@ import ContactUs from "./pages/Contact/ContactUs";
 import Apartments from "./pages/Apartments/Apartments";
 
 function ProtectedRoute() {
-  const [sessionReady, setSessionReady] = useState(false);
-  const [hasSession, setHasSession] = useState(false);
+
+  const DEV_MODE = import.meta.env.VITE_DEV_MODE === "true";
+
+  const [sessionReady, setSessionReady] = useState(DEV_MODE);
+  const [hasSession, setHasSession] = useState(DEV_MODE);
 
   useEffect(() => {
+
+    // تشغيل النظام بدون تسجيل دخول على جهاز العمل
+    if (DEV_MODE) {
+      setHasSession(true);
+      setSessionReady(true);
+      return;
+    }
     let mounted = true;
 
     const checkSession = async () => {

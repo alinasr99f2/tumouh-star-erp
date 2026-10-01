@@ -44,18 +44,7 @@ type BuildingApartment = {
 };
 
 const initialBuildings: Building[] = [
-  {
-    id: 1,
-    name: "عمارة سنتر",
-    buildingNumber: "1",
-    city: "تبوك",
-    status: "قيد التنفيذ",
-    units: 44,
-    occupiedUnits: 0,
-    vacantUnits: 44,
-    progress: 72,
-    annualRent: 950000,
-  },
+ 
 ];
 
 type Filter = "الكل" | BuildingStatus;
@@ -64,7 +53,7 @@ export default function Buildings() {
   const navigate = useNavigate();
 
   const [buildings, setBuildings] =
-    useState<Building[]>(initialBuildings);
+  useState<Building[]>([]);
 
   const [search, setSearch] = useState("");
 
