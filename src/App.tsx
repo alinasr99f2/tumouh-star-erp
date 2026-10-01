@@ -149,30 +149,34 @@ function App() {
                 المشاريع
             ========================================= */}
             <Route
-              path="/projects"
-              element={<Projects />}
-            />
+  path="/projects"
+  element={<Projects />}
+/>
 
-            <Route
-              path="/projects/:id/charts"
-              element={<ProjectCharts />}
-            />
+<Route
+  path="/projects/financial"
+  element={<FinancialCenter />}
+/>
 
-            <Route
-              path="/projects/:id/quantities"
-              element={<ProjectQuantities />}
-            />
+<Route
+  path="/projects/:id/charts"
+  element={<ProjectCharts />}
+/>
 
-            <Route
-              path="/projects/:id/expenses"
-              element={<ProjectExpenses />}
-            />
+<Route
+  path="/projects/:id/quantities"
+  element={<ProjectQuantities />}
+/>
 
-            <Route
-              path="/projects/:id"
-              element={<ProjectDetails />}
-            />
+<Route
+  path="/projects/:id/expenses"
+  element={<ProjectExpenses />}
+/>
 
+<Route
+  path="/projects/:id"
+  element={<ProjectDetails />}
+/>
 
             {/* =========================================
                 العمائر
@@ -210,9 +214,15 @@ function App() {
                 المركز المالي
             ========================================= */}
             <Route
-              path="/financial"
-              element={<FinancialCenter />}
-            />
+  path="/projects/financial"
+  element={<FinancialCenter />}
+/>
+
+{/* الرابط القديم يتحول تلقائياً للمركز المالي الخاص بالمشاريع */}
+<Route
+  path="/financial"
+  element={<Navigate to="/projects/financial" replace />}
+/>
 
 
             {/* =========================================

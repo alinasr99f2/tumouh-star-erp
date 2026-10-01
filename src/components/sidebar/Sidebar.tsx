@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 
 import {
@@ -7,6 +7,7 @@ import {
   ChevronDown,
   ChevronLeft,
   Building2,
+  WalletCards,
 } from "lucide-react";
 
 import { sidebarMenu } from "../../data/menu";
@@ -16,17 +17,15 @@ type SidebarProps = {
   onLogout: () => void;
 };
 
-type SidebarBuilding = {
-  id: number;
-  name: string;
-};
-
 function Sidebar({ onLogout }: SidebarProps) {
   const location = useLocation();
 
-  // =========================================================
-  // Buildings menu state
-  // =========================================================
+  const [projectsOpen, setProjectsOpen] = useState(() => {
+    return (
+      location.pathname === "/projects" ||
+      location.pathname.startsWith("/projects/")
+    );
+  });
 
   const [buildingsOpen, setBuildingsOpen] = useState(() => {
     return (
@@ -37,48 +36,17 @@ function Sidebar({ onLogout }: SidebarProps) {
 
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  type SidebarBuilding = {
+    id: number;
+    name: string;
+  };
+
   const [buildings, setBuildings] = useState<SidebarBuilding[]>([]);
-
-  // =========================================================
-  // Load buildings
-  // =========================================================
-
-  const loadBuildings = useCallback(async () => {
-    const { data, error } = await supabase
-      .from("buildings")
-      .select("id, name")
-      .order("id", { ascending: true });
-
-    if (error) {
-      console.error(
-        "خطأ في تحميل العمائر للقائمة الجانبية:",
-        error
-      );
-
-      return;
-    }
-
-    const normalizedBuildings = (data ?? [])
-      .map((row) => ({
-        id: Number(row.id),
-        name: String(row.name ?? "").trim(),
-      }))
-      .filter(
-        (building) =>
-          Number.isFinite(building.id) && building.name
-      );
-
-    setBuildings(normalizedBuildings);
-  }, []);
-
-  // =========================================================
-  // Initial load
-  // =========================================================
 
   useEffect(() => {
     let cancelled = false;
 
-    const loadInitialBuildings = async () => {
+    const loadBuildings = async () => {
       const { data, error } = await supabase
         .from("buildings")
         .select("id, name")
@@ -87,11 +55,7 @@ function Sidebar({ onLogout }: SidebarProps) {
       if (cancelled) return;
 
       if (error) {
-        console.error(
-          "خطأ في تحميل العمائر للقائمة الجانبية:",
-          error
-        );
-
+        console.error("خطأ في تحميل العمائر للقائمة الجانبية:", error);
         setBuildings([]);
         return;
       }
@@ -101,89 +65,26 @@ function Sidebar({ onLogout }: SidebarProps) {
           id: Number(row.id),
           name: String(row.name ?? "").trim(),
         }))
-        .filter(
-          (building) =>
-            Number.isFinite(building.id) && building.name
-        );
+        .filter((building) => Number.isFinite(building.id) && building.name);
 
       setBuildings(normalizedBuildings);
     };
 
-    void loadInitialBuildings();
+    void loadBuildings();
 
     return () => {
       cancelled = true;
     };
   }, []);
 
-  // =========================================================
-  // Realtime buildings updates
-  //
-  // أي إضافة / تعديل / حذف في جدول buildings
-  // تحدث القائمة الجانبية تلقائيًا.
-  // =========================================================
-
   useEffect(() => {
-    const channel = supabase
-      .channel("sidebar-buildings-realtime")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "buildings",
-        },
-        () => {
-          void loadBuildings();
-        }
-      )
-      .subscribe((status) => {
-        console.log(
-          "حالة تحديث العمائر في القائمة:",
-          status
-        );
-      });
-
-    return () => {
-      void supabase.removeChannel(channel);
-    };
-  }, [loadBuildings]);
-
-  // =========================================================
-  // Refresh when window becomes visible / focused
-  //
-  // حل احتياطي لو Realtime لم يكن مفعلاً في Supabase.
-  // =========================================================
-
-  useEffect(() => {
-    const handleFocus = () => {
-      void loadBuildings();
-    };
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        void loadBuildings();
-      }
-    };
-
-    window.addEventListener("focus", handleFocus);
-    document.addEventListener(
-      "visibilitychange",
-      handleVisibilityChange
-    );
-
-    return () => {
-      window.removeEventListener("focus", handleFocus);
-      document.removeEventListener(
-        "visibilitychange",
-        handleVisibilityChange
-      );
-    };
-  }, [loadBuildings]);
-
-  // =========================================================
-  // Open buildings menu automatically
-  // =========================================================
+    if (
+      location.pathname === "/projects" ||
+      location.pathname.startsWith("/projects/")
+    ) {
+      setProjectsOpen(true);
+    }
+  }, [location.pathname]);
 
   useEffect(() => {
     if (
@@ -194,25 +95,17 @@ function Sidebar({ onLogout }: SidebarProps) {
     }
   }, [location.pathname]);
 
-  // =========================================================
-  // Mobile navigation
-  // =========================================================
-
   const handleMobileNavigate = () => {
     setMobileOpen(false);
   };
 
-  // =========================================================
-  // Toggle buildings
-  // =========================================================
+  const toggleProjects = () => {
+    setProjectsOpen((previous) => !previous);
+  };
 
   const toggleBuildings = () => {
     setBuildingsOpen((previous) => !previous);
   };
-
-  // =========================================================
-  // Render
-  // =========================================================
 
   return (
     <>
@@ -472,7 +365,10 @@ function Sidebar({ onLogout }: SidebarProps) {
           </p>
 
           <div className="space-y-3">
-            {sidebarMenu.map((item) => {
+            {sidebarMenu
+              .filter((item) => item.title !== "المركز المالي")
+              .map((item) => {
+              const isProjects = item.title === "المشاريع";
               const isBuildings = item.title === "العمائر";
 
               return (
@@ -536,7 +432,7 @@ function Sidebar({ onLogout }: SidebarProps) {
                               hover:shadow-black/10
                             `
                         }
-                        ${isBuildings ? "pl-14" : ""}
+                        ${isProjects || isBuildings ? "pl-14" : ""}
                       `
                       }
                     >
@@ -558,23 +454,31 @@ function Sidebar({ onLogout }: SidebarProps) {
                     </NavLink>
 
                     {/* ================================================= */}
-                    {/* Buildings Arrow */}
+                    {/* Section Arrow */}
                     {/* ================================================= */}
 
-                    {isBuildings && (
+                    {(isProjects || isBuildings) && (
                       <button
                         type="button"
                         onClick={(event) => {
                           event.preventDefault();
                           event.stopPropagation();
-                          toggleBuildings();
+                          if (isProjects) {
+                            toggleProjects();
+                          } else {
+                            toggleBuildings();
+                          }
                         }}
                         aria-label={
-                          buildingsOpen
+                          isProjects
+                            ? projectsOpen
+                              ? "إخفاء المشاريع"
+                              : "إظهار المشاريع"
+                            : buildingsOpen
                             ? "إخفاء العمائر"
                             : "إظهار العمائر"
                         }
-                        aria-expanded={buildingsOpen}
+                        aria-expanded={isProjects ? projectsOpen : buildingsOpen}
                         className="
                           absolute
                           left-2
@@ -598,7 +502,7 @@ function Sidebar({ onLogout }: SidebarProps) {
                           cursor-pointer
                         "
                       >
-                        {buildingsOpen ? (
+                        {(isProjects ? projectsOpen : buildingsOpen) ? (
                           <ChevronDown
                             size={20}
                             strokeWidth={2.2}
@@ -612,6 +516,117 @@ function Sidebar({ onLogout }: SidebarProps) {
                       </button>
                     )}
                   </div>
+
+                  {/* ================================================= */}
+                  {/* Projects Submenu */}
+                  {/* ================================================= */}
+
+                  {isProjects && projectsOpen && (
+                    <div
+                      className="
+                        mr-5
+                        ml-2
+                        border-r
+                        border-white/25
+                        pr-3
+                        space-y-2
+                      "
+                    >
+                      <NavLink
+                        to="/projects/financial"
+                        onClick={handleMobileNavigate}
+                        className={({ isActive }) =>
+                          `
+                          group
+                          flex
+                          min-h-[48px]
+                          items-center
+                          gap-3
+                          rounded-xl
+                          border
+                          px-4
+                          py-3
+                          text-sm
+                          transition-all
+                          duration-300
+                          ${
+                            isActive
+                              ? `
+                                border-[#D4AD4D]
+                                bg-gradient-to-r
+                                from-[#145B46]
+                                to-[#073529]
+                                text-[#F6D878]
+                                font-bold
+                                shadow-md
+                              `
+                              : `
+                                border-transparent
+                                text-white/90
+                                hover:border-[#C49A3A]/35
+                                hover:bg-black/[0.10]
+                                hover:text-white
+                                hover:translate-x-1
+                              `
+                          }
+                        `
+                        }
+                      >
+                        <WalletCards
+                          size={19}
+                          className="shrink-0 transition-transform duration-300 group-hover:scale-110"
+                        />
+                        <span className="truncate">المركز المالي</span>
+                      </NavLink>
+
+                      <NavLink
+                        to="/projects/1"
+                        onClick={handleMobileNavigate}
+                        className={({ isActive }) =>
+                          `
+                          group
+                          flex
+                          min-h-[48px]
+                          items-center
+                          gap-3
+                          rounded-xl
+                          border
+                          px-4
+                          py-3
+                          text-sm
+                          transition-all
+                          duration-300
+                          ${
+                            isActive
+                              ? `
+                                border-[#D4AD4D]
+                                bg-gradient-to-r
+                                from-[#145B46]
+                                to-[#073529]
+                                text-[#F6D878]
+                                font-bold
+                                shadow-md
+                              `
+                              : `
+                                border-transparent
+                                text-white/90
+                                hover:border-[#C49A3A]/35
+                                hover:bg-black/[0.10]
+                                hover:text-white
+                                hover:translate-x-1
+                              `
+                          }
+                        `
+                        }
+                      >
+                        <Building2
+                          size={19}
+                          className="shrink-0 transition-transform duration-300 group-hover:scale-110"
+                        />
+                        <span className="truncate">مشروع فلل تبوك</span>
+                      </NavLink>
+                    </div>
+                  )}
 
                   {/* ================================================= */}
                   {/* Dynamic Buildings Submenu */}
