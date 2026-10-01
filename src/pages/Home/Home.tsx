@@ -10,12 +10,56 @@ import {
   Headset,
 } from "lucide-react";
 
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "../../utils/supabase";
 
 import "./Home.css";
 
 export default function Home() {
   const navigate = useNavigate();
+
+  const [showWelcome, setShowWelcome] = useState(false);
+  const [welcomeName, setWelcomeName] = useState("بك");
+  const [welcomeGreeting, setWelcomeGreeting] = useState("أهلاً بك");
+
+  useEffect(() => {
+    let mounted = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    const loadWelcome = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!mounted || !user) return;
+
+        const metadata = (user.user_metadata ?? {}) as Record<string, unknown>;
+        const name = String(
+          metadata.name ?? metadata.full_name ?? metadata.display_name ?? metadata.username ?? ""
+        ).trim() || String(user.email ?? "").split("@")[0] || "بك";
+
+        const hour = new Date().getHours();
+        const greeting = hour >= 5 && hour < 12 ? "صباح الخير" : "مساء الخير";
+
+        setWelcomeName(name);
+        setWelcomeGreeting(greeting);
+        setShowWelcome(true);
+
+        timer = setTimeout(() => {
+          if (mounted) setShowWelcome(false);
+        }, 5000);
+      } catch (error) {
+        console.error("تعذر تحميل بيانات رسالة الترحيب:", error);
+      }
+    };
+
+    void loadWelcome();
+    return () => {
+      mounted = false;
+      if (timer) clearTimeout(timer);
+    };
+  }, []);
+
+  const closeWelcome = () => setShowWelcome(false);
 
   const cards = [
     {
@@ -77,6 +121,54 @@ export default function Home() {
   ];
 
   return (
+    <>
+      {showWelcome && (
+        <div
+          className="fixed inset-0 z-[999] flex items-center justify-center bg-black/55 px-4 backdrop-blur-[3px] animate-in fade-in duration-300"
+          onClick={closeWelcome}
+        >
+          <div
+            dir="rtl"
+            onClick={(event) => event.stopPropagation()}
+            className="relative w-full max-w-[520px] overflow-hidden rounded-[30px] border border-yellow-400/30 bg-gradient-to-br from-[#0c4035] via-[#082d27] to-[#061b18] p-7 text-center shadow-2xl shadow-black/40 animate-in zoom-in-95 duration-300 sm:p-9"
+          >
+            <div className="pointer-events-none absolute -right-16 -top-20 h-48 w-48 rounded-full bg-yellow-400/10 blur-3xl" />
+            <div className="pointer-events-none absolute -bottom-20 -left-16 h-44 w-44 rounded-full bg-emerald-400/10 blur-3xl" />
+
+            <button
+              type="button"
+              onClick={closeWelcome}
+              aria-label="إغلاق"
+              className="absolute left-4 top-4 flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-gray-300 transition hover:bg-white/10 hover:text-white"
+            >
+              ×
+            </button>
+
+            <div className="relative mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-[24px] border border-yellow-300/30 bg-gradient-to-br from-yellow-300/20 to-yellow-500/5 text-4xl shadow-lg shadow-yellow-500/10">
+              ✦
+            </div>
+
+            <div className="relative">
+              <p className="mb-2 text-sm font-semibold text-yellow-300/90">AQAR SMART ERP</p>
+              <h2 className="text-3xl font-black leading-tight text-white sm:text-4xl">
+                {welcomeGreeting}، {welcomeName}
+              </h2>
+              <p className="mx-auto mt-4 max-w-[410px] text-sm leading-7 text-emerald-100/75 sm:text-base">
+                يسعدنا وجودك معنا. نتمنى لك يومًا موفقًا ومليئًا بالإنجاز، وكل ما تحتاجه لإدارة أعمالك أصبح جاهزًا أمامك.
+              </p>
+              <button
+                type="button"
+                onClick={closeWelcome}
+                className="mt-7 w-full rounded-2xl border border-yellow-300/40 bg-gradient-to-r from-yellow-400 to-yellow-500 px-6 py-3.5 text-base font-black text-[#062B24] shadow-lg shadow-yellow-500/10 transition hover:-translate-y-0.5 hover:shadow-yellow-500/20"
+              >
+                متابعة إلى النظام
+              </button>
+              <p className="mt-3 text-xs text-white/35">ستختفي هذه الرسالة تلقائيًا خلال ثوانٍ</p>
+            </div>
+          </div>
+        </div>
+      )}
+
     <div
       dir="rtl"
       className="
@@ -531,5 +623,6 @@ export default function Home() {
         </div>
       </div>
     </div>
+    </>
   );
 }
