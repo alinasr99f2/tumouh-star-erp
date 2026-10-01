@@ -11,7 +11,16 @@ import {
   Headset,
 } from "lucide-react";
 
-export const sidebarMenu = [
+import type { LucideIcon } from "lucide-react";
+
+export type SidebarMenuItem = {
+  title: string;
+  icon: LucideIcon;
+  path: string;
+  children?: SidebarMenuItem[];
+};
+
+export const sidebarMenu: SidebarMenuItem[] = [
   {
     title: "الشاشة الرئيسية",
     icon: Home,
@@ -34,6 +43,7 @@ export const sidebarMenu = [
     title: "العمائر",
     icon: Building2,
     path: "/buildings",
+
     children: [
       {
         title: "خريطة الشقق",

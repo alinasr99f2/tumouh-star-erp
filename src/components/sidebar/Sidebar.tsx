@@ -1,26 +1,189 @@
-
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
+
 import {
   LogOut,
   Circle,
   ChevronDown,
   ChevronLeft,
+  Building2,
 } from "lucide-react";
 
 import { sidebarMenu } from "../../data/menu";
+import { supabase } from "../../utils/supabase";
 
 type SidebarProps = {
   onLogout: () => void;
 };
 
+type SidebarBuilding = {
+  id: number;
+  name: string;
+};
+
 function Sidebar({ onLogout }: SidebarProps) {
   const location = useLocation();
 
-  const [buildingsOpen, setBuildingsOpen] = useState(() =>
-    location.pathname === "/buildings" ||
-    location.pathname.startsWith("/buildings/")
-  );
+  // =========================================================
+  // Buildings menu state
+  // =========================================================
+
+  const [buildingsOpen, setBuildingsOpen] = useState(() => {
+    return (
+      location.pathname === "/buildings" ||
+      location.pathname.startsWith("/buildings/")
+    );
+  });
+
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  const [buildings, setBuildings] = useState<SidebarBuilding[]>([]);
+
+  // =========================================================
+  // Load buildings
+  // =========================================================
+
+  const loadBuildings = useCallback(async () => {
+    const { data, error } = await supabase
+      .from("buildings")
+      .select("id, name")
+      .order("id", { ascending: true });
+
+    if (error) {
+      console.error(
+        "خطأ في تحميل العمائر للقائمة الجانبية:",
+        error
+      );
+
+      return;
+    }
+
+    const normalizedBuildings = (data ?? [])
+      .map((row) => ({
+        id: Number(row.id),
+        name: String(row.name ?? "").trim(),
+      }))
+      .filter(
+        (building) =>
+          Number.isFinite(building.id) && building.name
+      );
+
+    setBuildings(normalizedBuildings);
+  }, []);
+
+  // =========================================================
+  // Initial load
+  // =========================================================
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadInitialBuildings = async () => {
+      const { data, error } = await supabase
+        .from("buildings")
+        .select("id, name")
+        .order("id", { ascending: true });
+
+      if (cancelled) return;
+
+      if (error) {
+        console.error(
+          "خطأ في تحميل العمائر للقائمة الجانبية:",
+          error
+        );
+
+        setBuildings([]);
+        return;
+      }
+
+      const normalizedBuildings = (data ?? [])
+        .map((row) => ({
+          id: Number(row.id),
+          name: String(row.name ?? "").trim(),
+        }))
+        .filter(
+          (building) =>
+            Number.isFinite(building.id) && building.name
+        );
+
+      setBuildings(normalizedBuildings);
+    };
+
+    void loadInitialBuildings();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // =========================================================
+  // Realtime buildings updates
+  //
+  // أي إضافة / تعديل / حذف في جدول buildings
+  // تحدث القائمة الجانبية تلقائيًا.
+  // =========================================================
+
+  useEffect(() => {
+    const channel = supabase
+      .channel("sidebar-buildings-realtime")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "buildings",
+        },
+        () => {
+          void loadBuildings();
+        }
+      )
+      .subscribe((status) => {
+        console.log(
+          "حالة تحديث العمائر في القائمة:",
+          status
+        );
+      });
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [loadBuildings]);
+
+  // =========================================================
+  // Refresh when window becomes visible / focused
+  //
+  // حل احتياطي لو Realtime لم يكن مفعلاً في Supabase.
+  // =========================================================
+
+  useEffect(() => {
+    const handleFocus = () => {
+      void loadBuildings();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void loadBuildings();
+      }
+    };
+
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener(
+      "visibilitychange",
+      handleVisibilityChange
+    );
+
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener(
+        "visibilitychange",
+        handleVisibilityChange
+      );
+    };
+  }, [loadBuildings]);
+
+  // =========================================================
+  // Open buildings menu automatically
+  // =========================================================
 
   useEffect(() => {
     if (
@@ -30,15 +193,33 @@ function Sidebar({ onLogout }: SidebarProps) {
       setBuildingsOpen(true);
     }
   }, [location.pathname]);
-  const [mobileOpen, setMobileOpen] = useState(false);
+
+  // =========================================================
+  // Mobile navigation
+  // =========================================================
 
   const handleMobileNavigate = () => {
     setMobileOpen(false);
   };
 
+  // =========================================================
+  // Toggle buildings
+  // =========================================================
+
+  const toggleBuildings = () => {
+    setBuildingsOpen((previous) => !previous);
+  };
+
+  // =========================================================
+  // Render
+  // =========================================================
+
   return (
     <>
+      {/* ===================================================== */}
       {/* Mobile menu button */}
+      {/* ===================================================== */}
+
       <button
         type="button"
         aria-label="فتح القائمة الجانبية"
@@ -68,7 +249,10 @@ function Sidebar({ onLogout }: SidebarProps) {
         <span className="text-2xl leading-none">☰</span>
       </button>
 
+      {/* ===================================================== */}
       {/* Mobile overlay */}
+      {/* ===================================================== */}
+
       {mobileOpen && (
         <button
           type="button"
@@ -84,6 +268,10 @@ function Sidebar({ onLogout }: SidebarProps) {
           "
         />
       )}
+
+      {/* ===================================================== */}
+      {/* Sidebar */}
+      {/* ===================================================== */}
 
       <aside
         className={`
@@ -112,297 +300,324 @@ function Sidebar({ onLogout }: SidebarProps) {
           ${mobileOpen ? "translate-x-0" : "translate-x-full"}
         `}
       >
-      {/* Mobile close button */}
-      <button
-        type="button"
-        aria-label="إغلاق القائمة الجانبية"
-        onClick={() => setMobileOpen(false)}
-        className="
-          absolute
-          left-3
-          top-3
-          z-[20]
-          flex
-          h-9
-          w-9
-          items-center
-          justify-center
-          rounded-xl
-          bg-black/15
-          text-white
-          transition
-          hover:bg-black/25
-          lg:hidden
-        "
-      >
-        <span className="text-xl leading-none">×</span>
-      </button>
+        {/* ===================================================== */}
+        {/* Mobile close */}
+        {/* ===================================================== */}
 
-      {/* Header - Official Logo */}
-      <div
-        className="
-          relative
-          flex
-          items-center
-          justify-center
-          overflow-hidden
-          px-4
-          py-3
-          pt-12
-          lg:pt-3
-          border-b
-          border-[#C49A3A]/40
-          bg-[#668C7A]
-          shadow-[0_4px_18px_rgba(0,0,0,0.15)]
-        "
-      >
-        {/* لمعة خفيفة خلف اللوجو */}
-        <div
+        <button
+          type="button"
+          aria-label="إغلاق القائمة الجانبية"
+          onClick={() => setMobileOpen(false)}
           className="
-            pointer-events-none
             absolute
-            inset-0
-            bg-gradient-to-br
-            from-white/10
-            via-transparent
-            to-[#315F4D]/20
+            left-3
+            top-3
+            z-[20]
+            flex
+            h-9
+            w-9
+            items-center
+            justify-center
+            rounded-xl
+            bg-black/15
+            text-white
+            transition
+            hover:bg-black/25
+            lg:hidden
           "
-        />
+        >
+          <span className="text-xl leading-none">×</span>
+        </button>
 
-        <img
-          src="/aqar-smart-logo.png"
-          alt="عقار سمارت"
+        {/* ===================================================== */}
+        {/* Logo */}
+        {/* ===================================================== */}
+
+        <div
           className="
             relative
-            z-10
-            w-full
-            max-w-[255px]
-            h-[110px]
-            sm:h-[135px]
-            object-contain
-            drop-shadow-[0_3px_5px_rgba(0,0,0,0.25)]
-          "
-        />
-      </div>
-
-      {/* User */}
-      <div className="px-4 pt-5">
-        <div
-          className="
-            rounded-3xl
-            bg-black/[0.10]
-            border
-            border-white/20
-            backdrop-blur-md
-            p-5
-            shadow-lg
-            shadow-black/10
+            flex
+            items-center
+            justify-center
+            overflow-hidden
+            px-4
+            py-3
+            pt-12
+            lg:pt-3
+            border-b
+            border-[#C49A3A]/40
+            bg-[#668C7A]
+            shadow-[0_4px_18px_rgba(0,0,0,0.15)]
           "
         >
-          <div className="flex items-center gap-4">
-            <div
-              className="
-                w-14
-                h-14
-                rounded-full
-                bg-gradient-to-br
-                from-[#F6D878]
-                to-[#C49A3A]
-                flex
-                items-center
-                justify-center
-                text-[#062B24]
-                font-bold
-                text-lg
-                shadow-lg
-                shadow-[#C49A3A]/20
-              "
-            >
-              A
+          <div
+            className="
+              pointer-events-none
+              absolute
+              inset-0
+              bg-gradient-to-br
+              from-white/10
+              via-transparent
+              to-[#315F4D]/20
+            "
+          />
+
+          <img
+            src="/aqar-smart-logo.png"
+            alt="عقار سمارت"
+            className="
+              relative
+              z-10
+              w-full
+              max-w-[255px]
+              h-[110px]
+              sm:h-[135px]
+              object-contain
+              drop-shadow-[0_3px_5px_rgba(0,0,0,0.25)]
+            "
+          />
+        </div>
+
+        {/* ===================================================== */}
+        {/* User */}
+        {/* ===================================================== */}
+
+        <div className="px-4 pt-5">
+          <div
+            className="
+              rounded-3xl
+              bg-black/[0.10]
+              border
+              border-white/20
+              backdrop-blur-md
+              p-5
+              shadow-lg
+              shadow-black/10
+            "
+          >
+            <div className="flex items-center gap-4">
+              <div
+                className="
+                  w-14
+                  h-14
+                  rounded-full
+                  bg-gradient-to-br
+                  from-[#F6D878]
+                  to-[#C49A3A]
+                  flex
+                  items-center
+                  justify-center
+                  text-[#062B24]
+                  font-bold
+                  text-lg
+                  shadow-lg
+                  shadow-[#C49A3A]/20
+                "
+              >
+                A
+              </div>
+
+              <div>
+                <h3 className="font-bold text-white">
+                  Ali Nasr
+                </h3>
+
+                <p className="text-[#E0EEE7] text-sm mt-1">
+                  Supervisor
+                </p>
+              </div>
             </div>
 
-            <div>
-              <h3 className="font-bold text-white">
-                Ali Nasr
-              </h3>
+            <div className="mt-4 flex items-center gap-2">
+              <Circle
+                size={10}
+                fill="#22C55E"
+                className="text-green-500"
+              />
 
-              <p className="text-[#E0EEE7] text-sm mt-1">
-                Supervisor
-              </p>
+              <span className="text-green-300 text-sm">
+                Online
+              </span>
             </div>
-          </div>
-
-          <div className="mt-4 flex items-center gap-2">
-            <Circle
-              size={10}
-              fill="#22C55E"
-              className="text-green-500"
-            />
-
-            <span className="text-green-300 text-sm">
-              Online
-            </span>
           </div>
         </div>
-      </div>
 
-      {/* Menu */}
-      <div
-        className="
-          flex-1
-          overflow-y-auto
-          overflow-x-hidden
-          mt-6
-          px-4
-          pb-5
-          scrollbar-thin
-          scrollbar-thumb-[#C49A3A]/30
-        "
-      >
-        <p
+        {/* ===================================================== */}
+        {/* Menu */}
+        {/* ===================================================== */}
+
+        <div
           className="
-            text-xs
-            text-white/70
-            px-3
-            mb-4
-            uppercase
-            tracking-widest
+            flex-1
+            overflow-y-auto
+            overflow-x-hidden
+            mt-6
+            px-4
+            pb-5
+            scrollbar-thin
+            scrollbar-thumb-[#C49A3A]/30
           "
         >
-          MAIN MENU
-        </p>
+          <p
+            className="
+              text-xs
+              text-white/70
+              px-3
+              mb-4
+              uppercase
+              tracking-widest
+            "
+          >
+            MAIN MENU
+          </p>
 
-        <div className="space-y-3">
-          {sidebarMenu.map((item) => {
-            const hasChildren = !!item.children;
-            const isBuildings = item.title === "العمائر";
+          <div className="space-y-3">
+            {sidebarMenu.map((item) => {
+              const isBuildings = item.title === "العمائر";
 
-            return (
-              <div
-                key={item.title}
-                className="space-y-2"
-              >
-                <div className="relative">
-                  <NavLink
-                    to={item.path}
-                    onClick={handleMobileNavigate}
-                    end={item.path === "/"}
-                    className={({ isActive }) =>
-                      `
-                      group
-                      relative
-                      flex
-                      min-h-[64px]
-                      items-center
-                      gap-4
-                      rounded-2xl
-                      px-5
-                      py-4
-                      border
-                      transition-all
-                      duration-300
-                      ease-out
-                      ${
-                        isActive
-                          ? `
-                            border-[#F6D878]
-                            bg-gradient-to-r
-                            from-[#145B46]
-                            via-[#0B4537]
-                            to-[#073529]
-                            text-white
-                            font-bold
-                            shadow-lg
-                            shadow-[#C49A3A]/15
-                            before:absolute
-                            before:right-[-1px]
-                            before:top-2
-                            before:bottom-2
-                            before:w-[4px]
-                            before:rounded-l-full
-                            before:bg-[#F6D878]
-                          `
-                          : `
-                            border-transparent
-                            bg-black/[0.08]
-                            text-white
-                            hover:border-[#C49A3A]/55
-                            hover:bg-[#557B6A]
-                            hover:text-white
-                            hover:-translate-x-1
-                            hover:shadow-md
-                            hover:shadow-black/10
-                          `
-                      }
-                      ${isBuildings && hasChildren ? "pl-12" : ""}
-                    `
-                    }
-                  >
-                    <item.icon
-                      size={25}
-                      strokeWidth={1.8}
-                      className="
-                        shrink-0
+              return (
+                <div
+                  key={item.title}
+                  className="space-y-2"
+                >
+                  {/* ================================================= */}
+                  {/* Main menu item */}
+                  {/* ================================================= */}
+
+                  <div className="relative">
+                    <NavLink
+                      to={item.path}
+                      onClick={handleMobileNavigate}
+                      end={item.path === "/"}
+                      className={({ isActive }) =>
+                        `
+                        group
+                        relative
+                        flex
+                        min-h-[64px]
+                        items-center
+                        gap-4
+                        rounded-2xl
+                        px-5
+                        py-4
+                        border
                         transition-all
                         duration-300
-                        group-hover:scale-110
-                        group-hover:text-[#F6D878]
-                      "
-                    />
-
-                    <span className="flex-1 text-[16px] leading-6">
-                      {item.title}
-                    </span>
-                  </NavLink>
-
-                  {isBuildings && hasChildren && (
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-
-                        setBuildingsOpen(
-                          (previous) => !previous
-                        );
-                      }}
-                      aria-label={
-                        buildingsOpen
-                          ? "إخفاء صفحات العمائر"
-                          : "إظهار صفحات العمائر"
+                        ease-out
+                        ${
+                          isActive
+                            ? `
+                              border-[#F6D878]
+                              bg-gradient-to-r
+                              from-[#145B46]
+                              via-[#0B4537]
+                              to-[#073529]
+                              text-white
+                              font-bold
+                              shadow-lg
+                              shadow-[#C49A3A]/15
+                              before:absolute
+                              before:right-[-1px]
+                              before:top-2
+                              before:bottom-2
+                              before:w-[4px]
+                              before:rounded-l-full
+                              before:bg-[#F6D878]
+                            `
+                            : `
+                              border-transparent
+                              bg-black/[0.08]
+                              text-white
+                              hover:border-[#C49A3A]/55
+                              hover:bg-[#557B6A]
+                              hover:text-white
+                              hover:-translate-x-1
+                              hover:shadow-md
+                              hover:shadow-black/10
+                            `
+                        }
+                        ${isBuildings ? "pl-14" : ""}
+                      `
                       }
-                      className="
-                        absolute
-                        left-3
-                        top-1/2
-                        -translate-y-1/2
-                        z-10
-                        w-9
-                        h-9
-                        rounded-xl
-                        flex
-                        items-center
-                        justify-center
-                        text-current
-                        hover:bg-[#C49A3A]/15
-                        hover:text-[#F6D878]
-                        transition-all
-                        duration-200
-                        cursor-pointer
-                      "
                     >
-                      {buildingsOpen ? (
-                        <ChevronDown size={19} />
-                      ) : (
-                        <ChevronLeft size={19} />
-                      )}
-                    </button>
-                  )}
-                </div>
+                      <item.icon
+                        size={25}
+                        strokeWidth={1.8}
+                        className="
+                          shrink-0
+                          transition-all
+                          duration-300
+                          group-hover:scale-110
+                          group-hover:text-[#F6D878]
+                        "
+                      />
 
-                {/* Submenu */}
-                {hasChildren &&
-                  (!isBuildings || buildingsOpen) && (
+                      <span className="flex-1 text-[16px] leading-6">
+                        {item.title}
+                      </span>
+                    </NavLink>
+
+                    {/* ================================================= */}
+                    {/* Buildings Arrow */}
+                    {/* ================================================= */}
+
+                    {isBuildings && (
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          toggleBuildings();
+                        }}
+                        aria-label={
+                          buildingsOpen
+                            ? "إخفاء العمائر"
+                            : "إظهار العمائر"
+                        }
+                        aria-expanded={buildingsOpen}
+                        className="
+                          absolute
+                          left-2
+                          top-1/2
+                          -translate-y-1/2
+                          z-20
+                          flex
+                          h-10
+                          w-10
+                          items-center
+                          justify-center
+                          rounded-xl
+                          border
+                          border-white/10
+                          bg-black/10
+                          text-white
+                          hover:bg-[#C49A3A]/20
+                          hover:text-[#F6D878]
+                          transition-all
+                          duration-200
+                          cursor-pointer
+                        "
+                      >
+                        {buildingsOpen ? (
+                          <ChevronDown
+                            size={20}
+                            strokeWidth={2.2}
+                          />
+                        ) : (
+                          <ChevronLeft
+                            size={20}
+                            strokeWidth={2.2}
+                          />
+                        )}
+                      </button>
+                    )}
+                  </div>
+
+                  {/* ================================================= */}
+                  {/* Dynamic Buildings Submenu */}
+                  {/* ================================================= */}
+
+                  {isBuildings && buildingsOpen && (
                     <div
                       className="
                         mr-5
@@ -413,132 +628,151 @@ function Sidebar({ onLogout }: SidebarProps) {
                         space-y-2
                       "
                     >
-                      {item.children.map((child) => (
-                        <NavLink
-                          key={child.title}
-                          to={child.path}
-                          onClick={handleMobileNavigate}
-                          className={({ isActive }) =>
+                      {buildings.length > 0 ? (
+                        buildings.map((building) => (
+                          <NavLink
+                            key={building.id}
+                            to={`/buildings/${building.id}`}
+                            onClick={handleMobileNavigate}
+                            className={({ isActive }) =>
+                              `
+                              group
+                              flex
+                              min-h-[48px]
+                              items-center
+                              gap-3
+                              rounded-xl
+                              border
+                              px-4
+                              py-3
+                              text-sm
+                              transition-all
+                              duration-300
+                              ${
+                                isActive
+                                  ? `
+                                    border-[#D4AD4D]
+                                    bg-gradient-to-r
+                                    from-[#145B46]
+                                    to-[#073529]
+                                    text-[#F6D878]
+                                    font-bold
+                                    shadow-md
+                                  `
+                                  : `
+                                    border-transparent
+                                    text-white/90
+                                    hover:border-[#C49A3A]/35
+                                    hover:bg-black/[0.10]
+                                    hover:text-white
+                                    hover:translate-x-1
+                                  `
+                              }
                             `
-                            group
-                            flex
-                            min-h-[48px]
-                            items-center
-                            gap-3
+                            }
+                          >
+                            <Building2
+                              size={19}
+                              className="
+                                shrink-0
+                                transition-transform
+                                duration-300
+                                group-hover:scale-110
+                              "
+                            />
+
+                            <span className="truncate">
+                              {building.name}
+                            </span>
+                          </NavLink>
+                        ))
+                      ) : (
+                        <div
+                          className="
                             rounded-xl
                             border
+                            border-white/10
+                            bg-black/[0.08]
                             px-4
                             py-3
                             text-sm
-                            transition-all
-                            duration-300
-                            ${
-                              isActive
-                                ? `
-                                  border-[#D4AD4D]
-                                  bg-gradient-to-r
-                                  from-[#145B46]
-                                  to-[#073529]
-                                  text-[#F6D878]
-                                  font-bold
-                                  shadow-md
-                                `
-                                : `
-                                  border-transparent
-                                  text-white/85
-                                  hover:border-[#C49A3A]/35
-                                  hover:bg-black/[0.10]
-                                  hover:text-white
-                                  hover:translate-x-1
-                                `
-                            }
-                          `
-                          }
+                            text-white/70
+                          "
                         >
-                          <child.icon
-                            size={19}
-                            className="
-                              shrink-0
-                              transition-transform
-                              duration-300
-                              group-hover:scale-110
-                            "
-                          />
-
-                          <span>
-                            {child.title}
-                          </span>
-                        </NavLink>
-                      ))}
+                          لا توجد عمائر مضافة حاليًا
+                        </div>
+                      )}
                     </div>
                   )}
-              </div>
-            );
-          })}
+                </div>
+              );
+            })}
+          </div>
         </div>
-      </div>
 
-      {/* Footer */}
-      <div
-        className="
-          border-t
-          border-white/20
-          p-4
-          space-y-3
-        "
-      >
+        {/* ===================================================== */}
+        {/* Footer */}
+        {/* ===================================================== */}
+
         <div
           className="
-            rounded-2xl
-            bg-black/[0.10]
-            border
+            border-t
             border-white/20
             p-4
+            space-y-3
           "
         >
-          <p className="text-xs text-white/70">
-            النظام
-          </p>
+          <div
+            className="
+              rounded-2xl
+              bg-black/[0.10]
+              border
+              border-white/20
+              p-4
+            "
+          >
+            <p className="text-xs text-white/70">
+              النظام
+            </p>
 
-          <h4 className="font-semibold mt-1 text-white">
-            AQAR SMART ERP
-          </h4>
+            <h4 className="font-semibold mt-1 text-white">
+              AQAR SMART ERP
+            </h4>
 
-          <p className="text-xs text-white/70 mt-2">
-            Version 1.0.0
-          </p>
+            <p className="text-xs text-white/70 mt-2">
+              Version 1.0.0
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={onLogout}
+            className="
+              w-full
+              min-h-[52px]
+              rounded-2xl
+              bg-red-500/[0.08]
+              hover:bg-red-500
+              border
+              border-red-500/25
+              py-3
+              flex
+              items-center
+              justify-center
+              gap-3
+              text-red-100
+              hover:text-white
+              transition-all
+              duration-300
+              cursor-pointer
+            "
+          >
+            <LogOut size={20} />
+
+            تسجيل الخروج
+          </button>
         </div>
-
-        {/* Logout */}
-        <button
-          type="button"
-          onClick={onLogout}
-          className="
-            w-full
-            min-h-[52px]
-            rounded-2xl
-            bg-red-500/[0.08]
-            hover:bg-red-500
-            border
-            border-red-500/25
-            py-3
-            flex
-            items-center
-            justify-center
-            gap-3
-            text-red-100
-            hover:text-white
-            transition-all
-            duration-300
-            cursor-pointer
-          "
-        >
-          <LogOut size={20} />
-
-          تسجيل الخروج
-        </button>
-      </div>
-    </aside>
+      </aside>
     </>
   );
 }

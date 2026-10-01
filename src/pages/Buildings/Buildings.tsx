@@ -11,7 +11,7 @@ import {
   Search,
   MapPin,
   Home,
-  Wallet,
+  User,
   ChevronLeft,
   Edit3,
   X,
@@ -34,8 +34,13 @@ type Building = {
   status: BuildingStatus;
   units: number;
   occupiedUnits: number;
+  vacantUnits: number;
   progress: number;
   annualRent: number;
+};
+
+type BuildingApartment = {
+  status?: string;
 };
 
 const initialBuildings: Building[] = [
@@ -47,6 +52,7 @@ const initialBuildings: Building[] = [
     status: "قيد التنفيذ",
     units: 44,
     occupiedUnits: 0,
+    vacantUnits: 44,
     progress: 72,
     annualRent: 950000,
   },
@@ -103,23 +109,75 @@ export default function Buildings() {
 
       if (!data) return;
 
-      const normalized = data.map((row) => ({
-        id: Number(row.id),
-        name: row.name || "عمارة بدون اسم",
-        buildingNumber: row.building_number || "",
-        city: row.address || "",
-        status: (
-          row.status === "مكتمل" || row.status === "completed"
-            ? "مكتمل"
-            : row.status === "متوقف" || row.status === "stopped"
-            ? "متوقف"
-            : "قيد التنفيذ"
-        ) as BuildingStatus,
-        units: Number(row.units_count) || 0,
-        occupiedUnits: 0,
-        progress: 0,
-        annualRent: 0,
-      }));
+      const buildingIds = data.map((row) => Number(row.id)).filter(Boolean);
+
+      // نقرأ خريطة الشقق الفعلية لكل عمارة من building_state.
+      // بهذه الطريقة الأرقام الظاهرة في كارت العمارة تكون مرتبطة بنفس
+      // بيانات الشقق التي تظهر داخل صفحة خريطة الشقق الخاصة بالعمارة.
+      const { data: buildingStates, error: buildingStatesError } = await supabase
+        .from("building_state")
+        .select("building_id, apartments")
+        .in("building_id", buildingIds);
+
+      if (buildingStatesError) {
+        console.error("خطأ في تحميل بيانات شقق العمائر:", buildingStatesError);
+      }
+
+      const apartmentSummaryByBuilding = new Map<
+        number,
+        { total: number; rented: number; vacant: number }
+      >();
+
+      (buildingStates ?? []).forEach((state) => {
+        const buildingId = Number(state.building_id);
+        const apartments = Array.isArray(state.apartments)
+          ? (state.apartments as BuildingApartment[])
+          : [];
+
+        const rented = apartments.filter(
+          (apartment) =>
+            apartment.status === "مؤجرة" ||
+            apartment.status === "مؤجرة للشركة"
+        ).length;
+
+        const vacant = apartments.filter(
+          (apartment) => apartment.status === "شاغرة"
+        ).length;
+
+        apartmentSummaryByBuilding.set(buildingId, {
+          total: apartments.length,
+          rented,
+          vacant,
+        });
+      });
+
+      const normalized = data.map((row) => {
+        const id = Number(row.id);
+        const apartmentSummary = apartmentSummaryByBuilding.get(id);
+
+        return {
+          id,
+          name: row.name || "عمارة بدون اسم",
+          buildingNumber: row.building_number || "",
+          city: row.address || "",
+          status: (
+            row.status === "مكتمل" || row.status === "completed"
+              ? "مكتمل"
+              : row.status === "متوقف" || row.status === "stopped"
+              ? "متوقف"
+              : "قيد التنفيذ"
+          ) as BuildingStatus,
+          // عند وجود building_state نستخدم عدد الشقق الفعلي، وإلا نرجع
+          // لعدد الشقق المسجل في جدول buildings كحل احتياطي.
+          units: apartmentSummary
+            ? apartmentSummary.total
+            : Number(row.units_count) || 0,
+          occupiedUnits: apartmentSummary?.rented ?? 0,
+          vacantUnits: apartmentSummary?.vacant ?? Math.max((Number(row.units_count) || 0) - (apartmentSummary?.rented ?? 0), 0),
+          progress: 0,
+          annualRent: 0,
+        };
+      });
 
       setBuildings((current) => {
         const currentById = new Map<number, Building>(current.map((item) => [item.id, item] as [number, Building]));
@@ -127,8 +185,10 @@ export default function Buildings() {
           currentById.set(item.id, {
             ...currentById.get(item.id),
             ...item,
-            // لا نفقد بيانات الكارت القديمة إن كانت موجودة محليًا.
-            occupiedUnits: currentById.get(item.id)?.occupiedUnits ?? item.occupiedUnits,
+            // لا نفقد بيانات الكارت القديمة مثل نسبة الإنجاز والإيجار،
+            // لكن عدد الشقق المؤجرة يجب أن يأتي دائمًا من building_state الفعلي.
+            occupiedUnits: item.occupiedUnits,
+            vacantUnits: item.vacantUnits,
             progress: currentById.get(item.id)?.progress ?? item.progress,
             annualRent: currentById.get(item.id)?.annualRent ?? item.annualRent,
           });
@@ -203,6 +263,7 @@ export default function Buildings() {
         status: "قيد التنفيذ",
         units: Number(data.units_count) || 0,
         occupiedUnits: 0,
+        vacantUnits: Number(data.units_count) || 0,
         progress: 0,
         annualRent: 0,
       };
@@ -693,12 +754,7 @@ export default function Buildings() {
                       )
                     : 0;
 
-                const vacantUnits =
-                  Math.max(
-                    building.units -
-                      building.occupiedUnits,
-                    0
-                  );
+                const vacantUnits = building.vacantUnits;
 
                 return (
                   <div
@@ -827,7 +883,7 @@ export default function Buildings() {
                         md:divide-y-0
                       "
                     >
-                      {/* إجمالي الشقق */}
+                      {/* إجمالي الشقق الفعلي داخل العمارة */}
                       <div className="flex min-h-[142px] flex-col items-center justify-center p-5 text-center">
                         <Home
                           size={21}
@@ -843,11 +899,27 @@ export default function Buildings() {
                         </p>
                       </div>
 
-                      {/* الشقق الفارغة */}
+                      {/* إجمالي الشقق المؤجرة الفعلي */}
+                      <div className="flex min-h-[142px] flex-col items-center justify-center p-5 text-center">
+                        <User
+                          size={21}
+                          className="mx-auto mb-3 text-emerald-300"
+                        />
+
+                        <p className="text-sm font-semibold text-[#B4CEC5]">
+                          الشقق المؤجرة
+                        </p>
+
+                        <p className="mt-2 text-xl font-extrabold text-white">
+                          {building.occupiedUnits}
+                        </p>
+                      </div>
+
+                      {/* إجمالي الشقق الفارغة الفعلي */}
                       <div className="flex min-h-[142px] flex-col items-center justify-center p-5 text-center">
                         <DoorOpen
                           size={21}
-                          className="mx-auto mb-3 text-emerald-300"
+                          className="mx-auto mb-3 text-red-300"
                         />
 
                         <p className="text-sm font-semibold text-[#B4CEC5]">
@@ -859,26 +931,7 @@ export default function Buildings() {
                         </p>
                       </div>
 
-                      {/* الإيجار السنوي */}
-                      <div className="flex min-h-[142px] flex-col items-center justify-center p-5 text-center">
-                        <Wallet
-                          size={21}
-                          className="mx-auto mb-3 text-[#F6D878]"
-                        />
-
-                        <p className="text-sm font-semibold text-[#B4CEC5]">
-                          الإيجار السنوي
-                        </p>
-
-                        <p className="mt-2 text-base font-extrabold text-white">
-                          {building.annualRent.toLocaleString(
-                            "ar-SA"
-                          )}{" "}
-                          ريال
-                        </p>
-                      </div>
-
-                      {/* نسبة الإشغال */}
+                      {/* نسبة الإشغال الفعلية */}
                       <div className="flex min-h-[142px] flex-col items-center justify-center p-5 text-center">
                         <Building2
                           size={21}
@@ -895,82 +948,82 @@ export default function Buildings() {
                       </div>
                     </div>
 
-                    {/* =====================
-                        نسبة الإنجاز
-                    ===================== */}
+                   {/* =====================
+    نسبة الإشغال
+===================== */}
 
-                    <div
-                      className="
-                        border-t border-white/10
-                        px-7 py-7
-                      "
-                    >
-                      <div className="mb-3 flex items-center justify-between text-sm">
-                        <span className="font-semibold text-[#B4CEC5]">
-                          نسبة الإنجاز
-                        </span>
+<div
+  className="
+    border-t border-white/10
+    px-7 py-7
+  "
+>
+  <div className="mb-3 flex items-center justify-between text-sm">
+    <span className="font-semibold text-[#B4CEC5]">
+      نسبة الإشغال
+    </span>
 
-                        <span className="font-extrabold text-[#F6D878]">
-                          {building.progress}%
-                        </span>
-                      </div>
+    <span className="font-extrabold text-[#F6D878]">
+      {occupancy}%
+    </span>
+  </div>
 
-                      <div
-                        className="
-                          h-3
-                          overflow-hidden
-                          rounded-full
-                          bg-[#031F18]
-                        "
-                      >
-                        <div
-                          className="
-                            h-full
-                            rounded-full
-                            bg-gradient-to-r
-                            from-[#B88B2D]
-                            to-[#F6D878]
-                            transition-all duration-500
-                          "
-                          style={{
-                            width: `${building.progress}%`,
-                          }}
-                        />
-                      </div>
+  <div
+    className="
+      h-3
+      overflow-hidden
+      rounded-full
+      bg-[#031F18]
+    "
+  >
+    <div
+      className="
+        h-full
+        rounded-full
+        bg-gradient-to-r
+        from-[#B88B2D]
+        to-[#F6D878]
+        transition-all duration-500
+      "
+      style={{
+        width: `${Math.min(Math.max(occupancy, 0), 100)}%`,
+      }}
+    />
+  </div>
 
-                      {/* زر عرض التفاصيل */}
-                      <button
-                        type="button"
-                        onClick={() =>
-                          navigate(
-                            `/buildings/${building.id}`
-                          )
-                        }
-                        className="
-                          mt-6
-                          flex min-h-[58px] w-full
-                          items-center justify-center
-                          gap-2
-                          rounded-2xl
-                          border border-[#C49A3A]/40
-                          bg-[#C49A3A]/10
-                          px-6 py-5
-                          text-base
-                          font-extrabold
-                          text-[#F6D878]
-                          transition-all duration-300
-                          hover:-translate-y-0.5
-                          hover:bg-gradient-to-r
-                          hover:from-[#C49A3A]
-                          hover:to-[#F6D878]
-                          hover:text-[#16352B]
-                        "
-                      >
-                        عرض تفاصيل العمارة
+  {/* زر عرض التفاصيل */}
+  <button
+    type="button"
+    onClick={() =>
+      navigate(
+        `/buildings/${building.id}`
+      )
+    }
+    className="
+      mt-6
+      flex min-h-[58px] w-full
+      items-center justify-center
+      gap-2
+      rounded-2xl
+      border border-[#C49A3A]/40
+      bg-[#C49A3A]/10
+      px-6 py-5
+      text-base
+      font-extrabold
+      text-[#F6D878]
+      transition-all duration-300
+      hover:-translate-y-0.5
+      hover:bg-gradient-to-r
+      hover:from-[#C49A3A]
+      hover:to-[#F6D878]
+      hover:text-[#16352B]
+    "
+  >
+    عرض تفاصيل العمارة
 
-                        <ChevronLeft size={19} />
-                      </button>
-                    </div>
+    <ChevronLeft size={19} />
+  </button>
+</div>
                   </div>
                 );
               })}
