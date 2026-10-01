@@ -6,8 +6,88 @@ import {
   Globe,
   ChevronDown,
 } from "lucide-react";
+import { useEffect, useState } from "react";
+
+import { supabase } from "../../utils/supabase";
+
+type CurrentUser = {
+  name: string;
+  role: string;
+};
 
 function Topbar() {
+  const [currentUser, setCurrentUser] = useState<CurrentUser>({
+    name: "المستخدم",
+    role: "موظف",
+  });
+
+  const [currentDate, setCurrentDate] = useState("");
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadCurrentUser = async () => {
+      try {
+        const {
+          data: { user: authUser },
+        } = await supabase.auth.getUser();
+
+        if (!mounted) return;
+
+        if (authUser?.email) {
+          const { data, error } = await supabase
+            .from("users")
+            .select("name, role")
+            .eq("email", authUser.email)
+            .maybeSingle();
+
+          if (!error && data) {
+            setCurrentUser({
+              name: String(data.name ?? "المستخدم"),
+              role: String(data.role ?? "موظف"),
+            });
+            return;
+          }
+        }
+
+        // احتياطي في حالة عدم العثور على السجل في جدول users.
+        const metadata = authUser?.user_metadata;
+
+        setCurrentUser({
+          name: String(metadata?.name ?? authUser?.email ?? "المستخدم"),
+          role: String(metadata?.role ?? "موظف"),
+        });
+      } catch (error) {
+        console.error("خطأ في تحميل بيانات المستخدم الحالي:", error);
+      }
+    };
+
+    const updateDate = () => {
+      const now = new Date();
+
+      setCurrentDate(
+        now.toLocaleDateString("ar-SA", {
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        }),
+      );
+    };
+
+    void loadCurrentUser();
+    updateDate();
+
+    // تحديث التاريخ تلقائيًا لو ظل البرنامج مفتوحًا حتى اليوم التالي.
+    const dateTimer = window.setInterval(updateDate, 60 * 1000);
+
+    return () => {
+      mounted = false;
+      window.clearInterval(dateTimer);
+    };
+  }, []);
+
+  const userInitial = currentUser.name.trim().charAt(0) || "م";
+
   return (
     <header
       className="
@@ -163,11 +243,11 @@ function Topbar() {
         <div className="hidden text-left sm:block">
 
           <h3 className="font-semibold">
-            علي نصر
+            {currentUser.name}
           </h3>
 
           <p className="text-xs text-emerald-200/70">
-            Supervisor
+            {currentUser.role}
           </p>
 
         </div>
@@ -192,7 +272,7 @@ function Topbar() {
             sm:text-base
           "
         >
-          A
+          {userInitial}
         </div>
 
         <ChevronDown
@@ -215,7 +295,7 @@ function Topbar() {
           <CalendarDays size={18} />
 
           <span className="whitespace-nowrap text-sm">
-            28 يوليو 2026
+            {currentDate}
           </span>
 
         </div>
