@@ -17,6 +17,12 @@ type SidebarProps = {
   onLogout: () => void;
 };
 
+type CurrentUser = {
+  name: string;
+  role: string;
+  avatar_url: string | null;
+};
+
 function Sidebar({ onLogout }: SidebarProps) {
   const location = useLocation();
 
@@ -36,12 +42,64 @@ function Sidebar({ onLogout }: SidebarProps) {
 
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  const [currentUser, setCurrentUser] = useState<CurrentUser>({
+    name: "المستخدم",
+    role: "موظف",
+    avatar_url: null,
+  });
+
   type SidebarBuilding = {
     id: number;
     name: string;
   };
 
   const [buildings, setBuildings] = useState<SidebarBuilding[]>([]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadCurrentUser = async () => {
+      try {
+        const {
+          data: { user: authUser },
+        } = await supabase.auth.getUser();
+
+        if (!mounted) return;
+
+        if (authUser?.email) {
+          const { data, error } = await supabase
+            .from("users")
+            .select("name, role, avatar_url")
+            .eq("email", authUser.email)
+            .maybeSingle();
+
+          if (!error && data) {
+            setCurrentUser({
+              name: String(data.name ?? "المستخدم"),
+              role: String(data.role ?? "موظف"),
+              avatar_url: data.avatar_url ? String(data.avatar_url) : null,
+            });
+            return;
+          }
+        }
+
+        const metadata = authUser?.user_metadata;
+        setCurrentUser({
+          name: String(metadata?.name ?? authUser?.email ?? "المستخدم"),
+          role: String(metadata?.role ?? "موظف"),
+          avatar_url: null,
+        });
+      } catch (error) {
+        console.error("خطأ في تحميل بيانات المستخدم الحالي:", error);
+      }
+    };
+
+    void loadCurrentUser();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -307,16 +365,26 @@ function Sidebar({ onLogout }: SidebarProps) {
                   shadow-[#C49A3A]/20
                 "
               >
-                A
+                {currentUser.avatar_url ? (
+                  <img
+                    src={currentUser.avatar_url}
+                    alt={currentUser.name}
+                    className="h-full w-full rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center">
+                    {currentUser.name.trim().charAt(0) || "م"}
+                  </div>
+                )}
               </div>
 
-              <div>
-                <h3 className="font-bold text-white">
-                  Ali Nasr
+              <div className="min-w-0">
+                <h3 className="truncate font-bold text-white">
+                  {currentUser.name}
                 </h3>
 
-                <p className="text-[#E0EEE7] text-sm mt-1">
-                  Supervisor
+                <p className="mt-1 text-sm text-[#E0EEE7]">
+                  {currentUser.role}
                 </p>
               </div>
             </div>

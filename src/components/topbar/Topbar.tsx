@@ -13,12 +13,14 @@ import { supabase } from "../../utils/supabase";
 type CurrentUser = {
   name: string;
   role: string;
+  avatar_url: string | null;
 };
 
 function Topbar() {
   const [currentUser, setCurrentUser] = useState<CurrentUser>({
     name: "المستخدم",
     role: "موظف",
+    avatar_url: null,
   });
 
   const [currentDate, setCurrentDate] = useState("");
@@ -37,7 +39,7 @@ function Topbar() {
         if (authUser?.email) {
           const { data, error } = await supabase
             .from("users")
-            .select("name, role")
+            .select("name, role, avatar_url")
             .eq("email", authUser.email)
             .maybeSingle();
 
@@ -45,6 +47,7 @@ function Topbar() {
             setCurrentUser({
               name: String(data.name ?? "المستخدم"),
               role: String(data.role ?? "موظف"),
+              avatar_url: data.avatar_url ? String(data.avatar_url) : null,
             });
             return;
           }
@@ -56,6 +59,7 @@ function Topbar() {
         setCurrentUser({
           name: String(metadata?.name ?? authUser?.email ?? "المستخدم"),
           role: String(metadata?.role ?? "موظف"),
+          avatar_url: null,
         });
       } catch (error) {
         console.error("خطأ في تحميل بيانات المستخدم الحالي:", error);
@@ -108,11 +112,9 @@ function Topbar() {
         lg:px-8
       "
     >
-
       {/* Left */}
 
       <div className="flex shrink-0 items-center gap-2 sm:gap-4">
-
         <button
           type="button"
           aria-label="الإشعارات"
@@ -131,9 +133,7 @@ function Topbar() {
             sm:w-11
           "
         >
-
           <Bell size={19} />
-
         </button>
 
         <button
@@ -154,9 +154,7 @@ function Topbar() {
             sm:w-11
           "
         >
-
           <Moon size={17} />
-
         </button>
 
         <button
@@ -176,11 +174,8 @@ function Topbar() {
             sm:flex
           "
         >
-
           <Globe size={18} />
-
         </button>
-
       </div>
 
       {/* Center */}
@@ -195,9 +190,7 @@ function Topbar() {
           sm:px-4
         "
       >
-
         <div className="relative hidden w-full max-w-[450px] sm:block">
-
           <Search
             size={18}
             className="absolute right-4 top-1/2 -translate-y-1/2 text-emerald-200/70"
@@ -223,9 +216,7 @@ function Topbar() {
               sm:h-12
             "
           />
-
         </div>
-
       </div>
 
       {/* Right */}
@@ -239,9 +230,7 @@ function Topbar() {
           sm:gap-5
         "
       >
-
         <div className="hidden text-left sm:block">
-
           <h3 className="font-semibold">
             {currentUser.name}
           </h3>
@@ -249,30 +238,36 @@ function Topbar() {
           <p className="text-xs text-emerald-200/70">
             {currentUser.role}
           </p>
-
         </div>
 
         <div
           className="
-            flex
             h-10
             w-10
             shrink-0
-            items-center
-            justify-center
+            overflow-hidden
             rounded-full
+            border-2
+            border-[#F6D878]/70
             bg-gradient-to-br
             from-yellow-400
             to-yellow-600
-            text-sm
-            font-bold
-            text-[#062B24]
+            shadow-lg
             sm:h-12
             sm:w-12
-            sm:text-base
           "
         >
-          {userInitial}
+          {currentUser.avatar_url ? (
+            <img
+              src={currentUser.avatar_url}
+              alt={currentUser.name}
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-sm font-bold text-[#062B24] sm:text-base">
+              {userInitial}
+            </div>
+          )}
         </div>
 
         <ChevronDown
@@ -291,17 +286,13 @@ function Topbar() {
             lg:mr-6
           "
         >
-
           <CalendarDays size={18} />
 
           <span className="whitespace-nowrap text-sm">
             {currentDate}
           </span>
-
         </div>
-
       </div>
-
     </header>
   );
 }

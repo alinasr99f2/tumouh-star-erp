@@ -31,7 +31,7 @@ import FinancialCenter from "./pages/FinancialCenter/FinancialCenter";
 import UsersPermissions from "./pages/Users/UsersPermissions";
 import ContactUs from "./pages/Contact/ContactUs";
 import Apartments from "./pages/Apartments/Apartments";
-
+import ActivityLog from "./pages/ActivityLog/ActivityLog";
 function ProtectedRoute() {
 
   const DEV_MODE = import.meta.env.VITE_DEV_MODE === "true";
@@ -234,13 +234,22 @@ function App() {
 />
 
 
-            {/* =========================================
-                المستخدمين والصلاحيات
-            ========================================= */}
-            <Route
-              path="/users-permissions"
-              element={<UsersPermissions />}
-            />
+           {/* =========================================
+    المستخدمين والصلاحيات
+========================================= */}
+<Route
+  path="/users-permissions"
+  element={<UsersPermissions />}
+/>
+
+
+{/* =========================================
+    سجل النشاط
+========================================= */}
+<Route
+  path="/activity-log"
+  element={<ActivityLog />}
+/>
 
 
             {/* =========================================
