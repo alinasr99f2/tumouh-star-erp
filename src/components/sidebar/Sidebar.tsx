@@ -108,6 +108,7 @@ function Sidebar({ onLogout }: SidebarProps) {
       const { data, error } = await supabase
         .from("buildings")
         .select("id, name")
+        .eq("status", "active")
         .order("id", { ascending: true });
 
       if (cancelled) return;
