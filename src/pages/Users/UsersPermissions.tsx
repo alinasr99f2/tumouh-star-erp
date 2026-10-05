@@ -638,6 +638,8 @@ const newAvatarInputRef = useRef<HTMLInputElement | null>(null);
 
   const [newCurrentPassword, setNewCurrentPassword] = useState("");
 
+  const [changingPassword, setChangingPassword] = useState(false);
+
 
 
   const [editingUser, setEditingUser] = useState<UserRow | null>(null);
@@ -1440,6 +1442,81 @@ const editAvatarInputRef = useRef<HTMLInputElement | null>(null);
 
 
 
+  const changeCurrentPassword = async () => {
+    if (changingPassword) return;
+
+    const current = currentPassword;
+    const next = newCurrentPassword;
+
+    if (!current) {
+      alert("يرجى إدخال كلمة المرور الحالية.");
+      return;
+    }
+
+    if (!next.trim()) {
+      alert("يرجى إدخال كلمة المرور الجديدة.");
+      return;
+    }
+
+    if (next.length < 6) {
+      alert("كلمة المرور الجديدة يجب ألا تقل عن 6 أحرف أو أرقام.");
+      return;
+    }
+
+    // يجب أن تحتوي كلمة المرور الجديدة على حرف أو رقم واحد على الأقل.
+    if (!/[\p{L}\p{N}]/u.test(next)) {
+      alert("كلمة المرور الجديدة يجب أن تحتوي على حرف أو رقم واحد على الأقل.");
+      return;
+    }
+
+    setChangingPassword(true);
+
+    try {
+      const {
+        data: { user: authUser },
+        error: authUserError,
+      } = await supabase.auth.getUser();
+
+      if (authUserError) throw authUserError;
+
+      const email = authUser?.email?.trim();
+      if (!email) {
+        throw new Error("تعذر تحديد البريد الإلكتروني للحساب الحالي.");
+      }
+
+      // التحقق من كلمة المرور الحالية فعليًا عبر Supabase Auth.
+      const { error: verifyError } = await supabase.auth.signInWithPassword({
+        email,
+        password: current,
+      });
+
+      if (verifyError) {
+        alert("كلمة المرور الحالية غير صحيحة.");
+        return;
+      }
+
+      // كلمة المرور تُحفظ في Supabase Auth وليس داخل جدول users.
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: next,
+      });
+
+      if (updateError) throw updateError;
+
+      setCurrentPassword("");
+      setNewCurrentPassword("");
+      alert("تم تغيير كلمة المرور بنجاح.");
+    } catch (error) {
+      console.error("خطأ في تغيير كلمة المرور:", error);
+      alert(
+        `تعذر تغيير كلمة المرور:\n${
+          error instanceof Error ? error.message : "خطأ غير معروف"
+        }`,
+      );
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
   const saveEditedUser = async () => {
 
     if (!editingUser) return;
@@ -2173,13 +2250,17 @@ const editAvatarInputRef = useRef<HTMLInputElement | null>(null);
 
               type="button"
 
-              className="mt-auto flex h-11 items-center justify-center gap-2 rounded-xl border border-violet-300/30 bg-violet-400/10 px-6 text-sm font-black text-violet-100 transition hover:bg-violet-400/20"
+              onClick={() => void changeCurrentPassword()}
+
+              disabled={changingPassword}
+
+              className="mt-auto flex h-11 items-center justify-center gap-2 rounded-xl border border-violet-300/30 bg-violet-400/10 px-6 text-sm font-black text-violet-100 transition hover:bg-violet-400/20 disabled:cursor-not-allowed disabled:opacity-50"
 
             >
 
               <Save size={17} />
 
-              حفظ التغيير
+              {changingPassword ? "جاري الحفظ..." : "حفظ التغيير"}
 
             </button>
 

@@ -8644,7 +8644,7 @@ export default function ApartmentMap() {
       {/* ===================================================== */}
 
       <div className="mt-6 text-center text-sm text-gray-500">
-        Tumouh Star ERP System — تفاصيل عمارة سنتر
+        Aqary Smart ERP System — تفاصيل عمارة سنتر
       </div>
 
     </div>

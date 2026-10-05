@@ -28,6 +28,7 @@ export default function Home() {
   const [welcomeMessage, setWelcomeMessage] = useState(
     "نتمنى لك يومًا موفقًا ومليئًا بالإنجاز."
   );
+  const [welcomeAvatarUrl, setWelcomeAvatarUrl] = useState<string | null>(null);
   const [welcomeIcon, setWelcomeIcon] = useState<"sun" | "moon" | "sparkles">(
     "sparkles"
   );
@@ -46,7 +47,7 @@ export default function Home() {
 
         const { data: profile } = await supabase
           .from("users")
-          .select("name")
+          .select("name, avatar_url")
           .eq("email", user.email ?? "")
           .maybeSingle();
 
@@ -77,6 +78,9 @@ export default function Home() {
         setWelcomeName(name);
         setWelcomeGreeting(greeting);
         setWelcomeMessage(message);
+        setWelcomeAvatarUrl(
+          profile?.avatar_url ? String(profile.avatar_url).trim() || null : null,
+        );
         setWelcomeIcon(icon);
         setShowWelcome(true);
         sessionStorage.setItem(welcomeKey, "1");
@@ -174,7 +178,47 @@ export default function Home() {
     "
     onClick={closeWelcome}
   >
-    <div
+    <div className="relative flex w-full max-w-[760px] items-center justify-center sm:max-w-[900px]">
+      {/* صورة المستخدم الحالية — بجوار بطاقة الترحيب من الخارج */}
+      <div
+        className="
+          absolute
+          left-1/2
+          top-full
+          z-40
+          mt-4
+          -translate-x-1/2
+          sm:left-0
+          sm:top-1/2
+          sm:mt-0
+          sm:-translate-x-[calc(100%+24px)]
+          sm:-translate-y-1/2
+        "
+      >
+        <div
+          className="
+            h-[92px] w-[92px] overflow-hidden rounded-full
+            border-2 border-yellow-300/80 bg-[#0a3b31] p-1
+            shadow-[0_15px_45px_rgba(0,0,0,0.55)] ring-4 ring-[#f6c84a]/10
+            sm:h-[112px] sm:w-[112px]
+          "
+        >
+          {welcomeAvatarUrl ? (
+            <img
+              src={welcomeAvatarUrl}
+              alt={`صورة ${welcomeName}`}
+              className="h-full w-full rounded-full object-cover"
+              onError={() => setWelcomeAvatarUrl(null)}
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center rounded-full bg-gradient-to-br from-[#0d5a49] to-[#062b24] text-4xl font-black text-yellow-300 sm:text-5xl">
+              {welcomeName.trim().charAt(0) || "؟"}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div
       onClick={(event) => event.stopPropagation()}
       className="
         relative
@@ -632,6 +676,7 @@ export default function Home() {
 
         </div>
 
+      </div>
       </div>
     </div>
   </div>

@@ -9442,7 +9442,7 @@ export default function BuildingDetails() {
       {/* ===================================================== */}
 
       <div className="mt-6 rounded-2xl border border-emerald-400/10 bg-[#06382b]/35 py-3 text-center text-sm text-gray-400 backdrop-blur-sm">
-        Tumouh Star ERP System — تفاصيل {buildingName}
+        Aqary Smart ERP System — تفاصيل {buildingName}
       </div>
 
     </div>
