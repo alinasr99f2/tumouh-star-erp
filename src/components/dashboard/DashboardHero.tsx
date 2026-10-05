@@ -83,7 +83,7 @@ export default function DashboardHero() {
             </h1>
 
             <p className="mt-3 max-w-2xl text-sm leading-7 text-gray-300 sm:text-base lg:text-lg">
-              مرحبًا بك في نظام إدارة شركة طموح ستار، يمكنك متابعة المشاريع،
+              مرحبًا بك في نظام عقاري سمارت ، يمكنك متابعة المشاريع،
               الإيرادات، المصروفات، والاستثمارات من مكان واحد.
             </p>
 
