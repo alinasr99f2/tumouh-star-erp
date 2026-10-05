@@ -278,7 +278,7 @@ function ActivityLog() {
           <div className="activity-hero-text">
 
             <div className="erp-badge">
-              AQAR SMART ERP
+              AQARY SMART ERP
             </div>
 
             <h1>

@@ -75,7 +75,7 @@ export default function DashboardHero() {
                 sm:text-sm
               "
             >
-              AQAR SMART ERP
+              AQARY SMART ERP
             </span>
 
             <h1 className="mt-4 text-2xl font-bold leading-tight text-white sm:text-3xl lg:text-4xl">

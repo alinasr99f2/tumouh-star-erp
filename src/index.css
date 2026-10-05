@@ -2,8 +2,8 @@
 @import "tailwindcss";
 
 /* =========================================
-   AQAR SMART - GLOBAL IDENTITY
-   الهوية العامة لنظام عقار سمارت
+   AQARY SMART - GLOBAL IDENTITY
+   الهوية العامة لنظام عقاري سمارت
    ========================================= */
 
 :root {
@@ -87,7 +87,7 @@ body {
 }
 
 /* =========================================
-   SCROLLBAR - AQAR SMART
+   SCROLLBAR - AQARY SMART
    ========================================= */
 
 ::-webkit-scrollbar {

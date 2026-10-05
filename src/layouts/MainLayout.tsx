@@ -124,7 +124,7 @@ function MainLayout() {
         >
 
           {/* ==========================================
-              AQAR SMART BACKGROUND
+              AQARY SMART BACKGROUND
           ========================================== */}
 
           <div
@@ -181,7 +181,7 @@ function MainLayout() {
             />
 
             {/* ==========================================
-                AQAR SMART WATERMARK
+                AQARY SMART WATERMARK
             ========================================== */}
 
             <div

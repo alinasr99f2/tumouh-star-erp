@@ -279,7 +279,7 @@ export default function Login() {
                 <div className="login-logo-wrapper">
                   <img
                     src="/aqar-smart-logo.png"
-                    alt="عقار سمارت"
+                    alt="عقاري سمارت"
                     className="login-logo"
                   />
                 </div>
@@ -679,7 +679,7 @@ export default function Login() {
             </div>
 
             <div className="login-footer">
-              <p>© عقار سمارت. جميع الحقوق محفوظة.</p>
+              <p>© عقاري سمارت. جميع الحقوق محفوظة.</p>
               <span>Aqar Smart Real Estate Management System</span>
             </div>
           </section>
@@ -713,14 +713,14 @@ export default function Login() {
                 <div className="hero-logo-wrapper">
                   <img
                     src="/aqar-smart-logo.png"
-                    alt="عقار سمارت"
+                    alt="عقاري سمارت"
                     className="hero-logo"
                   />
                 </div>
 
-                <h2 className="hero-title">عقار سمارت</h2>
+                <h2 className="hero-title">عقاري سمارت</h2>
 
-                <p className="hero-english-title">AQAR SMART</p>
+                <p className="hero-english-title">AQARY SMART</p>
 
                 <p className="hero-subtitle">
                   نظام سمارت لإدارة العقارات

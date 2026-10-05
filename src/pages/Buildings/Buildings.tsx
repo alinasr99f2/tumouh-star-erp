@@ -2556,7 +2556,7 @@ console.log("BUILDING CREATED:", building);
 
                     <p className="mb-1 text-xs font-extrabold tracking-[0.22em] text-[#C49A3A]">
 
-                      AQAR SMART
+                      AQARY SMART
 
                     </p>
 
@@ -2838,7 +2838,7 @@ console.log("BUILDING CREATED:", building);
 
                     src="/aqar-smart-logo.png"
 
-                    alt="عقار سمارت"
+                    alt="عقاري سمارت"
 
                     className="h-auto w-full max-w-[360px] object-contain drop-shadow-[0_18px_25px_rgba(0,0,0,0.45)]"
 
@@ -2866,7 +2866,7 @@ console.log("BUILDING CREATED:", building);
 
                 <p className="mb-2 text-xs font-extrabold tracking-[0.28em] text-[#C49A3A]">
 
-                  AQAR SMART ERP
+                  AQARY SMART ERP
 
                 </p>
 
@@ -2878,7 +2878,7 @@ console.log("BUILDING CREATED:", building);
 
                 <p className="mx-auto mt-2 max-w-md text-sm font-semibold leading-6 text-[#C8D9D2]">
 
-                  وابدأ إدارة عقارك باحترافية من خلال نظام عقار سمارت.
+                  وابدأ إدارة عقارك باحترافية من خلال نظام عقاري سمارت.
 
                 </p>
 

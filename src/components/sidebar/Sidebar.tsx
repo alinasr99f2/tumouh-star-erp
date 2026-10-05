@@ -316,7 +316,7 @@ function Sidebar({ onLogout }: SidebarProps) {
 
           <img
             src="/aqar-smart-logo.png"
-            alt="عقار سمارت"
+            alt="عقاري سمارت"
             className="
               relative
               z-10
@@ -820,7 +820,7 @@ function Sidebar({ onLogout }: SidebarProps) {
             </p>
 
             <h4 className="font-semibold mt-1 text-white">
-              AQAR SMART ERP
+              AQARY SMART ERP
             </h4>
 
             <p className="text-xs text-white/70 mt-2">

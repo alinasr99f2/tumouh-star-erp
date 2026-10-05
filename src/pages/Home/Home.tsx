@@ -152,7 +152,7 @@ export default function Home() {
     {
       title: "تواصل معنا",
       description:
-        "تواصل مع فريق عقار سمارت للحصول على المساعدة والدعم",
+        "تواصل مع فريق عقاري سمارت للحصول على المساعدة والدعم",
       icon: Headset,
       path: "/contact-us",
       color: "blue",
@@ -197,7 +197,7 @@ export default function Home() {
       ========================================= */}
       <img
         src="/background for welcome.png"
-        alt="عقار سمارت"
+        alt="عقاري سمارت"
         className="
           absolute
           inset-0
@@ -327,7 +327,7 @@ export default function Home() {
         >
           <img
             src="/aqar-smart-logo.png"
-            alt="عقار سمارت"
+            alt="عقاري سمارت"
             className="
               h-[82px]
               w-[82px]
@@ -378,7 +378,7 @@ export default function Home() {
             "
           >
             <span>✦</span>
-            AQAR SMART
+            AQARY SMART
             <span>✦</span>
           </div>
 
@@ -734,7 +734,7 @@ export default function Home() {
               text-yellow-400
             "
           >
-            AQAR SMART ERP
+            AQARY SMART ERP
 
             <span className="mr-1">✦</span>
           </div>
@@ -762,7 +762,7 @@ export default function Home() {
               md:text-base
             "
           >
-            مرحبًا بك في عقار سمارت لإدارة العقارات
+            مرحبًا بك في عقاري سمارت لإدارة العقارات
           </p>
         </div>
 

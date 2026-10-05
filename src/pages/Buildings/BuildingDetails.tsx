@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "../../utils/supabase";
 import {
@@ -94,21 +94,20 @@ const getBuildingStorageKey = (baseKey: string) => {
 
 const getBuildingStorageValue = (baseKey: string) => {
   if (typeof window === "undefined") return null;
+
+  // مهم: لا يوجد LocalStorage مشترك بين العمائر.
+  // كل عمارة لها مساحة تخزين مستقلة باسم المفتاح + رقم العمارة.
   const scopedKey = getBuildingStorageKey(baseKey);
-  const scopedValue = window.localStorage.getItem(scopedKey);
-  if (scopedValue !== null) return scopedValue;
-
-  const buildingId = getCurrentBuildingIdFromPath();
-  if (buildingId === 1) {
-    return window.localStorage.getItem(baseKey);
-  }
-
-  return null;
+  return window.localStorage.getItem(scopedKey);
 };
 
 const setBuildingStorageValue = (baseKey: string, value: string) => {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(getBuildingStorageKey(baseKey), value);
+
+  // الحفظ يكون للعمارة الحالية فقط.
+  const scopedKey = getBuildingStorageKey(baseKey);
+  window.localStorage.setItem(scopedKey, value);
+  window.dispatchEvent(new CustomEvent("building-data-updated"));
 };
 
 const createBlankApartments = (count: number): Apartment[] =>
@@ -426,6 +425,10 @@ export default function BuildingDetails() {
   const [rentCollectionMonths, setRentCollectionMonths] = useState(1);
   const [rentDueMonth, setRentDueMonth] = useState(new Date().toISOString().slice(0, 7));
   const [rentDueMonths, setRentDueMonths] = useState<string[]>([]);
+  const [chargeDueMonth, setChargeDueMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [chargeDueMonths, setChargeDueMonths] = useState<string[]>([]);
+  const [collectionDueMonth, setCollectionDueMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [collectionDueMonths, setCollectionDueMonths] = useState<string[]>([]);
 
   const [apartmentReportType, setApartmentReportType] = useState<
     "total" | "rented" | "reserved" | "maintenance" | "vacant" | "occupancy" | null
@@ -463,22 +466,12 @@ export default function BuildingDetails() {
     useState<number[]>([]);
   const [deleteApartmentSearch, setDeleteApartmentSearch] = useState("");
 
-  const [apartments, setApartments] = useState<Apartment[]>(() => {
-    try {
-      const saved = getBuildingStorageValue("tumouh_star_building_apartments");
-      const parsed = saved ? JSON.parse(saved) : null;
-      return Array.isArray(parsed)
-        ? parsed.map((apartment) => ({
-            ...apartment,
-            number: Number(apartment.number),
-          }))
-        : [];
-    } catch {
-      return [];
-    }
-  });
-
+  // بيانات الشقق لا تبدأ من LocalStorage عام أو بيانات عمارة أخرى.
+  // المصدر الأساسي هو building_state المرتبط بـ building_id.
+  const [apartments, setApartments] = useState<Apartment[]>([]);
   const [buildingName, setBuildingName] = useState("العمارة");
+  const buildingStateHydratedRef = useRef(false);
+  const [buildingDataSyncVersion, setBuildingDataSyncVersion] = useState(0);
 
   // عند الانتقال بين عمارتين بدون إعادة تحميل الصفحة، يجب إعادة تحميل
   // كل حالة العمارة من الـ storage الخاص بنفس رقم العمارة فقط.
@@ -578,6 +571,235 @@ export default function BuildingDetails() {
     setSelectedApartmentTypeReport(null);
   }, [currentBuildingId]);
 
+  // ============================================================
+  // مصدر الحقيقة للعمارة الحالية: Supabase / building_state
+  // ============================================================
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadCurrentBuildingState = async () => {
+      if (!currentBuildingId) return;
+
+      buildingStateHydratedRef.current = false;
+
+      const { data: building, error: buildingError } = await supabase
+        .from("buildings")
+        .select("id, name, units_count")
+        .eq("id", currentBuildingId)
+        .maybeSingle();
+
+      if (cancelled) return;
+
+      if (buildingError) {
+        console.error("خطأ في تحميل بيانات العمارة الأساسية:", buildingError);
+      }
+
+      setBuildingName(
+        String(building?.name || "").trim() || `العمارة ${currentBuildingId}`
+      );
+
+      const unitsCount = Math.max(0, Number(building?.units_count) || 0);
+
+      const { data: state, error: stateError } = await supabase
+        .from("building_state")
+        .select(
+          "apartments, apartment_types, custom_apartment_types, custom_apartment_statuses, apartment_type_rents, apartment_extra_info, apartment_tenant_info, apartment_contract_info, building_charges, building_collections"
+        )
+        .eq("building_id", currentBuildingId)
+        .maybeSingle();
+
+      if (cancelled) return;
+
+      if (stateError) {
+        console.error("خطأ في تحميل بيانات العمارة من Supabase:", stateError);
+      }
+
+      if (state) {
+        if (Array.isArray(state.apartments)) {
+          const normalizedApartments = state.apartments
+            .filter((apartment: Apartment) => apartment && apartment.number != null)
+            .map((apartment: Apartment) => ({
+              ...apartment,
+              number: Number(apartment.number),
+              rent: Number(apartment.rent) || 0,
+              type: apartment.type || "غرفة وصالة",
+              status: apartment.status || "شاغرة",
+              tenant: apartment.tenant || "لا يوجد مستأجر",
+            }));
+
+          setApartments(normalizedApartments);
+          setBuildingStorageValue(
+            "tumouh_star_building_apartments",
+            JSON.stringify(normalizedApartments)
+          );
+        } else if (unitsCount > 0) {
+          const blankApartments = createBlankApartments(unitsCount);
+          setApartments(blankApartments);
+          setBuildingStorageValue(
+            "tumouh_star_building_apartments",
+            JSON.stringify(blankApartments)
+          );
+        }
+
+        if (state.apartment_types && typeof state.apartment_types === "object") {
+          setApartmentTypes(state.apartment_types as Record<number, string>);
+        }
+
+        if (Array.isArray(state.custom_apartment_types)) {
+          setCustomApartmentTypes(state.custom_apartment_types as string[]);
+        }
+
+        if (Array.isArray(state.custom_apartment_statuses)) {
+          setCustomApartmentStatuses(state.custom_apartment_statuses as string[]);
+        }
+
+        if (state.apartment_type_rents && typeof state.apartment_type_rents === "object") {
+          setApartmentTypeRents(state.apartment_type_rents as Record<string, number>);
+        }
+
+        if (state.apartment_extra_info && typeof state.apartment_extra_info === "object") {
+          setApartmentExtraInfo(
+            state.apartment_extra_info as Record<number, ApartmentExtraInfo>
+          );
+        }
+
+        if (state.apartment_tenant_info && typeof state.apartment_tenant_info === "object") {
+          setApartmentTenantInfo(
+            state.apartment_tenant_info as Record<number, ApartmentTenantInfo>
+          );
+        }
+
+        if (state.apartment_contract_info && typeof state.apartment_contract_info === "object") {
+          setApartmentContractInfo(
+            state.apartment_contract_info as Record<number, ApartmentContractInfo>
+          );
+        }
+
+        if (Array.isArray(state.building_charges)) {
+          setBuildingStorageValue(
+            "tumouh_star_building_charges",
+            JSON.stringify(state.building_charges)
+          );
+        }
+
+        if (Array.isArray(state.building_collections)) {
+          setBuildingStorageValue(
+            "tumouh_star_building_collections",
+            JSON.stringify(state.building_collections)
+          );
+        }
+      } else {
+        // عمارة جديدة: لا نرث أي بيانات من عمارة أخرى.
+        // نستخدم units_count فقط لإنشاء خريطة أولية فارغة.
+        const scopedSaved = getBuildingStorageValue(
+          "tumouh_star_building_apartments"
+        );
+
+        if (!scopedSaved && unitsCount > 0) {
+          const blankApartments = createBlankApartments(unitsCount);
+          setApartments(blankApartments);
+          setBuildingStorageValue(
+            "tumouh_star_building_apartments",
+            JSON.stringify(blankApartments)
+          );
+        } else if (scopedSaved) {
+          try {
+            const parsed = JSON.parse(scopedSaved);
+            if (Array.isArray(parsed)) {
+              setApartments(
+                parsed.map((apartment) => ({
+                  ...apartment,
+                  number: Number(apartment.number),
+                }))
+              );
+            }
+          } catch {
+            // تجاهل التخزين المحلي غير الصالح.
+          }
+        } else {
+          setApartments([]);
+        }
+      }
+
+      buildingStateHydratedRef.current = true;
+      setBuildingDataSyncVersion((value) => value + 1);
+    };
+
+    void loadCurrentBuildingState();
+
+    return () => {
+      cancelled = true;
+      buildingStateHydratedRef.current = false;
+    };
+  }, [currentBuildingId]);
+
+  // إعادة تحميل بيانات نفس العمارة عند الرجوع للصفحة أو بعد تعديل الخريطة.
+  useEffect(() => {
+    const reloadOnReturn = () => {
+      if (!currentBuildingId) return;
+      window.dispatchEvent(new CustomEvent("building-data-refresh"));
+    };
+
+    window.addEventListener("pageshow", reloadOnReturn);
+    window.addEventListener("building-data-updated", reloadOnReturn);
+
+    return () => {
+      window.removeEventListener("pageshow", reloadOnReturn);
+      window.removeEventListener("building-data-updated", reloadOnReturn);
+    };
+  }, [currentBuildingId]);
+
+  // حفظ تغييرات العمارة الحالية في سجلها الخاص داخل Supabase.
+  useEffect(() => {
+    if (!currentBuildingId || !buildingStateHydratedRef.current) return;
+
+    const saveCurrentBuildingState = async () => {
+      const readScopedArray = (key: string): BuildingCharge[] => {
+        try {
+          const saved = getBuildingStorageValue(key);
+          return saved ? (JSON.parse(saved) as BuildingCharge[]) : [];
+        } catch {
+          return [];
+        }
+      };
+
+      const { error } = await supabase.from("building_state").upsert(
+        {
+          building_id: currentBuildingId,
+          apartments,
+          apartment_types: apartmentTypes,
+          custom_apartment_types: customApartmentTypes,
+          custom_apartment_statuses: customApartmentStatuses,
+          apartment_type_rents: apartmentTypeRents,
+          apartment_extra_info: apartmentExtraInfo,
+          apartment_tenant_info: apartmentTenantInfo,
+          apartment_contract_info: apartmentContractInfo,
+          building_charges: readScopedArray("tumouh_star_building_charges"),
+          building_collections: readScopedArray("tumouh_star_building_collections"),
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "building_id" }
+      );
+
+      if (error) {
+        console.error("خطأ في حفظ بيانات العمارة الحالية:", error);
+      }
+    };
+
+    void saveCurrentBuildingState();
+  }, [
+    currentBuildingId,
+    apartments,
+    apartmentTypes,
+    customApartmentTypes,
+    customApartmentStatuses,
+    apartmentTypeRents,
+    apartmentExtraInfo,
+    apartmentTenantInfo,
+    apartmentContractInfo,
+    buildingDataSyncVersion,
+  ]);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -622,6 +844,43 @@ export default function BuildingDetails() {
     };
   }, [currentBuildingId]);
 
+  // مزامنة فورية مع شاشة خريطة الشقق. الخريطة تحفظ القائمة في localStorage،
+  // لذلك نعيد قراءتها عند الرجوع للصفحة أو وصول حدث storage.
+  useEffect(() => {
+    const syncApartmentsFromStorage = () => {
+      try {
+        const saved = getBuildingStorageValue("tumouh_star_building_apartments");
+        if (!saved) return;
+
+        const parsed = JSON.parse(saved);
+        if (!Array.isArray(parsed)) return;
+
+        setApartments(
+          parsed
+            .filter((apartment) => apartment && apartment.number != null)
+            .map((apartment) => ({
+              ...(apartment as Apartment),
+              number: Number((apartment as Apartment).number),
+            }))
+        );
+      } catch {
+        // تجاهل أي بيانات تخزين غير صالحة بدون تعطيل الصفحة.
+      }
+    };
+
+    window.addEventListener("focus", syncApartmentsFromStorage);
+    window.addEventListener("pageshow", syncApartmentsFromStorage);
+    window.addEventListener("storage", syncApartmentsFromStorage);
+    window.addEventListener("building-apartments-updated", syncApartmentsFromStorage);
+
+    return () => {
+      window.removeEventListener("focus", syncApartmentsFromStorage);
+      window.removeEventListener("pageshow", syncApartmentsFromStorage);
+      window.removeEventListener("storage", syncApartmentsFromStorage);
+      window.removeEventListener("building-apartments-updated", syncApartmentsFromStorage);
+    };
+  }, [currentBuildingId]);
+
   const addApartment = () => {
     setApartments((current) => {
       const nextNumber =
@@ -648,6 +907,8 @@ export default function BuildingDetails() {
     });
   };
 
+  // إجمالي الشقق = عدد سجلات الشقق الفعلية المحفوظة لهذه العمارة.
+  // لا نعتمد على units_count ولا على رقم ثابت.
   const totalApartments = apartments.length;
 
   // الحالة الفعلية للشقة: نعتمد على بيانات الشقة نفسها، مع الاستفادة من
@@ -694,13 +955,14 @@ export default function BuildingDetails() {
     return "شاغرة";
   };
 
-  // كارت الشقق المؤجرة: يعتمد فقط على الحالة الفعلية المحفوظة داخل الشقة نفسها.
-  // لا نعتمد هنا على apartmentTenantInfo حتى لا تتغلب حالة قديمة مثل "شاغرة" على الحالة الحالية.
+  // كل الكروت الستة تعتمد على نفس الحالة الفعلية للشقق.
+  // بهذا لا يحدث تعارض بين apartment.status وبيانات المستأجر القديمة.
   const rentedApartments = apartments.filter(
-  (apartment) =>
-    apartment.status === "مؤجرة" ||
-    apartment.status === "مؤجرة للشركة"
-).length;
+    (apartment) => {
+      const status = getEffectiveApartmentStatus(apartment);
+      return status === "مؤجرة" || status === "مؤجرة للشركة";
+    }
+  ).length;
 
   const reservedApartments = apartments.filter(
     (apartment) => getEffectiveApartmentStatus(apartment) === "محجوزة"
@@ -1612,6 +1874,10 @@ export default function BuildingDetails() {
     setRentCollectionMonths(1);
     setRentDueMonth(new Date().toISOString().slice(0, 7));
     setRentDueMonths([]);
+    setChargeDueMonth(new Date().toISOString().slice(0, 7));
+    setChargeDueMonths([]);
+    setCollectionDueMonth(new Date().toISOString().slice(0, 7));
+    setCollectionDueMonths([]);
     setIsChargeModalOpen(true);
   };
 
@@ -1728,6 +1994,16 @@ export default function BuildingDetails() {
       ? selectedRentTotal * Math.max(1, rentCollectionMonths)
       : selectedRentTotal;
 
+  const selectedChargeNonRentTotal =
+    chargeModalMode === "charge" && chargeForm.type !== "إيجار"
+      ? selectedChargeApartments.length * (Number(chargeForm.amount) || 0) * Math.max(1, chargeDueMonths.length)
+      : 0;
+
+  const selectedCollectionNonRentTotal =
+    chargeModalMode === "collection" && chargeForm.type !== "إيجار"
+      ? selectedChargeApartments.length * (Number(chargeForm.amount) || 0) * Math.max(1, collectionDueMonths.length)
+      : 0;
+
   const selectedRentCollectionMaxMonths = selectedChargeApartments.length
     ? Math.min(
         ...selectedChargeApartments.map((apartmentNumber) => {
@@ -1772,7 +2048,7 @@ export default function BuildingDetails() {
         title: "تقرير الشقق المحجوزة",
         subtitle: `الشقق التي حالتها محجوزة (${reservedApartments} شقة)`,
         data: apartments.filter(
-          (apartment) => apartment.status === "محجوزة"
+          (apartment) => getEffectiveApartmentStatus(apartment) === "محجوزة"
         ),
       };
     }
@@ -1782,7 +2058,7 @@ export default function BuildingDetails() {
         title: "تقرير الشقق تحت الصيانة",
         subtitle: `الشقق التي حالتها تحت الصيانة (${maintenanceApartments} شقة)`,
         data: apartments.filter(
-          (apartment) => apartment.status === "تحت الصيانة"
+          (apartment) => getEffectiveApartmentStatus(apartment) === "تحت الصيانة"
         ),
       };
     }
@@ -1792,7 +2068,7 @@ export default function BuildingDetails() {
         title: "تقرير الشقق الفارغة",
         subtitle: `الشقق الفارغة (${vacantApartments} شقة)`,
         data: apartments.filter(
-          (apartment) => apartment.status === "شاغرة"
+          (apartment) => getEffectiveApartmentStatus(apartment) === "شاغرة"
         ),
       };
     }
@@ -2071,15 +2347,22 @@ export default function BuildingDetails() {
 
       return collections
         .filter((collection) => {
-          if (!collection.date) {
+          const collectionPeriod = collection.dueMonth
+            ? `${collection.dueMonth}-01`
+            : collection.date;
+
+          if (!collectionPeriod) {
             return false;
           }
 
-          return collection.date >= fromDate && collection.date <= toDate;
+          return collectionPeriod >= fromDate && collectionPeriod <= toDate;
         })
         .sort((a, b) => {
-          if (a.date !== b.date) {
-            return b.date.localeCompare(a.date);
+          const aPeriod = a.dueMonth ? `${a.dueMonth}-01` : a.date;
+          const bPeriod = b.dueMonth ? `${b.dueMonth}-01` : b.date;
+
+          if (aPeriod !== bPeriod) {
+            return bPeriod.localeCompare(aPeriod);
           }
 
           return (
@@ -4213,7 +4496,15 @@ export default function BuildingDetails() {
   return (
     <div
       dir="rtl"
-      className="min-h-screen bg-[#061426] p-6 text-white"
+      className="min-h-screen bg-[#031F18] p-6 text-white"
+      style={{
+        backgroundImage:
+          "linear-gradient(rgba(3,31,24,0.93), rgba(3,31,24,0.93)), url('/aqar-smart-logo.png')",
+        backgroundRepeat: "no-repeat",
+        backgroundPosition: "center, center",
+        backgroundSize: "cover, 420px",
+        backgroundAttachment: "fixed, fixed",
+      }}
     >
 
       {/* ===================================================== */}
@@ -4569,7 +4860,7 @@ export default function BuildingDetails() {
       {/* MONTHLY FINANCIAL SUMMARY - 8 LARGE GLASS CARDS        */}
       {/* ===================================================== */}
 
-      <div className="mb-6 rounded-3xl border border-white/10 bg-white/[0.025] p-4 shadow-[0_14px_45px_rgba(0,0,0,0.18)] backdrop-blur-xl sm:p-5">
+      <div className="mb-6 rounded-3xl border border-emerald-400/20 bg-[#06382b]/70 p-4 shadow-[0_14px_45px_rgba(0,0,0,0.18)] backdrop-blur-xl sm:p-5">
         <div className="relative mb-5 min-h-[76px]">
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-32 text-center">
             <div>
@@ -4900,7 +5191,7 @@ export default function BuildingDetails() {
       {/* APARTMENT TYPES                                       */}
       {/* ===================================================== */}
 
-      <div className="mb-6 rounded-2xl border border-[#173858] bg-[#0b2039] p-6">
+      <div className="mb-6 rounded-2xl border border-emerald-400/25 bg-[#06382b]/80 p-6 shadow-[0_12px_40px_rgba(0,0,0,0.16)] backdrop-blur-xl">
 
         <h2 className="mb-6 text-center text-2xl font-bold text-[#f0ad18]">
           أنواع الشقق وأسعار الإيجار
@@ -5102,7 +5393,7 @@ export default function BuildingDetails() {
       {/* ===================================================== */}
 
       {/* APARTMENT MAP */}
-      <div className="rounded-2xl border border-[#173858] bg-[#0b2039] p-4 sm:p-6">
+      <div className="rounded-2xl border border-emerald-400/25 bg-[#06382b]/80 p-4 shadow-[0_12px_40px_rgba(0,0,0,0.16)] backdrop-blur-xl sm:p-6">
         <button
           type="button"
           onClick={() => {
@@ -5113,7 +5404,7 @@ export default function BuildingDetails() {
             }
             window.location.href = `/buildings/${buildingId}/apartments`;
           }}
-          className="group flex w-full flex-col items-center justify-center rounded-2xl border border-[#d89b18]/70 bg-gradient-to-br from-[#0b2039] via-[#0a1b2f] to-[#061426] px-6 py-8 text-center transition-all duration-300 hover:-translate-y-1 hover:border-[#f6c84a] hover:shadow-[0_0_40px_rgba(216,155,24,0.14)]"
+          className="group flex w-full flex-col items-center justify-center rounded-2xl border border-[#d89b18]/70 bg-gradient-to-br from-[#0a4a38] via-[#073b2d] to-[#05291f] px-6 py-8 text-center transition-all duration-300 hover:-translate-y-1 hover:border-[#f6c84a] hover:shadow-[0_0_40px_rgba(216,155,24,0.14)]"
         >
           <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-[#d89b18]/60 bg-[#d89b18]/10 text-[#f6c84a] transition-transform duration-300 group-hover:scale-105">
             <Building2 size={34} />
@@ -7865,6 +8156,76 @@ export default function BuildingDetails() {
                       </div>
                     )}
 
+                    {chargeForm.type !== "إيجار" && (
+                      <div className="block text-center">
+                        <span className="mb-2 block text-sm font-black text-gray-300 text-center">
+                          {chargeModalMode === "collection"
+                            ? "المستحق عن شهر / أشهر"
+                            : "المستحق عن شهر / أشهر"}
+                        </span>
+                        <div className="flex gap-2">
+                          <input
+                            type="month"
+                            value={chargeModalMode === "collection" ? collectionDueMonth : chargeDueMonth}
+                            onChange={(event) =>
+                              chargeModalMode === "collection"
+                                ? setCollectionDueMonth(event.target.value)
+                                : setChargeDueMonth(event.target.value)
+                            }
+                            className={`h-14 min-w-0 flex-1 rounded-xl border bg-[#0b2039] px-4 text-center text-base font-bold text-white outline-none transition ${
+                              chargeModalMode === "collection"
+                                ? "border-[#f0ad18]/25 focus:border-[#f0ad18]/70"
+                                : "border-cyan-400/20 focus:border-cyan-400/70"
+                            }`}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const selectedMonth = chargeModalMode === "collection" ? collectionDueMonth : chargeDueMonth;
+                              if (!selectedMonth) return;
+                              if (chargeModalMode === "collection") {
+                                if (collectionDueMonths.includes(selectedMonth)) return;
+                                setCollectionDueMonths((current) => [...current, selectedMonth].sort());
+                              } else {
+                                if (chargeDueMonths.includes(selectedMonth)) return;
+                                setChargeDueMonths((current) => [...current, selectedMonth].sort());
+                              }
+                            }}
+                            className={`h-14 shrink-0 rounded-xl border px-4 text-sm font-black transition ${
+                              chargeModalMode === "collection"
+                                ? "border-[#f0ad18]/30 bg-[#f0ad18]/10 text-[#f6c84a] hover:bg-[#f0ad18]/20"
+                                : "border-cyan-400/30 bg-cyan-400/10 text-cyan-300 hover:bg-cyan-400/20"
+                            }`}
+                          >
+                            إضافة
+                          </button>
+                        </div>
+                        <div className="mt-2 flex flex-wrap justify-center gap-2">
+                          {(chargeModalMode === "collection" ? collectionDueMonths : chargeDueMonths).map((month) => (
+                            <button
+                              key={month}
+                              type="button"
+                              onClick={() =>
+                                chargeModalMode === "collection"
+                                  ? setCollectionDueMonths((current) => current.filter((item) => item !== month))
+                                  : setChargeDueMonths((current) => current.filter((item) => item !== month))
+                              }
+                              className={`rounded-full border px-3 py-1.5 text-xs font-black ${
+                                chargeModalMode === "collection"
+                                  ? "border-[#f0ad18]/20 bg-[#f0ad18]/10 text-[#f6c84a]"
+                                  : "border-cyan-400/20 bg-cyan-400/10 text-cyan-200"
+                              }`}
+                            >
+                              {new Intl.DateTimeFormat("ar-SA", { year: "numeric", month: "long" }).format(new Date(`${month}-01T00:00:00`))} ×
+                            </button>
+                          ))}
+                        </div>
+                        <p className="mt-2 text-xs font-semibold text-gray-500">
+                          يمكنك تحديد شهر واحد أو عدة أشهر لنفس الفاتورة أو المستحق.
+                        </p>
+                      </div>
+                    )}
+
                     <label className="block text-center">
                       <span className="mb-2 block text-sm font-black text-gray-300 text-center">
                         تاريخ الإدخال
@@ -7935,13 +8296,10 @@ export default function BuildingDetails() {
                                 ? selectedRentChargeTotal
                                 : selectedRentCollectionTotal
                               ).toLocaleString("ar-SA")
-                            : selectedChargeApartments.length > 0 &&
-                              Number(chargeForm.amount) > 0
-                            ? (
-                                selectedChargeApartments.length *
-                                Number(chargeForm.amount)
-                              ).toLocaleString("ar-SA")
-                            : "0"}{" "}
+                            : (chargeModalMode === "charge"
+                                ? selectedChargeNonRentTotal
+                                : selectedCollectionNonRentTotal
+                              ).toLocaleString("ar-SA")}{" "}
                           ريال
                         </span>
                       </div>
@@ -7972,6 +8330,16 @@ export default function BuildingDetails() {
 
                     if (chargeModalMode === "charge" && chargeForm.type === "إيجار" && rentDueMonths.length === 0) {
                       window.alert("من فضلك حدد شهرًا مستحقًا واحدًا على الأقل للإيجار.");
+                      return;
+                    }
+
+                    if (chargeModalMode === "charge" && chargeForm.type !== "إيجار" && chargeDueMonths.length === 0) {
+                      window.alert("من فضلك حدد شهرًا مستحقًا واحدًا على الأقل للفاتورة أو المستحق.");
+                      return;
+                    }
+
+                    if (chargeModalMode === "collection" && chargeForm.type !== "إيجار" && collectionDueMonths.length === 0) {
+                      window.alert("من فضلك حدد شهرًا واحدًا على الأقل للتحصيل.");
                       return;
                     }
 
@@ -8034,14 +8402,26 @@ export default function BuildingDetails() {
                             }));
                           }
 
+                          if (chargeForm.type !== "إيجار") {
+                            const selectedMonths =
+                              chargeModalMode === "collection"
+                                ? collectionDueMonths
+                                : chargeDueMonths;
+
+                            return selectedMonths.map((dueMonth) => ({
+                              ...chargeForm,
+                              amount: chargeForm.amount,
+                              notes: chargeForm.notes,
+                              apartmentNumber,
+                              dueMonth,
+                            }));
+                          }
+
                           return [{
                             ...chargeForm,
-                            amount:
-                              chargeForm.type === "إيجار"
-                                ? String(monthlyRent * (rentMonths ?? 1))
-                                : chargeForm.amount,
+                            amount: String(monthlyRent * (rentMonths ?? 1)),
                             notes:
-                              chargeForm.type === "إيجار" && rentMonths
+                              rentMonths
                                 ? `${chargeForm.notes ? `${chargeForm.notes} — ` : ""}تحصيل إيجار عن ${rentMonths} ${rentMonths === 1 ? "شهر" : "أشهر"}`
                                 : chargeForm.notes,
                             apartmentNumber,
@@ -8071,6 +8451,10 @@ export default function BuildingDetails() {
                     setRentCollectionMonths(1);
                     setRentDueMonth(new Date().toISOString().slice(0, 7));
                     setRentDueMonths([]);
+                    setChargeDueMonth(new Date().toISOString().slice(0, 7));
+                    setChargeDueMonths([]);
+                    setCollectionDueMonth(new Date().toISOString().slice(0, 7));
+                    setCollectionDueMonths([]);
                     setIsChargeModalOpen(false);
                   }}
                   className={`flex h-14 items-center justify-center gap-2 rounded-2xl border px-5 text-base font-black transition sm:text-lg ${
@@ -8220,7 +8604,8 @@ export default function BuildingDetails() {
                               paymentCount,
                               totalPaid: apartmentTotalPaid,
                             }) => {
-                              const statusColor = getStatusColor(apartment.status);
+                              const effectiveStatus = getEffectiveApartmentStatus(apartment);
+                            const statusColor = getStatusColor(effectiveStatus);
 
                               return (
                                 <tr
@@ -8431,7 +8816,8 @@ export default function BuildingDetails() {
 
                         <tbody>
                           {report.data.map((apartment) => {
-                            const statusColor = getStatusColor(apartment.status);
+                            const effectiveStatus = getEffectiveApartmentStatus(apartment);
+                            const statusColor = getStatusColor(effectiveStatus);
 
                             return (
                               <tr
@@ -8449,9 +8835,9 @@ export default function BuildingDetails() {
                                     className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-black ${statusColor.badge}`}
                                   >
                                     <span className={`h-2 w-2 rounded-full ${statusColor.dot}`} />
-                                    {apartment.status === "شاغرة"
+                                    {effectiveStatus === "شاغرة"
                                       ? "فارغة"
-                                      : apartment.status}
+                                      : effectiveStatus}
                                   </span>
                                 </td>
                                 <td className="px-4 py-3 text-center font-black text-green-300">
@@ -9055,7 +9441,7 @@ export default function BuildingDetails() {
       {/* FOOTER                                                 */}
       {/* ===================================================== */}
 
-      <div className="mt-6 text-center text-sm text-gray-500">
+      <div className="mt-6 rounded-2xl border border-emerald-400/10 bg-[#06382b]/35 py-3 text-center text-sm text-gray-400 backdrop-blur-sm">
         Tumouh Star ERP System — تفاصيل {buildingName}
       </div>
 
