@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "../../utils/supabase";
+import { usePermissions } from "../../utils/permissions";
+import PermissionDeniedModal from "../../components/PermissionDeniedModal";
 import {
   X,
   Building2,
@@ -277,6 +279,16 @@ const getBuildingStorageKey = (baseKey: string) => {
 };
 
 export default function ApartmentMap() {
+  const { hasPermission } = usePermissions();
+  const canViewApartments = hasPermission("apartments_view");
+  const canAddApartments = hasPermission("apartments_add");
+  const canEditApartments = hasPermission("apartments_edit");
+  const [permissionMessage, setPermissionMessage] = useState<string | null>(null);
+
+  const showPermissionDenied = (message = "غير مسموح للمستخدم الحالي بهذا الإجراء.") => {
+    setPermissionMessage(message);
+  };
+
   const [selectedApartment, setSelectedApartment] =
     useState<Apartment | null>(null);
 
@@ -479,6 +491,10 @@ export default function ApartmentMap() {
   const saveBuildingStateToSupabase = async (
     updatedApartments: Apartment[] = apartments
   ) => {
+    if (!canEditApartments) {
+      return;
+    }
+
     const buildingId = getCurrentBuildingId();
 
     if (!buildingId) {
@@ -496,6 +512,12 @@ export default function ApartmentMap() {
       throw error;
     }
   };
+
+  useEffect(() => {
+    if (!canViewApartments) {
+      showPermissionDenied("غير مسموح للمستخدم الحالي بعرض هذه الصفحة.");
+    }
+  }, [canViewApartments]);
 
   useEffect(() => {
     let cancelled = false;
@@ -743,9 +765,14 @@ export default function ApartmentMap() {
     apartmentTenantInfo,
     apartmentContractInfo,
     chargeSyncVersion,
+    canEditApartments,
   ]);
 
   const addApartment = () => {
+    if (!canAddApartments) {
+      showPermissionDenied();
+      return;
+    }
     setApartments((current) => {
       const nextNumber =
         current.length > 0
@@ -985,6 +1012,7 @@ export default function ApartmentMap() {
     key: K,
     value: ApartmentTenantInfo[K]
   ) => {
+    if (!canEditApartments) { showPermissionDenied(); return; }
     setApartmentTenantInfo((current) => ({
       ...current,
       [apartment.number]: {
@@ -999,6 +1027,7 @@ export default function ApartmentMap() {
     key: K,
     value: ApartmentExtraInfo[K]
   ) => {
+    if (!canEditApartments) { showPermissionDenied(); return; }
     setApartmentExtraInfo((current) => ({
       ...current,
       [apartmentNumber]: {
@@ -1079,6 +1108,10 @@ export default function ApartmentMap() {
   };
 
   const deleteSelectedApartments = () => {
+    if (!canEditApartments) {
+      showPermissionDenied();
+      return;
+    }
     if (selectedDeleteApartments.length === 0) {
       window.alert("اختر شقة واحدة على الأقل للحذف.");
       return;
@@ -1152,6 +1185,10 @@ export default function ApartmentMap() {
   };
 
   const updateApartmentTypeRent = (type: string, value: string) => {
+    if (!canEditApartments) {
+      showPermissionDenied();
+      return;
+    }
     const numericValue = Number(value);
 
     setApartmentTypeRents((current) => {
@@ -1246,6 +1283,10 @@ export default function ApartmentMap() {
   };
 
   const addNewApartmentTypeFromCard = () => {
+    if (!canAddApartments) {
+      showPermissionDenied();
+      return;
+    }
     const type = newApartmentType.trim();
     const rent = Number(newApartmentTypeRent);
 
@@ -1285,6 +1326,10 @@ export default function ApartmentMap() {
   };
 
   const saveApartmentTypeAssignments = () => {
+    if (!canEditApartments) {
+      showPermissionDenied();
+      return;
+    }
     if (!selectedApartmentType) {
       window.alert("اختر نوع الشقة أولاً");
       return;
@@ -1317,6 +1362,7 @@ export default function ApartmentMap() {
     apartment: Apartment,
     value: string
   ) => {
+    if (!canEditApartments) { showPermissionDenied(); return; }
     if (value === "__add_new__") {
       const newType = window.prompt(
         "اكتب اسم نوع الشقة الجديد:"
@@ -1385,6 +1431,10 @@ export default function ApartmentMap() {
   ];
 
   const addNewApartmentStatus = (apartment?: Apartment) => {
+    if (!canAddApartments) {
+      showPermissionDenied();
+      return;
+    }
     const newStatus = window.prompt("اكتب اسم حالة الشقة الجديدة:")?.trim();
 
     if (!newStatus) {
@@ -1416,6 +1466,7 @@ export default function ApartmentMap() {
     apartment: Apartment,
     value: string
   ) => {
+    if (!canEditApartments) { showPermissionDenied(); return; }
     if (value === "__add_new_status__") {
       addNewApartmentStatus(apartment);
       return;
@@ -1428,6 +1479,7 @@ export default function ApartmentMap() {
     apartment: Apartment,
     status: ApartmentStatus
   ) => {
+    if (!canEditApartments) { showPermissionDenied(); return; }
     const updatedApartment = {
       ...apartment,
       status,
@@ -1487,6 +1539,10 @@ export default function ApartmentMap() {
   };
 
   const saveApartmentNumber = () => {
+    if (!canEditApartments) {
+      showPermissionDenied();
+      return;
+    }
     if (!selectedApartment) {
       return;
     }
@@ -1643,6 +1699,7 @@ export default function ApartmentMap() {
     apartment: Apartment,
     key: K
   ) => {
+    if (!canEditApartments) { showPermissionDenied(); return; }
     const tenantInfo = getApartmentTenantInfo(apartment);
 
     const updatedTenantInfo = {
@@ -1697,6 +1754,10 @@ export default function ApartmentMap() {
   };
 
   const saveApartmentFloor = (apartmentNumber: string) => {
+    if (!canEditApartments) {
+      showPermissionDenied();
+      return;
+    }
     const extraInfo = getApartmentExtraInfo(apartmentNumber);
 
     setApartmentExtraInfo((current) => {
@@ -1728,6 +1789,7 @@ export default function ApartmentMap() {
     key: K,
     value: ApartmentContractInfo[K]
   ) => {
+    if (!canEditApartments) { showPermissionDenied(); return; }
     setApartmentContractInfo((current) => ({
       ...current,
       [apartmentNumber]: {
@@ -1741,6 +1803,7 @@ export default function ApartmentMap() {
     apartmentNumber: string,
     startDate: string
   ) => {
+    if (!canEditApartments) { showPermissionDenied(); return; }
     const currentInfo = getApartmentContractInfo(apartmentNumber);
     const endDate = addContractDuration(
       startDate,
@@ -1763,6 +1826,7 @@ export default function ApartmentMap() {
     durationUnit: "day" | "month" | "year",
     durationValue: number
   ) => {
+    if (!canEditApartments) { showPermissionDenied(); return; }
     const currentInfo = getApartmentContractInfo(apartmentNumber);
     const safeValue = Math.max(1, Number(durationValue) || 1);
     const endDate = addContractDuration(
@@ -1783,6 +1847,10 @@ export default function ApartmentMap() {
   };
 
   const saveApartmentContractInfo = (apartmentNumber: string) => {
+    if (!canEditApartments) {
+      showPermissionDenied();
+      return;
+    }
     const contractInfo = getApartmentContractInfo(apartmentNumber);
 
     setApartmentContractInfo((current) => {
@@ -1801,6 +1869,10 @@ export default function ApartmentMap() {
   };
 
   const saveTenantDataToSupabase = async (apartment: Apartment) => {
+    if (!canEditApartments) {
+      showPermissionDenied();
+      return;
+    }
     const tenantInfo = getApartmentTenantInfo(apartment);
     const contractInfo = getApartmentContractInfo(apartment.number);
     const buildingIdMatch = window.location.pathname.match(/\/buildings\/(\d+)/);
@@ -1928,6 +2000,10 @@ export default function ApartmentMap() {
   };
 
   const saveApartmentDetails = async () => {
+    if (!canEditApartments) {
+      showPermissionDenied();
+      return;
+    }
     if (!selectedApartment) {
       return;
     }
@@ -2063,6 +2139,10 @@ export default function ApartmentMap() {
     notes: string;
     apartmentNumber?: string;
   }) => {
+    if (!canEditApartments) {
+      showPermissionDenied();
+      return;
+    }
     if (!row.sourceMode || !row.sourceKey) {
       window.alert("هذه العملية محسوبة تلقائيًا ولا يوجد سجل مستقل لحذفه.");
       return;
@@ -2091,6 +2171,10 @@ export default function ApartmentMap() {
     type: string,
     apartmentNumber?: string
   ) => {
+    if (!canAddApartments && !canEditApartments) {
+      showPermissionDenied();
+      return;
+    }
     setEditingChargeKey(null);
     setChargeModalMode(mode);
     setChargeForm({
@@ -4572,7 +4656,69 @@ export default function ApartmentMap() {
     window.location.href = "/buildings/tenant-details";
   };
 
-  // ترتيب الشقق حسب الدور مع وضع الشقق التي لا تحتوي على دور في قسم مستقل.
+  // ترتيب الأدوار بشكل فعلي: الأول ثم الثاني ثم الثالث ثم الرابع...
+  // يدعم أيضًا القيم المكتوبة بالعربية مثل "الأول" و"الدور الأول"،
+  // والأرقام العربية/الإنجليزية، حتى لا يعتمد الترتيب على النص الأبجدي.
+  const getFloorSortValue = (value: string) => {
+    const normalized = value
+      .trim()
+      .replace(/^(الدور|الطابق|floor)\s*/i, "")
+      .replace(/ى/g, "ي")
+      .replace(/\s+/g, " ");
+
+    const arabicOrdinalMap: Record<string, number> = {
+      "الأرضي": 0,
+      "ارضي": 0,
+      "الأول": 1,
+      "الاول": 1,
+      "اول": 1,
+      "الثاني": 2,
+      "ثاني": 2,
+      "الثالث": 3,
+      "ثالث": 3,
+      "الرابع": 4,
+      "رابع": 4,
+      "الخامس": 5,
+      "خامس": 5,
+      "السادس": 6,
+      "سادس": 6,
+      "السابع": 7,
+      "سابع": 7,
+      "الثامن": 8,
+      "ثامن": 8,
+      "التاسع": 9,
+      "تاسع": 9,
+      "العاشر": 10,
+      "عاشر": 10,
+      "الحادي عشر": 11,
+      "الثاني عشر": 12,
+      "الثالث عشر": 13,
+      "الرابع عشر": 14,
+      "الخامس عشر": 15,
+      "السادس عشر": 16,
+      "السابع عشر": 17,
+      "الثامن عشر": 18,
+      "التاسع عشر": 19,
+      "العشرون": 20,
+    };
+
+    if (Object.prototype.hasOwnProperty.call(arabicOrdinalMap, normalized)) {
+      return arabicOrdinalMap[normalized];
+    }
+
+    const arabicDigits = normalized.replace(/[٠-٩]/g, (digit) =>
+      String("٠١٢٣٤٥٦٧٨٩".indexOf(digit))
+    );
+    const numericValue = Number(arabicDigits);
+
+    if (Number.isFinite(numericValue)) {
+      return numericValue;
+    }
+
+    const embeddedNumber = arabicDigits.match(/\d+(?:\.\d+)?/);
+    return embeddedNumber ? Number(embeddedNumber[0]) : Number.POSITIVE_INFINITY;
+  };
+
   const apartmentFloors = Array.from(
     new Set(
       apartments
@@ -4580,12 +4726,14 @@ export default function ApartmentMap() {
         .filter(Boolean)
     )
   ).sort((a, b) => {
-    const aNumber = Number(a);
-    const bNumber = Number(b);
-    if (Number.isFinite(aNumber) && Number.isFinite(bNumber)) return aNumber - bNumber;
-    if (Number.isFinite(aNumber)) return -1;
-    if (Number.isFinite(bNumber)) return 1;
-    return a.localeCompare(b, "ar");
+    const aSort = getFloorSortValue(a);
+    const bSort = getFloorSortValue(b);
+
+    if (aSort !== bSort) {
+      return aSort - bSort;
+    }
+
+    return a.localeCompare(b, "ar", { numeric: true });
   });
 
   const mapFilteredApartments = apartments.filter((apartment) => {
@@ -4617,21 +4765,33 @@ export default function ApartmentMap() {
   ];
 
   return (
+    <>
+      <PermissionDeniedModal
+        open={Boolean(permissionMessage)}
+        message={permissionMessage ?? "عذرًا، غير مسموح للمستخدم الحالي بهذا الإجراء."}
+        redirectTo={!canViewApartments ? "/home" : undefined}
+        onClose={() => setPermissionMessage(null)}
+      />
+
     <div
       dir="rtl"
-      className="min-h-screen w-full min-w-0 overflow-x-hidden bg-[#031522] p-2 text-white sm:p-3 lg:p-4"
+      className="relative min-h-screen w-full min-w-0 overflow-x-hidden bg-[#062B24] p-2 text-white sm:p-3 lg:p-4"
       style={{
         backgroundImage:
-          "radial-gradient(circle at 12% 8%, rgba(33,150,243,0.16), transparent 26%), radial-gradient(circle at 88% 16%, rgba(240,173,24,0.13), transparent 24%), linear-gradient(145deg, #071d2f 0%, #031522 48%, #02101c 100%)",
+          "radial-gradient(circle at 12% 8%, rgba(20,85,69,0.42), transparent 30%), radial-gradient(circle at 88% 14%, rgba(198,158,48,0.10), transparent 24%), linear-gradient(145deg, #062B24 0%, #0a3b30 48%, #041f1a 100%)",
       }}
     >
-      <div className="relative mx-auto max-w-[1700px] overflow-hidden rounded-[28px] border border-cyan-300/10 bg-[#061a2b]/90 shadow-[0_25px_90px_rgba(0,0,0,0.45)] backdrop-blur-2xl">
+      <div
+        className="pointer-events-none absolute inset-0 z-0 bg-[url('/aqar-smart-logo.png')] bg-center bg-no-repeat bg-[length:460px_auto] opacity-[0.085]"
+        aria-hidden="true"
+      />
+      <div className="relative z-10 mx-auto max-w-[1700px] overflow-hidden rounded-[28px] border border-[#7ab89d]/20 bg-[#0a3028]/95 shadow-[0_25px_90px_rgba(0,0,0,0.28)] backdrop-blur-2xl">
         <div className="pointer-events-none absolute -left-32 -top-40 h-96 w-96 rounded-full bg-cyan-400/10 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-40 -right-32 h-96 w-96 rounded-full bg-[#f6c84a]/10 blur-3xl" />
 
         {/* HEADER */}
         <div className="relative overflow-hidden border-b border-white/10 px-5 py-6 sm:px-8 lg:px-10">
-          <div className="absolute inset-0 bg-gradient-to-b from-white/[0.055] to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-b from-[#2f6f5a]/30 via-[#174b3d]/10 to-transparent" />
           <div className="relative flex flex-col items-center justify-center gap-3 text-center">
             <div className="flex h-16 w-16 items-center justify-center rounded-[22px] border border-[#f6c84a]/35 bg-[#f6c84a]/10 shadow-[0_0_35px_rgba(246,200,74,0.12)] backdrop-blur-xl">
               <Building2 size={34} className="text-[#f6c84a]" />
@@ -4656,7 +4816,7 @@ export default function ApartmentMap() {
         </div>
 
         {/* STAT CARDS */}
-        <div className="relative grid grid-cols-2 gap-3 p-4 sm:grid-cols-3 lg:grid-cols-5 lg:p-6">
+        <div className="relative grid grid-cols-2 gap-3 bg-[#0a3028]/35 p-4 sm:grid-cols-3 lg:grid-cols-5 lg:p-6">
           {([
             { label: "إجمالي الشقق", value: totalApartments, sub: "وحدة", valueClass: "text-white", borderClass: "border-blue-300/20", bgClass: "bg-blue-400/10", Icon: Building2 },
             { label: "الشقق المؤجرة", value: rentedApartments, sub: `نسبة الإشغال ${occupancyRate}%`, valueClass: "text-emerald-300", borderClass: "border-emerald-300/20", bgClass: "bg-emerald-400/10", Icon: CheckCircle2 },
@@ -4681,7 +4841,7 @@ export default function ApartmentMap() {
         </div>
 
         {/* SEARCH + ACTIONS */}
-        <div className="relative grid grid-cols-1 gap-3 px-4 pb-5 sm:grid-cols-[1fr_1.8fr] lg:px-6">
+        <div className="relative grid grid-cols-1 gap-3 bg-[#0a3028]/30 px-4 pb-5 sm:grid-cols-[1fr_1.8fr] lg:px-6">
           <div className="relative order-2 sm:order-1">
             <Search size={20} className="absolute right-4 top-1/2 -translate-y-1/2 text-cyan-200/50" />
             <input
@@ -4717,13 +4877,13 @@ export default function ApartmentMap() {
         </div>
 
         {/* FLOOR MAP */}
-        <div className="relative mx-4 mb-5 overflow-hidden rounded-[26px] border border-white/10 bg-white/[0.025] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-xl lg:mx-6">
-          <div className="border-b border-white/10 px-5 py-4 text-center">
+        <div className="relative mx-4 mb-5 overflow-hidden rounded-[26px] border border-[#79b99d]/15 bg-[#0d3a30]/85 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-xl lg:mx-6">
+          <div className="border-b border-[#79b99d]/15 bg-[#0b342b]/55 px-5 py-4 text-center">
             <div className="text-xl font-black text-white sm:text-2xl">توزيع الشقق حسب الأدوار</div>
             <div className="mt-1 text-xs font-semibold text-gray-500">كل دور في صف مستقل — اضغط على الشقة لعرض تفاصيلها</div>
           </div>
 
-          <div className="space-y-3 p-3 sm:p-4">
+          <div className="space-y-3 bg-[#082f27]/45 p-3 sm:p-4">
             {orderedMapFloors.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-white/10 py-16 text-center text-gray-500">لا توجد شقق مطابقة للبحث.</div>
             ) : (
@@ -4731,7 +4891,7 @@ export default function ApartmentMap() {
                 const floorApartments = apartmentsByMapFloor(floor);
                 if (!floorApartments.length) return null;
                 return (
-                  <section key={floor} className="grid grid-cols-1 gap-3 rounded-[22px] border border-white/10 bg-white/[0.025] p-3 lg:grid-cols-[190px_1fr] lg:items-stretch">
+                  <section key={floor} className="grid grid-cols-1 gap-3 rounded-[22px] border border-[#79b99d]/12 bg-[#0c382e]/75 p-3 lg:grid-cols-[190px_1fr] lg:items-stretch">
                     <div className="flex min-h-[82px] items-center gap-3 rounded-[18px] border border-blue-300/15 bg-gradient-to-br from-blue-400/10 to-white/[0.025] px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
                       <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-blue-300/15 bg-blue-400/10 text-blue-200"><Building2 size={25} /></div>
                       <div className="min-w-0">
@@ -4755,7 +4915,7 @@ export default function ApartmentMap() {
         </div>
 
         {/* LEGEND */}
-        <div className="relative mx-4 mb-5 grid grid-cols-2 gap-2 rounded-[22px] border border-white/10 bg-white/[0.035] p-3 text-xs font-bold backdrop-blur-xl sm:grid-cols-3 lg:grid-cols-6 lg:mx-6">
+        <div className="relative mx-4 mb-5 grid grid-cols-2 gap-2 rounded-[22px] border border-[#79b99d]/15 bg-[#0b342b]/80 p-3 text-xs font-bold backdrop-blur-xl sm:grid-cols-3 lg:grid-cols-6 lg:mx-6">
           {[
             ["bg-green-500", "شقة مؤجرة", "يوجد مستأجر"],
             ["bg-red-500", "شقة شاغرة", "لا يوجد مستأجر"],
@@ -7449,6 +7609,11 @@ export default function ApartmentMap() {
                 <button
                   type="button"
                   onClick={() => {
+                    if (editingChargeKey ? !canEditApartments : !canAddApartments) {
+                      showPermissionDenied();
+                      return;
+                    }
+
                     if (selectedChargeApartments.length === 0) {
                       window.alert("من فضلك اختر شقة واحدة على الأقل");
                       return;
@@ -8576,9 +8741,10 @@ export default function ApartmentMap() {
       {/* ===================================================== */}
 
       <div className="mt-6 text-center text-sm text-gray-500">
-        Tumouh Star ERP System — تفاصيل عمارة سنتر
+        Aqary Smart ERP System — تفاصيل عمارة سنتر
       </div>
 
     </div>
+    </>
   );
 }

@@ -4,10 +4,13 @@ import {
   Building,
   Building2,
   LayoutDashboard,
-  WalletCards,
+  History,
   LayoutGrid,
   ShieldCheck,
   Headset,
+  Sun,
+  Moon,
+  Sparkles,
 } from "lucide-react";
 
 import { useEffect, useState } from "react";
@@ -25,6 +28,10 @@ export default function Home() {
   const [welcomeMessage, setWelcomeMessage] = useState(
     "نتمنى لك يومًا موفقًا ومليئًا بالإنجاز."
   );
+  const [welcomeAvatarUrl, setWelcomeAvatarUrl] = useState<string | null>(null);
+  const [welcomeIcon, setWelcomeIcon] = useState<"sun" | "moon" | "sparkles">(
+    "sparkles"
+  );
 
   useEffect(() => {
     let mounted = true;
@@ -40,7 +47,7 @@ export default function Home() {
 
         const { data: profile } = await supabase
           .from("users")
-          .select("name")
+          .select("name, avatar_url")
           .eq("email", user.email ?? "")
           .maybeSingle();
 
@@ -48,31 +55,39 @@ export default function Home() {
         const hour = new Date().getHours();
 
         let greeting = "مساء الخير";
+        let icon: "sun" | "moon" | "sparkles" = "moon";
         let message =
           "نتمنى لك مساءً هادئًا ومثمرًا، وبداية موفقة في كل أعمالك.";
 
         if (hour >= 5 && hour < 12) {
           greeting = "صباح الخير";
+          icon = "sun";
           message =
             "نتمنى لك صباحًا موفقًا ومليئًا بالإنجاز، وبداية قوية ليومك.";
         } else if (hour >= 12 && hour < 17) {
           greeting = "أهلاً بك";
+          icon = "sparkles";
           message =
             "نتمنى لك يومًا موفقًا ومليئًا بالإنجاز، وكل التوفيق في أعمالك.";
         }
 
-        const welcomeKey = `aqar-smart-welcome-${user.id}`;
+        const loginStamp = user.last_sign_in_at ?? user.updated_at ?? "active";
+        const welcomeKey = `aqar-smart-welcome-v4-${user.id}-${loginStamp}`;
         if (sessionStorage.getItem(welcomeKey)) return;
 
         setWelcomeName(name);
         setWelcomeGreeting(greeting);
         setWelcomeMessage(message);
+        setWelcomeAvatarUrl(
+          profile?.avatar_url ? String(profile.avatar_url).trim() || null : null,
+        );
+        setWelcomeIcon(icon);
         setShowWelcome(true);
         sessionStorage.setItem(welcomeKey, "1");
 
         timer = setTimeout(() => {
           if (mounted) setShowWelcome(false);
-        }, 5000);
+        }, 15000);
       } catch (error) {
         console.error("تعذر تحميل اسم المستخدم لرسالة الترحيب:", error);
       }
@@ -113,14 +128,7 @@ export default function Home() {
       path: "/buildings",
       color: "building",
     },
-    {
-      title: "المركز المالي",
-      description:
-        "إدارة المصروفات، الأرباح، الحسابات والقيود المالية",
-      icon: WalletCards,
-      path: "/financial",
-      color: "yellow",
-    },
+    
     {
       title: "الشقق المتاحة / المؤجرة",
       description:
@@ -138,9 +146,17 @@ export default function Home() {
       color: "building",
     },
     {
+  title: "سجل النشاط",
+  description:
+    "متابعة جميع العمليات والحركات التي تتم داخل النظام",
+  icon: History,
+  path: "/activity-log",
+  color: "yellow",
+},
+    {
       title: "تواصل معنا",
       description:
-        "تواصل مع فريق عقار سمارت للحصول على المساعدة والدعم",
+        "تواصل مع فريق عقاري سمارت للحصول على المساعدة والدعم",
       icon: Headset,
       path: "/contact-us",
       color: "blue",
@@ -150,93 +166,533 @@ export default function Home() {
   return (
     <>
       {showWelcome && (
+  <div
+    dir="rtl"
+    className="
+      fixed inset-0 z-[9999]
+      flex items-center justify-center
+      bg-[#020b09]/80
+      px-4 py-6
+      backdrop-blur-md
+      animate-in fade-in duration-500
+    "
+    onClick={closeWelcome}
+  >
+    <div className="relative flex w-full max-w-[760px] items-center justify-center sm:max-w-[900px]">
+      {/* صورة المستخدم الحالية — بجوار بطاقة الترحيب من الخارج */}
+      <div
+        className="
+          absolute
+          left-1/2
+          top-full
+          z-40
+          mt-4
+          -translate-x-1/2
+          sm:left-0
+          sm:top-1/2
+          sm:mt-0
+          sm:-translate-x-[calc(100%+24px)]
+          sm:-translate-y-1/2
+        "
+      >
         <div
-          dir="rtl"
-          className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#020b09]/75 px-4 backdrop-blur-md animate-in fade-in duration-300"
-          onClick={closeWelcome}
+          className="
+            h-[92px] w-[92px] overflow-hidden rounded-full
+            border-2 border-yellow-300/80 bg-[#0a3b31] p-1
+            shadow-[0_15px_45px_rgba(0,0,0,0.55)] ring-4 ring-[#f6c84a]/10
+            sm:h-[112px] sm:w-[112px]
+          "
         >
-          <div
-            onClick={(event) => event.stopPropagation()}
-            className="relative w-full max-w-[560px] overflow-hidden rounded-[32px] border border-yellow-300/30 bg-[#062b24] shadow-[0_30px_100px_rgba(0,0,0,0.65)] animate-in zoom-in-95 slide-in-from-bottom-3 duration-300"
-          >
-            <div className="pointer-events-none absolute -right-28 -top-28 h-72 w-72 rounded-full bg-yellow-400/10 blur-3xl" />
-            <div className="pointer-events-none absolute -bottom-32 -left-24 h-72 w-72 rounded-full bg-emerald-400/10 blur-3xl" />
-            <div className="pointer-events-none absolute inset-x-12 top-0 h-px bg-gradient-to-r from-transparent via-yellow-300/70 to-transparent" />
+          {welcomeAvatarUrl ? (
+            <img
+              src={welcomeAvatarUrl}
+              alt={`صورة ${welcomeName}`}
+              className="h-full w-full rounded-full object-cover"
+              onError={() => setWelcomeAvatarUrl(null)}
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center rounded-full bg-gradient-to-br from-[#0d5a49] to-[#062b24] text-4xl font-black text-yellow-300 sm:text-5xl">
+              {welcomeName.trim().charAt(0) || "؟"}
+            </div>
+          )}
+        </div>
+      </div>
 
+      <div
+      onClick={(event) => event.stopPropagation()}
+      className="
+        relative
+        w-full
+        max-w-[760px]
+        overflow-hidden
+        rounded-[30px]
+        border
+        border-yellow-300/60
+        bg-[#062b24]
+        shadow-[0_30px_100px_rgba(0,0,0,0.75)]
+        animate-in
+        zoom-in-95
+        duration-500
+      "
+    >
+
+      {/* =========================================
+          الصورة الخلفية
+      ========================================= */}
+      <img
+        src="/background for welcome.png"
+        alt="عقاري سمارت"
+        className="
+          absolute
+          inset-0
+          h-full
+          w-full
+          object-cover
+          object-center
+        "
+      />
+
+      {/* =========================================
+          طبقات التعتيم والتدرج
+      ========================================= */}
+
+      {/* تعتيم عام */}
+      <div
+        className="
+          absolute
+          inset-0
+          bg-[#031b17]/25
+        "
+      />
+
+      {/* تدرج قوي ناحية النص */}
+      <div
+        className="
+          absolute
+          inset-0
+          bg-gradient-to-l
+          from-[#03251f]/95
+          via-[#06382e]/75
+          via-[58%]
+          to-transparent
+        "
+      />
+
+      {/* تعتيم سفلي */}
+      <div
+        className="
+          absolute
+          inset-x-0
+          bottom-0
+          h-[42%]
+          bg-gradient-to-t
+          from-[#021b16]/95
+          to-transparent
+        "
+      />
+
+      {/* إضاءة ذهبية خفيفة */}
+      <div
+        className="
+          pointer-events-none
+          absolute
+          -right-24
+          -top-24
+          h-72
+          w-72
+          rounded-full
+          bg-yellow-400/10
+          blur-[90px]
+        "
+      />
+
+      {/* =========================================
+          زر الإغلاق
+      ========================================= */}
+      <button
+        type="button"
+        onClick={closeWelcome}
+        aria-label="إغلاق رسالة الترحيب"
+        className="
+          absolute
+          left-5
+          top-5
+          z-30
+          flex
+          h-11
+          w-11
+          items-center
+          justify-center
+          rounded-full
+          border
+          border-white/20
+          bg-black/25
+          text-2xl
+          font-light
+          text-white
+          backdrop-blur-md
+          transition-all
+          duration-300
+          hover:border-yellow-300/60
+          hover:bg-yellow-300/15
+          hover:scale-105
+        "
+      >
+        ×
+      </button>
+
+      {/* =========================================
+          المحتوى
+      ========================================= */}
+      <div
+        className="
+          relative
+          z-10
+          min-h-[555px]
+          flex
+          flex-col
+          justify-between
+          px-7
+          py-8
+          sm:px-10
+          sm:py-9
+        "
+      >
+
+        {/* =========================================
+            الشعار
+        ========================================= */}
+        <div
+          className="
+            flex
+            justify-start
+            pr-1
+          "
+        >
+          <img
+            src="/aqar-smart-logo.png"
+            alt="عقاري سمارت"
+            className="
+              h-[82px]
+              w-[82px]
+              object-contain
+              drop-shadow-[0_8px_20px_rgba(0,0,0,0.5)]
+              sm:h-[95px]
+              sm:w-[95px]
+            "
+          />
+        </div>
+
+        {/* =========================================
+            النص الرئيسي
+        ========================================= */}
+        <div
+          className="
+            mt-[-10px]
+            flex
+            flex-1
+            flex-col
+            justify-center
+            text-center
+            sm:items-start
+            sm:text-right
+          "
+        >
+
+          {/* العلامة */}
+          <div
+            className="
+              mb-4
+              inline-flex
+              items-center
+              gap-2
+              self-center
+              rounded-full
+              border
+              border-yellow-300/30
+              bg-yellow-300/10
+              px-4
+              py-1.5
+              text-[10px]
+              font-black
+              tracking-[0.18em]
+              text-yellow-300
+              shadow-[0_8px_25px_rgba(231,191,67,0.10)]
+              sm:self-start
+            "
+          >
+            <span>✦</span>
+            AQARY SMART
+            <span>✦</span>
+          </div>
+
+          {/* التحية */}
+          <div
+            className="
+              flex
+              items-center
+              justify-center
+              gap-3
+              sm:justify-end
+            "
+          >
+            {welcomeIcon === "sun" ? (
+              <Sun
+                size={46}
+                strokeWidth={2.1}
+                className="text-yellow-300 drop-shadow-[0_0_14px_rgba(250,204,21,0.75)] sm:h-12 sm:w-12"
+              />
+            ) : welcomeIcon === "moon" ? (
+              <Moon
+                size={44}
+                strokeWidth={2.1}
+                className="text-yellow-200 drop-shadow-[0_0_14px_rgba(250,204,21,0.65)] sm:h-12 sm:w-12"
+              />
+            ) : (
+              <Sparkles
+                size={44}
+                strokeWidth={2.1}
+                className="text-yellow-300 drop-shadow-[0_0_14px_rgba(250,204,21,0.7)] sm:h-12 sm:w-12"
+              />
+            )}
+
+            <h2
+            className="
+              text-[40px]
+              font-black
+              leading-[1.05]
+              text-yellow-300
+              drop-shadow-[0_5px_20px_rgba(0,0,0,0.45)]
+              sm:text-[48px]
+            "
+          >
+            {welcomeGreeting}
+            </h2>
+          </div>
+
+          {/* الاسم */}
+          <h3
+            className="
+              mt-2
+              text-[38px]
+              font-black
+              leading-tight
+              text-white
+              drop-shadow-[0_5px_20px_rgba(0,0,0,0.5)]
+              sm:text-[46px]
+            "
+          >
+            {welcomeName}
+          </h3>
+
+          {/* الخط الذهبي */}
+          <div
+            className="
+              mt-5
+              h-[2px]
+              w-28
+              self-center
+              bg-gradient-to-r
+              from-transparent
+              via-yellow-300
+              to-transparent
+              sm:self-end
+              sm:bg-gradient-to-l
+            "
+          />
+
+          {/* الرسالة */}
+          <p
+            className="
+              mt-6
+              max-w-[430px]
+              text-[17px]
+              font-semibold
+              leading-[2]
+              text-white/90
+              drop-shadow-[0_3px_12px_rgba(0,0,0,0.5)]
+              sm:text-[18px]
+            "
+          >
+            {welcomeMessage}
+          </p>
+
+          {/* الفاصل الملكي */}
+          <div
+            className="
+              mt-6
+              flex
+              items-center
+              justify-center
+              gap-3
+              self-center
+              sm:self-end
+            "
+          >
+            <span className="h-px w-16 bg-gradient-to-l from-yellow-300/70 to-transparent" />
+
+            <span className="text-xl text-yellow-300">
+              ✦
+            </span>
+
+            <span className="text-lg text-yellow-200">
+              ♕
+            </span>
+
+            <span className="text-xl text-yellow-300">
+              ✦
+            </span>
+
+            <span className="h-px w-16 bg-gradient-to-r from-yellow-300/70 to-transparent" />
+          </div>
+
+        </div>
+
+        {/* =========================================
+            الجزء السفلي
+        ========================================= */}
+        <div className="mt-6">
+
+          <div
+            className="
+              flex
+              flex-col-reverse
+              items-center
+              gap-5
+              sm:flex-row
+              sm:items-end
+              sm:justify-between
+            "
+          >
+
+            {/* شريط الـ15 ثانية */}
+            <div
+              className="
+                w-full
+                max-w-[300px]
+              "
+            >
+              <div
+                className="
+                  mb-2
+                  flex
+                  items-center
+                  justify-between
+                  text-[11px]
+                  font-semibold
+                  text-white/60
+                "
+              >
+                <span>
+                  سيتم الإغلاق تلقائيًا
+                </span>
+
+                <span className="text-yellow-300">
+                  15 ثانية
+                </span>
+              </div>
+
+              <div
+                className="
+                  h-2
+                  w-full
+                  overflow-hidden
+                  rounded-full
+                  border
+                  border-yellow-300/30
+                  bg-black/30
+                "
+              >
+                <div
+                  className="
+                    h-full
+                    w-full
+                    origin-right
+                    rounded-full
+                    bg-gradient-to-l
+                    from-yellow-200
+                    via-yellow-400
+                    to-yellow-500
+                    shadow-[0_0_12px_rgba(245,200,70,0.45)]
+                  "
+                  style={{ animation: "welcomeProgress 15s linear forwards" }}
+                />
+              </div>
+            </div>
+
+            {/* زر المتابعة */}
             <button
               type="button"
               onClick={closeWelcome}
-              aria-label="إغلاق رسالة الترحيب"
-              className="absolute left-5 top-5 z-20 flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 text-xl text-white/70 transition hover:border-yellow-300/30 hover:bg-yellow-300/10 hover:text-white"
+              className="
+                flex
+                min-w-[205px]
+                items-center
+                justify-center
+                gap-3
+                rounded-2xl
+                border
+                border-yellow-100/70
+                bg-gradient-to-r
+                from-[#e0ae38]
+                via-[#f5d477]
+                to-[#d8a932]
+                px-7
+                py-3.5
+                text-lg
+                font-black
+                text-[#08251f]
+                shadow-[0_12px_35px_rgba(217,173,47,0.28)]
+                transition-all
+                duration-300
+                hover:-translate-y-1
+                hover:brightness-110
+                hover:shadow-[0_18px_45px_rgba(217,173,47,0.38)]
+              "
             >
-              ×
+              <span>
+                متابعة
+              </span>
+
+              <ArrowLeft
+                size={23}
+                strokeWidth={2.7}
+              />
             </button>
 
-            <div className="relative px-7 pb-7 pt-9 sm:px-10 sm:pb-9 sm:pt-11">
-              <div className="mx-auto flex h-28 w-28 items-center justify-center rounded-[32px] border border-yellow-300/35 bg-gradient-to-br from-yellow-300/20 via-yellow-400/10 to-transparent shadow-[0_12px_45px_rgba(234,179,8,0.14)]">
-                <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border border-yellow-300/25 bg-[#071f1a]">
-                  <img
-                    src="/aqar-smart-logo.png"
-                    alt="عقار سمارت"
-                    className="h-16 w-16 object-contain"
-                  />
-                </div>
-              </div>
-
-              <div className="mt-6 text-center">
-                <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-yellow-300/20 bg-yellow-300/[0.07] px-4 py-1.5 text-[11px] font-black tracking-[0.18em] text-yellow-300">
-                  <span>✦</span>
-                  AQAR SMART ERP
-                  <span>✦</span>
-                </div>
-
-                <h2 className="mt-5 text-[30px] font-black leading-tight text-white sm:text-[38px]">
-                  {welcomeGreeting}
-                </h2>
-
-                <h3 className="mt-2 text-[26px] font-black leading-tight text-yellow-300 sm:text-[32px]">
-                  {welcomeName}
-                </h3>
-
-                <div className="mx-auto mt-5 h-px w-24 bg-gradient-to-r from-transparent via-yellow-300/60 to-transparent" />
-
-                <p className="mx-auto mt-5 max-w-[430px] text-[15px] font-semibold leading-8 text-emerald-50/75 sm:text-base">
-                  {welcomeMessage}
-                  <br />
-                  <span className="text-white/55">
-                    كل ما تحتاجه لإدارة أعمالك جاهز أمامك.
-                  </span>
-                </p>
-
-                <button
-                  type="button"
-                  onClick={closeWelcome}
-                  className="mt-7 flex w-full items-center justify-center gap-2 rounded-2xl border border-yellow-300/50 bg-gradient-to-r from-[#d9ad2f] via-[#f1c64d] to-[#d9ad2f] px-6 py-4 text-base font-black text-[#08251f] shadow-[0_10px_35px_rgba(217,173,47,0.18)] transition duration-300 hover:-translate-y-0.5 hover:brightness-110"
-                >
-                  متابعة إلى النظام
-                  <ArrowLeft size={19} />
-                </button>
-
-                <div className="mx-auto mt-4 h-1 max-w-[180px] overflow-hidden rounded-full bg-white/10">
-                  <div className="h-full w-full origin-right rounded-full bg-yellow-300 animate-[welcomeProgress_5s_linear_forwards]" />
-                </div>
-
-                <p className="mt-2 text-[11px] font-semibold text-white/30">
-                  سيتم الانتقال تلقائيًا خلال لحظات
-                </p>
-              </div>
-            </div>
           </div>
+
+          <p
+            className="
+              mt-3
+              text-center
+              text-[10px]
+              font-semibold
+              text-white/35
+            "
+          >
+            نتمنى لك يومًا موفقًا ومثمرًا
+          </p>
+
         </div>
-      )}
 
-      <style>{`
-        @keyframes welcomeProgress {
-          from { transform: scaleX(1); }
-          to { transform: scaleX(0); }
-        }
-      `}</style>
+      </div>
+      </div>
+    </div>
+  </div>
+)}
 
+<style>{`
+  @keyframes welcomeProgress {
+    from {
+      transform: scaleX(1);
+    }
+
+    to {
+      transform: scaleX(0);
+    }
+  }
+`}</style>
     <div
       dir="rtl"
       className="
@@ -323,7 +779,7 @@ export default function Home() {
               text-yellow-400
             "
           >
-            AQAR SMART ERP
+            AQARY SMART ERP
 
             <span className="mr-1">✦</span>
           </div>
@@ -351,7 +807,7 @@ export default function Home() {
               md:text-base
             "
           >
-            مرحبًا بك في عقار سمارت لإدارة العقارات
+            مرحبًا بك في عقاري سمارت لإدارة العقارات
           </p>
         </div>
 

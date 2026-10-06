@@ -16,7 +16,7 @@ export default function ContactUs() {
           </div>
           <h1 className="text-3xl font-black text-white">تواصل معنا</h1>
           <p className="mt-2 text-gray-400">
-            تواصل مع فريق عقار سمارت للحصول على المساعدة والدعم.
+            تواصل مع فريق عقاري سمارت للحصول على المساعدة والدعم.
           </p>
         </div>
 

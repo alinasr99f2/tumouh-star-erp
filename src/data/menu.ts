@@ -9,6 +9,7 @@ import {
   LayoutGrid,
   ShieldCheck,
   Headset,
+  History,
 } from "lucide-react";
 
 import type { LucideIcon } from "lucide-react";
@@ -81,6 +82,15 @@ export const sidebarMenu: SidebarMenuItem[] = [
     title: "المستخدمين والصلاحيات",
     icon: ShieldCheck,
     path: "/users-permissions",
+  },
+
+  // =========================================
+  // سجل نشاط النظام
+  // =========================================
+  {
+    title: "سجل النشاط",
+    icon: History,
+    path: "/activity-log",
   },
 
   {

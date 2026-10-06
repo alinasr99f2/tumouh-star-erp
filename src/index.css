@@ -2,8 +2,8 @@
 @import "tailwindcss";
 
 /* =========================================
-   AQAR SMART - GLOBAL IDENTITY
-   الهوية العامة لنظام عقار سمارت
+   AQARY SMART - GLOBAL IDENTITY
+   الهوية العامة لنظام عقاري سمارت
    ========================================= */
 
 :root {
@@ -87,7 +87,7 @@ body {
 }
 
 /* =========================================
-   SCROLLBAR - AQAR SMART
+   SCROLLBAR - AQARY SMART
    ========================================= */
 
 ::-webkit-scrollbar {
@@ -188,6 +188,262 @@ select:focus-visible {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* =========================================
+   AQARY SMART - RESPONSIVE LAYOUT
+   ضبط المسافات تلقائيًا حسب حجم الشاشة
+   ========================================= */
+
+/* منع العناصر من الخروج أفقيًا */
+html,
+body,
+#root {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+/* تحسين التعامل مع الصور والعناصر */
+img,
+svg,
+video {
+  max-width: 100%;
+}
+
+/* الحاويات الرئيسية */
+main,
+section,
+article {
+  max-width: 100%;
+}
+
+/* =========================================
+   LAPTOP / SMALL DESKTOP
+   ========================================= */
+
+@media (max-width: 1400px) {
+  /* تقليل المسافات الخارجية */
+  .p-8 {
+    padding: 1.5rem !important;
+  }
+
+  .px-8 {
+    padding-left: 1.5rem !important;
+    padding-right: 1.5rem !important;
+  }
+
+  .py-8 {
+    padding-top: 1.5rem !important;
+    padding-bottom: 1.5rem !important;
+  }
+
+  .gap-8 {
+    gap: 1.5rem !important;
+  }
+
+  .gap-6 {
+    gap: 1.25rem !important;
+  }
+}
+
+/* =========================================
+   LAPTOP 1280px
+   ========================================= */
+
+@media (max-width: 1280px) {
+  .p-8 {
+    padding: 1.25rem !important;
+  }
+
+  .px-8 {
+    padding-left: 1.25rem !important;
+    padding-right: 1.25rem !important;
+  }
+
+  .gap-8 {
+    gap: 1.25rem !important;
+  }
+
+  .gap-6 {
+    gap: 1rem !important;
+  }
+
+  /* منع البطاقات من الضغط الزائد */
+  .grid {
+    min-width: 0;
+  }
+
+  /* منع النصوص الطويلة من كسر التصميم */
+  h1,
+  h2,
+  h3,
+  h4,
+  p,
+  span {
+    overflow-wrap: anywhere;
+  }
+}
+
+/* =========================================
+   SMALL LAPTOP
+   ========================================= */
+
+@media (max-width: 1100px) {
+  .p-8 {
+    padding: 1rem !important;
+  }
+
+  .px-8 {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+
+  .py-8 {
+    padding-top: 1rem !important;
+    padding-bottom: 1rem !important;
+  }
+
+  .gap-8,
+  .gap-6 {
+    gap: 0.875rem !important;
+  }
+
+  /* الأزرار لا تختفي بسبب ضيق المساحة */
+  button {
+    max-width: 100%;
+  }
+
+  /* الحقول */
+  input,
+  textarea,
+  select {
+    max-width: 100%;
+  }
+}
+
+/* =========================================
+   SMALL SCREEN
+   ========================================= */
+
+@media (max-width: 900px) {
+  body {
+    overflow-x: hidden;
+  }
+
+  /* تقليل المسافات أكثر */
+  .p-8 {
+    padding: 0.75rem !important;
+  }
+
+  .px-8 {
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+  }
+
+  .gap-8,
+  .gap-6 {
+    gap: 0.75rem !important;
+  }
+
+  /* السماح للجداول بالتمرير بدل كسر الصفحة */
+  table {
+    min-width: max-content;
+  }
+
+  .overflow-x-auto {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+}
+
+/* =========================================
+   VERY SMALL SCREEN
+   ========================================= */
+
+@media (max-width: 640px) {
+  .p-8,
+  .p-6 {
+    padding: 0.625rem !important;
+  }
+
+  .px-8,
+  .px-6 {
+    padding-left: 0.625rem !important;
+    padding-right: 0.625rem !important;
+  }
+
+  .py-8,
+  .py-6 {
+    padding-top: 0.625rem !important;
+    padding-bottom: 0.625rem !important;
+  }
+
+  .gap-8,
+  .gap-6,
+  .gap-4 {
+    gap: 0.625rem !important;
+  }
+
+  /* العناوين */
+  h1 {
+    font-size: clamp(1.5rem, 5vw, 2.25rem);
+  }
+
+  h2 {
+    font-size: clamp(1.25rem, 4vw, 1.875rem);
+  }
+
+  h3 {
+    font-size: clamp(1.1rem, 3.5vw, 1.5rem);
+  }
+}
+
+/* =========================================
+   SAFETY - العناصر لا تختفي بسبب overflow
+   ========================================= */
+
+.flex {
+  min-width: 0;
+}
+
+.flex-1 {
+  min-width: 0;
+}
+
+.grid > * {
+  min-width: 0;
+}
+
+/* النصوص الطويلة */
+.break-words {
+  overflow-wrap: anywhere;
+}
+
+/* =========================================
+   MODALS
+   ========================================= */
+
+[role="dialog"] {
+  max-width: calc(100vw - 24px);
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
+}
+
+/* =========================================
+   ACCESSIBILITY / ZOOM SAFETY
+   ========================================= */
+
+/*
+  لا نستخدم zoom أو scale على body/root.
+  المتصفح هو المسؤول عن Zoom،
+  والواجهة تتكيف تلقائيًا مع المساحة المتاحة.
+*/
+
+@media (prefers-reduced-motion: reduce) {
+  * {
     scroll-behavior: auto !important;
   }
 }

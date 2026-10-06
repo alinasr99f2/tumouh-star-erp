@@ -5,12 +5,12 @@ function Header() {
       <div className="header-company">
         <img
           src="/aqar-smart-logo.png"
-          alt="عقار سمارت"
+          alt="عقاري سمارت"
           className="company-logo"
         />
 
         <div className="company-info">
-          <h1>عقار سمارت لإدارة العقارات</h1>
+          <h1>عقاري سمارت لإدارة العقارات</h1>
           <p>نظام ذكي لإدارة العقارات والاستثمارات</p>
         </div>
       </div>
