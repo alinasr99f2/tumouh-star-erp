@@ -5,44 +5,46 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { supabase } from "../../utils/supabase";
+import { usePermissions } from "../../utils/permissions";
+import PermissionDeniedModal from "../../components/PermissionDeniedModal";
 
 
 
 import {
 
-  Building2,
+  Building2,
 
-  Hammer,
+  Hammer,
 
-  CheckCircle2,
+  CheckCircle2,
 
-  PauseCircle,
+  PauseCircle,
 
-  Search,
+  Search,
 
-  MapPin,
+  MapPin,
 
-  Home,
+  Home,
 
-  User,
+  User,
 
-  ChevronLeft,
+  ChevronLeft,
 
-  Edit3,
+  Edit3,
 
-  X,
+  X,
 
-  Save,
+  Save,
 
-  DoorOpen,
+  DoorOpen,
 
-  Plus,
+  Plus,
 
-  Trash2,
+  Trash2,
 
-  Archive,
+  Archive,
 
-  RotateCcw,
+  RotateCcw,
 
 } from "lucide-react";
 
@@ -50,35 +52,35 @@ import {
 
 type BuildingStatus =
 
-  | "قيد التنفيذ"
+  | "قيد التنفيذ"
 
-  | "مكتمل"
+  | "مكتمل"
 
-  | "متوقف";
+  | "متوقف";
 
 
 
 type Building = {
 
-  id: number;
+  id: number;
 
-  name: string;
+  name: string;
 
-  buildingNumber: string;
+  buildingNumber: string;
 
-  city: string;
+  city: string;
 
-  status: BuildingStatus;
+  status: BuildingStatus;
 
-  units: number;
+  units: number;
 
-  occupiedUnits: number;
+  occupiedUnits: number;
 
-  vacantUnits: number;
+  vacantUnits: number;
 
-  progress: number;
+  progress: number;
 
-  annualRent: number;
+  annualRent: number;
 
 };
 
@@ -86,7 +88,7 @@ type Building = {
 
 type BuildingApartment = {
 
-  status?: string;
+  status?: string;
 
 };
 
@@ -106,225 +108,230 @@ type Filter = "الكل" | BuildingStatus;
 
 export default function Buildings() {
 
-  const navigate = useNavigate();
+  const navigate = useNavigate();
+  const { hasPermission } = usePermissions();
+  const canAddBuildings = hasPermission("buildings_add");
+  const canEditBuildings = hasPermission("buildings_edit");
+  const canDeleteBuildings = hasPermission("buildings_edit");
+  const [permissionMessage, setPermissionMessage] = useState<string | null>(null);
 
 
 
-  const [buildings, setBuildings] =
+  const [buildings, setBuildings] =
 
-  useState<Building[]>([]);
+  useState<Building[]>([]);
 
-  const [archivedBuildings, setArchivedBuildings] = useState<Building[]>([]);
+  const [archivedBuildings, setArchivedBuildings] = useState<Building[]>([]);
 
 const [showArchived, setShowArchived] = useState(false);
 
 
 
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState("");
 
 
 
-  const [filter, setFilter] =
+  const [filter, setFilter] =
 
-    useState<Filter>("الكل");
+    useState<Filter>("الكل");
 
 
 
-  const [editingBuilding, setEditingBuilding] =
+  const [editingBuilding, setEditingBuilding] =
 
-    useState<Building | null>(null);
+    useState<Building | null>(null);
 
 
 
-  const [editName, setEditName] = useState("");
+  const [editName, setEditName] = useState("");
 
-  const [editCity, setEditCity] = useState("");
+  const [editCity, setEditCity] = useState("");
 
-  const [editStatus, setEditStatus] =
+  const [editStatus, setEditStatus] =
 
-    useState<BuildingStatus>("قيد التنفيذ");
+    useState<BuildingStatus>("قيد التنفيذ");
 
 
 
-  const [isSavingBuilding, setIsSavingBuilding] = useState(false);
+  const [isSavingBuilding, setIsSavingBuilding] = useState(false);
 
-  const [deletingBuildingId, setDeletingBuildingId] = useState<number | null>(null);
+  const [deletingBuildingId, setDeletingBuildingId] = useState<number | null>(null);
 
 
 
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
-  const [newBuildingName, setNewBuildingName] = useState("");
+  const [newBuildingName, setNewBuildingName] = useState("");
 
-  const [newBuildingNumber, setNewBuildingNumber] = useState("");
+  const [newBuildingNumber, setNewBuildingNumber] = useState("");
 
-  const [newBuildingAddress, setNewBuildingAddress] = useState("");
+  const [newBuildingAddress, setNewBuildingAddress] = useState("");
 
-  const [newBuildingUnits, setNewBuildingUnits] = useState("");
+  const [newBuildingUnits, setNewBuildingUnits] = useState("");
 
-  const [isCreatingBuilding, setIsCreatingBuilding] = useState(false);
+  const [isCreatingBuilding, setIsCreatingBuilding] = useState(false);
 
 
 
-  // تحميل العمائر الفعلية من جدول buildings.
+  // تحميل العمائر الفعلية من جدول buildings.
 
-  // العمارة التجريبية الحالية تبقى ظاهرة حتى يتم نقل بياناتها إلى الجدول الموحد.
+  // العمارة التجريبية الحالية تبقى ظاهرة حتى يتم نقل بياناتها إلى الجدول الموحد.
 
-  useEffect(() => {
+  useEffect(() => {
 
-    let cancelled = false;
+    let cancelled = false;
 
 
 
-    const loadBuildings = async () => {
+    const loadBuildings = async () => {
 
-      const { data, error } = await supabase
+      const { data, error } = await supabase
 
-  .from("buildings")
+  .from("buildings")
 
-  .select("*")
+  .select("*")
 
-  .eq("status", "active")
+  .eq("status", "active")
 
-        .select("id, name, address, building_number, units_count, status")
+        .select("id, name, address, building_number, units_count, status")
 
-        .order("id", { ascending: true });
+        .order("id", { ascending: true });
 
 
 
-      if (cancelled) return;
+      if (cancelled) return;
 
 
 
-      if (error) {
+      if (error) {
 
-        console.error("خطأ في تحميل العمائر من Supabase:", error);
+        console.error("خطأ في تحميل العمائر من Supabase:", error);
 
-        return;
+        return;
 
-      }
+      }
 
 
 
-      if (!data) return;
+      if (!data) return;
 
 
 
-      const buildingIds = data.map((row) => Number(row.id)).filter(Boolean);
+      const buildingIds = data.map((row) => Number(row.id)).filter(Boolean);
 
 
 
-      // نقرأ خريطة الشقق الفعلية لكل عمارة من building_state.
+      // نقرأ خريطة الشقق الفعلية لكل عمارة من building_state.
 
-      // بهذه الطريقة الأرقام الظاهرة في كارت العمارة تكون مرتبطة بنفس
+      // بهذه الطريقة الأرقام الظاهرة في كارت العمارة تكون مرتبطة بنفس
 
-      // بيانات الشقق التي تظهر داخل صفحة خريطة الشقق الخاصة بالعمارة.
+      // بيانات الشقق التي تظهر داخل صفحة خريطة الشقق الخاصة بالعمارة.
 
-      const { data: buildingStates, error: buildingStatesError } = await supabase
+      const { data: buildingStates, error: buildingStatesError } = await supabase
 
-        .from("building_state")
+        .from("building_state")
 
-        .select("building_id, apartments")
+        .select("building_id, apartments")
 
-        .in("building_id", buildingIds);
+        .in("building_id", buildingIds);
 
 
 
-      if (buildingStatesError) {
+      if (buildingStatesError) {
 
-        console.error("خطأ في تحميل بيانات شقق العمائر:", buildingStatesError);
+        console.error("خطأ في تحميل بيانات شقق العمائر:", buildingStatesError);
 
-      }
+      }
 
 
 
-      const apartmentSummaryByBuilding = new Map<
+      const apartmentSummaryByBuilding = new Map<
 
-        number,
+        number,
 
-        { total: number; rented: number; vacant: number }
+        { total: number; rented: number; vacant: number }
 
-      >();
+      >();
 
 
 
-      (buildingStates ?? []).forEach((state) => {
+      (buildingStates ?? []).forEach((state) => {
 
-        const buildingId = Number(state.building_id);
+        const buildingId = Number(state.building_id);
 
-        const apartments = Array.isArray(state.apartments)
+        const apartments = Array.isArray(state.apartments)
 
-          ? (state.apartments as BuildingApartment[])
+          ? (state.apartments as BuildingApartment[])
 
-          : [];
+          : [];
 
 
 
-        const rented = apartments.filter(
+        const rented = apartments.filter(
 
-          (apartment) =>
+          (apartment) =>
 
-            apartment.status === "مؤجرة" ||
+            apartment.status === "مؤجرة" ||
 
-            apartment.status === "مؤجرة للشركة"
+            apartment.status === "مؤجرة للشركة"
 
-        ).length;
+        ).length;
 
 
 
-        const vacant = apartments.filter(
+        const vacant = apartments.filter(
 
-          (apartment) => apartment.status === "شاغرة"
+          (apartment) => apartment.status === "شاغرة"
 
-        ).length;
+        ).length;
 
 
 
-        apartmentSummaryByBuilding.set(buildingId, {
+        apartmentSummaryByBuilding.set(buildingId, {
 
-          total: apartments.length,
+          total: apartments.length,
 
-          rented,
+          rented,
 
-          vacant,
+          vacant,
 
-        });
+        });
 
-      });
+      });
 
 
 
-      const normalized = data.map((row) => {
+      const normalized = data.map((row) => {
 
-        const id = Number(row.id);
+        const id = Number(row.id);
 
-        const apartmentSummary = apartmentSummaryByBuilding.get(id);
+        const apartmentSummary = apartmentSummaryByBuilding.get(id);
 
 
 
-        return {
+        return {
 
-          id,
+          id,
 
-          name: row.name || "عمارة بدون اسم",
+          name: row.name || "عمارة بدون اسم",
 
-          buildingNumber: row.building_number || "",
+          buildingNumber: row.building_number || "",
 
-          city: row.address || "",
+          city: row.address || "",
 
-          status: (
+          status: (
 
-            row.status === "مكتمل" || row.status === "completed"
+            row.status === "مكتمل" || row.status === "completed"
 
-              ? "مكتمل"
+              ? "مكتمل"
 
-              : row.status === "متوقف" || row.status === "stopped"
+              : row.status === "متوقف" || row.status === "stopped"
 
-              ? "متوقف"
+              ? "متوقف"
 
-              : "قيد التنفيذ"
+              : "قيد التنفيذ"
 
-          ) as BuildingStatus,          // عدد الشقق الذي تم إدخاله عند إنشاء العمارة هو المصدر الأساسي
+          ) as BuildingStatus,          // عدد الشقق الذي تم إدخاله عند إنشاء العمارة هو المصدر الأساسي
           // للعدد الإجمالي. لا نسمح لبيانات building_state القديمة أو الناقصة
           // أن تستبدل العدد المسجل في جدول buildings.
           units: Number(row.units_count) || 0,
@@ -334,153 +341,157 @@ const [showArchived, setShowArchived] = useState(false);
             0
           ),
 
-          progress: 0,
+          progress: 0,
 
-          annualRent: 0,
+          annualRent: 0,
 
-        };
+        };
 
-      });
+      });
 
 
 
-      setBuildings((current) => {
+      setBuildings((current) => {
 
-        const currentById = new Map<number, Building>(current.map((item) => [item.id, item] as [number, Building]));
+        const currentById = new Map<number, Building>(current.map((item) => [item.id, item] as [number, Building]));
 
-        normalized.forEach((item) => {
+        normalized.forEach((item) => {
 
-          currentById.set(item.id, {
+          currentById.set(item.id, {
 
-            ...currentById.get(item.id),
+            ...currentById.get(item.id),
 
-            ...item,
+            ...item,
 
-            // لا نفقد بيانات الكارت القديمة مثل نسبة الإنجاز والإيجار،
+            // لا نفقد بيانات الكارت القديمة مثل نسبة الإنجاز والإيجار،
 
-            // لكن عدد الشقق المؤجرة يجب أن يأتي دائمًا من building_state الفعلي.
+            // لكن عدد الشقق المؤجرة يجب أن يأتي دائمًا من building_state الفعلي.
 
-            occupiedUnits: item.occupiedUnits,
+            occupiedUnits: item.occupiedUnits,
 
-            vacantUnits: item.vacantUnits,
+            vacantUnits: item.vacantUnits,
 
-            progress: currentById.get(item.id)?.progress ?? item.progress,
+            progress: currentById.get(item.id)?.progress ?? item.progress,
 
-            annualRent: currentById.get(item.id)?.annualRent ?? item.annualRent,
+            annualRent: currentById.get(item.id)?.annualRent ?? item.annualRent,
 
-          });
+          });
 
-        });
+        });
 
-        return Array.from(currentById.values());
+        return Array.from(currentById.values());
 
-      });
+      });
 
-    };
+    };
 
 
 
-    void loadBuildings();
+    void loadBuildings();
 
 
 
-    return () => {
+    return () => {
 
-      cancelled = true;
+      cancelled = true;
 
-    };
+    };
 
-  }, []);
+  }, []);
 
 
 
-  // تحميل العمائر المؤرشفة فقط عند فتح قسم الأرشيف.
+  // تحميل العمائر المؤرشفة فقط عند فتح قسم الأرشيف.
 
-  useEffect(() => {
+  useEffect(() => {
 
-    if (!showArchived) return;
+    if (!showArchived) return;
 
-    void loadArchivedBuildings();
+    void loadArchivedBuildings();
 
-  }, [showArchived]);
+  }, [showArchived]);
 
 
 
-  const openCreateModal = () => {
+  const openCreateModal = () => {
+    if (!canAddBuildings) {
+      setPermissionMessage("غير مسموح للمستخدم الحالي بإضافة عمارة جديدة.");
+      return;
+    }
 
-    setNewBuildingName("");
+    setNewBuildingName("");
 
-    setNewBuildingNumber("");
+    setNewBuildingNumber("");
 
-    setNewBuildingAddress("");
+    setNewBuildingAddress("");
 
-    setNewBuildingUnits("");
+    setNewBuildingUnits("");
 
-    setIsCreateModalOpen(true);
+    setIsCreateModalOpen(true);
 
-  };
+  };
 
 
 
-  const closeCreateModal = () => {
+  const closeCreateModal = () => {
 
-    if (isCreatingBuilding) return;
+    if (isCreatingBuilding) return;
 
-    setIsCreateModalOpen(false);
+    setIsCreateModalOpen(false);
 
-    setNewBuildingName("");
+    setNewBuildingName("");
 
-    setNewBuildingNumber("");
+    setNewBuildingNumber("");
 
-    setNewBuildingAddress("");
+    setNewBuildingAddress("");
 
-    setNewBuildingUnits("");
+    setNewBuildingUnits("");
 
-  };
+  };
 
 
 
-  const createBuilding = async () => {
+  const createBuilding = async () => {
 
-    if (isCreatingBuilding) return;
+    if (isCreatingBuilding) return;
 
 
 
-    const name = newBuildingName.trim();
+    const name = newBuildingName.trim();
 
-    const buildingNumber = newBuildingNumber.trim();
+    const buildingNumber = newBuildingNumber.trim();
 
-    const address = newBuildingAddress.trim();
+    const address = newBuildingAddress.trim();
 
-    const unitsCount = Number(newBuildingUnits);
+    const unitsCount = Number(newBuildingUnits);
 
 
 
-    if (!name || !buildingNumber || !address || !Number.isInteger(unitsCount) || unitsCount < 1) {
+    if (!name || !buildingNumber || !address || !Number.isInteger(unitsCount) || unitsCount < 1) {
 
-      alert("من فضلك أدخل اسم العمارة ورقمها والعنوان وعدد الشقق بشكل صحيح.");
+      alert("من فضلك أدخل اسم العمارة ورقمها والعنوان وعدد الشقق بشكل صحيح.");
 
-      return;
+      return;
 
-    }
+    }
 
 
 
-    setIsCreatingBuilding(true);
+    setIsCreatingBuilding(true);
 
 
 
-    try {
+    try {
 
-      // نستخدم الجلسة المحلية بدل getUser حتى لا نرسل طلب /auth/v1/user
+      // نستخدم الجلسة المحلية بدل getUser حتى لا نرسل طلب /auth/v1/user
 
-      // في كل مرة نضغط فيها على حفظ. هذا يتجنب خطأ 403 المتكرر الظاهر في الـ Console.
+      // في كل مرة نضغط فيها على حفظ. هذا يتجنب خطأ 403 المتكرر الظاهر في الـ Console.
 
-      const {
+      const {
 
-  data: { session },
+  data: { session },
 
-  error: sessionError,
+  error: sessionError,
 
 } = await supabase.auth.getSession();
 
@@ -494,7 +505,7 @@ console.log("SESSION ERROR:", sessionError);
 
 if (sessionError) {
 
-  throw sessionError;
+  throw sessionError;
 
 }
 
@@ -502,9 +513,9 @@ if (sessionError) {
 
 const {
 
-  data: userData,
+  data: userData,
 
-  error: userError,
+  error: userError,
 
 } = await supabase.auth.getUser();
 
@@ -518,7 +529,7 @@ console.log("USER ERROR:", userError);
 
 if (userError) {
 
-  throw userError;
+  throw userError;
 
 }
 
@@ -530,11 +541,11 @@ const user = userData.user;
 
 if (!user) {
 
-  throw new Error(
+  throw new Error(
 
-    "لا توجد جلسة دخول صالحة. يجب تسجيل الدخول قبل إنشاء العمارة."
+    "لا توجد جلسة دخول صالحة. يجب تسجيل الدخول قبل إنشاء العمارة."
 
-  );
+  );
 
 }
 
@@ -544,47 +555,47 @@ console.log("AUTH USER EMAIL:", user.email);
 
 
 
-      const { data: building, error } = await supabase
+      const { data: building, error } = await supabase
 
-  .from("buildings")
+  .from("buildings")
 
-  .insert({
+  .insert({
 
-    name,
+    name,
 
-    building_number: buildingNumber,
+    building_number: buildingNumber,
 
-    address,
+    address,
 
-    building_type: "عمارة سكنية",
+    building_type: "عمارة سكنية",
 
-    units_count: unitsCount,
+    units_count: unitsCount,
 
-    created_by: user.id,
+    created_by: user.id,
 
-  })
+  })
 
-  .select("id, name, address, building_number, units_count, status")
+  .select("id, name, address, building_number, units_count, status")
 
-  .single();
+  .single();
 
 
 
 if (error) {
 
-  console.error("BUILDING INSERT ERROR:", error);
+  console.error("BUILDING INSERT ERROR:", error);
 
-  console.error("MESSAGE:", error.message);
+  console.error("MESSAGE:", error.message);
 
-  console.error("DETAILS:", error.details);
+  console.error("DETAILS:", error.details);
 
-  console.error("HINT:", error.hint);
+  console.error("HINT:", error.hint);
 
-  console.error("CODE:", error.code);
+  console.error("CODE:", error.code);
 
 
 
-  throw error;
+  throw error;
 
 }
 
@@ -634,1575 +645,1607 @@ console.log("BUILDING CREATED:", building);
 
 
 
-    if (!building) {
+    if (!building) {
 
-  throw new Error("تم إنشاء العمارة لكن لم يتم إرجاع بياناتها.");
+  throw new Error("تم إنشاء العمارة لكن لم يتم إرجاع بياناتها.");
 
 }
 
 
 
-      const newBuilding: Building = {
+      const newBuilding: Building = {
 
-  id: Number(building.id),
+  id: Number(building.id),
 
-  name: building.name,
+  name: building.name,
 
-  buildingNumber: building.building_number || buildingNumber,
+  buildingNumber: building.building_number || buildingNumber,
 
-  city: building.address || address,
+  city: building.address || address,
 
-  status: "قيد التنفيذ",
+  status: "قيد التنفيذ",
 
-  units: Number(building.units_count) || 0,
+  units: Number(building.units_count) || 0,
 
-  occupiedUnits: 0,
+  occupiedUnits: 0,
 
-        vacantUnits: Number(building.units_count) || 0,
+        vacantUnits: Number(building.units_count) || 0,
 
-        progress: 0,
+        progress: 0,
 
-        annualRent: 0,
+        annualRent: 0,
 
-      };
+      };
 
 
 
-      setBuildings((current) => [...current, newBuilding]);
+      setBuildings((current) => [...current, newBuilding]);
 
-      closeCreateModal();
+      closeCreateModal();
 
 
 
-      // فتح صفحة العمارة الجديدة مباشرة بعد إنشائها.
+      // فتح صفحة العمارة الجديدة مباشرة بعد إنشائها.
 
-      navigate(`/buildings/${newBuilding.id}`);
+      navigate(`/buildings/${newBuilding.id}`);
 
-    } catch (error) {
+    } catch (error) {
 
-      console.error("خطأ في إنشاء العمارة:", error);
+      console.error("خطأ في إنشاء العمارة:", error);
 
-      alert("تعذر إنشاء العمارة. تأكد من صلاحيات قاعدة البيانات ثم حاول مرة أخرى.");
+      alert("تعذر إنشاء العمارة. تأكد من صلاحيات قاعدة البيانات ثم حاول مرة أخرى.");
 
-    } finally {
+    } finally {
 
-      setIsCreatingBuilding(false);
+      setIsCreatingBuilding(false);
 
-    }
+    }
 
-  };
+  };
 
 
 
-  const filteredBuildings = useMemo(() => {
+  const filteredBuildings = useMemo(() => {
 
-    return buildings.filter((building) => {
+    return buildings.filter((building) => {
 
-      const normalizedSearch = search
+      const normalizedSearch = search
 
-        .trim()
+        .trim()
 
-        .toLowerCase();
+        .toLowerCase();
 
 
 
-      const matchesSearch =
+      const matchesSearch =
 
-        building.name
+        building.name
 
-          .toLowerCase()
+          .toLowerCase()
 
-          .includes(normalizedSearch) ||
+          .includes(normalizedSearch) ||
 
-        building.city
+        building.city
 
-          .toLowerCase()
+          .toLowerCase()
 
-          .includes(normalizedSearch);
+          .includes(normalizedSearch);
 
 
 
-      const matchesFilter =
+      const matchesFilter =
 
-        filter === "الكل" ||
+        filter === "الكل" ||
 
-        building.status === filter;
+        building.status === filter;
 
 
 
-      return matchesSearch && matchesFilter;
+      return matchesSearch && matchesFilter;
 
-    });
+    });
 
-  }, [buildings, search, filter]);
+  }, [buildings, search, filter]);
 
 
 
-  const stats = [
+  const stats = [
 
-    {
+    {
 
-      title: "إجمالي العمائر",
+      title: "إجمالي العمائر",
 
-      value: buildings.length,
+      value: buildings.length,
 
-      icon: Building2,
+      icon: Building2,
 
-      iconClass: "text-[#F6D878]",
+      iconClass: "text-[#F6D878]",
 
-      borderClass: "border-[#C49A3A]/40",
+      borderClass: "border-[#C49A3A]/40",
 
-      bgClass: "bg-[#C49A3A]/10",
+      bgClass: "bg-[#C49A3A]/10",
 
-      glowClass: "shadow-[#C49A3A]/10",
+      glowClass: "shadow-[#C49A3A]/10",
 
-    },
+    },
 
-    {
+    {
 
-      title: "قيد التنفيذ",
+      title: "قيد التنفيذ",
 
-      value: buildings.filter(
+      value: buildings.filter(
 
-        (building) =>
+        (building) =>
 
-          building.status === "قيد التنفيذ"
+          building.status === "قيد التنفيذ"
 
-      ).length,
+      ).length,
 
-      icon: Hammer,
+      icon: Hammer,
 
-      iconClass: "text-[#F6D878]",
+      iconClass: "text-[#F6D878]",
 
-      borderClass: "border-[#C49A3A]/40",
+      borderClass: "border-[#C49A3A]/40",
 
-      bgClass: "bg-[#C49A3A]/10",
+      bgClass: "bg-[#C49A3A]/10",
 
-      glowClass: "shadow-[#C49A3A]/10",
+      glowClass: "shadow-[#C49A3A]/10",
 
-    },
+    },
 
-    {
+    {
 
-      title: "مكتمل",
+      title: "مكتمل",
 
-      value: buildings.filter(
+      value: buildings.filter(
 
-        (building) =>
+        (building) =>
 
-          building.status === "مكتمل"
+          building.status === "مكتمل"
 
-      ).length,
+      ).length,
 
-      icon: CheckCircle2,
+      icon: CheckCircle2,
 
-      iconClass: "text-emerald-300",
+      iconClass: "text-emerald-300",
 
-      borderClass: "border-emerald-400/30",
+      borderClass: "border-emerald-400/30",
 
-      bgClass: "bg-emerald-400/10",
+      bgClass: "bg-emerald-400/10",
 
-      glowClass: "shadow-emerald-500/10",
+      glowClass: "shadow-emerald-500/10",
 
-    },
+    },
 
-    {
+    {
 
-      title: "متوقف",
+      title: "متوقف",
 
-      value: buildings.filter(
+      value: buildings.filter(
 
-        (building) =>
+        (building) =>
 
-          building.status === "متوقف"
+          building.status === "متوقف"
 
-      ).length,
+      ).length,
 
-      icon: PauseCircle,
+      icon: PauseCircle,
 
-      iconClass: "text-red-300",
+      iconClass: "text-red-300",
 
-      borderClass: "border-red-400/30",
+      borderClass: "border-red-400/30",
 
-      bgClass: "bg-red-400/10",
+      bgClass: "bg-red-400/10",
 
-      glowClass: "shadow-red-500/10",
+      glowClass: "shadow-red-500/10",
 
-    },
+    },
 
-  ];
+  ];
 
 
 
-  const openEditModal = (building: Building) => {
+  const openEditModal = (building: Building) => {
+    if (!canEditBuildings) {
+      setPermissionMessage("غير مسموح للمستخدم الحالي بتعديل بيانات العمارة.");
+      return;
+    }
 
-    setEditingBuilding(building);
 
-    setEditName(building.name);
+    setEditingBuilding(building);
 
-    setEditCity(building.city);
+    setEditName(building.name);
 
-    setEditStatus(building.status);
+    setEditCity(building.city);
 
-  };
+    setEditStatus(building.status);
 
+  };
 
 
-  const closeEditModal = () => {
 
-    setEditingBuilding(null);
+  const closeEditModal = () => {
 
-    setEditName("");
+    setEditingBuilding(null);
 
-    setEditCity("");
+    setEditName("");
 
-    setEditStatus("قيد التنفيذ");
+    setEditCity("");
 
-  };
+    setEditStatus("قيد التنفيذ");
 
+  };
 
 
-  const saveBuildingChanges = async () => {
 
-    if (!editingBuilding || isSavingBuilding) return;
+  const saveBuildingChanges = async () => {
+    if (!canEditBuildings) {
+      setPermissionMessage("غير مسموح للمستخدم الحالي بهذا الإجراء.");
+      return;
+    }
 
 
+    if (!editingBuilding || isSavingBuilding) return;
 
-    const trimmedName = editName.trim();
 
-    const trimmedCity = editCity.trim();
 
+    const trimmedName = editName.trim();
 
+    const trimmedCity = editCity.trim();
 
-    if (!trimmedName || !trimmedCity) {
 
-      alert("من فضلك أدخل اسم العمارة والعنوان.");
 
-      return;
+    if (!trimmedName || !trimmedCity) {
 
-    }
+      alert("من فضلك أدخل اسم العمارة والعنوان.");
 
+      return;
 
+    }
 
-    setIsSavingBuilding(true);
 
 
+    setIsSavingBuilding(true);
 
-    try {
 
-      const databaseStatus =
 
-        editStatus === "مكتمل"
+    try {
 
-          ? "completed"
+      const databaseStatus =
 
-          : editStatus === "متوقف"
+        editStatus === "مكتمل"
 
-          ? "stopped"
+          ? "completed"
 
-          : "active";
+          : editStatus === "متوقف"
 
+          ? "stopped"
 
+          : "active";
 
-      const { error } = await supabase
 
-        .from("buildings")
 
-        .update({
+      const { error } = await supabase
 
-          name: trimmedName,
+        .from("buildings")
 
-          address: trimmedCity,
+        .update({
 
-          status: databaseStatus,
+          name: trimmedName,
 
-        })
+          address: trimmedCity,
 
-        .eq("id", editingBuilding.id);
+          status: databaseStatus,
 
+        })
 
+        .eq("id", editingBuilding.id);
 
-      if (error) {
 
-        throw error;
 
-      }
+      if (error) {
 
+        throw error;
 
+      }
 
-      setBuildings((previousBuildings) =>
 
-        previousBuildings.map((building) =>
 
-          building.id === editingBuilding.id
+      setBuildings((previousBuildings) =>
 
-            ? {
+        previousBuildings.map((building) =>
 
-                ...building,
+          building.id === editingBuilding.id
 
-                name: trimmedName,
+            ? {
 
-                city: trimmedCity,
+                ...building,
 
-                status: editStatus,
+                name: trimmedName,
 
-              }
+                city: trimmedCity,
 
-            : building
+                status: editStatus,
 
-        )
+              }
 
-      );
+            : building
 
+        )
 
+      );
 
-      closeEditModal();
 
-    } catch (error) {
 
-      console.error("خطأ في حفظ بيانات العمارة:", error);
+      closeEditModal();
 
-      alert(
+    } catch (error) {
 
-        "تعذر حفظ بيانات العمارة في قاعدة البيانات. تأكد من إضافة حقول بيانات العمارة إلى جدول building_state."
+      console.error("خطأ في حفظ بيانات العمارة:", error);
 
-      );
+      alert(
 
-    } finally {
+        "تعذر حفظ بيانات العمارة في قاعدة البيانات. تأكد من إضافة حقول بيانات العمارة إلى جدول building_state."
 
-      setIsSavingBuilding(false);
+      );
 
-    }
+    } finally {
 
-  };
+      setIsSavingBuilding(false);
 
+    }
 
+  };
 
-  // تحميل العمائر المؤرشفة عند الحاجة.
 
-  const loadArchivedBuildings = async () => {
 
-    const { data, error } = await supabase
+  // تحميل العمائر المؤرشفة عند الحاجة.
 
-      .from("buildings")
+  const loadArchivedBuildings = async () => {
 
-      .select("id, name, address, building_number, units_count, status, archived_at")
+    const { data, error } = await supabase
 
-      .eq("status", "archived")
+      .from("buildings")
 
-      .order("archived_at", { ascending: false });
+      .select("id, name, address, building_number, units_count, status, archived_at")
 
+      .eq("status", "archived")
 
+      .order("archived_at", { ascending: false });
 
-    if (error) {
 
-      console.error("خطأ في تحميل العمائر المؤرشفة:", error);
 
-      return;
+    if (error) {
 
-    }
+      console.error("خطأ في تحميل العمائر المؤرشفة:", error);
 
+      return;
 
+    }
 
-    const normalizedArchivedBuildings: Building[] = (data ?? []).map((row) => ({
 
-      id: Number(row.id),
 
-      name: row.name || "عمارة بدون اسم",
+    const normalizedArchivedBuildings: Building[] = (data ?? []).map((row) => ({
 
-      buildingNumber: row.building_number || "",
+      id: Number(row.id),
 
-      city: row.address || "",
+      name: row.name || "عمارة بدون اسم",
 
-      status: "قيد التنفيذ",
+      buildingNumber: row.building_number || "",
 
-      units: Number(row.units_count) || 0,
+      city: row.address || "",
 
-      occupiedUnits: 0,
+      status: "قيد التنفيذ",
 
-      vacantUnits: Number(row.units_count) || 0,
+      units: Number(row.units_count) || 0,
 
-      progress: 0,
+      occupiedUnits: 0,
 
-      annualRent: 0,
+      vacantUnits: Number(row.units_count) || 0,
 
-    }));
+      progress: 0,
 
+      annualRent: 0,
 
+    }));
 
-    setArchivedBuildings(normalizedArchivedBuildings);
 
-  };
 
+    setArchivedBuildings(normalizedArchivedBuildings);
 
+  };
 
-  // استعادة عمارة مؤرشفة وإعادتها إلى قائمة العمائر النشطة.
 
-  const restoreBuilding = async (building: Building) => {
 
-    try {
+  // استعادة عمارة مؤرشفة وإعادتها إلى قائمة العمائر النشطة.
 
-      const { error } = await supabase
+  const restoreBuilding = async (building: Building) => {
+    if (!canEditBuildings) {
+      setPermissionMessage("غير مسموح للمستخدم الحالي باستعادة العمارة.");
+      return;
+    }
 
-        .from("buildings")
 
-        .update({
+    try {
 
-          status: "active",
+      const { error } = await supabase
 
-          archived_at: null,
+        .from("buildings")
 
-        })
+        .update({
 
-        .eq("id", building.id);
+          status: "active",
 
+          archived_at: null,
 
+        })
 
-      if (error) throw error;
+        .eq("id", building.id);
 
 
 
-      setArchivedBuildings((previousBuildings) =>
+      if (error) throw error;
 
-        previousBuildings.filter((item) => item.id !== building.id)
 
-      );
 
+      setArchivedBuildings((previousBuildings) =>
 
+        previousBuildings.filter((item) => item.id !== building.id)
 
-      setBuildings((previousBuildings) => [
+      );
 
-        ...previousBuildings,
 
-        {
 
-          ...building,
+      setBuildings((previousBuildings) => [
 
-          status: "قيد التنفيذ",
+        ...previousBuildings,
 
-        },
+        {
 
-      ]);
+          ...building,
 
-    } catch (error) {
+          status: "قيد التنفيذ",
 
-      console.error("خطأ في استعادة العمارة:", error);
+        },
 
-      alert("تعذر استعادة العمارة. حاول مرة أخرى.");
+      ]);
 
-    }
+    } catch (error) {
 
-  };
+      console.error("خطأ في استعادة العمارة:", error);
 
+      alert("تعذر استعادة العمارة. حاول مرة أخرى.");
 
+    }
 
-  const deleteBuilding = async (building: Building) => {
+  };
 
-    if (deletingBuildingId !== null) return;
 
 
+  const deleteBuilding = async (building: Building) => {
+    if (!canDeleteBuildings) {
+      setPermissionMessage("غير مسموح للمستخدم الحالي بحذف العمارة.");
+      return;
+    }
 
-    const confirmed = window.confirm(
 
-      `هل أنت متأكد من حذف العمارة "${building.name}"؟\n\nسيتم حذف العمارة من قائمة العمائر. لا يمكن التراجع عن هذا الإجراء.`
+    if (deletingBuildingId !== null) return;
 
-    );
 
 
+    const confirmed = window.confirm(
 
-    if (!confirmed) return;
+      `هل أنت متأكد من حذف العمارة "${building.name}"؟\n\nسيتم حذف العمارة من قائمة العمائر. لا يمكن التراجع عن هذا الإجراء.`
 
+    );
 
 
-    setDeletingBuildingId(building.id);
 
+    if (!confirmed) return;
 
 
-    try {
 
-      const { error } = await supabase
+    setDeletingBuildingId(building.id);
 
-        .from("buildings")
 
-  .update({
 
-    status: "archived",
+    try {
 
-    archived_at: new Date().toISOString(),
+      const { error } = await supabase
 
-  })
+        .from("buildings")
 
-  .eq("id", building.id);
+  .update({
 
+    status: "archived",
 
+    archived_at: new Date().toISOString(),
 
+  })
 
+  .eq("id", building.id);
 
-      if (error) throw error;
 
 
 
-      setBuildings((previousBuildings) =>
 
-        previousBuildings.filter((item) => item.id !== building.id)
+      if (error) throw error;
 
-      );
 
 
+      setBuildings((previousBuildings) =>
 
-      if (showArchived) {
+        previousBuildings.filter((item) => item.id !== building.id)
 
-        void loadArchivedBuildings();
+      );
 
-      }
 
 
+      if (showArchived) {
 
-      if (editingBuilding?.id === building.id) closeEditModal();
+        void loadArchivedBuildings();
 
-    } catch (error) {
+      }
 
-      console.error("خطأ في حذف العمارة:", error);
 
-      alert(
 
-        "تعذر حذف العمارة. قد تكون مرتبطة ببيانات أخرى في النظام، وفي هذه الحالة يجب حذف أو فك الارتباط بالبيانات المرتبطة أولًا."
+      if (editingBuilding?.id === building.id) closeEditModal();
 
-      );
+    } catch (error) {
 
-    } finally {
+      console.error("خطأ في حذف العمارة:", error);
 
-      setDeletingBuildingId(null);
+      alert(
 
-    }
+        "تعذر حذف العمارة. قد تكون مرتبطة ببيانات أخرى في النظام، وفي هذه الحالة يجب حذف أو فك الارتباط بالبيانات المرتبطة أولًا."
 
-  };
+      );
 
+    } finally {
 
+      setDeletingBuildingId(null);
 
-  return (
+    }
 
-    <>
+  };
 
-      <div
 
-        className="space-y-8 pb-8"
 
-        dir="rtl"
+  return (
 
-      >
+    <>
 
-        {/* =========================
+      <div
 
-            عنوان الصفحة
+        className="space-y-8 pb-8"
 
-        ========================= */}
+        dir="rtl"
 
+      >
 
+        {/* =========================
 
-        <div className="flex flex-col items-center justify-center gap-4 text-center">
+            عنوان الصفحة
 
-          <div>
+        ========================= */}
 
-            <h1 className="text-3xl font-extrabold text-white md:text-4xl">
 
-              العمائر
 
-            </h1>
+        <div className="flex flex-col items-center justify-center gap-4 text-center">
 
+          <div>
 
+            <h1 className="text-3xl font-extrabold text-white md:text-4xl">
 
-            <p className="mt-3 text-base text-[#B4CEC5]">
+              العمائر
 
-              إدارة جميع عمائر شركة طموح ستار
+            </h1>
 
-            </p>
 
-          </div>
 
+            <p className="mt-3 text-base text-[#B4CEC5]">
 
+              إدارة جميع عمائر شركة طموح ستار
 
-          <div className="flex flex-wrap items-center justify-center gap-3">
+            </p>
 
-            <button
+          </div>
 
-              type="button"
 
-              onClick={openCreateModal}
 
-              className="
+          <div className="flex flex-wrap items-center justify-center gap-3">
 
-                rounded-2xl
+            {canAddBuildings && (
+            <button
 
-                border border-[#D4AD4D]
+              type="button"
 
-                bg-gradient-to-r from-[#C49A3A] to-[#F6D878]
+              onClick={openCreateModal}
 
-                px-6 py-3
+              className="
 
-                font-bold
+                rounded-2xl
 
-                text-[#16352B]
+                border border-[#D4AD4D]
 
-                shadow-lg shadow-[#C49A3A]/10
+                bg-gradient-to-r from-[#C49A3A] to-[#F6D878]
 
-                transition-all duration-300
+                px-6 py-3
 
-                hover:-translate-y-0.5
+                font-bold
 
-                hover:shadow-xl
+                text-[#16352B]
 
-              "
+                shadow-lg shadow-[#C49A3A]/10
 
-            >
+                transition-all duration-300
 
-              + عمارة جديدة
+                hover:-translate-y-0.5
 
-            </button>
+                hover:shadow-xl
 
+              "
 
+            >
 
-            <button
+              + عمارة جديدة
 
-              type="button"
+            </button>
+            )}
 
-              onClick={() => setShowArchived((current) => !current)}
 
-              className="
 
-                flex items-center gap-2 rounded-2xl
+            <button
 
-                border border-white/15
+              type="button"
 
-                bg-white/5 px-6 py-3
+              onClick={() => setShowArchived((current) => !current)}
 
-                font-bold text-[#D5E5DE]
+              className="
 
-                transition-all duration-300
+                flex items-center gap-2 rounded-2xl
 
-                hover:-translate-y-0.5 hover:bg-white/10
+                border border-white/15
 
-                hover:text-white
+                bg-white/5 px-6 py-3
 
-              "
+                font-bold text-[#D5E5DE]
 
-            >
+                transition-all duration-300
 
-              <Archive size={18} />
+                hover:-translate-y-0.5 hover:bg-white/10
 
-              {showArchived ? "إخفاء الأرشيف" : "العمائر المؤرشفة"}
+                hover:text-white
 
-            </button>
+              "
 
-          </div>
+            >
 
-        </div>
+              <Archive size={18} />
 
+              {showArchived ? "إخفاء الأرشيف" : "العمائر المؤرشفة"}
 
+            </button>
 
-        {/* =========================
+          </div>
 
-            البحث
+        </div>
 
-        ========================= */}
 
 
+        {/* =========================
 
-        <div className="flex justify-center">
+            البحث
 
-          <div className="group relative w-full max-w-xl">
+        ========================= */}
 
-            <Search
 
-              size={21}
 
-              className="
+        <div className="flex justify-center">
 
-                absolute right-4 top-1/2
+          <div className="group relative w-full max-w-xl">
 
-                -translate-y-1/2
+            <Search
 
-                text-[#9ABDB0]
+              size={21}
 
-                transition-colors
+              className="
 
-                group-focus-within:text-[#F6D878]
+                absolute right-4 top-1/2
 
-              "
+                -translate-y-1/2
 
-            />
+                text-[#9ABDB0]
 
+                transition-colors
 
+                group-focus-within:text-[#F6D878]
 
-            <input
+              "
 
-              value={search}
+            />
 
-              onChange={(event) =>
 
-                setSearch(event.target.value)
 
-              }
+            <input
 
-              placeholder="ابحث باسم العمارة أو المدينة..."
+              value={search}
 
-              className="
+              onChange={(event) =>
 
-                w-full
+                setSearch(event.target.value)
 
-                rounded-2xl
+              }
 
-                border border-[#C49A3A]/30
+              placeholder="ابحث باسم العمارة أو المدينة..."
 
-                bg-gradient-to-r
+              className="
 
-                from-[#0B4537]
+                w-full
 
-                via-[#073529]
+                rounded-2xl
 
-                to-[#05261F]
+                border border-[#C49A3A]/30
 
-                py-4
+                bg-gradient-to-r
 
-                pr-12 pl-5
+                from-[#0B4537]
 
-                text-base
+                via-[#073529]
 
-                text-white
+                to-[#05261F]
 
-                placeholder:text-[#8EADA2]
+                py-4
 
-                shadow-lg shadow-black/10
+                pr-12 pl-5
 
-                outline-none
+                text-base
 
-                transition-all duration-300
+                text-white
 
-                hover:border-[#C49A3A]/60
+                placeholder:text-[#8EADA2]
 
-                focus:border-[#D4AD4D]
+                shadow-lg shadow-black/10
 
-                focus:ring-2
+                outline-none
 
-                focus:ring-[#D4AD4D]/20
+                transition-all duration-300
 
-              "
+                hover:border-[#C49A3A]/60
 
-            />
+                focus:border-[#D4AD4D]
 
-          </div>
+                focus:ring-2
 
-        </div>
+                focus:ring-[#D4AD4D]/20
 
+              "
 
+            />
 
-        {/* =========================
+          </div>
 
-            الفلاتر
+        </div>
 
-        ========================= */}
 
 
+        {/* =========================
 
-        <div className="flex flex-wrap items-center justify-center gap-3">
+            الفلاتر
 
-          {(
+        ========================= */}
 
-            [
 
-              "الكل",
 
-              "قيد التنفيذ",
+        <div className="flex flex-wrap items-center justify-center gap-3">
 
-              "مكتمل",
+          {(
 
-              "متوقف",
+            [
 
-            ] as Filter[]
+              "الكل",
 
-          ).map((item) => {
+              "قيد التنفيذ",
 
-            const isActive = filter === item;
+              "مكتمل",
 
+              "متوقف",
 
+            ] as Filter[]
 
-            return (
+          ).map((item) => {
 
-              <button
+            const isActive = filter === item;
 
-                key={item}
 
-                type="button"
 
-                onClick={() => setFilter(item)}
+            return (
 
-                className={`
+              <button
 
-                  min-w-[125px]
+                key={item}
 
-                  rounded-2xl
+                type="button"
 
-                  border
+                onClick={() => setFilter(item)}
 
-                  px-6 py-3
+                className={`
 
-                  text-sm
+                  min-w-[125px]
 
-                  font-bold
+                  rounded-2xl
 
-                  transition-all duration-300
+                  border
 
-                  ${
+                  px-6 py-3
 
-                    isActive
+                  text-sm
 
-                      ? `
+                  font-bold
 
-                        border-[#D4AD4D]
+                  transition-all duration-300
 
-                        bg-gradient-to-r
+                  ${
 
-                        from-[#C49A3A]
+                    isActive
 
-                        to-[#F6D878]
+                      ? `
 
-                        text-[#16352B]
+                        border-[#D4AD4D]
 
-                        shadow-lg
+                        bg-gradient-to-r
 
-                        shadow-[#C49A3A]/20
+                        from-[#C49A3A]
 
-                      `
+                        to-[#F6D878]
 
-                      : `
+                        text-[#16352B]
 
-                        border-[#C49A3A]/25
+                        shadow-lg
 
-                        bg-gradient-to-r
+                        shadow-[#C49A3A]/20
 
-                        from-[#0B4537]
+                      `
 
-                        to-[#05261F]
+                      : `
 
-                        text-[#C5D9D1]
+                        border-[#C49A3A]/25
 
-                        hover:-translate-y-0.5
+                        bg-gradient-to-r
 
-                        hover:border-[#D4AD4D]
+                        from-[#0B4537]
 
-                        hover:text-[#F6D878]
+                        to-[#05261F]
 
-                        hover:shadow-lg
+                        text-[#C5D9D1]
 
-                        hover:shadow-[#C49A3A]/10
+                        hover:-translate-y-0.5
 
-                      `
+                        hover:border-[#D4AD4D]
 
-                  }
+                        hover:text-[#F6D878]
 
-                `}
+                        hover:shadow-lg
 
-              >
+                        hover:shadow-[#C49A3A]/10
 
-                {item}
+                      `
 
-              </button>
+                  }
 
-            );
+                `}
 
-          })}
+              >
 
-        </div>
+                {item}
 
+              </button>
 
+            );
 
-        {/* =========================
+          })}
 
-            الإحصائيات
+        </div>
 
-        ========================= */}
 
 
+        {/* =========================
 
-        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+            الإحصائيات
 
-          {stats.map((item) => {
+        ========================= */}
 
-            const Icon = item.icon;
 
 
+        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
 
-            return (
+          {stats.map((item) => {
 
-              <div
+            const Icon = item.icon;
 
-                key={item.title}
 
-                className={`
 
-                  group
+            return (
 
-                  relative
+              <div
 
-                  overflow-hidden
+                key={item.title}
 
-                  rounded-2xl
+                className={`
 
-                  border
+                  group
 
-                  ${item.borderClass}
+                  relative
 
-                  bg-gradient-to-br
+                  overflow-hidden
 
-                  from-[#0B4537]
+                  rounded-2xl
 
-                  via-[#073529]
+                  border
 
-                  to-[#05261F]
+                  ${item.borderClass}
 
-                  p-6
+                  bg-gradient-to-br
 
-                  text-center
+                  from-[#0B4537]
 
-                  shadow-lg
+                  via-[#073529]
 
-                  ${item.glowClass}
+                  to-[#05261F]
 
-                  transition-all duration-300
+                  p-6
 
-                  hover:-translate-y-1
+                  text-center
 
-                  hover:shadow-xl
+                  shadow-lg
 
-                `}
+                  ${item.glowClass}
 
-              >
+                  transition-all duration-300
 
-                <div className="flex flex-col items-center gap-3">
+                  hover:-translate-y-1
 
-                  <div
+                  hover:shadow-xl
 
-                    className={`
+                `}
 
-                      flex h-14 w-14
+              >
 
-                      items-center justify-center
+                <div className="flex flex-col items-center gap-3">
 
-                      rounded-2xl
+                  <div
 
-                      border
+                    className={`
 
-                      ${item.borderClass}
+                      flex h-14 w-14
 
-                      ${item.bgClass}
+                      items-center justify-center
 
-                      transition-transform duration-300
+                      rounded-2xl
 
-                      group-hover:scale-110
+                      border
 
-                    `}
+                      ${item.borderClass}
 
-                  >
+                      ${item.bgClass}
 
-                    <Icon
+                      transition-transform duration-300
 
-                      size={28}
+                      group-hover:scale-110
 
-                      className={item.iconClass}
+                    `}
 
-                    />
+                  >
 
-                  </div>
+                    <Icon
 
+                      size={28}
 
+                      className={item.iconClass}
 
-                  <p className="text-sm font-semibold text-[#B4CEC5]">
+                    />
 
-                    {item.title}
+                  </div>
 
-                  </p>
 
 
+                  <p className="text-sm font-semibold text-[#B4CEC5]">
 
-                  <h2 className="text-4xl font-extrabold leading-none text-white">
+                    {item.title}
 
-                    {item.value}
+                  </p>
 
-                  </h2>
 
-                </div>
 
+                  <h2 className="text-4xl font-extrabold leading-none text-white">
 
+                    {item.value}
 
-                <div
+                  </h2>
 
-                  className="
+                </div>
 
-                    absolute bottom-0 left-1/2
 
-                    h-1 w-0
 
-                    -translate-x-1/2
+                <div
 
-                    rounded-full
+                  className="
 
-                    bg-[#D4AD4D]
+                    absolute bottom-0 left-1/2
 
-                    transition-all duration-300
+                    h-1 w-0
 
-                    group-hover:w-1/3
+                    -translate-x-1/2
 
-                  "
+                    rounded-full
 
-                />
+                    bg-[#D4AD4D]
 
-              </div>
+                    transition-all duration-300
 
-            );
+                    group-hover:w-1/3
 
-          })}
+                  "
 
-        </div>
+                />
 
+              </div>
 
+            );
 
-        {/* =========================
+          })}
 
-            عنوان قائمة العمائر
+        </div>
 
-        ========================= */}
 
 
+        {/* =========================
 
-        <div className="space-y-5">
+            عنوان قائمة العمائر
 
-          <div className="flex flex-col items-center justify-center gap-3 text-center">
+        ========================= */}
 
-            <div className="flex items-center justify-center gap-3">
 
-              <div
 
-                className="
+        <div className="space-y-5">
 
-                  flex h-12 w-12
+          <div className="flex flex-col items-center justify-center gap-3 text-center">
 
-                  items-center justify-center
+            <div className="flex items-center justify-center gap-3">
 
-                  rounded-2xl
+              <div
 
-                  border border-[#C49A3A]/50
+                className="
 
-                  bg-[#C49A3A]/10
+                  flex h-12 w-12
 
-                "
+                  items-center justify-center
 
-              >
+                  rounded-2xl
 
-                <Building2
+                  border border-[#C49A3A]/50
 
-                  size={25}
+                  bg-[#C49A3A]/10
 
-                  className="text-[#F6D878]"
+                "
 
-                />
+              >
 
-              </div>
+                <Building2
 
+                  size={25}
 
+                  className="text-[#F6D878]"
 
-              <h2 className="text-2xl font-extrabold text-white md:text-3xl">
+                />
 
-                قائمة العمائر
+              </div>
 
-              </h2>
 
-            </div>
 
+              <h2 className="text-2xl font-extrabold text-white md:text-3xl">
 
+                قائمة العمائر
 
-            <span
+              </h2>
 
-              className="
+            </div>
 
-                rounded-full
 
-                border border-[#C49A3A]/30
 
-                bg-[#C49A3A]/10
+            <span
 
-                px-5 py-2
+              className="
 
-                text-sm font-semibold
+                rounded-full
 
-                text-[#F6D878]
+                border border-[#C49A3A]/30
 
-              "
+                bg-[#C49A3A]/10
 
-            >
+                px-5 py-2
 
-              {filteredBuildings.length} عمارة
+                text-sm font-semibold
 
-            </span>
+                text-[#F6D878]
 
-          </div>
+              "
 
+            >
 
+              {filteredBuildings.length} عمارة
 
-          {/* =========================
+            </span>
 
-              قائمة الكروت
+          </div>
 
-          ========================= */}
 
 
+          {/* =========================
 
-          {filteredBuildings.length === 0 ? (
+              قائمة الكروت
 
-            <div
+          ========================= */}
 
-              className="
 
-                rounded-2xl
 
-                border border-dashed border-[#C49A3A]/40
+          {filteredBuildings.length === 0 ? (
 
-                bg-gradient-to-br
+            <div
 
-                from-[#0B4537]
+              className="
 
-                via-[#073529]
+                rounded-2xl
 
-                to-[#05261F]
+                border border-dashed border-[#C49A3A]/40
 
-                p-12
+                bg-gradient-to-br
 
-                text-center
+                from-[#0B4537]
 
-                text-[#8EADA2]
+                via-[#073529]
 
-              "
+                to-[#05261F]
 
-            >
+                p-12
 
-              لا توجد عمائر مطابقة للبحث أو الفلتر.
+                text-center
 
-            </div>
+                text-[#8EADA2]
 
-          ) : (
+              "
 
-            <div className="grid gap-6 xl:grid-cols-2">
+            >
 
-              {filteredBuildings.map((building) => {
+              لا توجد عمائر مطابقة للبحث أو الفلتر.
 
-                const occupancy =
+            </div>
 
-                  building.units > 0
+          ) : (
 
-                    ? Math.round(
+            <div className="grid gap-6 xl:grid-cols-2">
 
-                        (building.occupiedUnits /
+              {filteredBuildings.map((building) => {
 
-                          building.units) *
+                const occupancy =
 
-                          100
+                  building.units > 0
 
-                      )
+                    ? Math.round(
 
-                    : 0;
+                        (building.occupiedUnits /
 
+                          building.units) *
 
+                          100
 
-                const vacantUnits = building.vacantUnits;
+                      )
 
+                    : 0;
 
 
-                return (
 
-                  <div
+                const vacantUnits = building.vacantUnits;
 
-                    key={building.id}
 
-                    className="
 
-                      overflow-hidden
+                return (
 
-                      rounded-3xl
+                  <div
 
-                      border border-[#C49A3A]/25
+                    key={building.id}
 
-                      bg-gradient-to-br
+                    className="
 
-                      from-[#0B4537]
+                      overflow-hidden
 
-                      via-[#073529]
+                      rounded-3xl
 
-                      to-[#05261F]
+                      border border-[#C49A3A]/25
 
-                      shadow-xl shadow-black/10
+                      bg-gradient-to-br
 
-                      transition-all duration-300
+                      from-[#0B4537]
 
-                      hover:border-[#C49A3A]/55
+                      via-[#073529]
 
-                      hover:shadow-2xl
+                      to-[#05261F]
 
-                    "
+                      shadow-xl shadow-black/10
 
-                  >
+                      transition-all duration-300
 
-                    {/* =====================
+                      hover:border-[#C49A3A]/55
 
-                        رأس الكارت
+                      hover:shadow-2xl
 
-                    ===================== */}
+                    "
 
+                  >
 
+                    {/* =====================
 
-                    <div
+                        رأس الكارت
 
-                      className="
+                    ===================== */}
 
-                        border-b border-white/10
 
-                        px-7 py-7
 
-                      "
+                    <div
 
-                    >
+                      className="
 
-                      <div className="flex items-start justify-between gap-4">
+                        border-b border-white/10
 
-                        <div className="flex min-w-0 items-start gap-4">
+                        px-7 py-7
 
-                          <div
+                      "
 
-                            className="
+                    >
 
-                              flex h-14 w-14 shrink-0
+                      <div className="flex items-start justify-between gap-4">
 
-                              items-center justify-center
+                        <div className="flex min-w-0 items-start gap-4">
 
-                              rounded-2xl
+                          <div
 
-                              border border-[#C49A3A]/40
+                            className="
 
-                              bg-[#C49A3A]/10
+                              flex h-14 w-14 shrink-0
 
-                            "
+                              items-center justify-center
 
-                          >
+                              rounded-2xl
 
-                            <Building2
+                              border border-[#C49A3A]/40
 
-                              size={29}
+                              bg-[#C49A3A]/10
 
-                              className="text-[#F6D878]"
+                            "
 
-                            />
+                          >
 
-                          </div>
+                            <Building2
 
+                              size={29}
 
+                              className="text-[#F6D878]"
 
-                          <div className="min-w-0">
+                            />
 
-                            <div className="flex flex-wrap items-center gap-2">
+                          </div>
 
-                              <h3 className="text-xl font-extrabold text-white">
 
-                                {building.name}
 
-                              </h3>
+                          <div className="min-w-0">
 
+                            <div className="flex flex-wrap items-center gap-2">
 
+                              <h3 className="text-xl font-extrabold text-white">
 
-                              <span
+                                {building.name}
 
-                                className="
+                              </h3>
 
-                                  rounded-full
 
-                                  border border-[#C49A3A]/35
 
-                                  bg-[#C49A3A]/10
+                              <span
 
-                                  px-3 py-1
+                                className="
 
-                                  text-xs font-bold
+                                  rounded-full
 
-                                  text-[#F6D878]
+                                  border border-[#C49A3A]/35
 
-                                "
+                                  bg-[#C49A3A]/10
 
-                              >
+                                  px-3 py-1
 
-                                {building.status}
+                                  text-xs font-bold
 
-                              </span>
+                                  text-[#F6D878]
 
-                            </div>
+                                "
 
+                              >
 
+                                {building.status}
 
-                            <div
+                              </span>
 
-                              className="
+                            </div>
 
-                                mt-2 flex items-center
 
-                                gap-1.5
 
-                                text-sm
+                            <div
 
-                                text-[#B4CEC5]
+                              className="
 
-                              "
+                                mt-2 flex items-center
 
-                            >
+                                gap-1.5
 
-                              <MapPin size={16} />
+                                text-sm
 
-                              <span>{building.city}</span>
+                                text-[#B4CEC5]
 
-                              {building.buildingNumber && (
+                              "
 
-                                <span className="mr-2 text-[#F6D878]">
+                            >
 
-                                  • رقم {building.buildingNumber}
+                              <MapPin size={16} />
 
-                                </span>
+                              <span>{building.city}</span>
 
-                              )}
+                              {building.buildingNumber && (
 
-                            </div>
+                                <span className="mr-2 text-[#F6D878]">
 
-                          </div>
+                                  • رقم {building.buildingNumber}
 
-                        </div>
+                                </span>
 
+                              )}
 
+                            </div>
 
-                        {/* أزرار تعديل وحذف العمارة */}
+                          </div>
 
-                        <div className="flex shrink-0 items-center gap-2">
+                        </div>
 
-                          <button
 
-                            type="button"
 
-                            title="تعديل بيانات العمارة"
+                        {/* أزرار تعديل وحذف العمارة */}
 
-                            onClick={() => openEditModal(building)}
+                        <div className="flex shrink-0 items-center gap-2">
 
-                            disabled={deletingBuildingId === building.id}
+                          
 
-                            className="flex h-11 w-11 items-center justify-center rounded-xl border border-[#C49A3A]/40 bg-[#C49A3A]/10 text-[#F6D878] transition-all duration-300 hover:-translate-y-0.5 hover:border-[#D4AD4D] hover:bg-[#C49A3A]/25 disabled:cursor-not-allowed disabled:opacity-50"
+                          {canEditBuildings && (
+<button
 
-                          >
+                            type="button"
 
-                            <Edit3 size={19} />
+                            title="تعديل بيانات العمارة"
 
-                          </button>
+                            onClick={() => openEditModal(building)}
 
+                            disabled={deletingBuildingId === building.id}
 
+                            className="flex h-11 w-11 items-center justify-center rounded-xl border border-[#C49A3A]/40 bg-[#C49A3A]/10 text-[#F6D878] transition-all duration-300 hover:-translate-y-0.5 hover:border-[#D4AD4D] hover:bg-[#C49A3A]/25 disabled:cursor-not-allowed disabled:opacity-50"
 
-                          <button
+                          >
 
-                            type="button"
+                            <Edit3 size={19} />
 
-                            title="حذف العمارة"
+                          </button>
+                          )}
 
-                            onClick={() => void deleteBuilding(building)}
 
-                            disabled={deletingBuildingId === building.id}
 
-                            className="flex h-11 w-11 items-center justify-center rounded-xl border border-red-400/35 bg-red-500/10 text-red-300 transition-all duration-300 hover:-translate-y-0.5 hover:border-red-400/70 hover:bg-red-500/20 hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-50"
+                          
 
-                          >
 
-                            {deletingBuildingId === building.id ? (
 
-                              <span className="text-xs font-extrabold">...</span>
+                          {canDeleteBuildings && (
+<button
 
-                            ) : (
+                            type="button"
 
-                              <Trash2 size={19} />
+                            title="حذف العمارة"
 
-                            )}
+                            onClick={() => void deleteBuilding(building)}
 
-                          </button>
+                            disabled={deletingBuildingId === building.id}
 
-                        </div>
+                            className="flex h-11 w-11 items-center justify-center rounded-xl border border-red-400/35 bg-red-500/10 text-red-300 transition-all duration-300 hover:-translate-y-0.5 hover:border-red-400/70 hover:bg-red-500/20 hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-50"
 
-                      </div>
+                          >
 
-                    </div>
+                            {deletingBuildingId === building.id ? (
 
+                              <span className="text-xs font-extrabold">...</span>
 
+                            ) : (
 
-                    {/* =====================
+                              <Trash2 size={19} />
 
-                        بيانات العمارة
+                            )}
 
-                    ===================== */}
+                          </button>
+                          )}
 
+                        </div>
 
+                      </div>
 
-                    <div
+                    </div>
 
-                      className="
 
-                        grid
 
-                        grid-cols-2
+                    {/* =====================
 
-                        divide-x divide-x-reverse
+                        بيانات العمارة
 
-                        divide-y
+                    ===================== */}
 
-                        divide-white/10
 
-                        md:grid-cols-4
 
-                        md:divide-y-0
+                    <div
 
-                      "
+                      className="
 
-                    >
+                        grid
 
-                      {/* إجمالي الشقق الفعلي داخل العمارة */}
+                        grid-cols-2
 
-                      <div className="flex min-h-[142px] flex-col items-center justify-center p-5 text-center">
+                        divide-x divide-x-reverse
 
-                        <Home
+                        divide-y
 
-                          size={21}
+                        divide-white/10
 
-                          className="mx-auto mb-3 text-[#F6D878]"
+                        md:grid-cols-4
 
-                        />
+                        md:divide-y-0
 
+                      "
 
+                    >
 
-                        <p className="text-sm font-semibold text-[#B4CEC5]">
+                      {/* إجمالي الشقق الفعلي داخل العمارة */}
 
-                          إجمالي الشقق
+                      <div className="flex min-h-[142px] flex-col items-center justify-center p-5 text-center">
 
-                        </p>
+                        <Home
 
+                          size={21}
 
+                          className="mx-auto mb-3 text-[#F6D878]"
 
-                        <p className="mt-2 text-xl font-extrabold text-white">
+                        />
 
-                          {building.units}
 
-                        </p>
 
-                      </div>
+                        <p className="text-sm font-semibold text-[#B4CEC5]">
 
+                          إجمالي الشقق
 
+                        </p>
 
-                      {/* إجمالي الشقق المؤجرة الفعلي */}
 
-                      <div className="flex min-h-[142px] flex-col items-center justify-center p-5 text-center">
 
-                        <User
+                        <p className="mt-2 text-xl font-extrabold text-white">
 
-                          size={21}
+                          {building.units}
 
-                          className="mx-auto mb-3 text-emerald-300"
+                        </p>
 
-                        />
+                      </div>
 
 
 
-                        <p className="text-sm font-semibold text-[#B4CEC5]">
+                      {/* إجمالي الشقق المؤجرة الفعلي */}
 
-                          الشقق المؤجرة
+                      <div className="flex min-h-[142px] flex-col items-center justify-center p-5 text-center">
 
-                        </p>
+                        <User
 
+                          size={21}
 
+                          className="mx-auto mb-3 text-emerald-300"
 
-                        <p className="mt-2 text-xl font-extrabold text-white">
+                        />
 
-                          {building.occupiedUnits}
 
-                        </p>
 
-                      </div>
+                        <p className="text-sm font-semibold text-[#B4CEC5]">
 
+                          الشقق المؤجرة
 
+                        </p>
 
-                      {/* إجمالي الشقق الفارغة الفعلي */}
 
-                      <div className="flex min-h-[142px] flex-col items-center justify-center p-5 text-center">
 
-                        <DoorOpen
+                        <p className="mt-2 text-xl font-extrabold text-white">
 
-                          size={21}
+                          {building.occupiedUnits}
 
-                          className="mx-auto mb-3 text-red-300"
+                        </p>
 
-                        />
+                      </div>
 
 
 
-                        <p className="text-sm font-semibold text-[#B4CEC5]">
+                      {/* إجمالي الشقق الفارغة الفعلي */}
 
-                          الشقق الفارغة
+                      <div className="flex min-h-[142px] flex-col items-center justify-center p-5 text-center">
 
-                        </p>
+                        <DoorOpen
 
+                          size={21}
 
+                          className="mx-auto mb-3 text-red-300"
 
-                        <p className="mt-2 text-xl font-extrabold text-white">
+                        />
 
-                          {vacantUnits}
 
-                        </p>
 
-                      </div>
+                        <p className="text-sm font-semibold text-[#B4CEC5]">
 
+                          الشقق الفارغة
 
+                        </p>
 
-                      {/* نسبة الإشغال الفعلية */}
 
-                      <div className="flex min-h-[142px] flex-col items-center justify-center p-5 text-center">
 
-                        <Building2
+                        <p className="mt-2 text-xl font-extrabold text-white">
 
-                          size={21}
+                          {vacantUnits}
 
-                          className="mx-auto mb-3 text-[#D4AD4D]"
+                        </p>
 
-                        />
+                      </div>
 
 
 
-                        <p className="text-sm font-semibold text-[#B4CEC5]">
+                      {/* نسبة الإشغال الفعلية */}
 
-                          نسبة الإشغال
+                      <div className="flex min-h-[142px] flex-col items-center justify-center p-5 text-center">
 
-                        </p>
+                        <Building2
 
+                          size={21}
 
+                          className="mx-auto mb-3 text-[#D4AD4D]"
 
-                        <p className="mt-2 text-xl font-extrabold text-white">
+                        />
 
-                          {occupancy}%
 
-                        </p>
 
-                      </div>
+                        <p className="text-sm font-semibold text-[#B4CEC5]">
 
-                    </div>
+                          نسبة الإشغال
 
+                        </p>
 
 
-                   {/* =====================
 
-    نسبة الإشغال
+                        <p className="mt-2 text-xl font-extrabold text-white">
+
+                          {occupancy}%
+
+                        </p>
+
+                      </div>
+
+                    </div>
+
+
+
+                   {/* =====================
+
+    نسبة الإشغال
 
 \===================== */}
 
@@ -2210,1176 +2253,1188 @@ console.log("BUILDING CREATED:", building);
 
 <div
 
-  className="
+  className="
 
-    border-t border-white/10
+    border-t border-white/10
 
-    px-7 py-7
+    px-7 py-7
 
-  "
+  "
 
 >
 
-  <div className="mb-3 flex items-center justify-between text-sm">
+  <div className="mb-3 flex items-center justify-between text-sm">
 
-    <span className="font-semibold text-[#B4CEC5]">
+    <span className="font-semibold text-[#B4CEC5]">
 
-      نسبة الإشغال
+      نسبة الإشغال
 
-    </span>
+    </span>
 
 
 
-    <span className="font-extrabold text-[#F6D878]">
+    <span className="font-extrabold text-[#F6D878]">
 
-      {occupancy}%
+      {occupancy}%
 
-    </span>
+    </span>
 
-  </div>
+  </div>
 
 
 
-  <div
+  <div
 
-    className="
+    className="
 
-      h-3
+      h-3
 
-      overflow-hidden
+      overflow-hidden
 
-      rounded-full
+      rounded-full
 
-      bg-[#031F18]
+      bg-[#031F18]
 
-    "
+    "
 
-  >
+  >
 
-    <div
+    <div
 
-      className="
+      className="
 
-        h-full
+        h-full
 
-        rounded-full
+        rounded-full
 
-        bg-gradient-to-r
+        bg-gradient-to-r
 
-        from-[#B88B2D]
+        from-[#B88B2D]
 
-        to-[#F6D878]
+        to-[#F6D878]
 
-        transition-all duration-500
+        transition-all duration-500
 
-      "
+      "
 
-      style={{
+      style={{
 
-        width: `${Math.min(Math.max(occupancy, 0), 100)}%`,
+        width: `${Math.min(Math.max(occupancy, 0), 100)}%`,
 
-      }}
+      }}
 
-    />
+    />
 
-  </div>
+  </div>
 
 
 
-  {/* زر عرض التفاصيل */}
+  {/* زر عرض التفاصيل */}
 
-  <button
+  <button
 
-    type="button"
+    type="button"
 
-    onClick={() =>
+    onClick={() =>
 
-      navigate(
+      navigate(
 
-        `/buildings/${building.id}`
+        `/buildings/${building.id}`
 
-      )
+      )
 
-    }
+    }
 
-    className="
+    className="
 
-      mt-6
+      mt-6
 
-      flex min-h-[58px] w-full
+      flex min-h-[58px] w-full
 
-      items-center justify-center
+      items-center justify-center
 
-      gap-2
+      gap-2
 
-      rounded-2xl
+      rounded-2xl
 
-      border border-[#C49A3A]/40
+      border border-[#C49A3A]/40
 
-      bg-[#C49A3A]/10
+      bg-[#C49A3A]/10
 
-      px-6 py-5
+      px-6 py-5
 
-      text-base
+      text-base
 
-      font-extrabold
+      font-extrabold
 
-      text-[#F6D878]
+      text-[#F6D878]
 
-      transition-all duration-300
+      transition-all duration-300
 
-      hover:-translate-y-0.5
+      hover:-translate-y-0.5
 
-      hover:bg-gradient-to-r
+      hover:bg-gradient-to-r
 
-      hover:from-[#C49A3A]
+      hover:from-[#C49A3A]
 
-      hover:to-[#F6D878]
+      hover:to-[#F6D878]
 
-      hover:text-[#16352B]
+      hover:text-[#16352B]
 
-    "
+    "
 
-  >
+  >
 
-    عرض تفاصيل العمارة
+    عرض تفاصيل العمارة
 
 
 
-    <ChevronLeft size={19} />
+    <ChevronLeft size={19} />
 
-  </button>
+  </button>
 
 </div>
 
-                  </div>
+                  </div>
 
-                );
+                );
 
-              })}
+              })}
 
-            </div>
+            </div>
 
-          )}
+          )}
 
-        </div>
+        </div>
 
-      </div>
+      </div>
 
 
 
-      {showArchived && (
+      {showArchived && (
 
-        <div className="mt-8 space-y-5" dir="rtl">
+        <div className="mt-8 space-y-5" dir="rtl">
 
-          <div className="flex items-center justify-center gap-3 text-center">
+          <div className="flex items-center justify-center gap-3 text-center">
 
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/15 bg-white/5">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/15 bg-white/5">
 
-              <Archive size={24} className="text-[#F6D878]" />
+              <Archive size={24} className="text-[#F6D878]" />
 
-            </div>
+            </div>
 
-            <div>
+            <div>
 
-              <h2 className="text-2xl font-extrabold text-white">العمائر المؤرشفة</h2>
+              <h2 className="text-2xl font-extrabold text-white">العمائر المؤرشفة</h2>
 
-              <p className="mt-1 text-sm text-[#8EADA2]">يمكنك استعادة أي عمارة وإعادتها إلى القائمة النشطة.</p>
+              <p className="mt-1 text-sm text-[#8EADA2]">يمكنك استعادة أي عمارة وإعادتها إلى القائمة النشطة.</p>
 
-            </div>
+            </div>
 
-          </div>
+          </div>
 
 
 
-          {archivedBuildings.length === 0 ? (
+          {archivedBuildings.length === 0 ? (
 
-            <div className="rounded-2xl border border-dashed border-white/15 bg-white/5 p-10 text-center text-[#8EADA2]">
+            <div className="rounded-2xl border border-dashed border-white/15 bg-white/5 p-10 text-center text-[#8EADA2]">
 
-              لا توجد عمائر مؤرشفة حاليًا.
+              لا توجد عمائر مؤرشفة حاليًا.
 
-            </div>
+            </div>
 
-          ) : (
+          ) : (
 
-            <div className="grid gap-4 xl:grid-cols-2">
+            <div className="grid gap-4 xl:grid-cols-2">
 
-              {archivedBuildings.map((building) => (
+              {archivedBuildings.map((building) => (
 
-                <div
+                <div
 
-                  key={building.id}
+                  key={building.id}
 
-                  className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-gradient-to-br from-[#0B4537] via-[#073529] to-[#05261F] p-5 shadow-lg"
+                  className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-gradient-to-br from-[#0B4537] via-[#073529] to-[#05261F] p-5 shadow-lg"
 
-                >
+                >
 
-                  <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-start justify-between gap-4">
 
-                    <div className="min-w-0">
+                    <div className="min-w-0">
 
-                      <h3 className="text-lg font-extrabold text-white">{building.name}</h3>
+                      <h3 className="text-lg font-extrabold text-white">{building.name}</h3>
 
-                      <p className="mt-1 text-sm text-[#B4CEC5]">
+                      <p className="mt-1 text-sm text-[#B4CEC5]">
 
-                        {building.city}
+                        {building.city}
 
-                        {building.buildingNumber && ` • رقم ${building.buildingNumber}`}
+                        {building.buildingNumber && ` • رقم ${building.buildingNumber}`}
 
-                      </p>
+                      </p>
 
-                    </div>
+                    </div>
 
-                    <span className="shrink-0 rounded-full border border-red-400/30 bg-red-500/10 px-3 py-1 text-xs font-bold text-red-300">
+                    <span className="shrink-0 rounded-full border border-red-400/30 bg-red-500/10 px-3 py-1 text-xs font-bold text-red-300">
 
-                      مؤرشفة
+                      مؤرشفة
 
-                    </span>
+                    </span>
 
-                  </div>
+                  </div>
 
 
 
-                  <button
+                  
 
-                    type="button"
 
-                    onClick={() => void restoreBuilding(building)}
 
-                    className="flex items-center justify-center gap-2 rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 font-extrabold text-emerald-300 transition hover:bg-emerald-500/20"
+                  {canEditBuildings && (
+<button
 
-                  >
+                    type="button"
 
-                    <RotateCcw size={18} />
+                    onClick={() => void restoreBuilding(building)}
 
-                    استعادة العمارة
+                    className="flex items-center justify-center gap-2 rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 font-extrabold text-emerald-300 transition hover:bg-emerald-500/20"
 
-                  </button>
+                  >
 
-                </div>
+                    <RotateCcw size={18} />
 
-              ))}
+                    استعادة العمارة
 
-            </div>
+                  </button>
+                  )}
 
-          )}
+                </div>
 
-        </div>
+              ))}
 
-      )}
+            </div>
 
+          )}
 
+        </div>
 
-      {/* =========================
+      )}
 
-          نافذة إنشاء عمارة جديدة
 
-      ========================= */}
 
-      {isCreateModalOpen && (
+      {/* =========================
 
-        <div
+          نافذة إنشاء عمارة جديدة
 
-          className="fixed inset-0 z-50 flex items-center justify-center bg-[#001b15]/82 p-4 backdrop-blur-md md:p-6"
+      ========================= */}
 
-          dir="rtl"
+      {isCreateModalOpen && (
 
-        >
+        <div
 
-          <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[#001b15]/82 p-4 backdrop-blur-md md:p-6"
 
-            className="relative flex max-h-[92vh] w-full max-w-[1180px] overflow-hidden rounded-[2rem] border border-[#D4AD4D]/60 bg-[#05261F] shadow-[0_35px_110px_rgba(0,0,0,0.62)]"
+          dir="rtl"
 
-          >
+        >
 
-            {/* صورة الهوية الخاصة بالنافذة */}
+          <div
 
-            <div
+            className="relative flex max-h-[92vh] w-full max-w-[1180px] overflow-hidden rounded-[2rem] border border-[#D4AD4D]/60 bg-[#05261F] shadow-[0_35px_110px_rgba(0,0,0,0.62)]"
 
-              className="absolute inset-0 bg-cover bg-center"
+          >
 
-              style={{ backgroundImage: "url('/add building.png')" }}
+            {/* صورة الهوية الخاصة بالنافذة */}
 
-            />
+            <div
 
-            <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(2,28,23,0.90)\_0%,rgba(3,38,30,0.80)\_38%,rgba(3,30,24,0.95)\_60%,rgba(2,24,19,0.97)\_100%)]" />
+              className="absolute inset-0 bg-cover bg-center"
 
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%\_18%,rgba(246,216,120,0.12),transparent_28%),radial-gradient(circle_at_82%\_82%,rgba(20,112,88,0.16),transparent_35%)]" />
+              style={{ backgroundImage: "url('/add building.png')" }}
 
+            />
 
+            <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(2,28,23,0.90)\_0%,rgba(3,38,30,0.80)\_38%,rgba(3,30,24,0.95)\_60%,rgba(2,24,19,0.97)\_100%)]" />
 
-            {/* زر الإغلاق */}
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%\_18%,rgba(246,216,120,0.12),transparent_28%),radial-gradient(circle_at_82%\_82%,rgba(20,112,88,0.16),transparent_35%)]" />
 
-            <button
 
-              type="button"
 
-              onClick={closeCreateModal}
+            {/* زر الإغلاق */}
 
-              disabled={isCreatingBuilding}
+            <button
 
-              className="absolute left-5 top-5 z-30 flex h-11 w-11 items-center justify-center rounded-2xl border border-white/20 bg-[#06271F]/65 text-[#D5E5DE] shadow-lg backdrop-blur-md transition-all duration-300 hover:border-[#D4AD4D]/70 hover:bg-[#C49A3A]/20 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+              type="button"
 
-              title="إغلاق"
+              onClick={closeCreateModal}
 
-            >
+              disabled={isCreatingBuilding}
 
-              <X size={22} />
+              className="absolute left-5 top-5 z-30 flex h-11 w-11 items-center justify-center rounded-2xl border border-white/20 bg-[#06271F]/65 text-[#D5E5DE] shadow-lg backdrop-blur-md transition-all duration-300 hover:border-[#D4AD4D]/70 hover:bg-[#C49A3A]/20 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
 
-            </button>
+              title="إغلاق"
 
+            >
 
+              <X size={22} />
 
-            {/* =========================
+            </button>
 
-                الجهة اليمنى — البيانات واللوجو
 
-            ========================= */}
 
-            <section className="relative z-10 flex min-h-[700px] w-full flex-col overflow-y-auto border-l border-white/10 px-6 pb-6 pt-8 sm:px-8 lg:w-[60%] lg:px-9 lg:pb-7 lg:pt-9">
+            {/* =========================
 
-              <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(1,24,19,0.12),rgba(1,24,19,0.05)\_55%,rgba(1,24,19,0.55)\_100%)]" />
+                الجهة اليمنى — البيانات واللوجو
 
-              {/* رأس النموذج */}
+            ========================= */}
 
-              <div className="relative z-10 mb-5 flex items-start justify-between gap-5 pl-12">
+            <section className="relative z-10 flex min-h-[700px] w-full flex-col overflow-y-auto border-l border-white/10 px-6 pb-6 pt-8 sm:px-8 lg:w-[60%] lg:px-9 lg:pb-7 lg:pt-9">
 
-                <div className="flex items-start gap-4">
+              <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(1,24,19,0.12),rgba(1,24,19,0.05)\_55%,rgba(1,24,19,0.55)\_100%)]" />
 
-                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-[#D4AD4D]/60 bg-[#C49A3A]/15 shadow-lg shadow-[#C49A3A]/10">
+              {/* رأس النموذج */}
 
-                    <Plus size={27} strokeWidth={2.4} className="text-[#F6D878]" />
+              <div className="relative z-10 mb-5 flex items-start justify-between gap-5 pl-12">
 
-                  </div>
+                <div className="flex items-start gap-4">
 
-                  <div>
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-[#D4AD4D]/60 bg-[#C49A3A]/15 shadow-lg shadow-[#C49A3A]/10">
 
-                    <p className="mb-1 text-xs font-extrabold tracking-[0.22em] text-[#C49A3A]">
+                    <Plus size={27} strokeWidth={2.4} className="text-[#F6D878]" />
 
-                      AQARY SMART
+                  </div>
 
-                    </p>
+                  <div>
 
-                    <h2 className="text-2xl font-black text-white sm:text-[1.9rem]">
+                    <p className="mb-1 text-xs font-extrabold tracking-[0.22em] text-[#C49A3A]">
 
-                      إضافة عمارة جديدة
+                      AQARY SMART
 
-                    </h2>
+                    </p>
 
-                    <p className="mt-1 text-sm font-semibold text-[#AFC8BE]">
+                    <h2 className="text-2xl font-black text-white sm:text-[1.9rem]">
 
-                      أدخل بيانات العمارة وسيتم إنشاؤها داخل النظام
+                      إضافة عمارة جديدة
 
-                    </p>
+                    </h2>
 
-                  </div>
+                    <p className="mt-1 text-sm font-semibold text-[#AFC8BE]">
 
-                </div>
+                      أدخل بيانات العمارة وسيتم إنشاؤها داخل النظام
 
-              </div>
+                    </p>
 
+                  </div>
 
+                </div>
 
-              {/* الحقول */}
+              </div>
 
-              <div className="relative z-10 pr-1 [scrollbar-width:thin] [scrollbar-color:#C49A3A55_transparent]">
 
-                <div className="grid gap-4 sm:grid-cols-2">
 
-                  {/* اسم العمارة */}
+              {/* الحقول */}
 
-                  <div className="rounded-[1.35rem] border border-white/10 bg-[#03251D]/55 p-4 shadow-inner shadow-black/20 backdrop-blur-md">
+              <div className="relative z-10 pr-1 [scrollbar-width:thin] [scrollbar-color:#C49A3A55_transparent]">
 
-                    <label
+                <div className="grid gap-4 sm:grid-cols-2">
 
-                      htmlFor="create-building-name"
+                  {/* اسم العمارة */}
 
-                      className="mb-2.5 block text-sm font-black text-[#F2F7F4]"
+                  <div className="rounded-[1.35rem] border border-white/10 bg-[#03251D]/55 p-4 shadow-inner shadow-black/20 backdrop-blur-md">
 
-                    >
+                    <label
 
-                      اسم العمارة
+                      htmlFor="create-building-name"
 
-                    </label>
+                      className="mb-2.5 block text-sm font-black text-[#F2F7F4]"
 
-                    <div className="rounded-xl border border-[#D4AD4D]/35 bg-[#021D17]/70 p-1.5 transition-all duration-300 focus-within:border-[#D4AD4D]/80 focus-within:shadow-[0_0_0_3px_rgba(212,173,77,0.10)]">
+                    >
 
-                      <input
+                      اسم العمارة
 
-                        id="create-building-name"
+                    </label>
 
-                        autoFocus
+                    <div className="rounded-xl border border-[#D4AD4D]/35 bg-[#021D17]/70 p-1.5 transition-all duration-300 focus-within:border-[#D4AD4D]/80 focus-within:shadow-[0_0_0_3px_rgba(212,173,77,0.10)]">
 
-                        value={newBuildingName}
+                      <input
 
-                        onChange={(event) => setNewBuildingName(event.target.value)}
+                        id="create-building-name"
 
-                        placeholder="مثال: عمارة النخيل"
+                        autoFocus
 
-                        className="h-14 w-full rounded-lg border-0 bg-transparent px-4 text-base font-semibold text-white outline-none placeholder:text-[#78998E]"
+                        value={newBuildingName}
 
-                      />
+                        onChange={(event) => setNewBuildingName(event.target.value)}
 
-                    </div>
+                        placeholder="مثال: عمارة النخيل"
 
-                  </div>
+                        className="h-14 w-full rounded-lg border-0 bg-transparent px-4 text-base font-semibold text-white outline-none placeholder:text-[#78998E]"
 
+                      />
 
+                    </div>
 
-                  {/* رقم العمارة */}
+                  </div>
 
-                  <div className="rounded-[1.35rem] border border-white/10 bg-[#03251D]/55 p-4 shadow-inner shadow-black/20 backdrop-blur-md">
 
-                    <label
 
-                      htmlFor="create-building-number"
+                  {/* رقم العمارة */}
 
-                      className="mb-2.5 block text-sm font-black text-[#F2F7F4]"
+                  <div className="rounded-[1.35rem] border border-white/10 bg-[#03251D]/55 p-4 shadow-inner shadow-black/20 backdrop-blur-md">
 
-                    >
+                    <label
 
-                      رقم العمارة
+                      htmlFor="create-building-number"
 
-                    </label>
+                      className="mb-2.5 block text-sm font-black text-[#F2F7F4]"
 
-                    <div className="rounded-xl border border-[#D4AD4D]/35 bg-[#021D17]/70 p-1.5 transition-all duration-300 focus-within:border-[#D4AD4D]/80 focus-within:shadow-[0_0_0_3px_rgba(212,173,77,0.10)]">
+                    >
 
-                      <input
+                      رقم العمارة
 
-                        id="create-building-number"
+                    </label>
 
-                        value={newBuildingNumber}
+                    <div className="rounded-xl border border-[#D4AD4D]/35 bg-[#021D17]/70 p-1.5 transition-all duration-300 focus-within:border-[#D4AD4D]/80 focus-within:shadow-[0_0_0_3px_rgba(212,173,77,0.10)]">
 
-                        onChange={(event) => setNewBuildingNumber(event.target.value)}
+                      <input
 
-                        placeholder="مثال: 2"
+                        id="create-building-number"
 
-                        className="h-14 w-full rounded-lg border-0 bg-transparent px-4 text-base font-semibold text-white outline-none placeholder:text-[#78998E]"
+                        value={newBuildingNumber}
 
-                      />
+                        onChange={(event) => setNewBuildingNumber(event.target.value)}
 
-                    </div>
+                        placeholder="مثال: 2"
 
-                  </div>
+                        className="h-14 w-full rounded-lg border-0 bg-transparent px-4 text-base font-semibold text-white outline-none placeholder:text-[#78998E]"
 
+                      />
 
+                    </div>
 
-                  {/* العنوان */}
+                  </div>
 
-                  <div className="rounded-[1.35rem] border border-white/10 bg-[#03251D]/55 p-4 shadow-inner shadow-black/20 backdrop-blur-md">
 
-                    <label
 
-                      htmlFor="create-building-address"
+                  {/* العنوان */}
 
-                      className="mb-2.5 block text-sm font-black text-[#F2F7F4]"
+                  <div className="rounded-[1.35rem] border border-white/10 bg-[#03251D]/55 p-4 shadow-inner shadow-black/20 backdrop-blur-md">
 
-                    >
+                    <label
 
-                      العنوان / المدينة
+                      htmlFor="create-building-address"
 
-                    </label>
+                      className="mb-2.5 block text-sm font-black text-[#F2F7F4]"
 
-                    <div className="rounded-xl border border-[#D4AD4D]/35 bg-[#021D17]/70 p-1.5 transition-all duration-300 focus-within:border-[#D4AD4D]/80 focus-within:shadow-[0_0_0_3px_rgba(212,173,77,0.10)]">
+                    >
 
-                      <input
+                      العنوان / المدينة
 
-                        id="create-building-address"
+                    </label>
 
-                        value={newBuildingAddress}
+                    <div className="rounded-xl border border-[#D4AD4D]/35 bg-[#021D17]/70 p-1.5 transition-all duration-300 focus-within:border-[#D4AD4D]/80 focus-within:shadow-[0_0_0_3px_rgba(212,173,77,0.10)]">
 
-                        onChange={(event) => setNewBuildingAddress(event.target.value)}
+                      <input
 
-                        placeholder="مثال: الجبيل البلد"
+                        id="create-building-address"
 
-                        className="h-14 w-full rounded-lg border-0 bg-transparent px-4 text-base font-semibold text-white outline-none placeholder:text-[#78998E]"
+                        value={newBuildingAddress}
 
-                      />
+                        onChange={(event) => setNewBuildingAddress(event.target.value)}
 
-                    </div>
+                        placeholder="مثال: الجبيل البلد"
 
-                  </div>
+                        className="h-14 w-full rounded-lg border-0 bg-transparent px-4 text-base font-semibold text-white outline-none placeholder:text-[#78998E]"
 
+                      />
 
+                    </div>
 
-                  {/* عدد الشقق */}
+                  </div>
 
-                  <div className="rounded-[1.35rem] border border-white/10 bg-[#03251D]/55 p-4 shadow-inner shadow-black/20 backdrop-blur-md">
 
-                    <label
 
-                      htmlFor="create-building-units"
+                  {/* عدد الشقق */}
 
-                      className="mb-2.5 block text-sm font-black text-[#F2F7F4]"
+                  <div className="rounded-[1.35rem] border border-white/10 bg-[#03251D]/55 p-4 shadow-inner shadow-black/20 backdrop-blur-md">
 
-                    >
+                    <label
 
-                      عدد الشقق
+                      htmlFor="create-building-units"
 
-                    </label>
+                      className="mb-2.5 block text-sm font-black text-[#F2F7F4]"
 
-                    <div className="rounded-xl border border-[#D4AD4D]/35 bg-[#021D17]/70 p-1.5 transition-all duration-300 focus-within:border-[#D4AD4D]/80 focus-within:shadow-[0_0_0_3px_rgba(212,173,77,0.10)]">
+                    >
 
-                      <input
+                      عدد الشقق
 
-                        id="create-building-units"
+                    </label>
 
-                        type="number"
+                    <div className="rounded-xl border border-[#D4AD4D]/35 bg-[#021D17]/70 p-1.5 transition-all duration-300 focus-within:border-[#D4AD4D]/80 focus-within:shadow-[0_0_0_3px_rgba(212,173,77,0.10)]">
 
-                        min="1"
+                      <input
 
-                        step="1"
+                        id="create-building-units"
 
-                        value={newBuildingUnits}
+                        type="number"
 
-                        onChange={(event) => setNewBuildingUnits(event.target.value)}
+                        min="1"
 
-                        placeholder="مثال: 24"
+                        step="1"
 
-                        className="h-14 w-full rounded-lg border-0 bg-transparent px-4 text-base font-semibold text-white outline-none placeholder:text-[#78998E]"
+                        value={newBuildingUnits}
 
-                      />
+                        onChange={(event) => setNewBuildingUnits(event.target.value)}
 
-                    </div>
+                        placeholder="مثال: 24"
 
-                    <p className="mt-2 px-1 text-xs font-semibold leading-5 text-[#91B1A5]">
+                        className="h-14 w-full rounded-lg border-0 bg-transparent px-4 text-base font-semibold text-white outline-none placeholder:text-[#78998E]"
 
-                      سيتم إنشاء هذا العدد من الشقق فارغًا داخل العمارة الجديدة.
+                      />
 
-                    </p>
+                    </div>
 
-                  </div>
+                    <p className="mt-2 px-1 text-xs font-semibold leading-5 text-[#91B1A5]">
 
-                </div>
+                      سيتم إنشاء هذا العدد من الشقق فارغًا داخل العمارة الجديدة.
 
+                    </p>
 
+                  </div>
 
-                {/* ملاحظة */}
+                </div>
 
-                <div className="mt-5 flex items-start gap-3 rounded-2xl border border-[#D4AD4D]/55 bg-[#0A3A2D]/55 px-5 py-4 backdrop-blur-md">
 
-                  <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#D4AD4D]/20 text-lg font-black text-[#F6D878]">
 
-                    i
+                {/* ملاحظة */}
 
-                  </div>
+                <div className="mt-5 flex items-start gap-3 rounded-2xl border border-[#D4AD4D]/55 bg-[#0A3A2D]/55 px-5 py-4 backdrop-blur-md">
 
-                  <div>
+                  <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#D4AD4D]/20 text-lg font-black text-[#F6D878]">
 
-                    <p className="text-sm font-black text-[#F6D878]">معلومة مهمة</p>
+                    i
 
-                    <p className="mt-1 text-xs font-semibold leading-6 text-[#C7D9D2]">
+                  </div>
 
-                      رقم العمارة يُستخدم كرقم تعريفي للعقار داخل النظام، بينما يمكن أن يتكرر رقم العقار الفعلي في مواقع مختلفة.
+                  <div>
 
-                    </p>
+                    <p className="text-sm font-black text-[#F6D878]">معلومة مهمة</p>
 
-                  </div>
+                    <p className="mt-1 text-xs font-semibold leading-6 text-[#C7D9D2]">
 
-                </div>
+                      رقم العمارة يُستخدم كرقم تعريفي للعقار داخل النظام، بينما يمكن أن يتكرر رقم العقار الفعلي في مواقع مختلفة.
 
-              </div>
+                    </p>
 
+                  </div>
 
+                </div>
 
-              {/* الأزرار */}
+              </div>
 
-              <div className="relative z-10 mt-5 grid gap-3 border-t border-white/10 pt-5 sm:grid-cols-2">
 
-                <button
 
-                  type="button"
+              {/* الأزرار */}
 
-                  onClick={createBuilding}
+              <div className="relative z-10 mt-5 grid gap-3 border-t border-white/10 pt-5 sm:grid-cols-2">
 
-                  disabled={isCreatingBuilding}
+                <button
 
-                  className="group flex min-h-[58px] items-center justify-center gap-2.5 rounded-2xl border border-[#F6D878]/70 bg-gradient-to-r from-[#B88B2D] via-[#D4AD4D] to-[#F6D878] px-6 text-base font-black text-[#12352B] shadow-[0_12px_30px_rgba(196,154,58,0.20)] transition-all duration-300 hover:-translate-y-0.5 hover:brightness-110 hover:shadow-[0_16px_36px_rgba(196,154,58,0.30)] disabled:cursor-not-allowed disabled:opacity-60"
+                  type="button"
 
-                >
+                  onClick={createBuilding}
 
-                  <Save size={19} className="transition-transform duration-300 group-hover:scale-110" />
+                  disabled={isCreatingBuilding}
 
-                  {isCreatingBuilding ? "جارٍ الإنشاء..." : "حفظ وإنشاء العمارة"}
+                  className="group flex min-h-[58px] items-center justify-center gap-2.5 rounded-2xl border border-[#F6D878]/70 bg-gradient-to-r from-[#B88B2D] via-[#D4AD4D] to-[#F6D878] px-6 text-base font-black text-[#12352B] shadow-[0_12px_30px_rgba(196,154,58,0.20)] transition-all duration-300 hover:-translate-y-0.5 hover:brightness-110 hover:shadow-[0_16px_36px_rgba(196,154,58,0.30)] disabled:cursor-not-allowed disabled:opacity-60"
 
-                </button>
+                >
 
+                  <Save size={19} className="transition-transform duration-300 group-hover:scale-110" />
 
+                  {isCreatingBuilding ? "جارٍ الإنشاء..." : "حفظ وإنشاء العمارة"}
 
-                <button
+                </button>
 
-                  type="button"
 
-                  onClick={closeCreateModal}
 
-                  disabled={isCreatingBuilding}
+                <button
 
-                  className="flex min-h-[58px] items-center justify-center gap-2 rounded-2xl border border-white/15 bg-[#03271F]/70 px-6 text-base font-bold text-[#D5E5DE] backdrop-blur-md transition-all duration-300 hover:border-white/25 hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                  type="button"
 
-                >
+                  onClick={closeCreateModal}
 
-                  إلغاء
+                  disabled={isCreatingBuilding}
 
-                  <X size={17} />
+                  className="flex min-h-[58px] items-center justify-center gap-2 rounded-2xl border border-white/15 bg-[#03271F]/70 px-6 text-base font-bold text-[#D5E5DE] backdrop-blur-md transition-all duration-300 hover:border-white/25 hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
 
-                </button>
+                >
 
-              </div>
+                  إلغاء
 
+                  <X size={17} />
 
+                </button>
 
-              {/* اللوجو أسفل مربعات الإدخال في نفس الجهة اليمنى */}
+              </div>
 
-              <div className="relative z-10 mt-6 flex w-full items-center justify-center">
 
-                <div className="flex w-full max-w-[430px] items-center justify-center rounded-[2rem] border border-[#D4AD4D]/35 bg-[#031F18]/35 px-7 py-6 shadow-[0_18px_55px_rgba(0,0,0,0.28)] backdrop-blur-[2px]">
 
-                  <img
+              {/* اللوجو أسفل مربعات الإدخال في نفس الجهة اليمنى */}
 
-                    src="/aqar-smart-logo.png"
+              <div className="relative z-10 mt-6 flex w-full items-center justify-center">
 
-                    alt="عقاري سمارت"
+                <div className="flex w-full max-w-[430px] items-center justify-center rounded-[2rem] border border-[#D4AD4D]/35 bg-[#031F18]/35 px-7 py-6 shadow-[0_18px_55px_rgba(0,0,0,0.28)] backdrop-blur-[2px]">
 
-                    className="h-auto w-full max-w-[360px] object-contain drop-shadow-[0_18px_25px_rgba(0,0,0,0.45)]"
+                  <img
 
-                  />
+                    src="/aqar-smart-logo.png"
 
-                </div>
+                    alt="عقاري سمارت"
 
-              </div>
+                    className="h-auto w-full max-w-[360px] object-contain drop-shadow-[0_18px_25px_rgba(0,0,0,0.45)]"
 
-            </section>
+                  />
 
+                </div>
 
+              </div>
 
-            {/* =========================
+            </section>
 
-                الجهة اليسرى — الهوية
 
-            ========================= */}
 
-            <section className="relative hidden min-h-[700px] w-[40%] flex-col justify-center overflow-hidden px-8 pb-8 pt-10 lg:flex">
+            {/* =========================
 
-              <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(1,24,19,0.20),rgba(1,24,19,0.08)\_45%,rgba(1,24,19,0.78)\_100%)]" />
+                الجهة اليسرى — الهوية
 
-              <div className="relative z-10 text-center">
+            ========================= */}
 
-                <p className="mb-2 text-xs font-extrabold tracking-[0.28em] text-[#C49A3A]">
+            <section className="relative hidden min-h-[700px] w-[40%] flex-col justify-center overflow-hidden px-8 pb-8 pt-10 lg:flex">
 
-                  AQARY SMART ERP
+              <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(1,24,19,0.20),rgba(1,24,19,0.08)\_45%,rgba(1,24,19,0.78)\_100%)]" />
 
-                </p>
+              <div className="relative z-10 text-center">
 
-                <h3 className="text-3xl font-black leading-tight text-white xl:text-[2.15rem]">
+                <p className="mb-2 text-xs font-extrabold tracking-[0.28em] text-[#C49A3A]">
 
-                  أضف عمارتك الجديدة
+                  AQARY SMART ERP
 
-                </h3>
+                </p>
 
-                <p className="mx-auto mt-2 max-w-md text-sm font-semibold leading-6 text-[#C8D9D2]">
+                <h3 className="text-3xl font-black leading-tight text-white xl:text-[2.15rem]">
 
-                  وابدأ إدارة عقارك باحترافية من خلال نظام عقاري سمارت.
+                  أضف عمارتك الجديدة
 
-                </p>
+                </h3>
 
-              </div>
+                <p className="mx-auto mt-2 max-w-md text-sm font-semibold leading-6 text-[#C8D9D2]">
 
-            </section>
+                  وابدأ إدارة عقارك باحترافية من خلال نظام عقاري سمارت.
 
-          </div>
+                </p>
 
-        </div>
+              </div>
 
-      )}
+            </section>
 
+          </div>
 
+        </div>
 
-      {/* =========================
+      )}
 
-          نافذة تعديل بيانات العمارة
 
-      ========================= */}
 
+      {/* =========================
 
+          نافذة تعديل بيانات العمارة
 
-      {editingBuilding && (
+      ========================= */}
 
-        <div
 
-          className="
 
-            fixed inset-0 z-50
+      {editingBuilding && (
 
-            flex items-center justify-center
+        <div
 
-            bg-black/70
+          className="
 
-            p-4
+            fixed inset-0 z-50
 
-            backdrop-blur-sm
+            flex items-center justify-center
 
-          "
+            bg-black/70
 
-          dir="rtl"
+            p-4
 
-        >
+            backdrop-blur-sm
 
-          <div
+          "
 
-            className="
+          dir="rtl"
 
-              w-full max-w-lg
+        >
 
-              overflow-hidden
+          <div
 
-              rounded-3xl
+            className="
 
-              border border-[#C49A3A]/40
+              w-full max-w-lg
 
-              bg-gradient-to-br
+              overflow-hidden
 
-              from-[#0B4537]
+              rounded-3xl
 
-              via-[#073529]
+              border border-[#C49A3A]/40
 
-              to-[#05261F]
+              bg-gradient-to-br
 
-              shadow-2xl shadow-black/40
+              from-[#0B4537]
 
-            "
+              via-[#073529]
 
-          >
+              to-[#05261F]
 
-            {/* رأس النافذة */}
+              shadow-2xl shadow-black/40
 
-            <div
+            "
 
-              className="
+          >
 
-                flex items-center justify-between
+            {/* رأس النافذة */}
 
-                border-b border-white/10
+            <div
 
-                px-6 py-5
+              className="
 
-              "
+                flex items-center justify-between
 
-            >
+                border-b border-white/10
 
-              <div className="flex items-center gap-3">
+                px-6 py-5
 
-                <div
+              "
 
-                  className="
+            >
 
-                    flex h-11 w-11
+              <div className="flex items-center gap-3">
 
-                    items-center justify-center
+                <div
 
-                    rounded-xl
+                  className="
 
-                    border border-[#C49A3A]/40
+                    flex h-11 w-11
 
-                    bg-[#C49A3A]/10
+                    items-center justify-center
 
-                  "
+                    rounded-xl
 
-                >
+                    border border-[#C49A3A]/40
 
-                  <Edit3
+                    bg-[#C49A3A]/10
 
-                    size={20}
+                  "
 
-                    className="text-[#F6D878]"
+                >
 
-                  />
+                  <Edit3
 
-                </div>
+                    size={20}
 
+                    className="text-[#F6D878]"
 
+                  />
 
-                <h2 className="text-xl font-extrabold text-white">
+                </div>
 
-                  تعديل بيانات العمارة
 
-                </h2>
 
-              </div>
+                <h2 className="text-xl font-extrabold text-white">
 
+                  تعديل بيانات العمارة
 
+                </h2>
 
-              <button
+              </div>
 
-                type="button"
 
-                onClick={closeEditModal}
 
-                className="
+              <button
 
-                  flex h-10 w-10
+                type="button"
 
-                  items-center justify-center
+                onClick={closeEditModal}
 
-                  rounded-xl
+                className="
 
-                  text-[#B4CEC5]
+                  flex h-10 w-10
 
-                  transition
+                  items-center justify-center
 
-                  hover:bg-white/10
+                  rounded-xl
 
-                  hover:text-white
+                  text-[#B4CEC5]
 
-                "
+                  transition
 
-                title="إغلاق"
+                  hover:bg-white/10
 
-              >
+                  hover:text-white
 
-                <X size={21} />
+                "
 
-              </button>
+                title="إغلاق"
 
-            </div>
+              >
 
+                <X size={21} />
 
+              </button>
 
-            {/* محتوى النافذة */}
+            </div>
 
-            <div className="space-y-5 p-6">
 
-              {/* اسم العمارة */}
 
-              <div>
+            {/* محتوى النافذة */}
 
-                <label
+            <div className="space-y-5 p-6">
 
-                  htmlFor="building-name"
+              {/* اسم العمارة */}
 
-                  className="mb-2 block text-sm font-bold text-[#D5E5DE]"
+              <div>
 
-                >
+                <label
 
-                  اسم العمارة
+                  htmlFor="building-name"
 
-                </label>
+                  className="mb-2 block text-sm font-bold text-[#D5E5DE]"
 
+                >
 
+                  اسم العمارة
 
-                <input
+                </label>
 
-                  id="building-name"
 
-                  type="text"
 
-                  value={editName}
+                <input
 
-                  onChange={(event) =>
+                  id="building-name"
 
-                    setEditName(event.target.value)
+                  type="text"
 
-                  }
+                  value={editName}
 
-                  className="
+                  onChange={(event) =>
 
-                    w-full
+                    setEditName(event.target.value)
 
-                    rounded-xl
+                  }
 
-                    border border-[#C49A3A]/30
+                  className="
 
-                    bg-[#031F18]/70
+                    w-full
 
-                    px-4 py-3
+                    rounded-xl
 
-                    text-white
+                    border border-[#C49A3A]/30
 
-                    outline-none
+                    bg-[#031F18]/70
 
-                    transition
+                    px-4 py-3
 
-                    placeholder:text-[#8EADA2]
+                    text-white
 
-                    focus:border-[#D4AD4D]
+                    outline-none
 
-                    focus:ring-2
+                    transition
 
-                    focus:ring-[#D4AD4D]/20
+                    placeholder:text-[#8EADA2]
 
-                  "
+                    focus:border-[#D4AD4D]
 
-                  placeholder="اكتب اسم العمارة"
+                    focus:ring-2
 
-                />
+                    focus:ring-[#D4AD4D]/20
 
-              </div>
+                  "
 
+                  placeholder="اكتب اسم العمارة"
 
+                />
 
-              {/* العنوان */}
+              </div>
 
-              <div>
 
-                <label
 
-                  htmlFor="building-city"
+              {/* العنوان */}
 
-                  className="mb-2 block text-sm font-bold text-[#D5E5DE]"
+              <div>
 
-                >
+                <label
 
-                  العنوان / المدينة
+                  htmlFor="building-city"
 
-                </label>
+                  className="mb-2 block text-sm font-bold text-[#D5E5DE]"
 
+                >
 
+                  العنوان / المدينة
 
-                <input
+                </label>
 
-                  id="building-city"
 
-                  type="text"
 
-                  value={editCity}
+                <input
 
-                  onChange={(event) =>
+                  id="building-city"
 
-                    setEditCity(event.target.value)
+                  type="text"
 
-                  }
+                  value={editCity}
 
-                  className="
+                  onChange={(event) =>
 
-                    w-full
+                    setEditCity(event.target.value)
 
-                    rounded-xl
+                  }
 
-                    border border-[#C49A3A]/30
+                  className="
 
-                    bg-[#031F18]/70
+                    w-full
 
-                    px-4 py-3
+                    rounded-xl
 
-                    text-white
+                    border border-[#C49A3A]/30
 
-                    outline-none
+                    bg-[#031F18]/70
 
-                    transition
+                    px-4 py-3
 
-                    placeholder:text-[#8EADA2]
+                    text-white
 
-                    focus:border-[#D4AD4D]
+                    outline-none
 
-                    focus:ring-2
+                    transition
 
-                    focus:ring-[#D4AD4D]/20
+                    placeholder:text-[#8EADA2]
 
-                  "
+                    focus:border-[#D4AD4D]
 
-                  placeholder="اكتب العنوان أو المدينة"
+                    focus:ring-2
 
-                />
+                    focus:ring-[#D4AD4D]/20
 
-              </div>
+                  "
 
+                  placeholder="اكتب العنوان أو المدينة"
 
+                />
 
-              {/* الحالة */}
+              </div>
 
-              <div>
 
-                <label
 
-                  htmlFor="building-status"
+              {/* الحالة */}
 
-                  className="mb-2 block text-sm font-bold text-[#D5E5DE]"
+              <div>
 
-                >
+                <label
 
-                  حالة العمارة
+                  htmlFor="building-status"
 
-                </label>
+                  className="mb-2 block text-sm font-bold text-[#D5E5DE]"
 
+                >
 
+                  حالة العمارة
 
-                <select
+                </label>
 
-                  id="building-status"
 
-                  value={editStatus}
 
-                  onChange={(event) =>
+                <select
 
-                    setEditStatus(
+                  id="building-status"
 
-                      event.target.value as BuildingStatus
+                  value={editStatus}
 
-                    )
+                  onChange={(event) =>
 
-                  }
+                    setEditStatus(
 
-                  className="
+                      event.target.value as BuildingStatus
 
-                    w-full
+                    )
 
-                    rounded-xl
+                  }
 
-                    border border-[#C49A3A]/30
+                  className="
 
-                    bg-[#031F18]
+                    w-full
 
-                    px-4 py-3
+                    rounded-xl
 
-                    text-white
+                    border border-[#C49A3A]/30
 
-                    outline-none
+                    bg-[#031F18]
 
-                    transition
+                    px-4 py-3
 
-                    focus:border-[#D4AD4D]
+                    text-white
 
-                    focus:ring-2
+                    outline-none
 
-                    focus:ring-[#D4AD4D]/20
+                    transition
 
-                  "
+                    focus:border-[#D4AD4D]
 
-                >
+                    focus:ring-2
 
-                  <option value="قيد التنفيذ">
+                    focus:ring-[#D4AD4D]/20
 
-                    قيد التنفيذ
+                  "
 
-                  </option>
+                >
 
+                  <option value="قيد التنفيذ">
 
+                    قيد التنفيذ
 
-                  <option value="مكتمل">
+                  </option>
 
-                    مكتمل
 
-                  </option>
 
+                  <option value="مكتمل">
 
+                    مكتمل
 
-                  <option value="متوقف">
+                  </option>
 
-                    متوقف
 
-                  </option>
 
-                </select>
+                  <option value="متوقف">
 
-              </div>
+                    متوقف
 
+                  </option>
 
+                </select>
 
-              {/* أزرار النافذة */}
+              </div>
 
-              <div className="flex flex-col gap-3 pt-2 sm:flex-row">
 
-                <button
 
-                  type="button"
+              {/* أزرار النافذة */}
 
-                  onClick={saveBuildingChanges}
+              <div className="flex flex-col gap-3 pt-2 sm:flex-row">
 
-                  className="
+                <button
 
-                    flex flex-1
+                  type="button"
 
-                    items-center justify-center
+                  onClick={saveBuildingChanges}
 
-                    gap-2
+                  className="
 
-                    rounded-xl
+                    flex flex-1
 
-                    bg-gradient-to-r
+                    items-center justify-center
 
-                    from-[#C49A3A]
+                    gap-2
 
-                    to-[#F6D878]
+                    rounded-xl
 
-                    px-5 py-3
+                    bg-gradient-to-r
 
-                    font-extrabold
+                    from-[#C49A3A]
 
-                    text-[#16352B]
+                    to-[#F6D878]
 
-                    shadow-lg shadow-[#C49A3A]/10
+                    px-5 py-3
 
-                    transition
+                    font-extrabold
 
-                    hover:brightness-110
+                    text-[#16352B]
 
-                    disabled:cursor-not-allowed
+                    shadow-lg shadow-[#C49A3A]/10
 
-                    disabled:opacity-60
+                    transition
 
-                  "
+                    hover:brightness-110
 
-                  disabled={isSavingBuilding}
+                    disabled:cursor-not-allowed
 
-                >
+                    disabled:opacity-60
 
-                  <Save size={18} />
+                  "
 
-                  {isSavingBuilding ? "جارٍ الحفظ..." : "حفظ التعديلات"}
+                  disabled={isSavingBuilding}
 
-                </button>
+                >
 
+                  <Save size={18} />
 
+                  {isSavingBuilding ? "جارٍ الحفظ..." : "حفظ التعديلات"}
 
-                <button
+                </button>
 
-                  type="button"
 
-                  onClick={closeEditModal}
 
-                  className="
+                <button
 
-                    flex flex-1
+                  type="button"
 
-                    items-center justify-center
+                  onClick={closeEditModal}
 
-                    gap-2
+                  className="
 
-                    rounded-xl
+                    flex flex-1
 
-                    border border-white/15
+                    items-center justify-center
 
-                    bg-white/5
+                    gap-2
 
-                    px-5 py-3
+                    rounded-xl
 
-                    font-bold
+                    border border-white/15
 
-                    text-[#D5E5DE]
+                    bg-white/5
 
-                    transition
+                    px-5 py-3
 
-                    hover:bg-white/10
+                    font-bold
 
-                  "
+                    text-[#D5E5DE]
 
-                >
+                    transition
 
-                  إلغاء
+                    hover:bg-white/10
 
-                </button>
+                  "
 
-              </div>
+                >
 
-            </div>
+                  إلغاء
 
-          </div>
+                </button>
 
-        </div>
+              </div>
 
-      )}
+            </div>
 
-    </>
+          </div>
 
-  );
+        </div>
+
+      )}
+
+      <PermissionDeniedModal
+        open={permissionMessage !== null}
+        message={permissionMessage ?? "عذرًا، غير مسموح للمستخدم الحالي بهذا الإجراء."}
+        onClose={() => setPermissionMessage(null)}
+      />
+
+    </>
+
+  );
 
 }

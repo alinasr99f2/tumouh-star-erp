@@ -5,11 +5,13 @@ import {
   Navigate,
   Outlet,
 } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect,useCallback, useState } from "react";
+import PermissionDeniedModal from "./components/PermissionDeniedModal";
 
 import MainLayout from "./layouts/MainLayout";
 import Login from "./pages/Login/Login";
 import { supabase } from "./utils/supabase";
+import { PermissionsProvider, usePermissions, type PermissionKey } from "./utils/permissions";
 
 import Home from "./pages/Home/Home";
 import CompanyDashboard from "./pages/Dashboard/CompanyDashboard";
@@ -100,6 +102,45 @@ function ProtectedRoute() {
 }
 
 
+function PermissionRoute({
+  permission,
+}: {
+  permission: PermissionKey;
+}) {
+  const { loading, hasPermission } = usePermissions();
+
+  const [showDenied, setShowDenied] = useState(false);
+
+  const handleClose = useCallback(() => {
+    setShowDenied(false);
+    window.location.replace("/home");
+  }, []);
+
+  useEffect(() => {
+    if (!loading && !hasPermission(permission)) {
+      setShowDenied(true);
+    }
+  }, [loading, permission, hasPermission]);
+
+  if (loading) {
+    return null;
+  }
+
+  if (!hasPermission(permission)) {
+    return (
+      <>
+        <PermissionDeniedModal
+          open={showDenied}
+          message="عذرًا، غير مسموح للمستخدم الحالي بعرض هذه الصفحة."
+          onClose={handleClose}
+        />
+      </>
+    );
+  }
+
+  return <Outlet />;
+}
+
 function App() {
   return (
     <BrowserRouter>
@@ -118,6 +159,7 @@ function App() {
             حماية جميع صفحات النظام
         ========================================= */}
         <Route element={<ProtectedRoute />}>
+          <Route element={<PermissionsProvider><Outlet /></PermissionsProvider>}>
 
           {/* =========================================
               الـ Main Layout
@@ -139,84 +181,70 @@ function App() {
             {/* =========================================
                 لوحة التحكم
             ========================================= */}
-            <Route
-              path="/dashboard"
-              element={<CompanyDashboard />}
-            />
+            <Route element={<PermissionRoute permission="dashboard_view" />}>
+              <Route
+                path="/dashboard"
+                element={<CompanyDashboard />}
+              />
+            </Route>
 
 
             {/* =========================================
                 المشاريع
             ========================================= */}
-            <Route
-  path="/projects"
-  element={<Projects />}
-/>
+            <Route element={<PermissionRoute permission="projects_view" />}>
+              <Route path="/projects" element={<Projects />} />
+            </Route>
 
-<Route
-  path="/projects/financial"
-  element={<FinancialCenter />}
-/>
+<Route element={<PermissionRoute permission="projects_view" />}>
+              <Route path="/projects/:id/charts" element={<ProjectCharts />} />
+            </Route>
 
-<Route
-  path="/projects/:id/charts"
-  element={<ProjectCharts />}
-/>
+<Route element={<PermissionRoute permission="projects_view" />}>
+              <Route path="/projects/:id/quantities" element={<ProjectQuantities />} />
+            </Route>
 
-<Route
-  path="/projects/:id/quantities"
-  element={<ProjectQuantities />}
-/>
+<Route element={<PermissionRoute permission="projects_view" />}>
+              <Route path="/projects/:id/expenses" element={<ProjectExpenses />} />
+            </Route>
 
-<Route
-  path="/projects/:id/expenses"
-  element={<ProjectExpenses />}
-/>
-
-<Route
-  path="/projects/:id"
-  element={<ProjectDetails />}
-/>
+<Route element={<PermissionRoute permission="projects_view" />}>
+              <Route path="/projects/:id" element={<ProjectDetails />} />
+            </Route>
 
             {/* =========================================
                 العمائر
             ========================================= */}
-            <Route
-              path="/buildings"
-              element={<Buildings />}
-            />
+            <Route element={<PermissionRoute permission="buildings_view" />}>
+              <Route path="/buildings" element={<Buildings />} />
+            </Route>
 
             {/* الصفحات الثابتة للعمائر يجب أن تسبق :id */}
-            <Route
-              path="/buildings/financial-details"
-              element={<FinancialDetails />}
-            />
+            <Route element={<PermissionRoute permission="buildings_view" />}>
+              <Route path="/buildings/financial-details" element={<FinancialDetails />} />
+            </Route>
 
-            <Route
-              path="/buildings/tenant-details"
-              element={<TenantDetails />}
-            />
+            <Route element={<PermissionRoute permission="buildings_view" />}>
+              <Route path="/buildings/tenant-details" element={<TenantDetails />} />
+            </Route>
 
             {/* خريطة الشقق */}
-            <Route
-              path="/buildings/:id/apartments"
-              element={<ApartmentMap />}
-            />
+            <Route element={<PermissionRoute permission="apartments_view" />}>
+              <Route path="/buildings/:id/apartments" element={<ApartmentMap />} />
+            </Route>
 
             {/* تفاصيل العمارة */}
-            <Route
-              path="/buildings/:id"
-              element={<BuildingDetails />}
-            />
+            <Route element={<PermissionRoute permission="buildings_view" />}>
+              <Route path="/buildings/:id" element={<BuildingDetails />} />
+            </Route>
 
 
             {/* =========================================
                 المركز المالي
             ========================================= */}
-            <Route
-  path="/projects/financial"
-  element={<FinancialCenter />}
-/>
+            <Route element={<PermissionRoute permission="financial_view" />}>
+              <Route path="/projects/financial" element={<FinancialCenter />} />
+            </Route>
 
 {/* الرابط القديم يتحول تلقائياً للمركز المالي الخاص بالمشاريع */}
 <Route
@@ -228,19 +256,17 @@ function App() {
             {/* =========================================
                 الشقق المتاحة / المؤجرة
             ========================================= */}
-           <Route
-  path="/apartments"
-  element={<Apartments />}
-/>
+            <Route element={<PermissionRoute permission="apartments_view" />}>
+              <Route path="/apartments" element={<Apartments />} />
+            </Route>
 
 
            {/* =========================================
     المستخدمين والصلاحيات
 ========================================= */}
-<Route
-  path="/users-permissions"
-  element={<UsersPermissions />}
-/>
+<Route element={<PermissionRoute permission="users_view" />}>
+              <Route path="/users-permissions" element={<UsersPermissions />} />
+            </Route>
 
 
 {/* =========================================
@@ -269,6 +295,7 @@ function App() {
               element={<Navigate to="/home" replace />}
             />
 
+          </Route>
           </Route>
         </Route>
 

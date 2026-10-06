@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
+import { usePermissions } from "../../utils/permissions";
+import PermissionDeniedModal from "../../components/PermissionDeniedModal";
 import { supabase } from "../../utils/supabase";
 import {
   X,
@@ -309,6 +311,56 @@ export default function BuildingDetails() {
   const currentBuildingId = Number.isFinite(Number(buildingIdParam))
     ? Number(buildingIdParam)
     : null;
+    const navigate = useNavigate();
+
+const { loading: permissionsLoading, hasPermission } = usePermissions();
+
+const canViewBuildings = hasPermission("buildings_view");
+const canEditBuildings = hasPermission("buildings_edit");
+const canAddBuildings = hasPermission("buildings_add");
+const canDeleteBuildings = hasPermission("buildings_delete");
+
+const canViewApartments = hasPermission("apartments_view");
+const canEditApartments = hasPermission("apartments_edit");
+const canAddApartments = hasPermission("apartments_add");
+const canDeleteApartments = hasPermission("apartments_delete");
+
+const [permissionMessage, setPermissionMessage] =
+  useState<string | null>(null);
+
+const showPermissionDenied = (message: string) => {
+  setPermissionMessage(message);
+};
+
+const denyAdd = () => {
+  if (canAddBuildings) return false;
+  showPermissionDenied("عذرًا، غير مسموح للمستخدم الحالي بهذا الإجراء.");
+  return true;
+};
+
+const denyDelete = () => {
+  if (canDeleteBuildings) return false;
+  showPermissionDenied("عذرًا، غير مسموح للمستخدم الحالي بهذا الإجراء.");
+  return true;
+};
+
+const denyApartmentEdit = () => {
+  if (canEditApartments) return false;
+  showPermissionDenied("عذرًا، غير مسموح للمستخدم الحالي بهذا الإجراء.");
+  return true;
+};
+
+const denyApartmentAdd = () => {
+  if (canAddApartments) return false;
+  showPermissionDenied("عذرًا، غير مسموح للمستخدم الحالي بهذا الإجراء.");
+  return true;
+};
+
+const denyApartmentDelete = () => {
+  if (canDeleteApartments) return false;
+  showPermissionDenied("عذرًا، غير مسموح للمستخدم الحالي بهذا الإجراء.");
+  return true;
+};
 
   const [selectedApartment, setSelectedApartment] =
     useState<Apartment | null>(null);
@@ -751,7 +803,15 @@ export default function BuildingDetails() {
 
   // حفظ تغييرات العمارة الحالية في سجلها الخاص داخل Supabase.
   useEffect(() => {
-    if (!currentBuildingId || !buildingStateHydratedRef.current) return;
+  if (
+    permissionsLoading ||
+    !currentBuildingId ||
+    !buildingStateHydratedRef.current ||
+    !canEditBuildings ||
+    !canEditApartments
+  ) {
+    return;
+  }
 
     const saveCurrentBuildingState = async () => {
       const readScopedArray = (key: string): BuildingCharge[] => {
@@ -798,6 +858,9 @@ export default function BuildingDetails() {
     apartmentTenantInfo,
     apartmentContractInfo,
     buildingDataSyncVersion,
+    permissionsLoading,
+    canEditBuildings,
+    canEditApartments,
   ]);
 
   useEffect(() => {
@@ -882,6 +945,8 @@ export default function BuildingDetails() {
   }, [currentBuildingId]);
 
   const addApartment = () => {
+    if (denyApartmentAdd()) return;
+    if (denyAdd()) return;
     setApartments((current) => {
       const nextNumber =
         current.length > 0
@@ -1165,6 +1230,7 @@ export default function BuildingDetails() {
     key: K,
     value: ApartmentTenantInfo[K]
   ) => {
+    if (denyApartmentEdit()) return;
     setApartmentTenantInfo((current) => ({
       ...current,
       [apartment.number]: {
@@ -1179,6 +1245,7 @@ export default function BuildingDetails() {
     key: K,
     value: ApartmentExtraInfo[K]
   ) => {
+    if (denyApartmentEdit()) return;
     setApartmentExtraInfo((current) => ({
       ...current,
       [apartmentNumber]: {
@@ -1208,6 +1275,8 @@ export default function BuildingDetails() {
   };
 
   const openDeleteApartmentModal = () => {
+    if (denyApartmentDelete()) return;
+    if (denyDelete()) return;
     setSelectedDeleteApartments([]);
     setDeleteApartmentSearch("");
     setIsDeleteApartmentModalOpen(true);
@@ -1259,6 +1328,8 @@ export default function BuildingDetails() {
   };
 
   const deleteSelectedApartments = () => {
+    if (denyApartmentDelete()) return;
+    if (denyDelete()) return;
     if (selectedDeleteApartments.length === 0) {
       window.alert("اختر شقة واحدة على الأقل للحذف.");
       return;
@@ -1330,6 +1401,7 @@ export default function BuildingDetails() {
   };
 
   const updateApartmentTypeRent = (type: string, value: string) => {
+    if (denyApartmentEdit()) return;
     const numericValue = Number(value);
 
     setApartmentTypeRents((current) => {
@@ -1423,6 +1495,8 @@ export default function BuildingDetails() {
   };
 
   const addNewApartmentTypeFromCard = () => {
+    if (denyApartmentAdd()) return;
+    if (denyAdd()) return;
     const type = newApartmentType.trim();
     const rent = Number(newApartmentTypeRent);
 
@@ -1461,6 +1535,7 @@ export default function BuildingDetails() {
   };
 
   const saveApartmentTypeAssignments = () => {
+    if (denyApartmentEdit()) return;
     if (!selectedApartmentType) {
       window.alert("اختر نوع الشقة أولاً");
       return;
@@ -1492,6 +1567,7 @@ export default function BuildingDetails() {
     apartment: Apartment,
     value: string
   ) => {
+    if (denyApartmentEdit()) return;
     if (value === "__add_new__") {
       const newType = window.prompt(
         "اكتب اسم نوع الشقة الجديد:"
@@ -1557,6 +1633,8 @@ export default function BuildingDetails() {
   ];
 
   const addNewApartmentStatus = (apartment?: Apartment) => {
+    if (denyApartmentAdd()) return;
+    if (denyAdd()) return;
     const newStatus = window.prompt("اكتب اسم حالة الشقة الجديدة:")?.trim();
 
     if (!newStatus) {
@@ -1587,6 +1665,7 @@ export default function BuildingDetails() {
     apartment: Apartment,
     value: string
   ) => {
+    if (denyApartmentEdit()) return;
     if (value === "__add_new_status__") {
       addNewApartmentStatus(apartment);
       return;
@@ -1599,6 +1678,7 @@ export default function BuildingDetails() {
     apartment: Apartment,
     status: ApartmentStatus
   ) => {
+    if (denyApartmentEdit()) return;
     const updatedApartment = {
       ...apartment,
       status,
@@ -1639,6 +1719,10 @@ export default function BuildingDetails() {
   const openApartment = (
     apartment: Apartment
   ) => {
+    if (!canViewApartments) {
+      showPermissionDenied("عذرًا، غير مسموح للمستخدم الحالي بعرض هذه الصفحة.");
+      return;
+    }
     setSelectedApartment(apartment);
     setActiveTab("البيانات الأساسية");
   };
@@ -1658,6 +1742,7 @@ export default function BuildingDetails() {
     apartment: Apartment,
     key: K
   ) => {
+    if (denyApartmentEdit()) return;
     const tenantInfo = getApartmentTenantInfo(apartment);
 
     const updatedTenantInfo = {
@@ -1710,6 +1795,7 @@ export default function BuildingDetails() {
   };
 
   const saveApartmentFloor = (apartmentNumber: number) => {
+    if (denyApartmentEdit()) return;
     const extraInfo = getApartmentExtraInfo(apartmentNumber);
 
     setApartmentExtraInfo((current) => {
@@ -1740,6 +1826,7 @@ export default function BuildingDetails() {
     key: K,
     value: ApartmentContractInfo[K]
   ) => {
+    if (denyApartmentEdit()) return;
     setApartmentContractInfo((current) => ({
       ...current,
       [apartmentNumber]: {
@@ -1753,6 +1840,7 @@ export default function BuildingDetails() {
     apartmentNumber: number,
     startDate: string
   ) => {
+    if (denyApartmentEdit()) return;
     const currentInfo = getApartmentContractInfo(apartmentNumber);
     const endDate = addContractDuration(
       startDate,
@@ -1775,6 +1863,7 @@ export default function BuildingDetails() {
     durationUnit: "day" | "month" | "year",
     durationValue: number
   ) => {
+    if (denyApartmentEdit()) return;
     const currentInfo = getApartmentContractInfo(apartmentNumber);
     const safeValue = Math.max(1, Number(durationValue) || 1);
     const endDate = addContractDuration(
@@ -1795,6 +1884,7 @@ export default function BuildingDetails() {
   };
 
   const saveApartmentContractInfo = (apartmentNumber: number) => {
+    if (denyApartmentEdit()) return;
     const contractInfo = getApartmentContractInfo(apartmentNumber);
 
     setApartmentContractInfo((current) => {
@@ -1812,6 +1902,7 @@ export default function BuildingDetails() {
   };
 
   const saveApartmentDetails = () => {
+    if (denyApartmentEdit()) return;
     if (!selectedApartment) {
       return;
     }
@@ -1858,6 +1949,7 @@ export default function BuildingDetails() {
     type: string,
     apartmentNumber?: number
   ) => {
+    if (denyApartmentEdit()) return;
     setChargeModalMode(mode);
     setChargeForm({
       type,
@@ -4438,6 +4530,21 @@ export default function BuildingDetails() {
   const openTenantDetails = () => {
     window.location.href = "/buildings/tenant-details";
   };
+
+  if (permissionsLoading) {
+    return null;
+  }
+
+  if (!canViewBuildings) {
+    return (
+      <PermissionDeniedModal
+        open={true}
+        message="عذرًا، غير مسموح للمستخدم الحالي بعرض هذه الصفحة."
+        redirectTo="/home"
+        onClose={() => navigate("/home", { replace: true })}
+      />
+    );
+  }
 
   const isFinancialMovementsPage =
     typeof window !== "undefined" &&
@@ -8315,6 +8422,8 @@ export default function BuildingDetails() {
                 <button
                   type="button"
                   onClick={() => {
+                    if (denyApartmentEdit()) return;
+
                     if (selectedChargeApartments.length === 0) {
                       window.alert("من فضلك اختر شقة واحدة على الأقل");
                       return;
@@ -9445,6 +9554,14 @@ export default function BuildingDetails() {
         Aqary Smart ERP System — تفاصيل {buildingName}
       </div>
 
+      <PermissionDeniedModal
+        open={Boolean(permissionMessage)}
+        message={
+          permissionMessage ??
+          "عذرًا، غير مسموح للمستخدم الحالي بهذا الإجراء."
+        }
+        onClose={() => setPermissionMessage(null)}
+      />
     </div>
   );
 }

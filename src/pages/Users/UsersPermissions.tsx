@@ -90,11 +90,15 @@ type PermissionKey =
 
   | "dashboard_edit"
 
+  | "dashboard_delete"
+
   | "projects_view"
 
   | "projects_add"
 
   | "projects_edit"
+
+  | "projects_delete"
 
   | "buildings_view"
 
@@ -102,11 +106,15 @@ type PermissionKey =
 
   | "buildings_edit"
 
+  | "buildings_delete"
+
   | "apartments_view"
 
   | "apartments_add"
 
   | "apartments_edit"
+
+  | "apartments_delete"
 
   | "financial_view"
 
@@ -114,11 +122,15 @@ type PermissionKey =
 
   | "financial_edit"
 
+  | "financial_delete"
+
   | "users_view"
 
   | "users_add"
 
   | "users_edit"
+
+  | "users_delete"
 
   | "reports_view"
 
@@ -126,11 +138,15 @@ type PermissionKey =
 
   | "reports_edit"
 
+  | "reports_delete"
+
   | "settings_view"
 
   | "settings_add"
 
-  | "settings_edit";
+  | "settings_edit"
+
+  | "settings_delete";
 
 
 
@@ -253,6 +269,7 @@ const permissionGroups: {
       { key: "dashboard_add", title: "إضافة" },
 
       { key: "dashboard_edit", title: "تعديل" },
+      { key: "dashboard_delete", title: "حذف" },
 
     ],
 
@@ -273,6 +290,7 @@ const permissionGroups: {
       { key: "projects_add", title: "إضافة" },
 
       { key: "projects_edit", title: "تعديل" },
+      { key: "projects_delete", title: "حذف" },
 
     ],
 
@@ -293,6 +311,7 @@ const permissionGroups: {
       { key: "buildings_add", title: "إضافة" },
 
       { key: "buildings_edit", title: "تعديل" },
+      { key: "buildings_delete", title: "حذف" },
 
     ],
 
@@ -313,6 +332,7 @@ const permissionGroups: {
       { key: "apartments_add", title: "إضافة" },
 
       { key: "apartments_edit", title: "تعديل" },
+      { key: "apartments_delete", title: "حذف" },
 
     ],
 
@@ -333,6 +353,7 @@ const permissionGroups: {
       { key: "financial_add", title: "إضافة" },
 
       { key: "financial_edit", title: "تعديل" },
+      { key: "financial_delete", title: "حذف" },
 
     ],
 
@@ -353,6 +374,7 @@ const permissionGroups: {
       { key: "users_add", title: "إضافة" },
 
       { key: "users_edit", title: "تعديل" },
+      { key: "users_delete", title: "حذف" },
 
     ],
 
@@ -373,6 +395,7 @@ const permissionGroups: {
       { key: "reports_add", title: "إضافة" },
 
       { key: "reports_edit", title: "تعديل" },
+      { key: "reports_delete", title: "حذف" },
 
     ],
 
@@ -393,6 +416,7 @@ const permissionGroups: {
       { key: "settings_add", title: "إضافة" },
 
       { key: "settings_edit", title: "تعديل" },
+      { key: "settings_delete", title: "حذف" },
 
     ],
 
@@ -409,48 +433,56 @@ const defaultPermissions: Record<PermissionKey, boolean> = {
   dashboard_add: false,
 
   dashboard_edit: false,
+  dashboard_delete: false,
 
   projects_view: true,
 
   projects_add: false,
 
   projects_edit: false,
+  projects_delete: false,
 
   buildings_view: true,
 
   buildings_add: false,
 
   buildings_edit: false,
+  buildings_delete: false,
 
   apartments_view: true,
 
   apartments_add: false,
 
   apartments_edit: false,
+  apartments_delete: false,
 
   financial_view: true,
 
   financial_add: false,
 
   financial_edit: false,
+  financial_delete: false,
 
   users_view: true,
 
   users_add: false,
 
   users_edit: false,
+  users_delete: false,
 
   reports_view: true,
 
   reports_add: false,
 
   reports_edit: false,
+  reports_delete: false,
 
   settings_view: false,
 
   settings_add: false,
 
   settings_edit: false,
+  settings_delete: false,
 
 };
 
@@ -496,7 +528,9 @@ const getRolePermissions = (role: Role): Record<PermissionKey, boolean> => {
 
           role === "مدير"
 
-            ? permission.key === "users_view" || permission.key === "users_add"
+            ? permission.key === "users_view" ||
+                permission.key === "users_add" ||
+                permission.key === "users_delete"
 
             : permission.key === "users_view";
 
@@ -588,11 +622,15 @@ export default function UsersPermissions() {
 
     "users_edit",
 
+    "users_delete",
+
     "settings_view",
 
     "settings_add",
 
     "settings_edit",
+
+    "settings_delete",
 
   ]);
 
@@ -1140,9 +1178,9 @@ const editAvatarInputRef = useRef<HTMLInputElement | null>(null);
 
   const deleteUser = (user: UserRow) => {
 
-    if (!canManageUsers) {
+    if (!isSystemOwner && !Boolean(currentUser?.permissions?.users_delete)) {
 
-      alert("ليس لديك صلاحية حذف المستخدمين.");
+      alert("عذرًا، غير مسموح للمستخدم الحالي بهذا الإجراء.");
 
       return;
 
@@ -2898,7 +2936,7 @@ const editAvatarInputRef = useRef<HTMLInputElement | null>(null);
 
                   <p className="mt-1 text-xs text-red-300/80">
 
-                    لا يمكن التراجع عن هذا الإجراء بعد تأكيد الحذف.
+                    سيتم حذف المستخدم من قاعدة البيانات وإزالة صورته إن وُجدت، ولا يمكن التراجع عن هذا الإجراء بعد تأكيد الحذف.
 
                   </p>
 

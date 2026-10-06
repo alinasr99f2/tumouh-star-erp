@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "../../utils/supabase";
+import { usePermissions } from "../../utils/permissions";
+import PermissionDeniedModal from "../../components/PermissionDeniedModal";
 import {
   X,
   Building2,
@@ -277,6 +279,16 @@ const getBuildingStorageKey = (baseKey: string) => {
 };
 
 export default function ApartmentMap() {
+  const { hasPermission } = usePermissions();
+  const canViewApartments = hasPermission("apartments_view");
+  const canAddApartments = hasPermission("apartments_add");
+  const canEditApartments = hasPermission("apartments_edit");
+  const [permissionMessage, setPermissionMessage] = useState<string | null>(null);
+
+  const showPermissionDenied = (message = "غير مسموح للمستخدم الحالي بهذا الإجراء.") => {
+    setPermissionMessage(message);
+  };
+
   const [selectedApartment, setSelectedApartment] =
     useState<Apartment | null>(null);
 
@@ -479,6 +491,10 @@ export default function ApartmentMap() {
   const saveBuildingStateToSupabase = async (
     updatedApartments: Apartment[] = apartments
   ) => {
+    if (!canEditApartments) {
+      return;
+    }
+
     const buildingId = getCurrentBuildingId();
 
     if (!buildingId) {
@@ -496,6 +512,12 @@ export default function ApartmentMap() {
       throw error;
     }
   };
+
+  useEffect(() => {
+    if (!canViewApartments) {
+      showPermissionDenied("غير مسموح للمستخدم الحالي بعرض هذه الصفحة.");
+    }
+  }, [canViewApartments]);
 
   useEffect(() => {
     let cancelled = false;
@@ -743,9 +765,14 @@ export default function ApartmentMap() {
     apartmentTenantInfo,
     apartmentContractInfo,
     chargeSyncVersion,
+    canEditApartments,
   ]);
 
   const addApartment = () => {
+    if (!canAddApartments) {
+      showPermissionDenied();
+      return;
+    }
     setApartments((current) => {
       const nextNumber =
         current.length > 0
@@ -985,6 +1012,7 @@ export default function ApartmentMap() {
     key: K,
     value: ApartmentTenantInfo[K]
   ) => {
+    if (!canEditApartments) { showPermissionDenied(); return; }
     setApartmentTenantInfo((current) => ({
       ...current,
       [apartment.number]: {
@@ -999,6 +1027,7 @@ export default function ApartmentMap() {
     key: K,
     value: ApartmentExtraInfo[K]
   ) => {
+    if (!canEditApartments) { showPermissionDenied(); return; }
     setApartmentExtraInfo((current) => ({
       ...current,
       [apartmentNumber]: {
@@ -1079,6 +1108,10 @@ export default function ApartmentMap() {
   };
 
   const deleteSelectedApartments = () => {
+    if (!canEditApartments) {
+      showPermissionDenied();
+      return;
+    }
     if (selectedDeleteApartments.length === 0) {
       window.alert("اختر شقة واحدة على الأقل للحذف.");
       return;
@@ -1152,6 +1185,10 @@ export default function ApartmentMap() {
   };
 
   const updateApartmentTypeRent = (type: string, value: string) => {
+    if (!canEditApartments) {
+      showPermissionDenied();
+      return;
+    }
     const numericValue = Number(value);
 
     setApartmentTypeRents((current) => {
@@ -1246,6 +1283,10 @@ export default function ApartmentMap() {
   };
 
   const addNewApartmentTypeFromCard = () => {
+    if (!canAddApartments) {
+      showPermissionDenied();
+      return;
+    }
     const type = newApartmentType.trim();
     const rent = Number(newApartmentTypeRent);
 
@@ -1285,6 +1326,10 @@ export default function ApartmentMap() {
   };
 
   const saveApartmentTypeAssignments = () => {
+    if (!canEditApartments) {
+      showPermissionDenied();
+      return;
+    }
     if (!selectedApartmentType) {
       window.alert("اختر نوع الشقة أولاً");
       return;
@@ -1317,6 +1362,7 @@ export default function ApartmentMap() {
     apartment: Apartment,
     value: string
   ) => {
+    if (!canEditApartments) { showPermissionDenied(); return; }
     if (value === "__add_new__") {
       const newType = window.prompt(
         "اكتب اسم نوع الشقة الجديد:"
@@ -1385,6 +1431,10 @@ export default function ApartmentMap() {
   ];
 
   const addNewApartmentStatus = (apartment?: Apartment) => {
+    if (!canAddApartments) {
+      showPermissionDenied();
+      return;
+    }
     const newStatus = window.prompt("اكتب اسم حالة الشقة الجديدة:")?.trim();
 
     if (!newStatus) {
@@ -1416,6 +1466,7 @@ export default function ApartmentMap() {
     apartment: Apartment,
     value: string
   ) => {
+    if (!canEditApartments) { showPermissionDenied(); return; }
     if (value === "__add_new_status__") {
       addNewApartmentStatus(apartment);
       return;
@@ -1428,6 +1479,7 @@ export default function ApartmentMap() {
     apartment: Apartment,
     status: ApartmentStatus
   ) => {
+    if (!canEditApartments) { showPermissionDenied(); return; }
     const updatedApartment = {
       ...apartment,
       status,
@@ -1487,6 +1539,10 @@ export default function ApartmentMap() {
   };
 
   const saveApartmentNumber = () => {
+    if (!canEditApartments) {
+      showPermissionDenied();
+      return;
+    }
     if (!selectedApartment) {
       return;
     }
@@ -1643,6 +1699,7 @@ export default function ApartmentMap() {
     apartment: Apartment,
     key: K
   ) => {
+    if (!canEditApartments) { showPermissionDenied(); return; }
     const tenantInfo = getApartmentTenantInfo(apartment);
 
     const updatedTenantInfo = {
@@ -1697,6 +1754,10 @@ export default function ApartmentMap() {
   };
 
   const saveApartmentFloor = (apartmentNumber: string) => {
+    if (!canEditApartments) {
+      showPermissionDenied();
+      return;
+    }
     const extraInfo = getApartmentExtraInfo(apartmentNumber);
 
     setApartmentExtraInfo((current) => {
@@ -1728,6 +1789,7 @@ export default function ApartmentMap() {
     key: K,
     value: ApartmentContractInfo[K]
   ) => {
+    if (!canEditApartments) { showPermissionDenied(); return; }
     setApartmentContractInfo((current) => ({
       ...current,
       [apartmentNumber]: {
@@ -1741,6 +1803,7 @@ export default function ApartmentMap() {
     apartmentNumber: string,
     startDate: string
   ) => {
+    if (!canEditApartments) { showPermissionDenied(); return; }
     const currentInfo = getApartmentContractInfo(apartmentNumber);
     const endDate = addContractDuration(
       startDate,
@@ -1763,6 +1826,7 @@ export default function ApartmentMap() {
     durationUnit: "day" | "month" | "year",
     durationValue: number
   ) => {
+    if (!canEditApartments) { showPermissionDenied(); return; }
     const currentInfo = getApartmentContractInfo(apartmentNumber);
     const safeValue = Math.max(1, Number(durationValue) || 1);
     const endDate = addContractDuration(
@@ -1783,6 +1847,10 @@ export default function ApartmentMap() {
   };
 
   const saveApartmentContractInfo = (apartmentNumber: string) => {
+    if (!canEditApartments) {
+      showPermissionDenied();
+      return;
+    }
     const contractInfo = getApartmentContractInfo(apartmentNumber);
 
     setApartmentContractInfo((current) => {
@@ -1801,6 +1869,10 @@ export default function ApartmentMap() {
   };
 
   const saveTenantDataToSupabase = async (apartment: Apartment) => {
+    if (!canEditApartments) {
+      showPermissionDenied();
+      return;
+    }
     const tenantInfo = getApartmentTenantInfo(apartment);
     const contractInfo = getApartmentContractInfo(apartment.number);
     const buildingIdMatch = window.location.pathname.match(/\/buildings\/(\d+)/);
@@ -1928,6 +2000,10 @@ export default function ApartmentMap() {
   };
 
   const saveApartmentDetails = async () => {
+    if (!canEditApartments) {
+      showPermissionDenied();
+      return;
+    }
     if (!selectedApartment) {
       return;
     }
@@ -2063,6 +2139,10 @@ export default function ApartmentMap() {
     notes: string;
     apartmentNumber?: string;
   }) => {
+    if (!canEditApartments) {
+      showPermissionDenied();
+      return;
+    }
     if (!row.sourceMode || !row.sourceKey) {
       window.alert("هذه العملية محسوبة تلقائيًا ولا يوجد سجل مستقل لحذفه.");
       return;
@@ -2091,6 +2171,10 @@ export default function ApartmentMap() {
     type: string,
     apartmentNumber?: string
   ) => {
+    if (!canAddApartments && !canEditApartments) {
+      showPermissionDenied();
+      return;
+    }
     setEditingChargeKey(null);
     setChargeModalMode(mode);
     setChargeForm({
@@ -4681,6 +4765,14 @@ export default function ApartmentMap() {
   ];
 
   return (
+    <>
+      <PermissionDeniedModal
+        open={Boolean(permissionMessage)}
+        message={permissionMessage ?? "عذرًا، غير مسموح للمستخدم الحالي بهذا الإجراء."}
+        redirectTo={!canViewApartments ? "/home" : undefined}
+        onClose={() => setPermissionMessage(null)}
+      />
+
     <div
       dir="rtl"
       className="relative min-h-screen w-full min-w-0 overflow-x-hidden bg-[#062B24] p-2 text-white sm:p-3 lg:p-4"
@@ -7517,6 +7609,11 @@ export default function ApartmentMap() {
                 <button
                   type="button"
                   onClick={() => {
+                    if (editingChargeKey ? !canEditApartments : !canAddApartments) {
+                      showPermissionDenied();
+                      return;
+                    }
+
                     if (selectedChargeApartments.length === 0) {
                       window.alert("من فضلك اختر شقة واحدة على الأقل");
                       return;
@@ -8648,5 +8745,6 @@ export default function ApartmentMap() {
       </div>
 
     </div>
+    </>
   );
 }
