@@ -749,6 +749,9 @@ export default function ApartmentMap() {
     const timeoutId = window.setTimeout(() => {
       void saveBuildingStateToSupabase().catch((error) => {
         console.error("خطأ في الحفظ التلقائي لبيانات العمارة:", error);
+        window.alert(
+          "تعذر حفظ تعديلات الشقق في قاعدة البيانات. لا تضغط تحديث أو تغلق الصفحة قبل التأكد من الاتصال والصلاحيات."
+        );
       });
     }, 400);
 
@@ -4867,7 +4870,27 @@ export default function ApartmentMap() {
               </div>
             </button>
 
-            <button type="button" onClick={() => setBuildingRefreshVersion((value) => value + 1)} className="group relative min-h-[74px] overflow-hidden rounded-[22px] border border-blue-300/35 bg-gradient-to-br from-blue-400/20 to-white/[0.035] px-3 py-3 shadow-[0_12px_35px_rgba(59,130,246,0.12)] backdrop-blur-xl transition hover:-translate-y-1 hover:border-blue-300/65">
+            <button
+              type="button"
+              onClick={async () => {
+                // احفظ التعديلات الحالية قبل إعادة تحميل البيانات حتى لا يستبدل التحديث
+                // تغييرات لم يكتمل حفظها بعد بالنسخة الأقدم الموجودة في قاعدة البيانات.
+                if (!canEditApartments) {
+                  showPermissionDenied("لا يمكن تحديث الخريطة قبل توفر صلاحية تعديل الشقق.");
+                  return;
+                }
+
+                try {
+                  await saveBuildingStateToSupabase(apartments);
+                  setBuildingRefreshVersion((value) => value + 1);
+                } catch (error) {
+                  console.error("تعذر حفظ تعديلات الشقق قبل التحديث:", error);
+                  window.alert(
+                    "لم يتم تحديث الخريطة لأن حفظ التعديلات لم ينجح. تحقق من الاتصال والصلاحيات ثم حاول مرة أخرى."
+                  );
+                }
+              }}
+              className="group relative min-h-[74px] overflow-hidden rounded-[22px] border border-blue-300/35 bg-gradient-to-br from-blue-400/20 to-white/[0.035] px-3 py-3 shadow-[0_12px_35px_rgba(59,130,246,0.12)] backdrop-blur-xl transition hover:-translate-y-1 hover:border-blue-300/65">
               <div className="flex h-full items-center justify-center gap-3">
                 <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-400/15 text-blue-300"><RefreshCw size={27} /></div>
                 <div className="text-right"><div className="text-base font-black text-white sm:text-lg">تحديث</div><div className="text-[10px] font-semibold text-blue-100/60 sm:text-xs">إعادة تحميل البيانات</div></div>
