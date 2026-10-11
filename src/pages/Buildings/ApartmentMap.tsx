@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+﻿import { useEffect, useRef, useState } from "react";
 import { supabase } from "../../utils/supabase";
 import { usePermissions } from "../../utils/permissions";
 import PermissionDeniedModal from "../../components/PermissionDeniedModal";
@@ -50,10 +50,10 @@ type Apartment = {
 
 type ApartmentExtraInfo = {
   floor: string;
-  parking: "متوفر" | "لا يوجد" | "غير محدد";
-  electricityMeter: "مشترك" | "فردي";
-  waterMeter: "مشترك" | "فردي";
-  furnitureStatus: "مفروشة" | "نص فرش" | "مفروشة بالكامل";
+  parking: "┘à╪¬┘ê┘ü╪▒" | "┘ä╪º ┘è┘ê╪¼╪»" | "╪║┘è╪▒ ┘à╪¡╪»╪»";
+  electricityMeter: "┘à╪┤╪¬╪▒┘â" | "┘ü╪▒╪»┘è";
+  waterMeter: "┘à╪┤╪¬╪▒┘â" | "┘ü╪▒╪»┘è";
+  furnitureStatus: "┘à┘ü╪▒┘ê╪┤╪⌐" | "┘å╪╡ ┘ü╪▒╪┤" | "┘à┘ü╪▒┘ê╪┤╪⌐ ╪¿╪º┘ä┘â╪º┘à┘ä";
 };
 
 type ApartmentTenantInfo = {
@@ -85,17 +85,17 @@ type BuildingCharge = {
 
 const DEFAULT_APARTMENT_EXTRA_INFO: ApartmentExtraInfo = {
   floor: "",
-  parking: "غير محدد",
-  electricityMeter: "مشترك",
-  waterMeter: "مشترك",
-  furnitureStatus: "مفروشة بالكامل",
+  parking: "╪║┘è╪▒ ┘à╪¡╪»╪»",
+  electricityMeter: "┘à╪┤╪¬╪▒┘â",
+  waterMeter: "┘à╪┤╪¬╪▒┘â",
+  furnitureStatus: "┘à┘ü╪▒┘ê╪┤╪⌐ ╪¿╪º┘ä┘â╪º┘à┘ä",
 };
 
 const DEFAULT_APARTMENT_CONTRACT_START_DATE = "2025-06-01";
 
 const formatContractDate = (value: string) => {
   if (!value) {
-    return "غير محدد";
+    return "╪║┘è╪▒ ┘à╪¡╪»╪»";
   }
 
   const [year, month, day] = value.split("-");
@@ -227,23 +227,23 @@ const formatContractDuration = (
   const count = Math.max(1, Number(value) || 1);
 
   if (unit === "year") {
-    if (count === 1) return "سنة واحدة";
-    if (count === 2) return "سنتان";
-    if (count >= 3 && count <= 10) return `${count} سنوات`;
-    return `${count} سنة`;
+    if (count === 1) return "╪│┘å╪⌐ ┘ê╪º╪¡╪»╪⌐";
+    if (count === 2) return "╪│┘å╪¬╪º┘å";
+    if (count >= 3 && count <= 10) return `${count} ╪│┘å┘ê╪º╪¬`;
+    return `${count} ╪│┘å╪⌐`;
   }
 
   if (unit === "day") {
-    if (count === 1) return "يوم واحد";
-    if (count === 2) return "يومان";
-    if (count >= 3 && count <= 10) return `${count} أيام`;
-    return `${count} يوم`;
+    if (count === 1) return "┘è┘ê┘à ┘ê╪º╪¡╪»";
+    if (count === 2) return "┘è┘ê┘à╪º┘å";
+    if (count >= 3 && count <= 10) return `${count} ╪ú┘è╪º┘à`;
+    return `${count} ┘è┘ê┘à`;
   }
 
-  if (count === 1) return "شهر واحد";
-  if (count === 2) return "شهران";
-  if (count >= 3 && count <= 10) return `${count} أشهر`;
-  return `${count} شهر`;
+  if (count === 1) return "╪┤┘ç╪▒ ┘ê╪º╪¡╪»";
+  if (count === 2) return "╪┤┘ç╪▒╪º┘å";
+  if (count >= 3 && count <= 10) return `${count} ╪ú╪┤┘ç╪▒`;
+  return `${count} ╪┤┘ç╪▒`;
 };
 
 const createDefaultApartmentContractInfo = (apartmentNumber: string): ApartmentContractInfo => ({
@@ -261,12 +261,12 @@ const createDefaultApartmentContractInfo = (apartmentNumber: string): ApartmentC
 });
 
 type ApartmentTab =
-  | "البيانات الأساسية"
-  | "بيانات المستأجر"
-  | "العقد"
-  | "المدفوعات"
-  | "المستندات"
-  | "الملاحظات";
+  | "╪º┘ä╪¿┘è╪º┘å╪º╪¬ ╪º┘ä╪ú╪│╪º╪│┘è╪⌐"
+  | "╪¿┘è╪º┘å╪º╪¬ ╪º┘ä┘à╪│╪¬╪ú╪¼╪▒"
+  | "╪º┘ä╪╣┘é╪»"
+  | "╪º┘ä┘à╪»┘ü┘ê╪╣╪º╪¬"
+  | "╪º┘ä┘à╪│╪¬┘å╪»╪º╪¬"
+  | "╪º┘ä┘à┘ä╪º╪¡╪╕╪º╪¬";
 
 const getBuildingIdFromPath = () => {
   const match = window.location.pathname.match(/\/buildings\/(\d+)/);
@@ -280,12 +280,14 @@ const getBuildingStorageKey = (baseKey: string) => {
 
 export default function ApartmentMap() {
   const { hasPermission } = usePermissions();
-  const canViewApartments = hasPermission("apartments_view");
-  const canAddApartments = hasPermission("apartments_add");
-  const canEditApartments = hasPermission("apartments_edit");
+  const canViewApartments = hasPermission("apartment_map_view");
+  const canAddApartments = hasPermission("building_apartment_add");
+  const canEditApartments = hasPermission("apartment_map_edit");
+  const canEditApartmentRent = hasPermission("apartment_map_rent_edit");
+  const canEditApartmentType = hasPermission("apartment_map_type_edit");
   const [permissionMessage, setPermissionMessage] = useState<string | null>(null);
 
-  const showPermissionDenied = (message = "غير مسموح للمستخدم الحالي بهذا الإجراء.") => {
+  const showPermissionDenied = (message = "╪║┘è╪▒ ┘à╪│┘à┘ê╪¡ ┘ä┘ä┘à╪│╪¬╪«╪»┘à ╪º┘ä╪¡╪º┘ä┘è ╪¿┘ç╪░╪º ╪º┘ä╪Ñ╪¼╪▒╪º╪í.") => {
     setPermissionMessage(message);
   };
 
@@ -298,7 +300,7 @@ export default function ApartmentMap() {
   const [editedApartmentNumber, setEditedApartmentNumber] =
     useState("");
 
-  // أنواع الشقق المخصصة لكل شقة + الأنواع الجديدة المحفوظة
+  // ╪ú┘å┘ê╪º╪╣ ╪º┘ä╪┤┘é┘é ╪º┘ä┘à╪«╪╡╪╡╪⌐ ┘ä┘â┘ä ╪┤┘é╪⌐ + ╪º┘ä╪ú┘å┘ê╪º╪╣ ╪º┘ä╪¼╪»┘è╪»╪⌐ ╪º┘ä┘à╪¡┘ü┘ê╪╕╪⌐
   const [apartmentTypes, setApartmentTypes] =
     useState<Record<string, string>>(() => {
       try {
@@ -323,7 +325,7 @@ export default function ApartmentMap() {
       }
     });
 
-  // حالات الشقق المخصصة + الحالات الجديدة المحفوظة
+  // ╪¡╪º┘ä╪º╪¬ ╪º┘ä╪┤┘é┘é ╪º┘ä┘à╪«╪╡╪╡╪⌐ + ╪º┘ä╪¡╪º┘ä╪º╪¬ ╪º┘ä╪¼╪»┘è╪»╪⌐ ╪º┘ä┘à╪¡┘ü┘ê╪╕╪⌐
   const [customApartmentStatuses, setCustomApartmentStatuses] =
     useState<string[]>(() => {
       try {
@@ -385,7 +387,7 @@ export default function ApartmentMap() {
     });
 
   const [activeTab, setActiveTab] =
-    useState<ApartmentTab>("البيانات الأساسية");
+    useState<ApartmentTab>("╪º┘ä╪¿┘è╪º┘å╪º╪¬ ╪º┘ä╪ú╪│╪º╪│┘è╪⌐");
 
   const [fromDate, setFromDate] = useState("2026-09-01");
   const [toDate, setToDate] = useState("2026-09-30");
@@ -394,7 +396,7 @@ export default function ApartmentMap() {
   const [editingChargeKey, setEditingChargeKey] = useState<string | null>(null);
   const [chargeModalMode, setChargeModalMode] = useState<"charge" | "collection">("charge");
   const [chargeForm, setChargeForm] = useState<BuildingCharge>({
-    type: "إيجار",
+    type: "╪Ñ┘è╪¼╪º╪▒",
     amount: "",
     date: new Date().toISOString().slice(0, 10),
     notes: "",
@@ -446,7 +448,7 @@ export default function ApartmentMap() {
 
   const [apartments, setApartments] = useState<Apartment[]>([]);
 
-  // مزامنة بيانات العمارة مع Supabase حتى تظهر نفس البيانات على أي جهاز.
+  // ┘à╪▓╪º┘à┘å╪⌐ ╪¿┘è╪º┘å╪º╪¬ ╪º┘ä╪╣┘à╪º╪▒╪⌐ ┘à╪╣ Supabase ╪¡╪¬┘ë ╪¬╪╕┘ç╪▒ ┘å┘ü╪│ ╪º┘ä╪¿┘è╪º┘å╪º╪¬ ╪╣┘ä┘ë ╪ú┘è ╪¼┘ç╪º╪▓.
   const remoteStateHydratedRef = useRef(false);
   const [chargeSyncVersion, setChargeSyncVersion] = useState(0);
   const [buildingRefreshVersion, setBuildingRefreshVersion] = useState(0);
@@ -491,6 +493,15 @@ export default function ApartmentMap() {
   const saveBuildingStateToSupabase = async (
     updatedApartments: Apartment[] = apartments
   ) => {
+    if (updatedApartments.length === 0 && (
+      Object.keys(apartmentTypes || {}).length > 0 ||
+      Object.keys(apartmentExtraInfo || {}).length > 0 ||
+      Object.keys(apartmentTenantInfo || {}).length > 0 ||
+      Object.keys(apartmentContractInfo || {}).length > 0
+    )) {
+      console.warn("╪¬┘à ╪Ñ┘è┘é╪º┘ü ╪º┘ä╪¡┘ü╪╕ ┘ä╪¡┘à╪º┘è╪⌐ ╪¿┘è╪º┘å╪º╪¬ ╪º┘ä╪┤┘é┘é ┘à┘å ╪º┘ä╪º╪│╪¬╪¿╪»╪º┘ä ╪¿┘é╪º╪ª┘à╪⌐ ┘ü╪º╪▒╪║╪⌐.");
+      return;
+    }
     if (!canEditApartments) {
       return;
     }
@@ -498,7 +509,7 @@ export default function ApartmentMap() {
     const buildingId = getCurrentBuildingId();
 
     if (!buildingId) {
-      throw new Error("لم يتم التعرف على رقم العمارة من الرابط.");
+      throw new Error("┘ä┘à ┘è╪¬┘à ╪º┘ä╪¬╪╣╪▒┘ü ╪╣┘ä┘ë ╪▒┘é┘à ╪º┘ä╪╣┘à╪º╪▒╪⌐ ┘à┘å ╪º┘ä╪▒╪º╪¿╪╖.");
     }
 
     const { error } = await supabase
@@ -515,7 +526,7 @@ export default function ApartmentMap() {
 
   useEffect(() => {
     if (!canViewApartments) {
-      showPermissionDenied("غير مسموح للمستخدم الحالي بعرض هذه الصفحة.");
+      showPermissionDenied("╪║┘è╪▒ ┘à╪│┘à┘ê╪¡ ┘ä┘ä┘à╪│╪¬╪«╪»┘à ╪º┘ä╪¡╪º┘ä┘è ╪¿╪╣╪▒╪╢ ┘ç╪░┘ç ╪º┘ä╪╡┘ü╪¡╪⌐.");
     }
   }, [canViewApartments]);
 
@@ -543,18 +554,48 @@ export default function ApartmentMap() {
       }
 
       if (error) {
-        console.error("خطأ في تحميل بيانات العمارة من Supabase:", error);
+        console.error("╪«╪╖╪ú ┘ü┘è ╪¬╪¡┘à┘è┘ä ╪¿┘è╪º┘å╪º╪¬ ╪º┘ä╪╣┘à╪º╪▒╪⌐ ┘à┘å Supabase:", error);
         return;
       }
 
       if (data) {
         if (Array.isArray(data.apartments)) {
-          const remoteApartments = data.apartments.map(
+          const remoteApartments: Apartment[] = data.apartments.map(
             (apartment: Apartment) => ({
               ...apartment,
               number: String(apartment.number),
             })
           );
+          // Rebuild missing list entries from existing metadata keys. Keep all
+          // original metadata untouched and skip the unexplained legacy key 1$.
+          const knownNumbers = new Set(remoteApartments.map((a) => a.number));
+          const missingNumbers = new Set<string>();
+          [data.apartment_types, data.apartment_extra_info, data.apartment_tenant_info, data.apartment_contract_info]
+            .forEach((value) => {
+              if (value && typeof value === "object" && !Array.isArray(value)) {
+                Object.keys(value as Record<string, unknown>).forEach((key) => {
+                  if (key !== "1$" && !knownNumbers.has(key)) missingNumbers.add(key);
+                });
+              }
+            });
+          missingNumbers.forEach((number) => {
+            const tenantInfo = (data.apartment_tenant_info as Record<string, { status?: string; tenantName?: string }> | null)?.[number];
+            const typeInfo = (data.apartment_types as Record<string, string> | null)?.[number];
+            remoteApartments.push({
+              number,
+              type: typeof typeInfo === "string" && typeInfo.trim() ? typeInfo : "╪║╪▒┘ü╪⌐ ┘ê╪╡╪º┘ä╪⌐",
+              rent: 0,
+              status: tenantInfo?.status || "╪┤╪º╪║╪▒╪⌐",
+              tenant: tenantInfo?.tenantName || "┘ä╪º ┘è┘ê╪¼╪» ┘à╪│╪¬╪ú╪¼╪▒",
+            });
+          });
+          remoteApartments.sort((a, b) => {
+            const an = Number(a.number), bn = Number(b.number);
+            if (Number.isFinite(an) && Number.isFinite(bn)) return an - bn;
+            if (Number.isFinite(an)) return 1;
+            if (Number.isFinite(bn)) return -1;
+            return a.number.localeCompare(b.number, "en", { numeric: true });
+          });
 
           setApartments(remoteApartments);
           window.localStorage.setItem(
@@ -647,8 +688,8 @@ export default function ApartmentMap() {
           );
         }
       } else {
-        // أول تشغيل لهذه العمارة: نبني الخريطة من عدد الشقق المسجل في جدول العمائر.
-        // لا نستخدم أي بيانات افتراضية قديمة مثل 44 شقة أو بيانات عمارة أخرى.
+        // ╪ú┘ê┘ä ╪¬╪┤╪║┘è┘ä ┘ä┘ç╪░┘ç ╪º┘ä╪╣┘à╪º╪▒╪⌐: ┘å╪¿┘å┘è ╪º┘ä╪«╪▒┘è╪╖╪⌐ ┘à┘å ╪╣╪»╪» ╪º┘ä╪┤┘é┘é ╪º┘ä┘à╪│╪¼┘ä ┘ü┘è ╪¼╪»┘ê┘ä ╪º┘ä╪╣┘à╪º╪ª╪▒.
+        // ┘ä╪º ┘å╪│╪¬╪«╪»┘à ╪ú┘è ╪¿┘è╪º┘å╪º╪¬ ╪º┘ü╪¬╪▒╪º╪╢┘è╪⌐ ┘é╪»┘è┘à╪⌐ ┘à╪½┘ä 44 ╪┤┘é╪⌐ ╪ú┘ê ╪¿┘è╪º┘å╪º╪¬ ╪╣┘à╪º╪▒╪⌐ ╪ú╪«╪▒┘ë.
         const { data: buildingData, error: buildingError } = await supabase
           .from("buildings")
           .select("name, units_count")
@@ -668,15 +709,15 @@ export default function ApartmentMap() {
           { length: unitsCount },
           (_, index) => ({
             number: String(index + 1),
-            type: "غير محدد",
+            type: "╪║┘è╪▒ ┘à╪¡╪»╪»",
             rent: 0,
-            status: "شاغرة",
-            tenant: "لا يوجد مستأجر",
+            status: "╪┤╪º╪║╪▒╪⌐",
+            tenant: "┘ä╪º ┘è┘ê╪¼╪» ┘à╪│╪¬╪ú╪¼╪▒",
           })
         );
 
-        // العمارة الجديدة تبدأ نظيفة بالكامل: لا مستأجرين، لا عقود،
-        // لا مستحقات، لا تحصيلات، ولا إعدادات من عمارة أخرى.
+        // ╪º┘ä╪╣┘à╪º╪▒╪⌐ ╪º┘ä╪¼╪»┘è╪»╪⌐ ╪¬╪¿╪»╪ú ┘å╪╕┘è┘ü╪⌐ ╪¿╪º┘ä┘â╪º┘à┘ä: ┘ä╪º ┘à╪│╪¬╪ú╪¼╪▒┘è┘å╪î ┘ä╪º ╪╣┘é┘ê╪»╪î
+        // ┘ä╪º ┘à╪│╪¬╪¡┘é╪º╪¬╪î ┘ä╪º ╪¬╪¡╪╡┘è┘ä╪º╪¬╪î ┘ê┘ä╪º ╪Ñ╪╣╪»╪º╪»╪º╪¬ ┘à┘å ╪╣┘à╪º╪▒╪⌐ ╪ú╪«╪▒┘ë.
         setApartments(emptyApartments);
         setApartmentTypes({});
         setCustomApartmentTypes([]);
@@ -733,7 +774,7 @@ export default function ApartmentMap() {
     };
 
     void loadBuildingStateFromSupabase().catch((error) => {
-      console.error("فشل تحميل بيانات العمارة:", error);
+      console.error("┘ü╪┤┘ä ╪¬╪¡┘à┘è┘ä ╪¿┘è╪º┘å╪º╪¬ ╪º┘ä╪╣┘à╪º╪▒╪⌐:", error);
     });
 
     return () => {
@@ -748,10 +789,7 @@ export default function ApartmentMap() {
 
     const timeoutId = window.setTimeout(() => {
       void saveBuildingStateToSupabase().catch((error) => {
-        console.error("خطأ في الحفظ التلقائي لبيانات العمارة:", error);
-        window.alert(
-          "تعذر حفظ تعديلات الشقق في قاعدة البيانات. لا تضغط تحديث أو تغلق الصفحة قبل التأكد من الاتصال والصلاحيات."
-        );
+        console.error("╪«╪╖╪ú ┘ü┘è ╪º┘ä╪¡┘ü╪╕ ╪º┘ä╪¬┘ä┘é╪º╪ª┘è ┘ä╪¿┘è╪º┘å╪º╪¬ ╪º┘ä╪╣┘à╪º╪▒╪⌐:", error);
       });
     }, 400);
 
@@ -790,10 +828,10 @@ export default function ApartmentMap() {
         ...current,
         {
           number: nextNumber,
-          type: "غرفة وصالة",
+          type: "╪║╪▒┘ü╪⌐ ┘ê╪╡╪º┘ä╪⌐",
           rent: 3000,
-          status: "شاغرة" as ApartmentStatus,
-          tenant: "لا يوجد مستأجر",
+          status: "╪┤╪º╪║╪▒╪⌐" as ApartmentStatus,
+          tenant: "┘ä╪º ┘è┘ê╪¼╪» ┘à╪│╪¬╪ú╪¼╪▒",
         },
       ];
 
@@ -810,20 +848,20 @@ export default function ApartmentMap() {
 
   const rentedApartments = apartments.filter(
     (apartment) =>
-      apartment.status === "مؤجرة" ||
-      apartment.status === "مؤجرة للشركة"
+      apartment.status === "┘à╪ñ╪¼╪▒╪⌐" ||
+      apartment.status === "┘à╪ñ╪¼╪▒╪⌐ ┘ä┘ä╪┤╪▒┘â╪⌐"
   ).length;
 
   const reservedApartments = apartments.filter(
-    (apartment) => apartment.status === "محجوزة"
+    (apartment) => apartment.status === "┘à╪¡╪¼┘ê╪▓╪⌐"
   ).length;
 
   const maintenanceApartments = apartments.filter(
-    (apartment) => apartment.status === "تحت الصيانة"
+    (apartment) => apartment.status === "╪¬╪¡╪¬ ╪º┘ä╪╡┘è╪º┘å╪⌐"
   ).length;
 
   const vacantApartments = apartments.filter(
-    (apartment) => apartment.status === "شاغرة"
+    (apartment) => apartment.status === "╪┤╪º╪║╪▒╪⌐"
   ).length;
 
   const occupancyRate =
@@ -834,19 +872,19 @@ export default function ApartmentMap() {
   const getApartmentColor = (
     status: ApartmentStatus
   ) => {
-    if (status === "شاغرة") {
+    if (status === "╪┤╪º╪║╪▒╪⌐") {
       return "bg-red-600 hover:bg-red-500";
     }
 
-    if (status === "تحت الصيانة") {
+    if (status === "╪¬╪¡╪¬ ╪º┘ä╪╡┘è╪º┘å╪⌐") {
       return "bg-yellow-500 hover:bg-yellow-400";
     }
 
-    if (status === "محجوزة") {
+    if (status === "┘à╪¡╪¼┘ê╪▓╪⌐") {
       return "bg-blue-600 hover:bg-blue-500";
     }
 
-    if (status === "مؤجرة للشركة") {
+    if (status === "┘à╪ñ╪¼╪▒╪⌐ ┘ä┘ä╪┤╪▒┘â╪⌐") {
       return "bg-emerald-700 hover:bg-emerald-600";
     }
 
@@ -856,7 +894,7 @@ export default function ApartmentMap() {
   const getStatusColor = (
     status: ApartmentStatus
   ) => {
-    if (status === "شاغرة") {
+    if (status === "╪┤╪º╪║╪▒╪⌐") {
       return {
         badge:
           "border-red-400/30 bg-red-500/10 text-red-400",
@@ -864,7 +902,7 @@ export default function ApartmentMap() {
       };
     }
 
-    if (status === "مؤجرة للشركة") {
+    if (status === "┘à╪ñ╪¼╪▒╪⌐ ┘ä┘ä╪┤╪▒┘â╪⌐") {
       return {
         badge:
           "border-emerald-400/30 bg-emerald-500/10 text-emerald-300",
@@ -872,7 +910,7 @@ export default function ApartmentMap() {
       };
     }
 
-    if (status === "محجوزة") {
+    if (status === "┘à╪¡╪¼┘ê╪▓╪⌐") {
       return {
         badge:
           "border-blue-400/30 bg-blue-500/10 text-blue-400",
@@ -880,7 +918,7 @@ export default function ApartmentMap() {
       };
     }
 
-    if (status === "تحت الصيانة") {
+    if (status === "╪¬╪¡╪¬ ╪º┘ä╪╡┘è╪º┘å╪⌐") {
       return {
         badge:
           "border-orange-400/30 bg-orange-500/10 text-orange-400",
@@ -898,9 +936,9 @@ export default function ApartmentMap() {
   const getApartmentStatusCard = (
     status: ApartmentStatus
   ) => {
-    if (status === "شاغرة") {
+    if (status === "╪┤╪º╪║╪▒╪⌐") {
       return {
-        label: "فارغة",
+        label: "┘ü╪º╪▒╪║╪⌐",
         icon: Home,
         iconClass: "text-red-400",
         iconBorder: "border-red-400/20",
@@ -909,9 +947,9 @@ export default function ApartmentMap() {
       };
     }
 
-    if (status === "مؤجرة للشركة") {
+    if (status === "┘à╪ñ╪¼╪▒╪⌐ ┘ä┘ä╪┤╪▒┘â╪⌐") {
       return {
-        label: "مؤجرة للشركة",
+        label: "┘à╪ñ╪¼╪▒╪⌐ ┘ä┘ä╪┤╪▒┘â╪⌐",
         icon: User,
         iconClass: "text-emerald-300",
         iconBorder: "border-emerald-400/20",
@@ -920,9 +958,9 @@ export default function ApartmentMap() {
       };
     }
 
-    if (status === "محجوزة") {
+    if (status === "┘à╪¡╪¼┘ê╪▓╪⌐") {
       return {
-        label: "محجوزة",
+        label: "┘à╪¡╪¼┘ê╪▓╪⌐",
         icon: CalendarDays,
         iconClass: "text-blue-400",
         iconBorder: "border-blue-400/20",
@@ -931,9 +969,9 @@ export default function ApartmentMap() {
       };
     }
 
-    if (status === "تحت الصيانة") {
+    if (status === "╪¬╪¡╪¬ ╪º┘ä╪╡┘è╪º┘å╪⌐") {
       return {
-        label: "تحت الصيانة",
+        label: "╪¬╪¡╪¬ ╪º┘ä╪╡┘è╪º┘å╪⌐",
         icon: AlertCircle,
         iconClass: "text-yellow-400",
         iconBorder: "border-yellow-400/20",
@@ -957,27 +995,27 @@ export default function ApartmentMap() {
     icon: typeof Home;
   }[] = [
     {
-      title: "البيانات الأساسية",
+      title: "╪º┘ä╪¿┘è╪º┘å╪º╪¬ ╪º┘ä╪ú╪│╪º╪│┘è╪⌐",
       icon: Home,
     },
     {
-      title: "بيانات المستأجر",
+      title: "╪¿┘è╪º┘å╪º╪¬ ╪º┘ä┘à╪│╪¬╪ú╪¼╪▒",
       icon: User,
     },
     {
-      title: "العقد",
+      title: "╪º┘ä╪╣┘é╪»",
       icon: FileText,
     },
     {
-      title: "المدفوعات",
+      title: "╪º┘ä┘à╪»┘ü┘ê╪╣╪º╪¬",
       icon: Coins,
     },
     {
-      title: "المستندات",
+      title: "╪º┘ä┘à╪│╪¬┘å╪»╪º╪¬",
       icon: Paperclip,
     },
     {
-      title: "الملاحظات",
+      title: "╪º┘ä┘à┘ä╪º╪¡╪╕╪º╪¬",
       icon: MessageSquare,
     },
   ];
@@ -999,9 +1037,9 @@ export default function ApartmentMap() {
       {
         status: apartment.status,
         tenantName:
-          apartment.status === "شاغرة"
+          apartment.status === "╪┤╪º╪║╪▒╪⌐"
             ? ""
-            : apartment.tenant === "اسم المستأجر غير مضاف"
+            : apartment.tenant === "╪º╪│┘à ╪º┘ä┘à╪│╪¬╪ú╪¼╪▒ ╪║┘è╪▒ ┘à╪╢╪º┘ü"
             ? ""
             : apartment.tenant,
         phone: "",
@@ -1111,18 +1149,18 @@ export default function ApartmentMap() {
   };
 
   const deleteSelectedApartments = () => {
-    if (!canEditApartments) {
+    if (!hasPermission("building_apartment_delete" ) ) {
       showPermissionDenied();
       return;
     }
     if (selectedDeleteApartments.length === 0) {
-      window.alert("اختر شقة واحدة على الأقل للحذف.");
+      window.alert("╪º╪«╪¬╪▒ ╪┤┘é╪⌐ ┘ê╪º╪¡╪»╪⌐ ╪╣┘ä┘ë ╪º┘ä╪ú┘é┘ä ┘ä┘ä╪¡╪░┘ü.");
       return;
     }
 
     const selectedNumbers = new Set(selectedDeleteApartments);
     const confirmed = window.confirm(
-      `هل أنت متأكد من حذف ${selectedDeleteApartments.length} شقة محددة؟`
+      `┘ç┘ä ╪ú┘å╪¬ ┘à╪¬╪ú┘â╪» ┘à┘å ╪¡╪░┘ü ${selectedDeleteApartments.length} ╪┤┘é╪⌐ ┘à╪¡╪»╪»╪⌐╪ƒ`
     );
 
     if (!confirmed) {
@@ -1188,7 +1226,7 @@ export default function ApartmentMap() {
   };
 
   const updateApartmentTypeRent = (type: string, value: string) => {
-    if (!canEditApartments) {
+    if (!canEditApartmentRent) {
       showPermissionDenied();
       return;
     }
@@ -1211,8 +1249,8 @@ export default function ApartmentMap() {
 
   const availableApartmentTypes = Array.from(
     new Set([
-      "غرفتين وصالة",
-      "غرفة وصالة",
+      "╪║╪▒┘ü╪¬┘è┘å ┘ê╪╡╪º┘ä╪⌐",
+      "╪║╪▒┘ü╪⌐ ┘ê╪╡╪º┘ä╪⌐",
       ...customApartmentTypes,
       ...apartments.map((apartment) => getApartmentType(apartment)),
     ])
@@ -1232,7 +1270,7 @@ export default function ApartmentMap() {
   });
 
   const openApartmentTypeModal = () => {
-    const firstType = availableApartmentTypes[0] ?? "غرفتين وصالة";
+    const firstType = availableApartmentTypes[0] ?? "╪║╪▒┘ü╪¬┘è┘å ┘ê╪╡╪º┘ä╪⌐";
     setSelectedApartmentType(firstType);
     setSelectedTypeApartments(
       apartments
@@ -1294,12 +1332,12 @@ export default function ApartmentMap() {
     const rent = Number(newApartmentTypeRent);
 
     if (!type) {
-      window.alert("اكتب اسم نوع الشقة أولاً");
+      window.alert("╪º┘â╪¬╪¿ ╪º╪│┘à ┘å┘ê╪╣ ╪º┘ä╪┤┘é╪⌐ ╪ú┘ê┘ä╪º┘ï");
       return;
     }
 
     if (!Number.isFinite(rent) || rent <= 0) {
-      window.alert("اكتب قيمة إيجار صحيحة لنوع الشقة");
+      window.alert("╪º┘â╪¬╪¿ ┘é┘è┘à╪⌐ ╪Ñ┘è╪¼╪º╪▒ ╪╡╪¡┘è╪¡╪⌐ ┘ä┘å┘ê╪╣ ╪º┘ä╪┤┘é╪⌐");
       return;
     }
 
@@ -1334,7 +1372,7 @@ export default function ApartmentMap() {
       return;
     }
     if (!selectedApartmentType) {
-      window.alert("اختر نوع الشقة أولاً");
+      window.alert("╪º╪«╪¬╪▒ ┘å┘ê╪╣ ╪º┘ä╪┤┘é╪⌐ ╪ú┘ê┘ä╪º┘ï");
       return;
     }
 
@@ -1365,10 +1403,10 @@ export default function ApartmentMap() {
     apartment: Apartment,
     value: string
   ) => {
-    if (!canEditApartments) { showPermissionDenied(); return; }
+    if (!canEditApartmentType) { showPermissionDenied(); return; }
     if (value === "__add_new__") {
       const newType = window.prompt(
-        "اكتب اسم نوع الشقة الجديد:"
+        "╪º┘â╪¬╪¿ ╪º╪│┘à ┘å┘ê╪╣ ╪º┘ä╪┤┘é╪⌐ ╪º┘ä╪¼╪»┘è╪»:"
       )?.trim();
 
       if (!newType) {
@@ -1425,11 +1463,11 @@ export default function ApartmentMap() {
   };
 
   const availableApartmentStatuses: ApartmentStatus[] = [
-    "مؤجرة",
-    "شاغرة",
-    "تحت الصيانة",
-    "محجوزة",
-    "مؤجرة للشركة",
+    "┘à╪ñ╪¼╪▒╪⌐",
+    "╪┤╪º╪║╪▒╪⌐",
+    "╪¬╪¡╪¬ ╪º┘ä╪╡┘è╪º┘å╪⌐",
+    "┘à╪¡╪¼┘ê╪▓╪⌐",
+    "┘à╪ñ╪¼╪▒╪⌐ ┘ä┘ä╪┤╪▒┘â╪⌐",
     ...customApartmentStatuses,
   ];
 
@@ -1438,7 +1476,7 @@ export default function ApartmentMap() {
       showPermissionDenied();
       return;
     }
-    const newStatus = window.prompt("اكتب اسم حالة الشقة الجديدة:")?.trim();
+    const newStatus = window.prompt("╪º┘â╪¬╪¿ ╪º╪│┘à ╪¡╪º┘ä╪⌐ ╪º┘ä╪┤┘é╪⌐ ╪º┘ä╪¼╪»┘è╪»╪⌐:")?.trim();
 
     if (!newStatus) {
       return;
@@ -1516,12 +1554,12 @@ export default function ApartmentMap() {
     apartment: Apartment
   ) => {
     setSelectedApartment(apartment);
-    setActiveTab("البيانات الأساسية");
+    setActiveTab("╪º┘ä╪¿┘è╪º┘å╪º╪¬ ╪º┘ä╪ú╪│╪º╪│┘è╪⌐");
   };
 
   const closeApartment = () => {
     setSelectedApartment(null);
-    setActiveTab("البيانات الأساسية");
+    setActiveTab("╪º┘ä╪¿┘è╪º┘å╪º╪¬ ╪º┘ä╪ú╪│╪º╪│┘è╪⌐");
     setIsPaymentExportMenuOpen(false);
     setIsEditingApartmentNumber(false);
     setEditedApartmentNumber("");
@@ -1553,7 +1591,7 @@ export default function ApartmentMap() {
     const newNumber = editedApartmentNumber.trim();
 
     if (!newNumber) {
-      window.alert("من فضلك أدخل رقم شقة صحيح.");
+      window.alert("┘à┘å ┘ü╪╢┘ä┘â ╪ú╪»╪«┘ä ╪▒┘é┘à ╪┤┘é╪⌐ ╪╡╪¡┘è╪¡.");
       return;
     }
 
@@ -1571,7 +1609,7 @@ export default function ApartmentMap() {
     );
 
     if (duplicateApartment) {
-      window.alert("رقم الشقة الجديد مستخدم بالفعل. اختر رقمًا آخر.");
+      window.alert("╪▒┘é┘à ╪º┘ä╪┤┘é╪⌐ ╪º┘ä╪¼╪»┘è╪» ┘à╪│╪¬╪«╪»┘à ╪¿╪º┘ä┘ü╪╣┘ä. ╪º╪«╪¬╪▒ ╪▒┘é┘à┘ï╪º ╪ó╪«╪▒.");
       return;
     }
 
@@ -1679,7 +1717,7 @@ export default function ApartmentMap() {
         );
       }
     } catch {
-      // تجاهل خطأ قراءة المستحقات مع حفظ بيانات الشقة بشكل طبيعي.
+      // ╪¬╪¼╪º┘ç┘ä ╪«╪╖╪ú ┘é╪▒╪º╪í╪⌐ ╪º┘ä┘à╪│╪¬╪¡┘é╪º╪¬ ┘à╪╣ ╪¡┘ü╪╕ ╪¿┘è╪º┘å╪º╪¬ ╪º┘ä╪┤┘é╪⌐ ╪¿╪┤┘â┘ä ╪╖╪¿┘è╪╣┘è.
     }
 
     setSelectedChargeApartments((current) =>
@@ -1731,7 +1769,7 @@ export default function ApartmentMap() {
             ? {
                 ...item,
                 tenant:
-                  tenantInfo.tenantName || "اسم المستأجر غير مضاف",
+                  tenantInfo.tenantName || "╪º╪│┘à ╪º┘ä┘à╪│╪¬╪ú╪¼╪▒ ╪║┘è╪▒ ┘à╪╢╪º┘ü",
               }
             : item
         );
@@ -1749,7 +1787,7 @@ export default function ApartmentMap() {
           ? {
               ...current,
               tenant:
-                tenantInfo.tenantName || "اسم المستأجر غير مضاف",
+                tenantInfo.tenantName || "╪º╪│┘à ╪º┘ä┘à╪│╪¬╪ú╪¼╪▒ ╪║┘è╪▒ ┘à╪╢╪º┘ü",
             }
           : current
       );
@@ -1882,7 +1920,7 @@ export default function ApartmentMap() {
     const buildingId = buildingIdMatch ? Number(buildingIdMatch[1]) : null;
 
     if (!buildingId) {
-      throw new Error("لم يتم التعرف على رقم العمارة من الرابط.");
+      throw new Error("┘ä┘à ┘è╪¬┘à ╪º┘ä╪¬╪╣╪▒┘ü ╪╣┘ä┘ë ╪▒┘é┘à ╪º┘ä╪╣┘à╪º╪▒╪⌐ ┘à┘å ╪º┘ä╪▒╪º╪¿╪╖.");
     }
 
     const fullName = tenantInfo.tenantName.trim();
@@ -1890,13 +1928,13 @@ export default function ApartmentMap() {
     const identityNumber = tenantInfo.identityNumber.trim();
 
     if (!fullName) {
-      // اسم المستأجر اختياري؛ حفظ بيانات العمارة لا يتوقف عليه.
+      // ╪º╪│┘à ╪º┘ä┘à╪│╪¬╪ú╪¼╪▒ ╪º╪«╪¬┘è╪º╪▒┘è╪¢ ╪¡┘ü╪╕ ╪¿┘è╪º┘å╪º╪¬ ╪º┘ä╪╣┘à╪º╪▒╪⌐ ┘ä╪º ┘è╪¬┘ê┘é┘ü ╪╣┘ä┘è┘ç.
       return;
     }
 
     /*
-     * أولًا: البحث عن المستأجر الحالي.
-     * نستخدم رقم الهوية عند توفره، ثم الجوال + الاسم، ثم الاسم.
+     * ╪ú┘ê┘ä┘ï╪º: ╪º┘ä╪¿╪¡╪½ ╪╣┘å ╪º┘ä┘à╪│╪¬╪ú╪¼╪▒ ╪º┘ä╪¡╪º┘ä┘è.
+     * ┘å╪│╪¬╪«╪»┘à ╪▒┘é┘à ╪º┘ä┘ç┘ê┘è╪⌐ ╪╣┘å╪» ╪¬┘ê┘ü╪▒┘ç╪î ╪½┘à ╪º┘ä╪¼┘ê╪º┘ä + ╪º┘ä╪º╪│┘à╪î ╪½┘à ╪º┘ä╪º╪│┘à.
      */
     let tenantQuery = supabase
       .from("tenants")
@@ -1953,14 +1991,14 @@ export default function ApartmentMap() {
     }
 
     if (!tenantId) {
-      throw new Error("لم يتم الحصول على رقم المستأجر من قاعدة البيانات.");
+      throw new Error("┘ä┘à ┘è╪¬┘à ╪º┘ä╪¡╪╡┘ê┘ä ╪╣┘ä┘ë ╪▒┘é┘à ╪º┘ä┘à╪│╪¬╪ú╪¼╪▒ ┘à┘å ┘é╪º╪╣╪»╪⌐ ╪º┘ä╪¿┘è╪º┘å╪º╪¬.");
     }
 
     /*
-     * مهم:
-     * البحث عن العقد يكون بالعمارة + رقم الشقة فقط،
-     * وليس tenant_id؛ لأن المستأجر قد يتغير عند تعديل البيانات.
-     * بهذه الطريقة نحدّث نفس الصف بدل إنشاء صف جديد كل مرة.
+     * ┘à┘ç┘à:
+     * ╪º┘ä╪¿╪¡╪½ ╪╣┘å ╪º┘ä╪╣┘é╪» ┘è┘â┘ê┘å ╪¿╪º┘ä╪╣┘à╪º╪▒╪⌐ + ╪▒┘é┘à ╪º┘ä╪┤┘é╪⌐ ┘ü┘é╪╖╪î
+     * ┘ê┘ä┘è╪│ tenant_id╪¢ ┘ä╪ú┘å ╪º┘ä┘à╪│╪¬╪ú╪¼╪▒ ┘é╪» ┘è╪¬╪║┘è╪▒ ╪╣┘å╪» ╪¬╪╣╪»┘è┘ä ╪º┘ä╪¿┘è╪º┘å╪º╪¬.
+     * ╪¿┘ç╪░┘ç ╪º┘ä╪╖╪▒┘è┘é╪⌐ ┘å╪¡╪»┘æ╪½ ┘å┘ü╪│ ╪º┘ä╪╡┘ü ╪¿╪»┘ä ╪Ñ┘å╪┤╪º╪í ╪╡┘ü ╪¼╪»┘è╪» ┘â┘ä ┘à╪▒╪⌐.
      */
     const { data: existingLease, error: leaseLookupError } = await supabase
       .from("tenant_leases")
@@ -2018,7 +2056,7 @@ export default function ApartmentMap() {
         ? {
             ...apartment,
             tenant:
-              tenantInfo.tenantName || "اسم المستأجر غير مضاف",
+              tenantInfo.tenantName || "╪º╪│┘à ╪º┘ä┘à╪│╪¬╪ú╪¼╪▒ ╪║┘è╪▒ ┘à╪╢╪º┘ü",
             status: tenantInfo.status,
           }
         : apartment;
@@ -2053,17 +2091,17 @@ export default function ApartmentMap() {
 
     try {
       await saveTenantDataToSupabase(selectedApartment);
-      window.alert("تم حفظ بيانات المستأجر في قاعدة البيانات بنجاح.");
+      window.alert("╪¬┘à ╪¡┘ü╪╕ ╪¿┘è╪º┘å╪º╪¬ ╪º┘ä┘à╪│╪¬╪ú╪¼╪▒ ┘ü┘è ┘é╪º╪╣╪»╪⌐ ╪º┘ä╪¿┘è╪º┘å╪º╪¬ ╪¿┘å╪¼╪º╪¡.");
       closeApartment();
     } catch (error) {
-      console.error("خطأ في حفظ بيانات المستأجر في Supabase:", error);
+      console.error("╪«╪╖╪ú ┘ü┘è ╪¡┘ü╪╕ ╪¿┘è╪º┘å╪º╪¬ ╪º┘ä┘à╪│╪¬╪ú╪¼╪▒ ┘ü┘è Supabase:", error);
       const message =
         error instanceof Error
           ? error.message
-          : "حدث خطأ غير معروف أثناء الحفظ في قاعدة البيانات.";
+          : "╪¡╪»╪½ ╪«╪╖╪ú ╪║┘è╪▒ ┘à╪╣╪▒┘ê┘ü ╪ú╪½┘å╪º╪í ╪º┘ä╪¡┘ü╪╕ ┘ü┘è ┘é╪º╪╣╪»╪⌐ ╪º┘ä╪¿┘è╪º┘å╪º╪¬.";
 
       window.alert(
-        `تم حفظ البيانات محليًا، لكن تعذر الحفظ في قاعدة البيانات.\n${message}`
+        `╪¬┘à ╪¡┘ü╪╕ ╪º┘ä╪¿┘è╪º┘å╪º╪¬ ┘à╪¡┘ä┘è┘ï╪º╪î ┘ä┘â┘å ╪¬╪╣╪░╪▒ ╪º┘ä╪¡┘ü╪╕ ┘ü┘è ┘é╪º╪╣╪»╪⌐ ╪º┘ä╪¿┘è╪º┘å╪º╪¬.\n${message}`
       );
     }
   };
@@ -2088,7 +2126,7 @@ export default function ApartmentMap() {
       const saved = window.localStorage.getItem(storageKey);
       const records = saved ? (JSON.parse(saved) as BuildingCharge[]) : [];
       const index = records.findIndex((record) =>
-        getChargeRecordKey(record, mode === "collection" ? "تحصيل" : "مستحق") === key
+        getChargeRecordKey(record, mode === "collection" ? "╪¬╪¡╪╡┘è┘ä" : "┘à╪│╪¬╪¡┘é") === key
       );
       return { storageKey, records, index };
     } catch {
@@ -2106,13 +2144,13 @@ export default function ApartmentMap() {
     apartmentNumber?: string;
   }) => {
     if (!row.sourceMode || !row.sourceKey) {
-      window.alert("هذه العملية محسوبة تلقائيًا وليست سجلًا محفوظًا يمكن تعديله.");
+      window.alert("┘ç╪░┘ç ╪º┘ä╪╣┘à┘ä┘è╪⌐ ┘à╪¡╪│┘ê╪¿╪⌐ ╪¬┘ä┘é╪º╪ª┘è┘ï╪º ┘ê┘ä┘è╪│╪¬ ╪│╪¼┘ä┘ï╪º ┘à╪¡┘ü┘ê╪╕┘ï╪º ┘è┘à┘â┘å ╪¬╪╣╪»┘è┘ä┘ç.");
       return;
     }
 
     const { records, index } = findStoredChargeByKey(row.sourceMode, row.sourceKey);
     if (index < 0) {
-      window.alert("تعذر العثور على العملية المحفوظة. حدّث الصفحة وحاول مرة أخرى.");
+      window.alert("╪¬╪╣╪░╪▒ ╪º┘ä╪╣╪½┘ê╪▒ ╪╣┘ä┘ë ╪º┘ä╪╣┘à┘ä┘è╪⌐ ╪º┘ä┘à╪¡┘ü┘ê╪╕╪⌐. ╪¡╪»┘æ╪½ ╪º┘ä╪╡┘ü╪¡╪⌐ ┘ê╪¡╪º┘ê┘ä ┘à╪▒╪⌐ ╪ú╪«╪▒┘ë.");
       return;
     }
 
@@ -2120,7 +2158,7 @@ export default function ApartmentMap() {
     setEditingChargeKey(row.sourceKey);
     setChargeModalMode(row.sourceMode);
     setChargeForm({
-      type: record.type || row.type || "إيجار",
+      type: record.type || row.type || "╪Ñ┘è╪¼╪º╪▒",
       amount: String(record.amount ?? row.amount ?? ""),
       date: record.date || row.date,
       notes: record.notes || row.notes || "",
@@ -2147,17 +2185,17 @@ export default function ApartmentMap() {
       return;
     }
     if (!row.sourceMode || !row.sourceKey) {
-      window.alert("هذه العملية محسوبة تلقائيًا ولا يوجد سجل مستقل لحذفه.");
+      window.alert("┘ç╪░┘ç ╪º┘ä╪╣┘à┘ä┘è╪⌐ ┘à╪¡╪│┘ê╪¿╪⌐ ╪¬┘ä┘é╪º╪ª┘è┘ï╪º ┘ê┘ä╪º ┘è┘ê╪¼╪» ╪│╪¼┘ä ┘à╪│╪¬┘é┘ä ┘ä╪¡╪░┘ü┘ç.");
       return;
     }
 
-    if (!window.confirm("هل أنت متأكد من حذف هذه العملية؟ لا يمكن التراجع عن الحذف.")) {
+    if (!window.confirm("┘ç┘ä ╪ú┘å╪¬ ┘à╪¬╪ú┘â╪» ┘à┘å ╪¡╪░┘ü ┘ç╪░┘ç ╪º┘ä╪╣┘à┘ä┘è╪⌐╪ƒ ┘ä╪º ┘è┘à┘â┘å ╪º┘ä╪¬╪▒╪º╪¼╪╣ ╪╣┘å ╪º┘ä╪¡╪░┘ü.")) {
       return;
     }
 
     const { storageKey, records, index } = findStoredChargeByKey(row.sourceMode, row.sourceKey);
     if (index < 0) {
-      window.alert("تعذر العثور على العملية المحفوظة.");
+      window.alert("╪¬╪╣╪░╪▒ ╪º┘ä╪╣╪½┘ê╪▒ ╪╣┘ä┘ë ╪º┘ä╪╣┘à┘ä┘è╪⌐ ╪º┘ä┘à╪¡┘ü┘ê╪╕╪⌐.");
       return;
     }
 
@@ -2166,7 +2204,7 @@ export default function ApartmentMap() {
     setChargeSyncVersion((value) => value + 1);
     window.dispatchEvent(new Event("storage"));
     setIsChargeModalOpen(false);
-    window.alert("تم حذف العملية بنجاح.");
+    window.alert("╪¬┘à ╪¡╪░┘ü ╪º┘ä╪╣┘à┘ä┘è╪⌐ ╪¿┘å╪¼╪º╪¡.");
   };
 
   const openChargeModal = (
@@ -2276,7 +2314,7 @@ export default function ApartmentMap() {
 
   const getApartmentRentCollected = (apartmentNumber: string) => {
     return getApartmentPayments(apartmentNumber)
-      .filter((payment) => payment.type?.trim() === "إيجار")
+      .filter((payment) => payment.type?.trim() === "╪Ñ┘è╪¼╪º╪▒")
       .reduce((sum, payment) => sum + (Number(payment.amount) || 0), 0);
   };
 
@@ -2300,7 +2338,7 @@ export default function ApartmentMap() {
   };
 
   const selectedRentCollectionTotal =
-    chargeModalMode === "collection" && chargeForm.type === "إيجار"
+    chargeModalMode === "collection" && chargeForm.type === "╪Ñ┘è╪¼╪º╪▒"
       ? selectedRentTotal * Math.max(1, rentCollectionMonths)
       : selectedRentTotal;
 
@@ -2326,57 +2364,57 @@ export default function ApartmentMap() {
 
     if (apartmentReportType === "total") {
       return {
-        title: "تقرير إجمالي الشقق",
-        subtitle: `جميع الشقق المسجلة في عمارة سنتر (${totalApartments} شقة)`,
+        title: "╪¬┘é╪▒┘è╪▒ ╪Ñ╪¼┘à╪º┘ä┘è ╪º┘ä╪┤┘é┘é",
+        subtitle: `╪¼┘à┘è╪╣ ╪º┘ä╪┤┘é┘é ╪º┘ä┘à╪│╪¼┘ä╪⌐ ┘ü┘è ╪╣┘à╪º╪▒╪⌐ ╪│┘å╪¬╪▒ (${totalApartments} ╪┤┘é╪⌐)`,
         data: apartments,
       };
     }
 
     if (apartmentReportType === "rented") {
       return {
-        title: "تقرير الشقق المؤجرة",
-        subtitle: `الشقق المؤجرة سكنيًا أو المؤجرة للشركة (${rentedApartments} شقة)`,
+        title: "╪¬┘é╪▒┘è╪▒ ╪º┘ä╪┤┘é┘é ╪º┘ä┘à╪ñ╪¼╪▒╪⌐",
+        subtitle: `╪º┘ä╪┤┘é┘é ╪º┘ä┘à╪ñ╪¼╪▒╪⌐ ╪│┘â┘å┘è┘ï╪º ╪ú┘ê ╪º┘ä┘à╪ñ╪¼╪▒╪⌐ ┘ä┘ä╪┤╪▒┘â╪⌐ (${rentedApartments} ╪┤┘é╪⌐)`,
         data: apartments.filter(
           (apartment) =>
-            apartment.status === "مؤجرة" ||
-            apartment.status === "مؤجرة للشركة"
+            apartment.status === "┘à╪ñ╪¼╪▒╪⌐" ||
+            apartment.status === "┘à╪ñ╪¼╪▒╪⌐ ┘ä┘ä╪┤╪▒┘â╪⌐"
         ),
       };
     }
 
     if (apartmentReportType === "reserved") {
       return {
-        title: "تقرير الشقق المحجوزة",
-        subtitle: `الشقق التي حالتها محجوزة (${reservedApartments} شقة)`,
+        title: "╪¬┘é╪▒┘è╪▒ ╪º┘ä╪┤┘é┘é ╪º┘ä┘à╪¡╪¼┘ê╪▓╪⌐",
+        subtitle: `╪º┘ä╪┤┘é┘é ╪º┘ä╪¬┘è ╪¡╪º┘ä╪¬┘ç╪º ┘à╪¡╪¼┘ê╪▓╪⌐ (${reservedApartments} ╪┤┘é╪⌐)`,
         data: apartments.filter(
-          (apartment) => apartment.status === "محجوزة"
+          (apartment) => apartment.status === "┘à╪¡╪¼┘ê╪▓╪⌐"
         ),
       };
     }
 
     if (apartmentReportType === "maintenance") {
       return {
-        title: "تقرير الشقق تحت الصيانة",
-        subtitle: `الشقق التي حالتها تحت الصيانة (${maintenanceApartments} شقة)`,
+        title: "╪¬┘é╪▒┘è╪▒ ╪º┘ä╪┤┘é┘é ╪¬╪¡╪¬ ╪º┘ä╪╡┘è╪º┘å╪⌐",
+        subtitle: `╪º┘ä╪┤┘é┘é ╪º┘ä╪¬┘è ╪¡╪º┘ä╪¬┘ç╪º ╪¬╪¡╪¬ ╪º┘ä╪╡┘è╪º┘å╪⌐ (${maintenanceApartments} ╪┤┘é╪⌐)`,
         data: apartments.filter(
-          (apartment) => apartment.status === "تحت الصيانة"
+          (apartment) => apartment.status === "╪¬╪¡╪¬ ╪º┘ä╪╡┘è╪º┘å╪⌐"
         ),
       };
     }
 
     if (apartmentReportType === "vacant") {
       return {
-        title: "تقرير الشقق الفارغة",
-        subtitle: `الشقق الفارغة (${vacantApartments} شقة)`,
+        title: "╪¬┘é╪▒┘è╪▒ ╪º┘ä╪┤┘é┘é ╪º┘ä┘ü╪º╪▒╪║╪⌐",
+        subtitle: `╪º┘ä╪┤┘é┘é ╪º┘ä┘ü╪º╪▒╪║╪⌐ (${vacantApartments} ╪┤┘é╪⌐)`,
         data: apartments.filter(
-          (apartment) => apartment.status === "شاغرة"
+          (apartment) => apartment.status === "╪┤╪º╪║╪▒╪⌐"
         ),
       };
     }
 
     return {
-      title: "تقرير نسبة الإشغال",
-      subtitle: `نسبة الإشغال الحالية ${occupancyRate}% — ${rentedApartments} مؤجرة من أصل ${totalApartments} شقة`,
+      title: "╪¬┘é╪▒┘è╪▒ ┘å╪│╪¿╪⌐ ╪º┘ä╪Ñ╪┤╪║╪º┘ä",
+      subtitle: `┘å╪│╪¿╪⌐ ╪º┘ä╪Ñ╪┤╪║╪º┘ä ╪º┘ä╪¡╪º┘ä┘è╪⌐ ${occupancyRate}% ΓÇö ${rentedApartments} ┘à╪ñ╪¼╪▒╪⌐ ┘à┘å ╪ú╪╡┘ä ${totalApartments} ╪┤┘é╪⌐`,
       data: apartments,
     };
   };
@@ -2440,8 +2478,8 @@ export default function ApartmentMap() {
     return apartments
       .filter(
         (apartment) =>
-          apartment.status === "مؤجرة" ||
-          apartment.status === "مؤجرة للشركة"
+          apartment.status === "┘à╪ñ╪¼╪▒╪⌐" ||
+          apartment.status === "┘à╪ñ╪¼╪▒╪⌐ ┘ä┘ä╪┤╪▒┘â╪⌐"
       )
       .map((apartment) => {
         const tenantInfo = getApartmentTenantInfo(apartment);
@@ -2451,13 +2489,13 @@ export default function ApartmentMap() {
           tenant:
             tenantInfo.tenantName ||
             apartment.tenant ||
-            "غير مضاف",
+            "╪║┘è╪▒ ┘à╪╢╪º┘ü",
           date: fromDate,
-          type: "إيجار",
+          type: "╪Ñ┘è╪¼╪º╪▒",
           amount: getApartmentRent(apartment),
-          notes: `إيجار مستحق عن الفترة من ${formatContractDate(
+          notes: `╪Ñ┘è╪¼╪º╪▒ ┘à╪│╪¬╪¡┘é ╪╣┘å ╪º┘ä┘ü╪¬╪▒╪⌐ ┘à┘å ${formatContractDate(
             fromDate
-          )} إلى ${formatContractDate(toDate)}`,
+          )} ╪Ñ┘ä┘ë ${formatContractDate(toDate)}`,
         };
       });
   };
@@ -2468,8 +2506,8 @@ export default function ApartmentMap() {
     if (monthlyReportType === "rent") {
       const rows = getMonthlyRentRows();
       return {
-        title: "تقرير إجمالي الإيجارات المستحقة للشهر",
-        subtitle: "تفاصيل الإيجارات المستحقة على جميع الشقق المؤجرة خلال الفترة المحددة",
+        title: "╪¬┘é╪▒┘è╪▒ ╪Ñ╪¼┘à╪º┘ä┘è ╪º┘ä╪Ñ┘è╪¼╪º╪▒╪º╪¬ ╪º┘ä┘à╪│╪¬╪¡┘é╪⌐ ┘ä┘ä╪┤┘ç╪▒",
+        subtitle: "╪¬┘ü╪º╪╡┘è┘ä ╪º┘ä╪Ñ┘è╪¼╪º╪▒╪º╪¬ ╪º┘ä┘à╪│╪¬╪¡┘é╪⌐ ╪╣┘ä┘ë ╪¼┘à┘è╪╣ ╪º┘ä╪┤┘é┘é ╪º┘ä┘à╪ñ╪¼╪▒╪⌐ ╪«┘ä╪º┘ä ╪º┘ä┘ü╪¬╪▒╪⌐ ╪º┘ä┘à╪¡╪»╪»╪⌐",
         rows,
         total: rows.reduce((sum, row) => sum + row.amount, 0),
       };
@@ -2477,7 +2515,7 @@ export default function ApartmentMap() {
 
     if (monthlyReportType === "electricity") {
       const rows = charges
-        .filter((charge) => charge.type?.trim() === "فاتورة كهرباء")
+        .filter((charge) => charge.type?.trim() === "┘ü╪º╪¬┘ê╪▒╪⌐ ┘â┘ç╪▒╪¿╪º╪í")
         .map((charge) => {
           const apartment = apartments.find(
             (item) =>
@@ -2492,17 +2530,17 @@ export default function ApartmentMap() {
             tenant:
               tenantInfo?.tenantName ||
               apartment?.tenant ||
-              "غير مضاف",
+              "╪║┘è╪▒ ┘à╪╢╪º┘ü",
             date: charge.date,
-            type: charge.type || "فاتورة كهرباء",
+            type: charge.type || "┘ü╪º╪¬┘ê╪▒╪⌐ ┘â┘ç╪▒╪¿╪º╪í",
             amount: Number(charge.amount) || 0,
-            notes: charge.notes || "لا توجد تفاصيل",
+            notes: charge.notes || "┘ä╪º ╪¬┘ê╪¼╪» ╪¬┘ü╪º╪╡┘è┘ä",
           };
         });
 
       return {
-        title: "تقرير إجمالي فواتير الكهرباء للشهر",
-        subtitle: "تفاصيل فواتير الكهرباء المستحقة والمدخلة خلال الفترة المحددة",
+        title: "╪¬┘é╪▒┘è╪▒ ╪Ñ╪¼┘à╪º┘ä┘è ┘ü┘ê╪º╪¬┘è╪▒ ╪º┘ä┘â┘ç╪▒╪¿╪º╪í ┘ä┘ä╪┤┘ç╪▒",
+        subtitle: "╪¬┘ü╪º╪╡┘è┘ä ┘ü┘ê╪º╪¬┘è╪▒ ╪º┘ä┘â┘ç╪▒╪¿╪º╪í ╪º┘ä┘à╪│╪¬╪¡┘é╪⌐ ┘ê╪º┘ä┘à╪»╪«┘ä╪⌐ ╪«┘ä╪º┘ä ╪º┘ä┘ü╪¬╪▒╪⌐ ╪º┘ä┘à╪¡╪»╪»╪⌐",
         rows,
         total: rows.reduce((sum, row) => sum + row.amount, 0),
       };
@@ -2510,7 +2548,7 @@ export default function ApartmentMap() {
 
     if (monthlyReportType === "water") {
       const rows = charges
-        .filter((charge) => charge.type?.trim() === "فاتورة مياه")
+        .filter((charge) => charge.type?.trim() === "┘ü╪º╪¬┘ê╪▒╪⌐ ┘à┘è╪º┘ç")
         .map((charge) => {
           const apartment = apartments.find(
             (item) =>
@@ -2525,17 +2563,17 @@ export default function ApartmentMap() {
             tenant:
               tenantInfo?.tenantName ||
               apartment?.tenant ||
-              "غير مضاف",
+              "╪║┘è╪▒ ┘à╪╢╪º┘ü",
             date: charge.date,
-            type: charge.type || "فاتورة مياه",
+            type: charge.type || "┘ü╪º╪¬┘ê╪▒╪⌐ ┘à┘è╪º┘ç",
             amount: Number(charge.amount) || 0,
-            notes: charge.notes || "لا توجد تفاصيل",
+            notes: charge.notes || "┘ä╪º ╪¬┘ê╪¼╪» ╪¬┘ü╪º╪╡┘è┘ä",
           };
         });
 
       return {
-        title: "تقرير إجمالي فواتير المياه للشهر",
-        subtitle: "تفاصيل فواتير المياه المستحقة والمدخلة خلال الفترة المحددة",
+        title: "╪¬┘é╪▒┘è╪▒ ╪Ñ╪¼┘à╪º┘ä┘è ┘ü┘ê╪º╪¬┘è╪▒ ╪º┘ä┘à┘è╪º┘ç ┘ä┘ä╪┤┘ç╪▒",
+        subtitle: "╪¬┘ü╪º╪╡┘è┘ä ┘ü┘ê╪º╪¬┘è╪▒ ╪º┘ä┘à┘è╪º┘ç ╪º┘ä┘à╪│╪¬╪¡┘é╪⌐ ┘ê╪º┘ä┘à╪»╪«┘ä╪⌐ ╪«┘ä╪º┘ä ╪º┘ä┘ü╪¬╪▒╪⌐ ╪º┘ä┘à╪¡╪»╪»╪⌐",
         rows,
         total: rows.reduce((sum, row) => sum + row.amount, 0),
       };
@@ -2555,17 +2593,17 @@ export default function ApartmentMap() {
         tenant:
           tenantInfo?.tenantName ||
           apartment?.tenant ||
-          "غير مضاف",
+          "╪║┘è╪▒ ┘à╪╢╪º┘ü",
         date: charge.date,
-        type: charge.type || "غير محدد",
+        type: charge.type || "╪║┘è╪▒ ┘à╪¡╪»╪»",
         amount: Number(charge.amount) || 0,
-        notes: charge.notes || "لا توجد تفاصيل",
+        notes: charge.notes || "┘ä╪º ╪¬┘ê╪¼╪» ╪¬┘ü╪º╪╡┘è┘ä",
       };
     });
 
     return {
-      title: "تقرير إجمالي المستحقات للشهر",
-      subtitle: "تفاصيل جميع المستحقات المسجلة على الشقق خلال الفترة المحددة",
+      title: "╪¬┘é╪▒┘è╪▒ ╪Ñ╪¼┘à╪º┘ä┘è ╪º┘ä┘à╪│╪¬╪¡┘é╪º╪¬ ┘ä┘ä╪┤┘ç╪▒",
+      subtitle: "╪¬┘ü╪º╪╡┘è┘ä ╪¼┘à┘è╪╣ ╪º┘ä┘à╪│╪¬╪¡┘é╪º╪¬ ╪º┘ä┘à╪│╪¼┘ä╪⌐ ╪╣┘ä┘ë ╪º┘ä╪┤┘é┘é ╪«┘ä╪º┘ä ╪º┘ä┘ü╪¬╪▒╪⌐ ╪º┘ä┘à╪¡╪»╪»╪⌐",
       rows,
       total: rows.reduce((sum, row) => sum + row.amount, 0),
     };
@@ -2619,12 +2657,12 @@ export default function ApartmentMap() {
       );
 
       if (!apartment) {
-        return "غير مضاف";
+        return "╪║┘è╪▒ ┘à╪╢╪º┘ü";
       }
 
       const tenantInfo = getApartmentTenantInfo(apartment);
 
-      return tenantInfo.tenantName || apartment.tenant || "غير مضاف";
+      return tenantInfo.tenantName || apartment.tenant || "╪║┘è╪▒ ┘à╪╢╪º┘ü";
     };
 
     const getDueRows = (
@@ -2635,8 +2673,8 @@ export default function ApartmentMap() {
           apartmentNumber: row.apartmentNumber,
           tenant: row.tenant,
           date: row.date,
-          type: "إيجار",
-          transactionType: "مستحق",
+          type: "╪Ñ┘è╪¼╪º╪▒",
+          transactionType: "┘à╪│╪¬╪¡┘é",
           amount: row.amount,
           notes: row.notes,
           sourceMode: undefined,
@@ -2646,21 +2684,21 @@ export default function ApartmentMap() {
 
       const filteredCharges =
         type === "electricity"
-          ? charges.filter((charge) => charge.type?.trim() === "فاتورة كهرباء")
+          ? charges.filter((charge) => charge.type?.trim() === "┘ü╪º╪¬┘ê╪▒╪⌐ ┘â┘ç╪▒╪¿╪º╪í")
           : type === "water"
-          ? charges.filter((charge) => charge.type?.trim() === "فاتورة مياه")
-          : charges.filter((charge) => charge.type?.trim() !== "إيجار");
+          ? charges.filter((charge) => charge.type?.trim() === "┘ü╪º╪¬┘ê╪▒╪⌐ ┘à┘è╪º┘ç")
+          : charges.filter((charge) => charge.type?.trim() !== "╪Ñ┘è╪¼╪º╪▒");
 
       return filteredCharges.map((charge) => ({
         apartmentNumber: charge.apartmentNumber,
         tenant: getTenantForApartment(charge.apartmentNumber),
         date: charge.date,
-        type: charge.type || "غير محدد",
-        transactionType: "مستحق",
+        type: charge.type || "╪║┘è╪▒ ┘à╪¡╪»╪»",
+        transactionType: "┘à╪│╪¬╪¡┘é",
         amount: Number(charge.amount) || 0,
-        notes: charge.notes || "لا توجد تفاصيل",
+        notes: charge.notes || "┘ä╪º ╪¬┘ê╪¼╪» ╪¬┘ü╪º╪╡┘è┘ä",
         sourceMode: "charge" as const,
-        sourceKey: getChargeRecordKey(charge, "مستحق"),
+        sourceKey: getChargeRecordKey(charge, "┘à╪│╪¬╪¡┘é"),
       }));
     };
 
@@ -2669,14 +2707,14 @@ export default function ApartmentMap() {
     ) => {
       const filteredCollections =
         type === "rent"
-          ? collections.filter((collection) => collection.type?.trim() === "إيجار")
+          ? collections.filter((collection) => collection.type?.trim() === "╪Ñ┘è╪¼╪º╪▒")
           : type === "electricity"
           ? collections.filter(
-              (collection) => collection.type?.trim() === "فاتورة كهرباء"
+              (collection) => collection.type?.trim() === "┘ü╪º╪¬┘ê╪▒╪⌐ ┘â┘ç╪▒╪¿╪º╪í"
             )
           : type === "water"
           ? collections.filter(
-              (collection) => collection.type?.trim() === "فاتورة مياه"
+              (collection) => collection.type?.trim() === "┘ü╪º╪¬┘ê╪▒╪⌐ ┘à┘è╪º┘ç"
             )
           : collections;
 
@@ -2684,12 +2722,12 @@ export default function ApartmentMap() {
         apartmentNumber: collection.apartmentNumber,
         tenant: getTenantForApartment(collection.apartmentNumber),
         date: collection.date,
-        type: collection.type || "غير محدد",
-        transactionType: "تحصيل",
+        type: collection.type || "╪║┘è╪▒ ┘à╪¡╪»╪»",
+        transactionType: "╪¬╪¡╪╡┘è┘ä",
         amount: Number(collection.amount) || 0,
-        notes: collection.notes || "لا توجد تفاصيل",
+        notes: collection.notes || "┘ä╪º ╪¬┘ê╪¼╪» ╪¬┘ü╪º╪╡┘è┘ä",
         sourceMode: "collection" as const,
-        sourceKey: getChargeRecordKey(collection, "تحصيل"),
+        sourceKey: getChargeRecordKey(collection, "╪¬╪¡╪╡┘è┘ä"),
       }));
     };
 
@@ -2705,20 +2743,20 @@ export default function ApartmentMap() {
     return {
       title:
         monthlyCollectionReportType === "total"
-          ? "تقرير إجمالي تحصيلات المستحقات للشهر"
+          ? "╪¬┘é╪▒┘è╪▒ ╪Ñ╪¼┘à╪º┘ä┘è ╪¬╪¡╪╡┘è┘ä╪º╪¬ ╪º┘ä┘à╪│╪¬╪¡┘é╪º╪¬ ┘ä┘ä╪┤┘ç╪▒"
           : monthlyCollectionReportType === "rent"
-          ? "تقرير إجمالي تحصيلات الإيجارات للشهر"
+          ? "╪¬┘é╪▒┘è╪▒ ╪Ñ╪¼┘à╪º┘ä┘è ╪¬╪¡╪╡┘è┘ä╪º╪¬ ╪º┘ä╪Ñ┘è╪¼╪º╪▒╪º╪¬ ┘ä┘ä╪┤┘ç╪▒"
           : monthlyCollectionReportType === "electricity"
-          ? "تقرير تحصيلات فواتير الكهرباء والمتبقي"
-          : "تقرير تحصيلات فواتير المياه والمتبقي",
+          ? "╪¬┘é╪▒┘è╪▒ ╪¬╪¡╪╡┘è┘ä╪º╪¬ ┘ü┘ê╪º╪¬┘è╪▒ ╪º┘ä┘â┘ç╪▒╪¿╪º╪í ┘ê╪º┘ä┘à╪¬╪¿┘é┘è"
+          : "╪¬┘é╪▒┘è╪▒ ╪¬╪¡╪╡┘è┘ä╪º╪¬ ┘ü┘ê╪º╪¬┘è╪▒ ╪º┘ä┘à┘è╪º┘ç ┘ê╪º┘ä┘à╪¬╪¿┘é┘è",
       subtitle:
         monthlyCollectionReportType === "total"
-          ? "تفاصيل جميع المستحقات والتحصيلات المسجلة خلال الفترة المحددة"
+          ? "╪¬┘ü╪º╪╡┘è┘ä ╪¼┘à┘è╪╣ ╪º┘ä┘à╪│╪¬╪¡┘é╪º╪¬ ┘ê╪º┘ä╪¬╪¡╪╡┘è┘ä╪º╪¬ ╪º┘ä┘à╪│╪¼┘ä╪⌐ ╪«┘ä╪º┘ä ╪º┘ä┘ü╪¬╪▒╪⌐ ╪º┘ä┘à╪¡╪»╪»╪⌐"
           : monthlyCollectionReportType === "rent"
-          ? "تفاصيل إيجارات الشقق والتحصيلات المسجلة خلال الفترة المحددة"
+          ? "╪¬┘ü╪º╪╡┘è┘ä ╪Ñ┘è╪¼╪º╪▒╪º╪¬ ╪º┘ä╪┤┘é┘é ┘ê╪º┘ä╪¬╪¡╪╡┘è┘ä╪º╪¬ ╪º┘ä┘à╪│╪¼┘ä╪⌐ ╪«┘ä╪º┘ä ╪º┘ä┘ü╪¬╪▒╪⌐ ╪º┘ä┘à╪¡╪»╪»╪⌐"
           : monthlyCollectionReportType === "electricity"
-          ? "تفاصيل فواتير الكهرباء والتحصيلات المسجلة خلال الفترة المحددة"
-          : "تفاصيل فواتير المياه والتحصيلات المسجلة خلال الفترة المحددة",
+          ? "╪¬┘ü╪º╪╡┘è┘ä ┘ü┘ê╪º╪¬┘è╪▒ ╪º┘ä┘â┘ç╪▒╪¿╪º╪í ┘ê╪º┘ä╪¬╪¡╪╡┘è┘ä╪º╪¬ ╪º┘ä┘à╪│╪¼┘ä╪⌐ ╪«┘ä╪º┘ä ╪º┘ä┘ü╪¬╪▒╪⌐ ╪º┘ä┘à╪¡╪»╪»╪⌐"
+          : "╪¬┘ü╪º╪╡┘è┘ä ┘ü┘ê╪º╪¬┘è╪▒ ╪º┘ä┘à┘è╪º┘ç ┘ê╪º┘ä╪¬╪¡╪╡┘è┘ä╪º╪¬ ╪º┘ä┘à╪│╪¼┘ä╪⌐ ╪«┘ä╪º┘ä ╪º┘ä┘ü╪¬╪▒╪⌐ ╪º┘ä┘à╪¡╪»╪»╪⌐",
       rows: [...dueRows, ...collectionRows].sort((a, b) => {
         if (a.date !== b.date) {
           return b.date.localeCompare(a.date);
@@ -2744,12 +2782,12 @@ export default function ApartmentMap() {
             (row, index) => `
               <tr>
                 <td>${index + 1}</td>
-                <td>${row.apartmentNumber ?? "غير محدد"}</td>
+                <td>${row.apartmentNumber ?? "╪║┘è╪▒ ┘à╪¡╪»╪»"}</td>
                 <td>${escapeReportHtml(row.tenant)}</td>
                 <td>${escapeReportHtml(formatContractDate(row.date))}</td>
                 <td>${escapeReportHtml(row.type)}</td>
                 <td>${escapeReportHtml(row.transactionType)}</td>
-                <td>${row.amount.toLocaleString("en-US")} ريال</td>
+                <td>${row.amount.toLocaleString("en-US")} ╪▒┘è╪º┘ä</td>
                 <td>${escapeReportHtml(row.notes)}</td>
               </tr>
             `
@@ -2757,7 +2795,7 @@ export default function ApartmentMap() {
           .join("")
       : `
           <tr>
-            <td colspan="8">لا توجد بيانات مسجلة خلال الفترة المحددة.</td>
+            <td colspan="8">┘ä╪º ╪¬┘ê╪¼╪» ╪¿┘è╪º┘å╪º╪¬ ┘à╪│╪¼┘ä╪⌐ ╪«┘ä╪º┘ä ╪º┘ä┘ü╪¬╪▒╪⌐ ╪º┘ä┘à╪¡╪»╪»╪⌐.</td>
           </tr>
         `;
 
@@ -2769,26 +2807,26 @@ export default function ApartmentMap() {
           ${escapeReportHtml(report.subtitle)}
         </div>
         <div class="report-period">
-          من ${escapeReportHtml(formatContractDate(fromDate))}
-          إلى ${escapeReportHtml(formatContractDate(toDate))}
+          ┘à┘å ${escapeReportHtml(formatContractDate(fromDate))}
+          ╪Ñ┘ä┘ë ${escapeReportHtml(formatContractDate(toDate))}
         </div>
       </div>
 
       <div class="tenant-info">
         <div class="info-box">
-          <span>إجمالي المستحق</span>
-          <strong>${report.dueTotal.toLocaleString("en-US")} ريال</strong>
+          <span>╪Ñ╪¼┘à╪º┘ä┘è ╪º┘ä┘à╪│╪¬╪¡┘é</span>
+          <strong>${report.dueTotal.toLocaleString("en-US")} ╪▒┘è╪º┘ä</strong>
         </div>
         <div class="info-box">
-          <span>إجمالي المحصل</span>
-          <strong>${report.collectedTotal.toLocaleString("en-US")} ريال</strong>
+          <span>╪Ñ╪¼┘à╪º┘ä┘è ╪º┘ä┘à╪¡╪╡┘ä</span>
+          <strong>${report.collectedTotal.toLocaleString("en-US")} ╪▒┘è╪º┘ä</strong>
         </div>
         <div class="info-box">
-          <span>المتبقي</span>
-          <strong>${report.remainingTotal.toLocaleString("en-US")} ريال</strong>
+          <span>╪º┘ä┘à╪¬╪¿┘é┘è</span>
+          <strong>${report.remainingTotal.toLocaleString("en-US")} ╪▒┘è╪º┘ä</strong>
         </div>
         <div class="info-box">
-          <span>عدد العمليات</span>
+          <span>╪╣╪»╪» ╪º┘ä╪╣┘à┘ä┘è╪º╪¬</span>
           <strong>${report.rows.length}</strong>
         </div>
       </div>
@@ -2797,20 +2835,20 @@ export default function ApartmentMap() {
         <thead>
           <tr>
             <th>#</th>
-            <th>رقم الشقة</th>
-            <th>المستأجر / الجهة</th>
-            <th>التاريخ</th>
-            <th>نوع المستحق</th>
-            <th>نوع العملية</th>
-            <th>المبلغ</th>
-            <th>تفاصيل / ملاحظات</th>
+            <th>╪▒┘é┘à ╪º┘ä╪┤┘é╪⌐</th>
+            <th>╪º┘ä┘à╪│╪¬╪ú╪¼╪▒ / ╪º┘ä╪¼┘ç╪⌐</th>
+            <th>╪º┘ä╪¬╪º╪▒┘è╪«</th>
+            <th>┘å┘ê╪╣ ╪º┘ä┘à╪│╪¬╪¡┘é</th>
+            <th>┘å┘ê╪╣ ╪º┘ä╪╣┘à┘ä┘è╪⌐</th>
+            <th>╪º┘ä┘à╪¿┘ä╪║</th>
+            <th>╪¬┘ü╪º╪╡┘è┘ä / ┘à┘ä╪º╪¡╪╕╪º╪¬</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
       </table>
 
       <div class="report-footer">
-        تاريخ إصدار التقرير: ${new Date().toLocaleDateString("ar-SA")}
+        ╪¬╪º╪▒┘è╪« ╪Ñ╪╡╪»╪º╪▒ ╪º┘ä╪¬┘é╪▒┘è╪▒: ${new Date().toLocaleDateString("ar-SA")}
       </div>
     `;
   };
@@ -2821,7 +2859,7 @@ export default function ApartmentMap() {
       <html dir="rtl">
         <head>
           <meta charset="UTF-8" />
-          <title>تقرير التحصيلات</title>
+          <title>╪¬┘é╪▒┘è╪▒ ╪º┘ä╪¬╪¡╪╡┘è┘ä╪º╪¬</title>
           <style>
             * { box-sizing: border-box; }
             body {
@@ -2918,7 +2956,7 @@ export default function ApartmentMap() {
     const report = getMonthlyCollectionReportData();
 
     if (!report.rows.length) {
-      window.alert("لا توجد بيانات تحصيل أو مستحقات خلال الفترة المحددة.");
+      window.alert("┘ä╪º ╪¬┘ê╪¼╪» ╪¿┘è╪º┘å╪º╪¬ ╪¬╪¡╪╡┘è┘ä ╪ú┘ê ┘à╪│╪¬╪¡┘é╪º╪¬ ╪«┘ä╪º┘ä ╪º┘ä┘ü╪¬╪▒╪⌐ ╪º┘ä┘à╪¡╪»╪»╪⌐.");
       return;
     }
 
@@ -2930,7 +2968,7 @@ export default function ApartmentMap() {
 
     if (!printWindow) {
       window.alert(
-        "تعذر فتح نافذة التقرير. اسمح بالنوافذ المنبثقة ثم حاول مرة أخرى."
+        "╪¬╪╣╪░╪▒ ┘ü╪¬╪¡ ┘å╪º┘ü╪░╪⌐ ╪º┘ä╪¬┘é╪▒┘è╪▒. ╪º╪│┘à╪¡ ╪¿╪º┘ä┘å┘ê╪º┘ü╪░ ╪º┘ä┘à┘å╪¿╪½┘é╪⌐ ╪½┘à ╪¡╪º┘ê┘ä ┘à╪▒╪⌐ ╪ú╪«╪▒┘ë."
       );
       return;
     }
@@ -2952,7 +2990,7 @@ export default function ApartmentMap() {
     const report = getMonthlyCollectionReportData();
 
     if (!report.rows.length) {
-      window.alert("لا توجد بيانات تحصيل أو مستحقات خلال الفترة المحددة لتصديرها.");
+      window.alert("┘ä╪º ╪¬┘ê╪¼╪» ╪¿┘è╪º┘å╪º╪¬ ╪¬╪¡╪╡┘è┘ä ╪ú┘ê ┘à╪│╪¬╪¡┘é╪º╪¬ ╪«┘ä╪º┘ä ╪º┘ä┘ü╪¬╪▒╪⌐ ╪º┘ä┘à╪¡╪»╪»╪⌐ ┘ä╪¬╪╡╪»┘è╪▒┘ç╪º.");
       return;
     }
 
@@ -2961,7 +2999,7 @@ export default function ApartmentMap() {
         (row, index) => `
           <tr>
             <td>${index + 1}</td>
-            <td>${row.apartmentNumber ?? "غير محدد"}</td>
+            <td>${row.apartmentNumber ?? "╪║┘è╪▒ ┘à╪¡╪»╪»"}</td>
             <td>${escapeReportHtml(row.tenant)}</td>
             <td>${escapeReportHtml(formatContractDate(row.date))}</td>
             <td>${escapeReportHtml(row.type)}</td>
@@ -3007,16 +3045,16 @@ export default function ApartmentMap() {
           <h1>${escapeReportHtml(report.title)}</h1>
           <p>Tumouh Star</p>
           <p>
-            الفترة من ${escapeReportHtml(formatContractDate(fromDate))}
-            إلى ${escapeReportHtml(formatContractDate(toDate))}
+            ╪º┘ä┘ü╪¬╪▒╪⌐ ┘à┘å ${escapeReportHtml(formatContractDate(fromDate))}
+            ╪Ñ┘ä┘ë ${escapeReportHtml(formatContractDate(toDate))}
           </p>
 
           <table class="summary">
             <tr>
-              <td><strong>إجمالي المستحق</strong><br />${report.dueTotal.toLocaleString("en-US")} ريال</td>
-              <td><strong>إجمالي المحصل</strong><br />${report.collectedTotal.toLocaleString("en-US")} ريال</td>
-              <td><strong>المتبقي</strong><br />${report.remainingTotal.toLocaleString("en-US")} ريال</td>
-              <td><strong>عدد العمليات</strong><br />${report.rows.length}</td>
+              <td><strong>╪Ñ╪¼┘à╪º┘ä┘è ╪º┘ä┘à╪│╪¬╪¡┘é</strong><br />${report.dueTotal.toLocaleString("en-US")} ╪▒┘è╪º┘ä</td>
+              <td><strong>╪Ñ╪¼┘à╪º┘ä┘è ╪º┘ä┘à╪¡╪╡┘ä</strong><br />${report.collectedTotal.toLocaleString("en-US")} ╪▒┘è╪º┘ä</td>
+              <td><strong>╪º┘ä┘à╪¬╪¿┘é┘è</strong><br />${report.remainingTotal.toLocaleString("en-US")} ╪▒┘è╪º┘ä</td>
+              <td><strong>╪╣╪»╪» ╪º┘ä╪╣┘à┘ä┘è╪º╪¬</strong><br />${report.rows.length}</td>
             </tr>
           </table>
 
@@ -3024,13 +3062,13 @@ export default function ApartmentMap() {
             <thead>
               <tr>
                 <th>#</th>
-                <th>رقم الشقة</th>
-                <th>المستأجر / الجهة</th>
-                <th>التاريخ</th>
-                <th>نوع المستحق</th>
-                <th>نوع العملية</th>
-                <th>المبلغ</th>
-                <th>تفاصيل / ملاحظات</th>
+                <th>╪▒┘é┘à ╪º┘ä╪┤┘é╪⌐</th>
+                <th>╪º┘ä┘à╪│╪¬╪ú╪¼╪▒ / ╪º┘ä╪¼┘ç╪⌐</th>
+                <th>╪º┘ä╪¬╪º╪▒┘è╪«</th>
+                <th>┘å┘ê╪╣ ╪º┘ä┘à╪│╪¬╪¡┘é</th>
+                <th>┘å┘ê╪╣ ╪º┘ä╪╣┘à┘ä┘è╪⌐</th>
+                <th>╪º┘ä┘à╪¿┘ä╪║</th>
+                <th>╪¬┘ü╪º╪╡┘è┘ä / ┘à┘ä╪º╪¡╪╕╪º╪¬</th>
               </tr>
             </thead>
             <tbody>${rows}</tbody>
@@ -3061,11 +3099,11 @@ export default function ApartmentMap() {
             (row, index) => `
               <tr>
                 <td>${index + 1}</td>
-                <td>${row.apartmentNumber ?? "غير محدد"}</td>
+                <td>${row.apartmentNumber ?? "╪║┘è╪▒ ┘à╪¡╪»╪»"}</td>
                 <td>${escapeReportHtml(row.tenant)}</td>
                 <td>${escapeReportHtml(formatContractDate(row.date))}</td>
                 <td>${escapeReportHtml(row.type)}</td>
-                <td>${row.amount.toLocaleString("en-US")} ريال</td>
+                <td>${row.amount.toLocaleString("en-US")} ╪▒┘è╪º┘ä</td>
                 <td>${escapeReportHtml(row.notes)}</td>
               </tr>
             `
@@ -3073,7 +3111,7 @@ export default function ApartmentMap() {
           .join("")
       : `
           <tr>
-            <td colspan="7">لا توجد بيانات مسجلة خلال الفترة المحددة.</td>
+            <td colspan="7">┘ä╪º ╪¬┘ê╪¼╪» ╪¿┘è╪º┘å╪º╪¬ ┘à╪│╪¼┘ä╪⌐ ╪«┘ä╪º┘ä ╪º┘ä┘ü╪¬╪▒╪⌐ ╪º┘ä┘à╪¡╪»╪»╪⌐.</td>
           </tr>
         `;
 
@@ -3085,19 +3123,19 @@ export default function ApartmentMap() {
           ${escapeReportHtml(report.subtitle)}
         </div>
         <div class="report-period">
-          من ${escapeReportHtml(formatContractDate(fromDate))}
-          إلى ${escapeReportHtml(formatContractDate(toDate))}
+          ┘à┘å ${escapeReportHtml(formatContractDate(fromDate))}
+          ╪Ñ┘ä┘ë ${escapeReportHtml(formatContractDate(toDate))}
         </div>
       </div>
 
       <div class="summary">
         <div class="summary-box">
-          <span>عدد العمليات</span>
+          <span>╪╣╪»╪» ╪º┘ä╪╣┘à┘ä┘è╪º╪¬</span>
           <strong>${report.rows.length}</strong>
         </div>
         <div class="summary-box total">
-          <span>الإجمالي</span>
-          <strong>${report.total.toLocaleString("en-US")} ريال</strong>
+          <span>╪º┘ä╪Ñ╪¼┘à╪º┘ä┘è</span>
+          <strong>${report.total.toLocaleString("en-US")} ╪▒┘è╪º┘ä</strong>
         </div>
       </div>
 
@@ -3105,19 +3143,19 @@ export default function ApartmentMap() {
         <thead>
           <tr>
             <th>#</th>
-            <th>رقم الشقة</th>
-            <th>المستأجر / الجهة</th>
-            <th>التاريخ</th>
-            <th>نوع المستحق</th>
-            <th>المبلغ</th>
-            <th>تفاصيل / ملاحظات</th>
+            <th>╪▒┘é┘à ╪º┘ä╪┤┘é╪⌐</th>
+            <th>╪º┘ä┘à╪│╪¬╪ú╪¼╪▒ / ╪º┘ä╪¼┘ç╪⌐</th>
+            <th>╪º┘ä╪¬╪º╪▒┘è╪«</th>
+            <th>┘å┘ê╪╣ ╪º┘ä┘à╪│╪¬╪¡┘é</th>
+            <th>╪º┘ä┘à╪¿┘ä╪║</th>
+            <th>╪¬┘ü╪º╪╡┘è┘ä / ┘à┘ä╪º╪¡╪╕╪º╪¬</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
       </table>
 
       <div class="report-footer">
-        تاريخ إصدار التقرير: ${new Date().toLocaleDateString("ar-SA")}
+        ╪¬╪º╪▒┘è╪« ╪Ñ╪╡╪»╪º╪▒ ╪º┘ä╪¬┘é╪▒┘è╪▒: ${new Date().toLocaleDateString("ar-SA")}
       </div>
     `;
   };
@@ -3230,7 +3268,7 @@ export default function ApartmentMap() {
     const report = getMonthlyReportData();
 
     if (!report.rows.length) {
-      window.alert("لا توجد بيانات مسجلة خلال الفترة المحددة للطباعة أو التصدير.");
+      window.alert("┘ä╪º ╪¬┘ê╪¼╪» ╪¿┘è╪º┘å╪º╪¬ ┘à╪│╪¼┘ä╪⌐ ╪«┘ä╪º┘ä ╪º┘ä┘ü╪¬╪▒╪⌐ ╪º┘ä┘à╪¡╪»╪»╪⌐ ┘ä┘ä╪╖╪¿╪º╪╣╪⌐ ╪ú┘ê ╪º┘ä╪¬╪╡╪»┘è╪▒.");
       return;
     }
 
@@ -3242,7 +3280,7 @@ export default function ApartmentMap() {
 
     if (!printWindow) {
       window.alert(
-        "تعذر فتح نافذة التقرير. اسمح بالنوافذ المنبثقة ثم حاول مرة أخرى."
+        "╪¬╪╣╪░╪▒ ┘ü╪¬╪¡ ┘å╪º┘ü╪░╪⌐ ╪º┘ä╪¬┘é╪▒┘è╪▒. ╪º╪│┘à╪¡ ╪¿╪º┘ä┘å┘ê╪º┘ü╪░ ╪º┘ä┘à┘å╪¿╪½┘é╪⌐ ╪½┘à ╪¡╪º┘ê┘ä ┘à╪▒╪⌐ ╪ú╪«╪▒┘ë."
       );
       return;
     }
@@ -3264,7 +3302,7 @@ export default function ApartmentMap() {
     const report = getMonthlyReportData();
 
     if (!report.rows.length) {
-      window.alert("لا توجد بيانات مسجلة خلال الفترة المحددة لتصديرها.");
+      window.alert("┘ä╪º ╪¬┘ê╪¼╪» ╪¿┘è╪º┘å╪º╪¬ ┘à╪│╪¼┘ä╪⌐ ╪«┘ä╪º┘ä ╪º┘ä┘ü╪¬╪▒╪⌐ ╪º┘ä┘à╪¡╪»╪»╪⌐ ┘ä╪¬╪╡╪»┘è╪▒┘ç╪º.");
       return;
     }
 
@@ -3273,7 +3311,7 @@ export default function ApartmentMap() {
         (row, index) => `
           <tr>
             <td>${index + 1}</td>
-            <td>${row.apartmentNumber ?? "غير محدد"}</td>
+            <td>${row.apartmentNumber ?? "╪║┘è╪▒ ┘à╪¡╪»╪»"}</td>
             <td>${escapeReportHtml(row.tenant)}</td>
             <td>${escapeReportHtml(formatContractDate(row.date))}</td>
             <td>${escapeReportHtml(row.type)}</td>
@@ -3318,19 +3356,19 @@ export default function ApartmentMap() {
           <h1>${escapeReportHtml(report.title)}</h1>
           <p>Tumouh Star</p>
           <p>
-            الفترة من ${escapeReportHtml(
+            ╪º┘ä┘ü╪¬╪▒╪⌐ ┘à┘å ${escapeReportHtml(
               formatContractDate(fromDate)
-            )} إلى ${escapeReportHtml(formatContractDate(toDate))}
+            )} ╪Ñ┘ä┘ë ${escapeReportHtml(formatContractDate(toDate))}
           </p>
 
           <table class="info">
             <tr>
-              <td><strong>عدد العمليات</strong><br />${
+              <td><strong>╪╣╪»╪» ╪º┘ä╪╣┘à┘ä┘è╪º╪¬</strong><br />${
                 report.rows.length
               }</td>
-              <td><strong>الإجمالي</strong><br />${report.total.toLocaleString(
+              <td><strong>╪º┘ä╪Ñ╪¼┘à╪º┘ä┘è</strong><br />${report.total.toLocaleString(
                 "en-US"
-              )} ريال</td>
+              )} ╪▒┘è╪º┘ä</td>
             </tr>
           </table>
 
@@ -3338,12 +3376,12 @@ export default function ApartmentMap() {
             <thead>
               <tr>
                 <th>#</th>
-                <th>رقم الشقة</th>
-                <th>المستأجر / الجهة</th>
-                <th>التاريخ</th>
-                <th>نوع المستحق</th>
-                <th>المبلغ</th>
-                <th>تفاصيل / ملاحظات</th>
+                <th>╪▒┘é┘à ╪º┘ä╪┤┘é╪⌐</th>
+                <th>╪º┘ä┘à╪│╪¬╪ú╪¼╪▒ / ╪º┘ä╪¼┘ç╪⌐</th>
+                <th>╪º┘ä╪¬╪º╪▒┘è╪«</th>
+                <th>┘å┘ê╪╣ ╪º┘ä┘à╪│╪¬╪¡┘é</th>
+                <th>╪º┘ä┘à╪¿┘ä╪║</th>
+                <th>╪¬┘ü╪º╪╡┘è┘ä / ┘à┘ä╪º╪¡╪╕╪º╪¬</th>
               </tr>
             </thead>
             <tbody>${rows}</tbody>
@@ -3451,23 +3489,23 @@ export default function ApartmentMap() {
     const apartmentRent = getApartmentRent(selectedApartment);
     const today = getTodayLocalDateString();
 
-    // إجمالي الإيجارات المستحقة من بداية العقد حتى اليوم.
+    // ╪Ñ╪¼┘à╪º┘ä┘è ╪º┘ä╪Ñ┘è╪¼╪º╪▒╪º╪¬ ╪º┘ä┘à╪│╪¬╪¡┘é╪⌐ ┘à┘å ╪¿╪»╪º┘è╪⌐ ╪º┘ä╪╣┘é╪» ╪¡╪¬┘ë ╪º┘ä┘è┘ê┘à.
     const accruedRentMonths =
-      selectedApartment.status === "مؤجرة" ||
-      selectedApartment.status === "مؤجرة للشركة"
+      selectedApartment.status === "┘à╪ñ╪¼╪▒╪⌐" ||
+      selectedApartment.status === "┘à╪ñ╪¼╪▒╪⌐ ┘ä┘ä╪┤╪▒┘â╪⌐"
         ? getAccruedRentMonths(contractInfo.startDate, contractInfo.endDate)
         : 0;
     const rentDue = accruedRentMonths * apartmentRent;
 
-    // إجمالي المستحقات الأخرى المسجلة على الشقة من بداية العقد حتى اليوم
-    // (مع استبعاد الإيجار حتى لا يتم احتسابه مرتين).
+    // ╪Ñ╪¼┘à╪º┘ä┘è ╪º┘ä┘à╪│╪¬╪¡┘é╪º╪¬ ╪º┘ä╪ú╪«╪▒┘ë ╪º┘ä┘à╪│╪¼┘ä╪⌐ ╪╣┘ä┘ë ╪º┘ä╪┤┘é╪⌐ ┘à┘å ╪¿╪»╪º┘è╪⌐ ╪º┘ä╪╣┘é╪» ╪¡╪¬┘ë ╪º┘ä┘è┘ê┘à
+    // (┘à╪╣ ╪º╪│╪¬╪¿╪╣╪º╪» ╪º┘ä╪Ñ┘è╪¼╪º╪▒ ╪¡╪¬┘ë ┘ä╪º ┘è╪¬┘à ╪º╪¡╪¬╪│╪º╪¿┘ç ┘à╪▒╪¬┘è┘å).
     const otherDue = getApartmentCharges(
       selectedApartment.number,
       contractInfo.startDate
     ).reduce((sum, charge) => sum + (Number(charge.amount) || 0), 0);
 
-    // كل التحصيلات الفعلية المسجلة على الشقة حتى اليوم، بما فيها الإيجارات
-    // والمدفوعات الخاصة بالفواتير والمستحقات الأخرى.
+    // ┘â┘ä ╪º┘ä╪¬╪¡╪╡┘è┘ä╪º╪¬ ╪º┘ä┘ü╪╣┘ä┘è╪⌐ ╪º┘ä┘à╪│╪¼┘ä╪⌐ ╪╣┘ä┘ë ╪º┘ä╪┤┘é╪⌐ ╪¡╪¬┘ë ╪º┘ä┘è┘ê┘à╪î ╪¿┘à╪º ┘ü┘è┘ç╪º ╪º┘ä╪Ñ┘è╪¼╪º╪▒╪º╪¬
+    // ┘ê╪º┘ä┘à╪»┘ü┘ê╪╣╪º╪¬ ╪º┘ä╪«╪º╪╡╪⌐ ╪¿╪º┘ä┘ü┘ê╪º╪¬┘è╪▒ ┘ê╪º┘ä┘à╪│╪¬╪¡┘é╪º╪¬ ╪º┘ä╪ú╪«╪▒┘ë.
     const contractPayments = getApartmentPayments(selectedApartment.number).filter(
       (payment) => Boolean(payment.date) && payment.date <= today
     );
@@ -3476,7 +3514,7 @@ export default function ApartmentMap() {
       0
     );
 
-    // المتبقي الفعلي على الشقة = كل المستحقات حتى اليوم - كل ما تم تحصيله.
+    // ╪º┘ä┘à╪¬╪¿┘é┘è ╪º┘ä┘ü╪╣┘ä┘è ╪╣┘ä┘ë ╪º┘ä╪┤┘é╪⌐ = ┘â┘ä ╪º┘ä┘à╪│╪¬╪¡┘é╪º╪¬ ╪¡╪¬┘ë ╪º┘ä┘è┘ê┘à - ┘â┘ä ┘à╪º ╪¬┘à ╪¬╪¡╪╡┘è┘ä┘ç.
     const totalDue = rentDue + otherDue;
     return Math.max(totalDue - collected, 0);
   };
@@ -3491,7 +3529,7 @@ export default function ApartmentMap() {
 
     if (selectedApartmentFinancialReport === "collections") {
       return {
-        title: "تقرير تحصيلات الشقة",
+        title: "╪¬┘é╪▒┘è╪▒ ╪¬╪¡╪╡┘è┘ä╪º╪¬ ╪º┘ä╪┤┘é╪⌐",
         rows: payments,
         total: payments.reduce(
           (sum, payment) => sum + (Number(payment.amount) || 0),
@@ -3502,10 +3540,10 @@ export default function ApartmentMap() {
 
     if (selectedApartmentFinancialReport === "water") {
       const rows = charges.filter(
-        (charge) => charge.type?.trim() === "فاتورة مياه"
+        (charge) => charge.type?.trim() === "┘ü╪º╪¬┘ê╪▒╪⌐ ┘à┘è╪º┘ç"
       );
       return {
-        title: "تقرير فواتير المياه للشقة",
+        title: "╪¬┘é╪▒┘è╪▒ ┘ü┘ê╪º╪¬┘è╪▒ ╪º┘ä┘à┘è╪º┘ç ┘ä┘ä╪┤┘é╪⌐",
         rows,
         total: rows.reduce(
           (sum, charge) => sum + (Number(charge.amount) || 0),
@@ -3516,10 +3554,10 @@ export default function ApartmentMap() {
 
     if (selectedApartmentFinancialReport === "electricity") {
       const rows = charges.filter(
-        (charge) => charge.type?.trim() === "فاتورة كهرباء"
+        (charge) => charge.type?.trim() === "┘ü╪º╪¬┘ê╪▒╪⌐ ┘â┘ç╪▒╪¿╪º╪í"
       );
       return {
-        title: "تقرير فواتير الكهرباء للشقة",
+        title: "╪¬┘é╪▒┘è╪▒ ┘ü┘ê╪º╪¬┘è╪▒ ╪º┘ä┘â┘ç╪▒╪¿╪º╪í ┘ä┘ä╪┤┘é╪⌐",
         rows,
         total: rows.reduce(
           (sum, charge) => sum + (Number(charge.amount) || 0),
@@ -3532,23 +3570,23 @@ export default function ApartmentMap() {
     const apartmentRent = getApartmentRent(selectedApartment);
     const today = getTodayLocalDateString();
 
-    // إجمالي الإيجارات المستحقة من بداية العقد حتى اليوم.
+    // ╪Ñ╪¼┘à╪º┘ä┘è ╪º┘ä╪Ñ┘è╪¼╪º╪▒╪º╪¬ ╪º┘ä┘à╪│╪¬╪¡┘é╪⌐ ┘à┘å ╪¿╪»╪º┘è╪⌐ ╪º┘ä╪╣┘é╪» ╪¡╪¬┘ë ╪º┘ä┘è┘ê┘à.
     const accruedRentMonths =
-      selectedApartment.status === "مؤجرة" ||
-      selectedApartment.status === "مؤجرة للشركة"
+      selectedApartment.status === "┘à╪ñ╪¼╪▒╪⌐" ||
+      selectedApartment.status === "┘à╪ñ╪¼╪▒╪⌐ ┘ä┘ä╪┤╪▒┘â╪⌐"
         ? getAccruedRentMonths(contractInfo.startDate, contractInfo.endDate)
         : 0;
     const rentDue = accruedRentMonths * apartmentRent;
 
-    // إجمالي المستحقات الأخرى المسجلة على الشقة من بداية العقد حتى اليوم
-    // (مع استبعاد الإيجار حتى لا يتم احتسابه مرتين).
+    // ╪Ñ╪¼┘à╪º┘ä┘è ╪º┘ä┘à╪│╪¬╪¡┘é╪º╪¬ ╪º┘ä╪ú╪«╪▒┘ë ╪º┘ä┘à╪│╪¼┘ä╪⌐ ╪╣┘ä┘ë ╪º┘ä╪┤┘é╪⌐ ┘à┘å ╪¿╪»╪º┘è╪⌐ ╪º┘ä╪╣┘é╪» ╪¡╪¬┘ë ╪º┘ä┘è┘ê┘à
+    // (┘à╪╣ ╪º╪│╪¬╪¿╪╣╪º╪» ╪º┘ä╪Ñ┘è╪¼╪º╪▒ ╪¡╪¬┘ë ┘ä╪º ┘è╪¬┘à ╪º╪¡╪¬╪│╪º╪¿┘ç ┘à╪▒╪¬┘è┘å).
     const otherDue = getApartmentCharges(
       selectedApartment.number,
       contractInfo.startDate
     ).reduce((sum, charge) => sum + (Number(charge.amount) || 0), 0);
 
-    // كل التحصيلات الفعلية المسجلة على الشقة حتى اليوم، بما فيها الإيجارات
-    // والمدفوعات الخاصة بالفواتير والمستحقات الأخرى.
+    // ┘â┘ä ╪º┘ä╪¬╪¡╪╡┘è┘ä╪º╪¬ ╪º┘ä┘ü╪╣┘ä┘è╪⌐ ╪º┘ä┘à╪│╪¼┘ä╪⌐ ╪╣┘ä┘ë ╪º┘ä╪┤┘é╪⌐ ╪¡╪¬┘ë ╪º┘ä┘è┘ê┘à╪î ╪¿┘à╪º ┘ü┘è┘ç╪º ╪º┘ä╪Ñ┘è╪¼╪º╪▒╪º╪¬
+    // ┘ê╪º┘ä┘à╪»┘ü┘ê╪╣╪º╪¬ ╪º┘ä╪«╪º╪╡╪⌐ ╪¿╪º┘ä┘ü┘ê╪º╪¬┘è╪▒ ┘ê╪º┘ä┘à╪│╪¬╪¡┘é╪º╪¬ ╪º┘ä╪ú╪«╪▒┘ë.
     const contractPayments = getApartmentPayments(selectedApartment.number).filter(
       (payment) => Boolean(payment.date) && payment.date <= today
     );
@@ -3557,46 +3595,46 @@ export default function ApartmentMap() {
       0
     );
 
-    // المتبقي الفعلي على الشقة = كل المستحقات حتى اليوم - كل ما تم تحصيله.
+    // ╪º┘ä┘à╪¬╪¿┘é┘è ╪º┘ä┘ü╪╣┘ä┘è ╪╣┘ä┘ë ╪º┘ä╪┤┘é╪⌐ = ┘â┘ä ╪º┘ä┘à╪│╪¬╪¡┘é╪º╪¬ ╪¡╪¬┘ë ╪º┘ä┘è┘ê┘à - ┘â┘ä ┘à╪º ╪¬┘à ╪¬╪¡╪╡┘è┘ä┘ç.
     const totalDue = rentDue + otherDue;
     const remaining = Math.max(totalDue - collected, 0);
 
     return {
-      title: "تقرير التحصيلات المتأخرة للشقة",
+      title: "╪¬┘é╪▒┘è╪▒ ╪º┘ä╪¬╪¡╪╡┘è┘ä╪º╪¬ ╪º┘ä┘à╪¬╪ú╪«╪▒╪⌐ ┘ä┘ä╪┤┘é╪⌐",
       rows: [
         {
-          type: "إجمالي الإيجارات المستحقة",
+          type: "╪Ñ╪¼┘à╪º┘ä┘è ╪º┘ä╪Ñ┘è╪¼╪º╪▒╪º╪¬ ╪º┘ä┘à╪│╪¬╪¡┘é╪⌐",
           amount: String(rentDue),
           date: today,
-          notes: `من بداية العقد حتى اليوم — عدد أشهر الإيجار المستحقة: ${accruedRentMonths} × ${apartmentRent.toLocaleString("ar-SA")} ريال`,
+          notes: `┘à┘å ╪¿╪»╪º┘è╪⌐ ╪º┘ä╪╣┘é╪» ╪¡╪¬┘ë ╪º┘ä┘è┘ê┘à ΓÇö ╪╣╪»╪» ╪ú╪┤┘ç╪▒ ╪º┘ä╪Ñ┘è╪¼╪º╪▒ ╪º┘ä┘à╪│╪¬╪¡┘é╪⌐: ${accruedRentMonths} ├ù ${apartmentRent.toLocaleString("ar-SA")} ╪▒┘è╪º┘ä`,
           apartmentNumber: selectedApartment.number,
         },
         {
-          type: "إجمالي المستحقات الأخرى",
+          type: "╪Ñ╪¼┘à╪º┘ä┘è ╪º┘ä┘à╪│╪¬╪¡┘é╪º╪¬ ╪º┘ä╪ú╪«╪▒┘ë",
           amount: String(otherDue),
           date: today,
-          notes: "إجمالي المستحقات والفواتير المسجلة على الشقة حتى اليوم",
+          notes: "╪Ñ╪¼┘à╪º┘ä┘è ╪º┘ä┘à╪│╪¬╪¡┘é╪º╪¬ ┘ê╪º┘ä┘ü┘ê╪º╪¬┘è╪▒ ╪º┘ä┘à╪│╪¼┘ä╪⌐ ╪╣┘ä┘ë ╪º┘ä╪┤┘é╪⌐ ╪¡╪¬┘ë ╪º┘ä┘è┘ê┘à",
           apartmentNumber: selectedApartment.number,
         },
         {
-          type: "إجمالي المستحقات حتى اليوم",
+          type: "╪Ñ╪¼┘à╪º┘ä┘è ╪º┘ä┘à╪│╪¬╪¡┘é╪º╪¬ ╪¡╪¬┘ë ╪º┘ä┘è┘ê┘à",
           amount: String(totalDue),
           date: today,
-          notes: "الإيجارات المستحقة + المستحقات والفواتير الأخرى",
+          notes: "╪º┘ä╪Ñ┘è╪¼╪º╪▒╪º╪¬ ╪º┘ä┘à╪│╪¬╪¡┘é╪⌐ + ╪º┘ä┘à╪│╪¬╪¡┘é╪º╪¬ ┘ê╪º┘ä┘ü┘ê╪º╪¬┘è╪▒ ╪º┘ä╪ú╪«╪▒┘ë",
           apartmentNumber: selectedApartment.number,
         },
         {
-          type: "إجمالي المحصل",
+          type: "╪Ñ╪¼┘à╪º┘ä┘è ╪º┘ä┘à╪¡╪╡┘ä",
           amount: String(collected),
           date: today,
-          notes: "إجمالي جميع التحصيلات الفعلية المسجلة على الشقة حتى اليوم",
+          notes: "╪Ñ╪¼┘à╪º┘ä┘è ╪¼┘à┘è╪╣ ╪º┘ä╪¬╪¡╪╡┘è┘ä╪º╪¬ ╪º┘ä┘ü╪╣┘ä┘è╪⌐ ╪º┘ä┘à╪│╪¼┘ä╪⌐ ╪╣┘ä┘ë ╪º┘ä╪┤┘é╪⌐ ╪¡╪¬┘ë ╪º┘ä┘è┘ê┘à",
           apartmentNumber: selectedApartment.number,
         },
         {
-          type: "إجمالي المتبقي",
+          type: "╪Ñ╪¼┘à╪º┘ä┘è ╪º┘ä┘à╪¬╪¿┘é┘è",
           amount: String(remaining),
           date: today,
-          notes: "المبلغ المتبقي فعليًا بعد خصم جميع التحصيلات من إجمالي المستحقات",
+          notes: "╪º┘ä┘à╪¿┘ä╪║ ╪º┘ä┘à╪¬╪¿┘é┘è ┘ü╪╣┘ä┘è┘ï╪º ╪¿╪╣╪» ╪«╪╡┘à ╪¼┘à┘è╪╣ ╪º┘ä╪¬╪¡╪╡┘è┘ä╪º╪¬ ┘à┘å ╪Ñ╪¼┘à╪º┘ä┘è ╪º┘ä┘à╪│╪¬╪¡┘é╪º╪¬",
           apartmentNumber: selectedApartment.number,
         },
       ],
@@ -3616,9 +3654,9 @@ export default function ApartmentMap() {
           <tr>
             <td>${index + 1}</td>
             <td>${escapeReportHtml(formatContractDate(row.date))}</td>
-            <td>${escapeReportHtml(row.type || "غير محدد")}</td>
-            <td>${(Number(row.amount) || 0).toLocaleString("en-US")} ريال</td>
-            <td>${escapeReportHtml(row.notes || "لا توجد تفاصيل")}</td>
+            <td>${escapeReportHtml(row.type || "╪║┘è╪▒ ┘à╪¡╪»╪»")}</td>
+            <td>${(Number(row.amount) || 0).toLocaleString("en-US")} ╪▒┘è╪º┘ä</td>
+            <td>${escapeReportHtml(row.notes || "┘ä╪º ╪¬┘ê╪¼╪» ╪¬┘ü╪º╪╡┘è┘ä")}</td>
           </tr>
         `
       )
@@ -3651,31 +3689,31 @@ export default function ApartmentMap() {
           <div class="header">
             <div class="brand">TUMOUH STAR</div>
             <h1>${escapeReportHtml(report.title)}</h1>
-            <div class="subtitle">شقة رقم ${selectedApartment.number} — ${formatContractDate(fromDate)} إلى ${formatContractDate(toDate)}</div>
+            <div class="subtitle">╪┤┘é╪⌐ ╪▒┘é┘à ${selectedApartment.number} ΓÇö ${formatContractDate(fromDate)} ╪Ñ┘ä┘ë ${formatContractDate(toDate)}</div>
           </div>
 
           <div class="summary">
-            <div class="box"><div class="label">إجمالي التقرير</div><div class="value">${report.total.toLocaleString("en-US")} ريال</div></div>
-            <div class="box"><div class="label">عدد العمليات</div><div class="value">${report.rows.length}</div></div>
-            <div class="box"><div class="label">الفترة</div><div class="value">${formatContractDate(fromDate)} — ${formatContractDate(toDate)}</div></div>
+            <div class="box"><div class="label">╪Ñ╪¼┘à╪º┘ä┘è ╪º┘ä╪¬┘é╪▒┘è╪▒</div><div class="value">${report.total.toLocaleString("en-US")} ╪▒┘è╪º┘ä</div></div>
+            <div class="box"><div class="label">╪╣╪»╪» ╪º┘ä╪╣┘à┘ä┘è╪º╪¬</div><div class="value">${report.rows.length}</div></div>
+            <div class="box"><div class="label">╪º┘ä┘ü╪¬╪▒╪⌐</div><div class="value">${formatContractDate(fromDate)} ΓÇö ${formatContractDate(toDate)}</div></div>
           </div>
 
           <table>
             <thead>
               <tr>
                 <th>#</th>
-                <th>التاريخ</th>
-                <th>نوع العملية</th>
-                <th>المبلغ</th>
-                <th>التفاصيل</th>
+                <th>╪º┘ä╪¬╪º╪▒┘è╪«</th>
+                <th>┘å┘ê╪╣ ╪º┘ä╪╣┘à┘ä┘è╪⌐</th>
+                <th>╪º┘ä┘à╪¿┘ä╪║</th>
+                <th>╪º┘ä╪¬┘ü╪º╪╡┘è┘ä</th>
               </tr>
             </thead>
             <tbody>
-              ${rows || '<tr><td colspan="5">لا توجد بيانات خلال الفترة المحددة.</td></tr>'}
+              ${rows || '<tr><td colspan="5">┘ä╪º ╪¬┘ê╪¼╪» ╪¿┘è╪º┘å╪º╪¬ ╪«┘ä╪º┘ä ╪º┘ä┘ü╪¬╪▒╪⌐ ╪º┘ä┘à╪¡╪»╪»╪⌐.</td></tr>'}
             </tbody>
           </table>
 
-          <div class="total">إجمالي التقرير: ${report.total.toLocaleString("en-US")} ريال</div>
+          <div class="total">╪Ñ╪¼┘à╪º┘ä┘è ╪º┘ä╪¬┘é╪▒┘è╪▒: ${report.total.toLocaleString("en-US")} ╪▒┘è╪º┘ä</div>
         </body>
       </html>
     `;
@@ -3688,7 +3726,7 @@ export default function ApartmentMap() {
 
     const report = getSelectedApartmentFinancialReport();
     if (!report.rows.length) {
-      window.alert("لا توجد بيانات خلال الفترة المحددة لتصديرها.");
+      window.alert("┘ä╪º ╪¬┘ê╪¼╪» ╪¿┘è╪º┘å╪º╪¬ ╪«┘ä╪º┘ä ╪º┘ä┘ü╪¬╪▒╪⌐ ╪º┘ä┘à╪¡╪»╪»╪⌐ ┘ä╪¬╪╡╪»┘è╪▒┘ç╪º.");
       return;
     }
 
@@ -3699,7 +3737,7 @@ export default function ApartmentMap() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `تقرير_${report.title.replace(/\s+/g, "_")}_شقة_${selectedApartment.number}.xls`;
+    link.download = `╪¬┘é╪▒┘è╪▒_${report.title.replace(/\s+/g, "_")}_╪┤┘é╪⌐_${selectedApartment.number}.xls`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -3713,14 +3751,14 @@ export default function ApartmentMap() {
 
     const report = getSelectedApartmentFinancialReport();
     if (!report.rows.length) {
-      window.alert("لا توجد بيانات خلال الفترة المحددة للطباعة أو التصدير.");
+      window.alert("┘ä╪º ╪¬┘ê╪¼╪» ╪¿┘è╪º┘å╪º╪¬ ╪«┘ä╪º┘ä ╪º┘ä┘ü╪¬╪▒╪⌐ ╪º┘ä┘à╪¡╪»╪»╪⌐ ┘ä┘ä╪╖╪¿╪º╪╣╪⌐ ╪ú┘ê ╪º┘ä╪¬╪╡╪»┘è╪▒.");
       return;
     }
 
     const printWindow = window.open("", "_blank", "width=1100,height=800");
 
     if (!printWindow) {
-      window.alert("تعذر فتح نافذة التقرير. اسمح بالنوافذ المنبثقة ثم حاول مرة أخرى.");
+      window.alert("╪¬╪╣╪░╪▒ ┘ü╪¬╪¡ ┘å╪º┘ü╪░╪⌐ ╪º┘ä╪¬┘é╪▒┘è╪▒. ╪º╪│┘à╪¡ ╪¿╪º┘ä┘å┘ê╪º┘ü╪░ ╪º┘ä┘à┘å╪¿╪½┘é╪⌐ ╪½┘à ╪¡╪º┘ê┘ä ┘à╪▒╪⌐ ╪ú╪«╪▒┘ë.");
       return;
     }
 
@@ -3759,7 +3797,7 @@ export default function ApartmentMap() {
           Boolean(charge.date) &&
           charge.date <= today &&
           (!fromDate || charge.date >= fromDate) &&
-          charge.type?.trim() !== "إيجار"
+          charge.type?.trim() !== "╪Ñ┘è╪¼╪º╪▒"
       );
     } catch {
       return [];
@@ -3786,67 +3824,67 @@ export default function ApartmentMap() {
               <tr>
                 <td>${index + 1}</td>
                 <td>${escapeReportHtml(formatPaymentDate(payment.date))}</td>
-                <td>${escapeReportHtml(payment.type || "غير محدد")}</td>
-                <td>${(Number(payment.amount) || 0).toLocaleString("en-US")} ريال</td>
-                <td>${escapeReportHtml(payment.notes || "لا توجد تفاصيل")}</td>
+                <td>${escapeReportHtml(payment.type || "╪║┘è╪▒ ┘à╪¡╪»╪»")}</td>
+                <td>${(Number(payment.amount) || 0).toLocaleString("en-US")} ╪▒┘è╪º┘ä</td>
+                <td>${escapeReportHtml(payment.notes || "┘ä╪º ╪¬┘ê╪¼╪» ╪¬┘ü╪º╪╡┘è┘ä")}</td>
               </tr>
             `
           )
           .join("")
       : `
           <tr>
-            <td colspan="5">لا توجد دفعات مسجلة لهذه الشقة.</td>
+            <td colspan="5">┘ä╪º ╪¬┘ê╪¼╪» ╪»┘ü╪╣╪º╪¬ ┘à╪│╪¼┘ä╪⌐ ┘ä┘ç╪░┘ç ╪º┘ä╪┤┘é╪⌐.</td>
           </tr>
         `;
 
     return `
       <div class="report-header">
         <div class="report-brand">TUMOUH STAR</div>
-        <h1>تقرير سجل دفعات الشقة</h1>
-        <div class="report-subtitle">تفاصيل جميع عمليات الدفع والتحصيل المسجلة للشقة</div>
+        <h1>╪¬┘é╪▒┘è╪▒ ╪│╪¼┘ä ╪»┘ü╪╣╪º╪¬ ╪º┘ä╪┤┘é╪⌐</h1>
+        <div class="report-subtitle">╪¬┘ü╪º╪╡┘è┘ä ╪¼┘à┘è╪╣ ╪╣┘à┘ä┘è╪º╪¬ ╪º┘ä╪»┘ü╪╣ ┘ê╪º┘ä╪¬╪¡╪╡┘è┘ä ╪º┘ä┘à╪│╪¼┘ä╪⌐ ┘ä┘ä╪┤┘é╪⌐</div>
       </div>
 
       <div class="tenant-info">
         <div class="info-box">
-          <span>رقم الشقة</span>
+          <span>╪▒┘é┘à ╪º┘ä╪┤┘é╪⌐</span>
           <strong>${selectedApartment.number}</strong>
         </div>
         <div class="info-box">
-          <span>اسم المستأجر</span>
-          <strong>${escapeReportHtml(tenantInfo.tenantName || "غير مضاف")}</strong>
+          <span>╪º╪│┘à ╪º┘ä┘à╪│╪¬╪ú╪¼╪▒</span>
+          <strong>${escapeReportHtml(tenantInfo.tenantName || "╪║┘è╪▒ ┘à╪╢╪º┘ü")}</strong>
         </div>
         <div class="info-box">
-          <span>رقم الجوال</span>
-          <strong>${escapeReportHtml(tenantInfo.phone || "غير مضاف")}</strong>
+          <span>╪▒┘é┘à ╪º┘ä╪¼┘ê╪º┘ä</span>
+          <strong>${escapeReportHtml(tenantInfo.phone || "╪║┘è╪▒ ┘à╪╢╪º┘ü")}</strong>
         </div>
         <div class="info-box">
-          <span>رقم الهوية / الإقامة</span>
+          <span>╪▒┘é┘à ╪º┘ä┘ç┘ê┘è╪⌐ / ╪º┘ä╪Ñ┘é╪º┘à╪⌐</span>
           <strong>${escapeReportHtml(
-            tenantInfo.identityNumber || "غير مضاف"
+            tenantInfo.identityNumber || "╪║┘è╪▒ ┘à╪╢╪º┘ü"
           )}</strong>
         </div>
       </div>
 
       <div class="report-total">
-        <span>إجمالي المدفوعات</span>
-        <strong>${totalPaid.toLocaleString("en-US")} ريال</strong>
+        <span>╪Ñ╪¼┘à╪º┘ä┘è ╪º┘ä┘à╪»┘ü┘ê╪╣╪º╪¬</span>
+        <strong>${totalPaid.toLocaleString("en-US")} ╪▒┘è╪º┘ä</strong>
       </div>
 
       <table>
         <thead>
           <tr>
             <th>#</th>
-            <th>تاريخ الدفع</th>
-            <th>نوع المستحق</th>
-            <th>المبلغ</th>
-            <th>تفاصيل / ملاحظات</th>
+            <th>╪¬╪º╪▒┘è╪« ╪º┘ä╪»┘ü╪╣</th>
+            <th>┘å┘ê╪╣ ╪º┘ä┘à╪│╪¬╪¡┘é</th>
+            <th>╪º┘ä┘à╪¿┘ä╪║</th>
+            <th>╪¬┘ü╪º╪╡┘è┘ä / ┘à┘ä╪º╪¡╪╕╪º╪¬</th>
           </tr>
         </thead>
         <tbody>${paymentRows}</tbody>
       </table>
 
       <div class="report-footer">
-        تاريخ إصدار التقرير: ${new Date().toLocaleDateString("ar-SA")}
+        ╪¬╪º╪▒┘è╪« ╪Ñ╪╡╪»╪º╪▒ ╪º┘ä╪¬┘é╪▒┘è╪▒: ${new Date().toLocaleDateString("ar-SA")}
       </div>
     `;
   };
@@ -3857,7 +3895,7 @@ export default function ApartmentMap() {
       <html dir="rtl">
         <head>
           <meta charset="UTF-8" />
-          <title>تقرير دفعات الشقة ${selectedApartment?.number ?? ""}</title>
+          <title>╪¬┘é╪▒┘è╪▒ ╪»┘ü╪╣╪º╪¬ ╪º┘ä╪┤┘é╪⌐ ${selectedApartment?.number ?? ""}</title>
           <style>
             * { box-sizing: border-box; }
             body {
@@ -3967,7 +4005,7 @@ export default function ApartmentMap() {
     const payments = getApartmentPayments(selectedApartment.number);
 
     if (!payments.length) {
-      window.alert("لا توجد دفعات مسجلة لهذه الشقة لتصديرها.");
+      window.alert("┘ä╪º ╪¬┘ê╪¼╪» ╪»┘ü╪╣╪º╪¬ ┘à╪│╪¼┘ä╪⌐ ┘ä┘ç╪░┘ç ╪º┘ä╪┤┘é╪⌐ ┘ä╪¬╪╡╪»┘è╪▒┘ç╪º.");
       return;
     }
 
@@ -3983,9 +4021,9 @@ export default function ApartmentMap() {
           <tr>
             <td>${index + 1}</td>
             <td>${escapeReportHtml(formatPaymentDate(payment.date))}</td>
-            <td>${escapeReportHtml(payment.type || "غير محدد")}</td>
+            <td>${escapeReportHtml(payment.type || "╪║┘è╪▒ ┘à╪¡╪»╪»")}</td>
             <td>${(Number(payment.amount) || 0).toLocaleString("en-US")}</td>
-            <td>${escapeReportHtml(payment.notes || "لا توجد تفاصيل")}</td>
+            <td>${escapeReportHtml(payment.notes || "┘ä╪º ╪¬┘ê╪¼╪» ╪¬┘ü╪º╪╡┘è┘ä")}</td>
           </tr>
         `
       )
@@ -4022,25 +4060,25 @@ export default function ApartmentMap() {
           </style>
         </head>
         <body>
-          <h1>تقرير سجل دفعات الشقة</h1>
+          <h1>╪¬┘é╪▒┘è╪▒ ╪│╪¼┘ä ╪»┘ü╪╣╪º╪¬ ╪º┘ä╪┤┘é╪⌐</h1>
           <p>Tumouh Star</p>
           <table class="info">
             <tr>
-              <td><strong>رقم الشقة</strong><br />${selectedApartment.number}</td>
-              <td><strong>اسم المستأجر</strong><br />${escapeReportHtml(
-                tenantInfo.tenantName || "غير مضاف"
+              <td><strong>╪▒┘é┘à ╪º┘ä╪┤┘é╪⌐</strong><br />${selectedApartment.number}</td>
+              <td><strong>╪º╪│┘à ╪º┘ä┘à╪│╪¬╪ú╪¼╪▒</strong><br />${escapeReportHtml(
+                tenantInfo.tenantName || "╪║┘è╪▒ ┘à╪╢╪º┘ü"
               )}</td>
-              <td><strong>رقم الجوال</strong><br />${escapeReportHtml(
-                tenantInfo.phone || "غير مضاف"
+              <td><strong>╪▒┘é┘à ╪º┘ä╪¼┘ê╪º┘ä</strong><br />${escapeReportHtml(
+                tenantInfo.phone || "╪║┘è╪▒ ┘à╪╢╪º┘ü"
               )}</td>
-              <td><strong>رقم الهوية / الإقامة</strong><br />${escapeReportHtml(
-                tenantInfo.identityNumber || "غير مضاف"
+              <td><strong>╪▒┘é┘à ╪º┘ä┘ç┘ê┘è╪⌐ / ╪º┘ä╪Ñ┘é╪º┘à╪⌐</strong><br />${escapeReportHtml(
+                tenantInfo.identityNumber || "╪║┘è╪▒ ┘à╪╢╪º┘ü"
               )}</td>
             </tr>
             <tr>
-              <td colspan="4"><strong>إجمالي المدفوعات: ${totalPaid.toLocaleString(
+              <td colspan="4"><strong>╪Ñ╪¼┘à╪º┘ä┘è ╪º┘ä┘à╪»┘ü┘ê╪╣╪º╪¬: ${totalPaid.toLocaleString(
                 "en-US"
-              )} ريال</strong></td>
+              )} ╪▒┘è╪º┘ä</strong></td>
             </tr>
           </table>
 
@@ -4048,10 +4086,10 @@ export default function ApartmentMap() {
             <thead>
               <tr>
                 <th>#</th>
-                <th>تاريخ الدفع</th>
-                <th>نوع المستحق</th>
-                <th>المبلغ</th>
-                <th>تفاصيل / ملاحظات</th>
+                <th>╪¬╪º╪▒┘è╪« ╪º┘ä╪»┘ü╪╣</th>
+                <th>┘å┘ê╪╣ ╪º┘ä┘à╪│╪¬╪¡┘é</th>
+                <th>╪º┘ä┘à╪¿┘ä╪║</th>
+                <th>╪¬┘ü╪º╪╡┘è┘ä / ┘à┘ä╪º╪¡╪╕╪º╪¬</th>
               </tr>
             </thead>
             <tbody>${rows}</tbody>
@@ -4066,7 +4104,7 @@ export default function ApartmentMap() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `سجل_دفعات_الشقة_${selectedApartment.number}.xls`;
+    link.download = `╪│╪¼┘ä_╪»┘ü╪╣╪º╪¬_╪º┘ä╪┤┘é╪⌐_${selectedApartment.number}.xls`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -4082,7 +4120,7 @@ export default function ApartmentMap() {
     const payments = getApartmentPayments(selectedApartment.number);
 
     if (!payments.length) {
-      window.alert("لا توجد دفعات مسجلة لهذه الشقة للطباعة أو التصدير.");
+      window.alert("┘ä╪º ╪¬┘ê╪¼╪» ╪»┘ü╪╣╪º╪¬ ┘à╪│╪¼┘ä╪⌐ ┘ä┘ç╪░┘ç ╪º┘ä╪┤┘é╪⌐ ┘ä┘ä╪╖╪¿╪º╪╣╪⌐ ╪ú┘ê ╪º┘ä╪¬╪╡╪»┘è╪▒.");
       return;
     }
 
@@ -4094,7 +4132,7 @@ export default function ApartmentMap() {
 
     if (!printWindow) {
       window.alert(
-        "تعذر فتح نافذة التقرير. اسمح بالنوافذ المنبثقة ثم حاول مرة أخرى."
+        "╪¬╪╣╪░╪▒ ┘ü╪¬╪¡ ┘å╪º┘ü╪░╪⌐ ╪º┘ä╪¬┘é╪▒┘è╪▒. ╪º╪│┘à╪¡ ╪¿╪º┘ä┘å┘ê╪º┘ü╪░ ╪º┘ä┘à┘å╪¿╪½┘é╪⌐ ╪½┘à ╪¡╪º┘ê┘ä ┘à╪▒╪⌐ ╪ú╪«╪▒┘ë."
       );
       return;
     }
@@ -4146,14 +4184,14 @@ export default function ApartmentMap() {
 
   const getApartmentTypeReportTitle = () =>
     selectedApartmentTypeReport
-      ? `تقرير شقق ${selectedApartmentTypeReport}`
+      ? `╪¬┘é╪▒┘è╪▒ ╪┤┘é┘é ${selectedApartmentTypeReport}`
       : "";
 
   const exportApartmentTypeReportExcel = () => {
     const rows = getApartmentTypeReportData();
 
     if (!rows.length) {
-      window.alert("لا توجد شقق مسجلة لهذا النوع لتصديرها.");
+      window.alert("┘ä╪º ╪¬┘ê╪¼╪» ╪┤┘é┘é ┘à╪│╪¼┘ä╪⌐ ┘ä┘ç╪░╪º ╪º┘ä┘å┘ê╪╣ ┘ä╪¬╪╡╪»┘è╪▒┘ç╪º.");
       return;
     }
 
@@ -4171,18 +4209,18 @@ export default function ApartmentMap() {
             <td>${apartment.number}</td>
             <td>${escapeReportHtml(getApartmentType(apartment))}</td>
             <td>${escapeReportHtml(
-              apartment.status === "شاغرة" ? "فارغة" : apartment.status
+              apartment.status === "╪┤╪º╪║╪▒╪⌐" ? "┘ü╪º╪▒╪║╪⌐" : apartment.status
             )}</td>
             <td>${getApartmentRent(apartment).toLocaleString("en-US")}</td>
-            <td>${escapeReportHtml(tenantInfo.tenantName || apartment.tenant || "غير مضاف")}</td>
-            <td>${escapeReportHtml(tenantInfo.phone || "غير مضاف")}</td>
-            <td>${escapeReportHtml(tenantInfo.identityNumber || "غير مضاف")}</td>
-            <td>${escapeReportHtml(extraInfo.floor || "غير محدد")}</td>
+            <td>${escapeReportHtml(tenantInfo.tenantName || apartment.tenant || "╪║┘è╪▒ ┘à╪╢╪º┘ü")}</td>
+            <td>${escapeReportHtml(tenantInfo.phone || "╪║┘è╪▒ ┘à╪╢╪º┘ü")}</td>
+            <td>${escapeReportHtml(tenantInfo.identityNumber || "╪║┘è╪▒ ┘à╪╢╪º┘ü")}</td>
+            <td>${escapeReportHtml(extraInfo.floor || "╪║┘è╪▒ ┘à╪¡╪»╪»")}</td>
             <td>${escapeReportHtml(extraInfo.parking)}</td>
             <td>${escapeReportHtml(extraInfo.electricityMeter)}</td>
             <td>${escapeReportHtml(extraInfo.waterMeter)}</td>
             <td>${escapeReportHtml(extraInfo.furnitureStatus)}</td>
-            <td>${escapeReportHtml(contractInfo.contractNumber || "غير محدد")}</td>
+            <td>${escapeReportHtml(contractInfo.contractNumber || "╪║┘è╪▒ ┘à╪¡╪»╪»")}</td>
             <td>${escapeReportHtml(formatContractDate(contractInfo.startDate))}</td>
             <td>${escapeReportHtml(formatContractDate(contractInfo.endDate))}</td>
             <td>${escapeReportHtml(
@@ -4192,7 +4230,7 @@ export default function ApartmentMap() {
               )
             )}</td>
             <td>${Number(contractInfo.insuranceAmount || 0).toLocaleString("en-US")}</td>
-            <td>${escapeReportHtml(contractInfo.insuranceNotes || "لا توجد ملاحظات")}</td>
+            <td>${escapeReportHtml(contractInfo.insuranceNotes || "┘ä╪º ╪¬┘ê╪¼╪» ┘à┘ä╪º╪¡╪╕╪º╪¬")}</td>
             <td>${paymentCount}</td>
             <td>${totalPaid.toLocaleString("en-US")}</td>
           </tr>
@@ -4249,44 +4287,44 @@ export default function ApartmentMap() {
         </head>
         <body>
           <h1>${escapeReportHtml(getApartmentTypeReportTitle())}</h1>
-          <p>تفاصيل جميع الشقق المسجلة تحت هذا النوع</p>
+          <p>╪¬┘ü╪º╪╡┘è┘ä ╪¼┘à┘è╪╣ ╪º┘ä╪┤┘é┘é ╪º┘ä┘à╪│╪¼┘ä╪⌐ ╪¬╪¡╪¬ ┘ç╪░╪º ╪º┘ä┘å┘ê╪╣</p>
           <div class="summary">
-            <div>عدد الشقق: ${rows.length}</div>
-            <div>إيجار الشقة: ${getApartmentRent(rows[0].apartment).toLocaleString("en-US")} ريال</div>
-            <div>إجمالي الإيجار الشهري: ${rows
+            <div>╪╣╪»╪» ╪º┘ä╪┤┘é┘é: ${rows.length}</div>
+            <div>╪Ñ┘è╪¼╪º╪▒ ╪º┘ä╪┤┘é╪⌐: ${getApartmentRent(rows[0].apartment).toLocaleString("en-US")} ╪▒┘è╪º┘ä</div>
+            <div>╪Ñ╪¼┘à╪º┘ä┘è ╪º┘ä╪Ñ┘è╪¼╪º╪▒ ╪º┘ä╪┤┘ç╪▒┘è: ${rows
               .reduce(
                 (sum, row) => sum + getApartmentRent(row.apartment),
                 0
               )
-              .toLocaleString("en-US")} ريال</div>
-            <div>إجمالي المدفوعات: ${rows
+              .toLocaleString("en-US")} ╪▒┘è╪º┘ä</div>
+            <div>╪Ñ╪¼┘à╪º┘ä┘è ╪º┘ä┘à╪»┘ü┘ê╪╣╪º╪¬: ${rows
               .reduce((sum, row) => sum + row.totalPaid, 0)
-              .toLocaleString("en-US")} ريال</div>
+              .toLocaleString("en-US")} ╪▒┘è╪º┘ä</div>
           </div>
           <div class="table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th>رقم الشقة</th>
-                  <th>النوع</th>
-                  <th>الحالة</th>
-                  <th>الإيجار الشهري</th>
-                  <th>اسم المستأجر / الجهة</th>
-                  <th>الجوال</th>
-                  <th>رقم الهوية</th>
-                  <th>الدور</th>
-                  <th>المواقف</th>
-                  <th>عداد الكهرباء</th>
-                  <th>عداد المياه</th>
-                  <th>حالة الفرش</th>
-                  <th>رقم العقد</th>
-                  <th>بداية العقد</th>
-                  <th>نهاية العقد</th>
-                  <th>مدة العقد</th>
-                  <th>التأمين</th>
-                  <th>ملاحظات التأمين</th>
-                  <th>عدد الدفعات</th>
-                  <th>إجمالي المدفوع</th>
+                  <th>╪▒┘é┘à ╪º┘ä╪┤┘é╪⌐</th>
+                  <th>╪º┘ä┘å┘ê╪╣</th>
+                  <th>╪º┘ä╪¡╪º┘ä╪⌐</th>
+                  <th>╪º┘ä╪Ñ┘è╪¼╪º╪▒ ╪º┘ä╪┤┘ç╪▒┘è</th>
+                  <th>╪º╪│┘à ╪º┘ä┘à╪│╪¬╪ú╪¼╪▒ / ╪º┘ä╪¼┘ç╪⌐</th>
+                  <th>╪º┘ä╪¼┘ê╪º┘ä</th>
+                  <th>╪▒┘é┘à ╪º┘ä┘ç┘ê┘è╪⌐</th>
+                  <th>╪º┘ä╪»┘ê╪▒</th>
+                  <th>╪º┘ä┘à┘ê╪º┘é┘ü</th>
+                  <th>╪╣╪»╪º╪» ╪º┘ä┘â┘ç╪▒╪¿╪º╪í</th>
+                  <th>╪╣╪»╪º╪» ╪º┘ä┘à┘è╪º┘ç</th>
+                  <th>╪¡╪º┘ä╪⌐ ╪º┘ä┘ü╪▒╪┤</th>
+                  <th>╪▒┘é┘à ╪º┘ä╪╣┘é╪»</th>
+                  <th>╪¿╪»╪º┘è╪⌐ ╪º┘ä╪╣┘é╪»</th>
+                  <th>┘å┘ç╪º┘è╪⌐ ╪º┘ä╪╣┘é╪»</th>
+                  <th>┘à╪»╪⌐ ╪º┘ä╪╣┘é╪»</th>
+                  <th>╪º┘ä╪¬╪ú┘à┘è┘å</th>
+                  <th>┘à┘ä╪º╪¡╪╕╪º╪¬ ╪º┘ä╪¬╪ú┘à┘è┘å</th>
+                  <th>╪╣╪»╪» ╪º┘ä╪»┘ü╪╣╪º╪¬</th>
+                  <th>╪Ñ╪¼┘à╪º┘ä┘è ╪º┘ä┘à╪»┘ü┘ê╪╣</th>
                 </tr>
               </thead>
               <tbody>${bodyRows}</tbody>
@@ -4313,7 +4351,7 @@ export default function ApartmentMap() {
     const rows = getApartmentTypeReportData();
 
     if (!rows.length) {
-      window.alert("لا توجد شقق مسجلة لهذا النوع للطباعة.");
+      window.alert("┘ä╪º ╪¬┘ê╪¼╪» ╪┤┘é┘é ┘à╪│╪¼┘ä╪⌐ ┘ä┘ç╪░╪º ╪º┘ä┘å┘ê╪╣ ┘ä┘ä╪╖╪¿╪º╪╣╪⌐.");
       return;
     }
 
@@ -4331,18 +4369,18 @@ export default function ApartmentMap() {
             <td>${apartment.number}</td>
             <td>${escapeReportHtml(getApartmentType(apartment))}</td>
             <td>${escapeReportHtml(
-              apartment.status === "شاغرة" ? "فارغة" : apartment.status
+              apartment.status === "╪┤╪º╪║╪▒╪⌐" ? "┘ü╪º╪▒╪║╪⌐" : apartment.status
             )}</td>
-            <td>${getApartmentRent(apartment).toLocaleString("en-US")} ريال</td>
-            <td>${escapeReportHtml(tenantInfo.tenantName || apartment.tenant || "غير مضاف")}</td>
-            <td>${escapeReportHtml(tenantInfo.phone || "غير مضاف")}</td>
-            <td>${escapeReportHtml(tenantInfo.identityNumber || "غير مضاف")}</td>
-            <td>${escapeReportHtml(extraInfo.floor || "غير محدد")}</td>
+            <td>${getApartmentRent(apartment).toLocaleString("en-US")} ╪▒┘è╪º┘ä</td>
+            <td>${escapeReportHtml(tenantInfo.tenantName || apartment.tenant || "╪║┘è╪▒ ┘à╪╢╪º┘ü")}</td>
+            <td>${escapeReportHtml(tenantInfo.phone || "╪║┘è╪▒ ┘à╪╢╪º┘ü")}</td>
+            <td>${escapeReportHtml(tenantInfo.identityNumber || "╪║┘è╪▒ ┘à╪╢╪º┘ü")}</td>
+            <td>${escapeReportHtml(extraInfo.floor || "╪║┘è╪▒ ┘à╪¡╪»╪»")}</td>
             <td>${escapeReportHtml(extraInfo.parking)}</td>
             <td>${escapeReportHtml(extraInfo.electricityMeter)}</td>
             <td>${escapeReportHtml(extraInfo.waterMeter)}</td>
             <td>${escapeReportHtml(extraInfo.furnitureStatus)}</td>
-            <td>${escapeReportHtml(contractInfo.contractNumber || "غير محدد")}</td>
+            <td>${escapeReportHtml(contractInfo.contractNumber || "╪║┘è╪▒ ┘à╪¡╪»╪»")}</td>
             <td>${escapeReportHtml(formatContractDate(contractInfo.startDate))}</td>
             <td>${escapeReportHtml(formatContractDate(contractInfo.endDate))}</td>
             <td>${escapeReportHtml(
@@ -4351,10 +4389,10 @@ export default function ApartmentMap() {
                 contractInfo.durationValue
               )
             )}</td>
-            <td>${Number(contractInfo.insuranceAmount || 0).toLocaleString("en-US")} ريال</td>
-            <td>${escapeReportHtml(contractInfo.insuranceNotes || "لا توجد ملاحظات")}</td>
+            <td>${Number(contractInfo.insuranceAmount || 0).toLocaleString("en-US")} ╪▒┘è╪º┘ä</td>
+            <td>${escapeReportHtml(contractInfo.insuranceNotes || "┘ä╪º ╪¬┘ê╪¼╪» ┘à┘ä╪º╪¡╪╕╪º╪¬")}</td>
             <td>${paymentCount}</td>
-            <td>${totalPaid.toLocaleString("en-US")} ريال</td>
+            <td>${totalPaid.toLocaleString("en-US")} ╪▒┘è╪º┘ä</td>
           </tr>
         `
       )
@@ -4370,7 +4408,7 @@ export default function ApartmentMap() {
 
     if (!printWindow) {
       window.alert(
-        "تعذر فتح نافذة التقرير. اسمح بالنوافذ المنبثقة ثم حاول مرة أخرى."
+        "╪¬╪╣╪░╪▒ ┘ü╪¬╪¡ ┘å╪º┘ü╪░╪⌐ ╪º┘ä╪¬┘é╪▒┘è╪▒. ╪º╪│┘à╪¡ ╪¿╪º┘ä┘å┘ê╪º┘ü╪░ ╪º┘ä┘à┘å╪¿╪½┘é╪⌐ ╪½┘à ╪¡╪º┘ê┘ä ┘à╪▒╪⌐ ╪ú╪«╪▒┘ë."
       );
       return;
     }
@@ -4424,36 +4462,36 @@ export default function ApartmentMap() {
         </head>
         <body>
           <h1>${escapeReportHtml(getApartmentTypeReportTitle())}</h1>
-          <p>تفاصيل جميع الشقق المسجلة تحت هذا النوع</p>
+          <p>╪¬┘ü╪º╪╡┘è┘ä ╪¼┘à┘è╪╣ ╪º┘ä╪┤┘é┘é ╪º┘ä┘à╪│╪¼┘ä╪⌐ ╪¬╪¡╪¬ ┘ç╪░╪º ╪º┘ä┘å┘ê╪╣</p>
           <div class="summary">
-            <div>عدد الشقق: ${rows.length}</div>
-            <div>إيجار الشقة: ${getApartmentRent(rows[0].apartment).toLocaleString("ar-SA")} ريال</div>
-            <div>إجمالي الإيجار الشهري: ${totalRent.toLocaleString("ar-SA")} ريال</div>
-            <div>إجمالي المدفوعات: ${totalPaid.toLocaleString("ar-SA")} ريال</div>
+            <div>╪╣╪»╪» ╪º┘ä╪┤┘é┘é: ${rows.length}</div>
+            <div>╪Ñ┘è╪¼╪º╪▒ ╪º┘ä╪┤┘é╪⌐: ${getApartmentRent(rows[0].apartment).toLocaleString("ar-SA")} ╪▒┘è╪º┘ä</div>
+            <div>╪Ñ╪¼┘à╪º┘ä┘è ╪º┘ä╪Ñ┘è╪¼╪º╪▒ ╪º┘ä╪┤┘ç╪▒┘è: ${totalRent.toLocaleString("ar-SA")} ╪▒┘è╪º┘ä</div>
+            <div>╪Ñ╪¼┘à╪º┘ä┘è ╪º┘ä┘à╪»┘ü┘ê╪╣╪º╪¬: ${totalPaid.toLocaleString("ar-SA")} ╪▒┘è╪º┘ä</div>
           </div>
           <table>
             <thead>
               <tr>
-                <th>رقم الشقة</th>
-                <th>النوع</th>
-                <th>الحالة</th>
-                <th>الإيجار الشهري</th>
-                <th>اسم المستأجر / الجهة</th>
-                <th>الجوال</th>
-                <th>رقم الهوية</th>
-                <th>الدور</th>
-                <th>المواقف</th>
-                <th>عداد الكهرباء</th>
-                <th>عداد المياه</th>
-                <th>حالة الفرش</th>
-                <th>رقم العقد</th>
-                <th>بداية العقد</th>
-                <th>نهاية العقد</th>
-                <th>مدة العقد</th>
-                <th>التأمين</th>
-                <th>ملاحظات التأمين</th>
-                <th>عدد الدفعات</th>
-                <th>إجمالي المدفوع</th>
+                <th>╪▒┘é┘à ╪º┘ä╪┤┘é╪⌐</th>
+                <th>╪º┘ä┘å┘ê╪╣</th>
+                <th>╪º┘ä╪¡╪º┘ä╪⌐</th>
+                <th>╪º┘ä╪Ñ┘è╪¼╪º╪▒ ╪º┘ä╪┤┘ç╪▒┘è</th>
+                <th>╪º╪│┘à ╪º┘ä┘à╪│╪¬╪ú╪¼╪▒ / ╪º┘ä╪¼┘ç╪⌐</th>
+                <th>╪º┘ä╪¼┘ê╪º┘ä</th>
+                <th>╪▒┘é┘à ╪º┘ä┘ç┘ê┘è╪⌐</th>
+                <th>╪º┘ä╪»┘ê╪▒</th>
+                <th>╪º┘ä┘à┘ê╪º┘é┘ü</th>
+                <th>╪╣╪»╪º╪» ╪º┘ä┘â┘ç╪▒╪¿╪º╪í</th>
+                <th>╪╣╪»╪º╪» ╪º┘ä┘à┘è╪º┘ç</th>
+                <th>╪¡╪º┘ä╪⌐ ╪º┘ä┘ü╪▒╪┤</th>
+                <th>╪▒┘é┘à ╪º┘ä╪╣┘é╪»</th>
+                <th>╪¿╪»╪º┘è╪⌐ ╪º┘ä╪╣┘é╪»</th>
+                <th>┘å┘ç╪º┘è╪⌐ ╪º┘ä╪╣┘é╪»</th>
+                <th>┘à╪»╪⌐ ╪º┘ä╪╣┘é╪»</th>
+                <th>╪º┘ä╪¬╪ú┘à┘è┘å</th>
+                <th>┘à┘ä╪º╪¡╪╕╪º╪¬ ╪º┘ä╪¬╪ú┘à┘è┘å</th>
+                <th>╪╣╪»╪» ╪º┘ä╪»┘ü╪╣╪º╪¬</th>
+                <th>╪Ñ╪¼┘à╪º┘ä┘è ╪º┘ä┘à╪»┘ü┘ê╪╣</th>
               </tr>
             </thead>
             <tbody>${bodyRows}</tbody>
@@ -4477,7 +4515,7 @@ export default function ApartmentMap() {
   const exportApartmentReportExcel = () => {
     const report = getApartmentReport();
     if (!report.data.length) {
-      window.alert("لا توجد بيانات لتصديرها.");
+      window.alert("┘ä╪º ╪¬┘ê╪¼╪» ╪¿┘è╪º┘å╪º╪¬ ┘ä╪¬╪╡╪»┘è╪▒┘ç╪º.");
       return;
     }
 
@@ -4488,10 +4526,10 @@ export default function ApartmentMap() {
             <td>${apartment.number}</td>
             <td>${escapeReportHtml(getApartmentType(apartment))}</td>
             <td>${escapeReportHtml(
-              apartment.status === "شاغرة" ? "فارغة" : apartment.status
+              apartment.status === "╪┤╪º╪║╪▒╪⌐" ? "┘ü╪º╪▒╪║╪⌐" : apartment.status
             )}</td>
             <td>${getApartmentRent(apartment).toLocaleString("en-US")}</td>
-            <td>${escapeReportHtml(apartment.tenant || "غير مضاف")}</td>
+            <td>${escapeReportHtml(apartment.tenant || "╪║┘è╪▒ ┘à╪╢╪º┘ü")}</td>
           </tr>
         `
       )
@@ -4515,11 +4553,11 @@ export default function ApartmentMap() {
           <table>
             <thead>
               <tr>
-                <th>رقم الشقة</th>
-                <th>نوع الشقة</th>
-                <th>الحالة</th>
-                <th>الإيجار الشهري</th>
-                <th>المستأجر / الجهة</th>
+                <th>╪▒┘é┘à ╪º┘ä╪┤┘é╪⌐</th>
+                <th>┘å┘ê╪╣ ╪º┘ä╪┤┘é╪⌐</th>
+                <th>╪º┘ä╪¡╪º┘ä╪⌐</th>
+                <th>╪º┘ä╪Ñ┘è╪¼╪º╪▒ ╪º┘ä╪┤┘ç╪▒┘è</th>
+                <th>╪º┘ä┘à╪│╪¬╪ú╪¼╪▒ / ╪º┘ä╪¼┘ç╪⌐</th>
               </tr>
             </thead>
             <tbody>${rows}</tbody>
@@ -4544,7 +4582,7 @@ export default function ApartmentMap() {
   const printApartmentReport = () => {
     const report = getApartmentReport();
     if (!report.data.length) {
-      window.alert("لا توجد بيانات للطباعة.");
+      window.alert("┘ä╪º ╪¬┘ê╪¼╪» ╪¿┘è╪º┘å╪º╪¬ ┘ä┘ä╪╖╪¿╪º╪╣╪⌐.");
       return;
     }
 
@@ -4555,10 +4593,10 @@ export default function ApartmentMap() {
             <td>${apartment.number}</td>
             <td>${escapeReportHtml(getApartmentType(apartment))}</td>
             <td>${escapeReportHtml(
-              apartment.status === "شاغرة" ? "فارغة" : apartment.status
+              apartment.status === "╪┤╪º╪║╪▒╪⌐" ? "┘ü╪º╪▒╪║╪⌐" : apartment.status
             )}</td>
-            <td>${getApartmentRent(apartment).toLocaleString("en-US")} ريال</td>
-            <td>${escapeReportHtml(apartment.tenant || "غير مضاف")}</td>
+            <td>${getApartmentRent(apartment).toLocaleString("en-US")} ╪▒┘è╪º┘ä</td>
+            <td>${escapeReportHtml(apartment.tenant || "╪║┘è╪▒ ┘à╪╢╪º┘ü")}</td>
           </tr>
         `
       )
@@ -4566,7 +4604,7 @@ export default function ApartmentMap() {
 
     const printWindow = window.open("", "_blank", "width=1100,height=800");
     if (!printWindow) {
-      window.alert("تعذر فتح نافذة الطباعة. اسمح بالنوافذ المنبثقة ثم حاول مرة أخرى.");
+      window.alert("╪¬╪╣╪░╪▒ ┘ü╪¬╪¡ ┘å╪º┘ü╪░╪⌐ ╪º┘ä╪╖╪¿╪º╪╣╪⌐. ╪º╪│┘à╪¡ ╪¿╪º┘ä┘å┘ê╪º┘ü╪░ ╪º┘ä┘à┘å╪¿╪½┘é╪⌐ ╪½┘à ╪¡╪º┘ê┘ä ┘à╪▒╪⌐ ╪ú╪«╪▒┘ë.");
       return;
     }
 
@@ -4619,20 +4657,20 @@ export default function ApartmentMap() {
           <h1>${escapeReportHtml(report.title)}</h1>
           <p>${escapeReportHtml(report.subtitle)}</p>
           <div class="summary">
-            <div>عدد الشقق: ${report.data.length}</div>
-            <div>الإيجار الشهري: ${report.data
+            <div>╪╣╪»╪» ╪º┘ä╪┤┘é┘é: ${report.data.length}</div>
+            <div>╪º┘ä╪Ñ┘è╪¼╪º╪▒ ╪º┘ä╪┤┘ç╪▒┘è: ${report.data
               .reduce((sum, apartment) => sum + getApartmentRent(apartment), 0)
-              .toLocaleString("en-US")} ريال</div>
-            <div>تاريخ التقرير: ${new Date().toLocaleDateString("ar-SA")}</div>
+              .toLocaleString("en-US")} ╪▒┘è╪º┘ä</div>
+            <div>╪¬╪º╪▒┘è╪« ╪º┘ä╪¬┘é╪▒┘è╪▒: ${new Date().toLocaleDateString("ar-SA")}</div>
           </div>
           <table>
             <thead>
               <tr>
-                <th>رقم الشقة</th>
-                <th>نوع الشقة</th>
-                <th>الحالة</th>
-                <th>الإيجار الشهري</th>
-                <th>المستأجر / الجهة</th>
+                <th>╪▒┘é┘à ╪º┘ä╪┤┘é╪⌐</th>
+                <th>┘å┘ê╪╣ ╪º┘ä╪┤┘é╪⌐</th>
+                <th>╪º┘ä╪¡╪º┘ä╪⌐</th>
+                <th>╪º┘ä╪Ñ┘è╪¼╪º╪▒ ╪º┘ä╪┤┘ç╪▒┘è</th>
+                <th>╪º┘ä┘à╪│╪¬╪ú╪¼╪▒ / ╪º┘ä╪¼┘ç╪⌐</th>
               </tr>
             </thead>
             <tbody>${rows}</tbody>
@@ -4659,58 +4697,58 @@ export default function ApartmentMap() {
     window.location.href = "/buildings/tenant-details";
   };
 
-  // ترتيب الأدوار بشكل فعلي: الأول ثم الثاني ثم الثالث ثم الرابع...
-  // يدعم أيضًا القيم المكتوبة بالعربية مثل "الأول" و"الدور الأول"،
-  // والأرقام العربية/الإنجليزية، حتى لا يعتمد الترتيب على النص الأبجدي.
+  // ╪¬╪▒╪¬┘è╪¿ ╪º┘ä╪ú╪»┘ê╪º╪▒ ╪¿╪┤┘â┘ä ┘ü╪╣┘ä┘è: ╪º┘ä╪ú┘ê┘ä ╪½┘à ╪º┘ä╪½╪º┘å┘è ╪½┘à ╪º┘ä╪½╪º┘ä╪½ ╪½┘à ╪º┘ä╪▒╪º╪¿╪╣...
+  // ┘è╪»╪╣┘à ╪ú┘è╪╢┘ï╪º ╪º┘ä┘é┘è┘à ╪º┘ä┘à┘â╪¬┘ê╪¿╪⌐ ╪¿╪º┘ä╪╣╪▒╪¿┘è╪⌐ ┘à╪½┘ä "╪º┘ä╪ú┘ê┘ä" ┘ê"╪º┘ä╪»┘ê╪▒ ╪º┘ä╪ú┘ê┘ä"╪î
+  // ┘ê╪º┘ä╪ú╪▒┘é╪º┘à ╪º┘ä╪╣╪▒╪¿┘è╪⌐/╪º┘ä╪Ñ┘å╪¼┘ä┘è╪▓┘è╪⌐╪î ╪¡╪¬┘ë ┘ä╪º ┘è╪╣╪¬┘à╪» ╪º┘ä╪¬╪▒╪¬┘è╪¿ ╪╣┘ä┘ë ╪º┘ä┘å╪╡ ╪º┘ä╪ú╪¿╪¼╪»┘è.
   const getFloorSortValue = (value: string) => {
     const normalized = value
       .trim()
-      .replace(/^(الدور|الطابق|floor)\s*/i, "")
-      .replace(/ى/g, "ي")
+      .replace(/^(╪º┘ä╪»┘ê╪▒|╪º┘ä╪╖╪º╪¿┘é|floor)\s*/i, "")
+      .replace(/┘ë/g, "┘è")
       .replace(/\s+/g, " ");
 
     const arabicOrdinalMap: Record<string, number> = {
-      "الأرضي": 0,
-      "ارضي": 0,
-      "الأول": 1,
-      "الاول": 1,
-      "اول": 1,
-      "الثاني": 2,
-      "ثاني": 2,
-      "الثالث": 3,
-      "ثالث": 3,
-      "الرابع": 4,
-      "رابع": 4,
-      "الخامس": 5,
-      "خامس": 5,
-      "السادس": 6,
-      "سادس": 6,
-      "السابع": 7,
-      "سابع": 7,
-      "الثامن": 8,
-      "ثامن": 8,
-      "التاسع": 9,
-      "تاسع": 9,
-      "العاشر": 10,
-      "عاشر": 10,
-      "الحادي عشر": 11,
-      "الثاني عشر": 12,
-      "الثالث عشر": 13,
-      "الرابع عشر": 14,
-      "الخامس عشر": 15,
-      "السادس عشر": 16,
-      "السابع عشر": 17,
-      "الثامن عشر": 18,
-      "التاسع عشر": 19,
-      "العشرون": 20,
+      "╪º┘ä╪ú╪▒╪╢┘è": 0,
+      "╪º╪▒╪╢┘è": 0,
+      "╪º┘ä╪ú┘ê┘ä": 1,
+      "╪º┘ä╪º┘ê┘ä": 1,
+      "╪º┘ê┘ä": 1,
+      "╪º┘ä╪½╪º┘å┘è": 2,
+      "╪½╪º┘å┘è": 2,
+      "╪º┘ä╪½╪º┘ä╪½": 3,
+      "╪½╪º┘ä╪½": 3,
+      "╪º┘ä╪▒╪º╪¿╪╣": 4,
+      "╪▒╪º╪¿╪╣": 4,
+      "╪º┘ä╪«╪º┘à╪│": 5,
+      "╪«╪º┘à╪│": 5,
+      "╪º┘ä╪│╪º╪»╪│": 6,
+      "╪│╪º╪»╪│": 6,
+      "╪º┘ä╪│╪º╪¿╪╣": 7,
+      "╪│╪º╪¿╪╣": 7,
+      "╪º┘ä╪½╪º┘à┘å": 8,
+      "╪½╪º┘à┘å": 8,
+      "╪º┘ä╪¬╪º╪│╪╣": 9,
+      "╪¬╪º╪│╪╣": 9,
+      "╪º┘ä╪╣╪º╪┤╪▒": 10,
+      "╪╣╪º╪┤╪▒": 10,
+      "╪º┘ä╪¡╪º╪»┘è ╪╣╪┤╪▒": 11,
+      "╪º┘ä╪½╪º┘å┘è ╪╣╪┤╪▒": 12,
+      "╪º┘ä╪½╪º┘ä╪½ ╪╣╪┤╪▒": 13,
+      "╪º┘ä╪▒╪º╪¿╪╣ ╪╣╪┤╪▒": 14,
+      "╪º┘ä╪«╪º┘à╪│ ╪╣╪┤╪▒": 15,
+      "╪º┘ä╪│╪º╪»╪│ ╪╣╪┤╪▒": 16,
+      "╪º┘ä╪│╪º╪¿╪╣ ╪╣╪┤╪▒": 17,
+      "╪º┘ä╪½╪º┘à┘å ╪╣╪┤╪▒": 18,
+      "╪º┘ä╪¬╪º╪│╪╣ ╪╣╪┤╪▒": 19,
+      "╪º┘ä╪╣╪┤╪▒┘ê┘å": 20,
     };
 
     if (Object.prototype.hasOwnProperty.call(arabicOrdinalMap, normalized)) {
       return arabicOrdinalMap[normalized];
     }
 
-    const arabicDigits = normalized.replace(/[٠-٩]/g, (digit) =>
-      String("٠١٢٣٤٥٦٧٨٩".indexOf(digit))
+    const arabicDigits = normalized.replace(/[┘á-┘⌐]/g, (digit) =>
+      String("┘á┘í┘ó┘ú┘ñ┘Ñ┘ª┘º┘¿┘⌐".indexOf(digit))
     );
     const numericValue = Number(arabicDigits);
 
@@ -4752,7 +4790,7 @@ export default function ApartmentMap() {
     mapFilteredApartments
       .filter((apartment) => {
         const apartmentFloor = getApartmentExtraInfo(apartment.number).floor.trim();
-        return floor === "غير محدد" ? !apartmentFloor : apartmentFloor === floor;
+        return floor === "╪║┘è╪▒ ┘à╪¡╪»╪»" ? !apartmentFloor : apartmentFloor === floor;
       })
       .sort((a, b) =>
         String(a.number).localeCompare(String(b.number), "ar", { numeric: true })
@@ -4763,7 +4801,7 @@ export default function ApartmentMap() {
     ...(mapFilteredApartments.some(
       (apartment) => !getApartmentExtraInfo(apartment.number).floor.trim()
     )
-      ? ["غير محدد"]
+      ? ["╪║┘è╪▒ ┘à╪¡╪»╪»"]
       : []),
   ];
 
@@ -4771,7 +4809,7 @@ export default function ApartmentMap() {
     <>
       <PermissionDeniedModal
         open={Boolean(permissionMessage)}
-        message={permissionMessage ?? "عذرًا، غير مسموح للمستخدم الحالي بهذا الإجراء."}
+        message={permissionMessage ?? "╪╣╪░╪▒┘ï╪º╪î ╪║┘è╪▒ ┘à╪│┘à┘ê╪¡ ┘ä┘ä┘à╪│╪¬╪«╪»┘à ╪º┘ä╪¡╪º┘ä┘è ╪¿┘ç╪░╪º ╪º┘ä╪Ñ╪¼╪▒╪º╪í."}
         redirectTo={!canViewApartments ? "/home" : undefined}
         onClose={() => setPermissionMessage(null)}
       />
@@ -4800,10 +4838,10 @@ export default function ApartmentMap() {
               <Building2 size={34} className="text-[#f6c84a]" />
             </div>
             <h1 className="text-3xl font-black tracking-tight text-[#f6c84a] sm:text-4xl lg:text-5xl">
-              خريطة الشقق
+              ╪«╪▒┘è╪╖╪⌐ ╪º┘ä╪┤┘é┘é
             </h1>
             <p className="text-sm font-semibold text-cyan-100/65 sm:text-base">
-              إدارة الشقق وجميع بياناتها وتوزيعها حسب الأدوار
+              ╪Ñ╪»╪º╪▒╪⌐ ╪º┘ä╪┤┘é┘é ┘ê╪¼┘à┘è╪╣ ╪¿┘è╪º┘å╪º╪¬┘ç╪º ┘ê╪¬┘ê╪▓┘è╪╣┘ç╪º ╪¡╪│╪¿ ╪º┘ä╪ú╪»┘ê╪º╪▒
             </p>
             <button
               type="button"
@@ -4813,7 +4851,7 @@ export default function ApartmentMap() {
               }}
               className="absolute right-0 top-0 hidden items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm font-black text-gray-300 transition hover:border-[#f6c84a]/40 hover:bg-[#f6c84a]/10 hover:text-[#f6c84a] sm:flex"
             >
-              العودة لتفاصيل العمارة <ArrowUpRight size={17} />
+              ╪º┘ä╪╣┘ê╪»╪⌐ ┘ä╪¬┘ü╪º╪╡┘è┘ä ╪º┘ä╪╣┘à╪º╪▒╪⌐ <ArrowUpRight size={17} />
             </button>
           </div>
         </div>
@@ -4821,11 +4859,11 @@ export default function ApartmentMap() {
         {/* STAT CARDS */}
         <div className="relative grid grid-cols-2 gap-3 bg-[#0a3028]/35 p-4 sm:grid-cols-3 lg:grid-cols-5 lg:p-6">
           {([
-            { label: "إجمالي الشقق", value: totalApartments, sub: "وحدة", valueClass: "text-white", borderClass: "border-blue-300/20", bgClass: "bg-blue-400/10", Icon: Building2 },
-            { label: "الشقق المؤجرة", value: rentedApartments, sub: `نسبة الإشغال ${occupancyRate}%`, valueClass: "text-emerald-300", borderClass: "border-emerald-300/20", bgClass: "bg-emerald-400/10", Icon: CheckCircle2 },
-            { label: "الشقق الشاغرة", value: vacantApartments, sub: "متاحة للتأجير", valueClass: "text-red-300", borderClass: "border-red-300/20", bgClass: "bg-red-400/10", Icon: Home },
-            { label: "تحت الصيانة", value: maintenanceApartments, sub: "قيد الصيانة", valueClass: "text-yellow-300", borderClass: "border-yellow-300/20", bgClass: "bg-yellow-400/10", Icon: AlertCircle },
-            { label: "محجوزة", value: reservedApartments, sub: "محجوزة للمستأجرين", valueClass: "text-blue-300", borderClass: "border-blue-300/20", bgClass: "bg-blue-400/10", Icon: CalendarDays },
+            { label: "╪Ñ╪¼┘à╪º┘ä┘è ╪º┘ä╪┤┘é┘é", value: totalApartments, sub: "┘ê╪¡╪»╪⌐", valueClass: "text-white", borderClass: "border-blue-300/20", bgClass: "bg-blue-400/10", Icon: Building2 },
+            { label: "╪º┘ä╪┤┘é┘é ╪º┘ä┘à╪ñ╪¼╪▒╪⌐", value: rentedApartments, sub: `┘å╪│╪¿╪⌐ ╪º┘ä╪Ñ╪┤╪║╪º┘ä ${occupancyRate}%`, valueClass: "text-emerald-300", borderClass: "border-emerald-300/20", bgClass: "bg-emerald-400/10", Icon: CheckCircle2 },
+            { label: "╪º┘ä╪┤┘é┘é ╪º┘ä╪┤╪º╪║╪▒╪⌐", value: vacantApartments, sub: "┘à╪¬╪º╪¡╪⌐ ┘ä┘ä╪¬╪ú╪¼┘è╪▒", valueClass: "text-red-300", borderClass: "border-red-300/20", bgClass: "bg-red-400/10", Icon: Home },
+            { label: "╪¬╪¡╪¬ ╪º┘ä╪╡┘è╪º┘å╪⌐", value: maintenanceApartments, sub: "┘é┘è╪» ╪º┘ä╪╡┘è╪º┘å╪⌐", valueClass: "text-yellow-300", borderClass: "border-yellow-300/20", bgClass: "bg-yellow-400/10", Icon: AlertCircle },
+            { label: "┘à╪¡╪¼┘ê╪▓╪⌐", value: reservedApartments, sub: "┘à╪¡╪¼┘ê╪▓╪⌐ ┘ä┘ä┘à╪│╪¬╪ú╪¼╪▒┘è┘å", valueClass: "text-blue-300", borderClass: "border-blue-300/20", bgClass: "bg-blue-400/10", Icon: CalendarDays },
           ] as const).map(({ label, value, sub, valueClass, borderClass, bgClass, Icon }) => (
             <div key={label} className={`group relative overflow-hidden rounded-[22px] border ${borderClass} bg-white/[0.045] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_12px_35px_rgba(0,0,0,0.14)] backdrop-blur-xl transition hover:-translate-y-0.5`}>
               <div className={`absolute -left-8 -top-8 h-24 w-24 rounded-full ${bgClass} blur-2xl`} />
@@ -4850,7 +4888,7 @@ export default function ApartmentMap() {
             <input
               value={mapApartmentSearch}
               onChange={(event) => setMapApartmentSearch(event.target.value)}
-              placeholder="ابحث عن رقم الشقة..."
+              placeholder="╪º╪¿╪¡╪½ ╪╣┘å ╪▒┘é┘à ╪º┘ä╪┤┘é╪⌐..."
               className="h-[74px] w-full rounded-[22px] border border-white/10 bg-white/[0.045] pl-4 pr-12 text-base font-bold text-white outline-none backdrop-blur-xl transition placeholder:text-gray-500 focus:border-cyan-300/35 focus:bg-white/[0.07]"
             />
           </div>
@@ -4859,41 +4897,21 @@ export default function ApartmentMap() {
             <button type="button" onClick={addApartment} className="group relative min-h-[74px] overflow-hidden rounded-[22px] border border-emerald-300/35 bg-gradient-to-br from-emerald-400/20 to-white/[0.035] px-3 py-3 shadow-[0_12px_35px_rgba(16,185,129,0.12)] backdrop-blur-xl transition hover:-translate-y-1 hover:border-emerald-300/65">
               <div className="flex h-full items-center justify-center gap-3">
                 <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-400/15 text-emerald-300"><Plus size={28} /></div>
-                <div className="text-right"><div className="text-base font-black text-white sm:text-lg">إضافة شقة</div><div className="text-[10px] font-semibold text-emerald-100/60 sm:text-xs">إضافة وحدة جديدة</div></div>
+                <div className="text-right"><div className="text-base font-black text-white sm:text-lg">╪Ñ╪╢╪º┘ü╪⌐ ╪┤┘é╪⌐</div><div className="text-[10px] font-semibold text-emerald-100/60 sm:text-xs">╪Ñ╪╢╪º┘ü╪⌐ ┘ê╪¡╪»╪⌐ ╪¼╪»┘è╪»╪⌐</div></div>
               </div>
             </button>
 
             <button type="button" onClick={openDeleteApartmentModal} className="group relative min-h-[74px] overflow-hidden rounded-[22px] border border-red-300/35 bg-gradient-to-br from-red-400/20 to-white/[0.035] px-3 py-3 shadow-[0_12px_35px_rgba(239,68,68,0.12)] backdrop-blur-xl transition hover:-translate-y-1 hover:border-red-300/65">
               <div className="flex h-full items-center justify-center gap-3">
                 <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-red-400/15 text-red-300"><Trash2 size={27} /></div>
-                <div className="text-right"><div className="text-base font-black text-white sm:text-lg">حذف شقة</div><div className="text-[10px] font-semibold text-red-100/60 sm:text-xs">إدارة وحذف الوحدات</div></div>
+                <div className="text-right"><div className="text-base font-black text-white sm:text-lg">╪¡╪░┘ü ╪┤┘é╪⌐</div><div className="text-[10px] font-semibold text-red-100/60 sm:text-xs">╪Ñ╪»╪º╪▒╪⌐ ┘ê╪¡╪░┘ü ╪º┘ä┘ê╪¡╪»╪º╪¬</div></div>
               </div>
             </button>
 
-            <button
-              type="button"
-              onClick={async () => {
-                // احفظ التعديلات الحالية قبل إعادة تحميل البيانات حتى لا يستبدل التحديث
-                // تغييرات لم يكتمل حفظها بعد بالنسخة الأقدم الموجودة في قاعدة البيانات.
-                if (!canEditApartments) {
-                  showPermissionDenied("لا يمكن تحديث الخريطة قبل توفر صلاحية تعديل الشقق.");
-                  return;
-                }
-
-                try {
-                  await saveBuildingStateToSupabase(apartments);
-                  setBuildingRefreshVersion((value) => value + 1);
-                } catch (error) {
-                  console.error("تعذر حفظ تعديلات الشقق قبل التحديث:", error);
-                  window.alert(
-                    "لم يتم تحديث الخريطة لأن حفظ التعديلات لم ينجح. تحقق من الاتصال والصلاحيات ثم حاول مرة أخرى."
-                  );
-                }
-              }}
-              className="group relative min-h-[74px] overflow-hidden rounded-[22px] border border-blue-300/35 bg-gradient-to-br from-blue-400/20 to-white/[0.035] px-3 py-3 shadow-[0_12px_35px_rgba(59,130,246,0.12)] backdrop-blur-xl transition hover:-translate-y-1 hover:border-blue-300/65">
+            <button type="button" onClick={() => setBuildingRefreshVersion((value) => value + 1)} className="group relative min-h-[74px] overflow-hidden rounded-[22px] border border-blue-300/35 bg-gradient-to-br from-blue-400/20 to-white/[0.035] px-3 py-3 shadow-[0_12px_35px_rgba(59,130,246,0.12)] backdrop-blur-xl transition hover:-translate-y-1 hover:border-blue-300/65">
               <div className="flex h-full items-center justify-center gap-3">
                 <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-400/15 text-blue-300"><RefreshCw size={27} /></div>
-                <div className="text-right"><div className="text-base font-black text-white sm:text-lg">تحديث</div><div className="text-[10px] font-semibold text-blue-100/60 sm:text-xs">إعادة تحميل البيانات</div></div>
+                <div className="text-right"><div className="text-base font-black text-white sm:text-lg">╪¬╪¡╪»┘è╪½</div><div className="text-[10px] font-semibold text-blue-100/60 sm:text-xs">╪Ñ╪╣╪º╪»╪⌐ ╪¬╪¡┘à┘è┘ä ╪º┘ä╪¿┘è╪º┘å╪º╪¬</div></div>
               </div>
             </button>
           </div>
@@ -4902,13 +4920,13 @@ export default function ApartmentMap() {
         {/* FLOOR MAP */}
         <div className="relative mx-4 mb-5 overflow-hidden rounded-[26px] border border-[#79b99d]/15 bg-[#0d3a30]/85 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-xl lg:mx-6">
           <div className="border-b border-[#79b99d]/15 bg-[#0b342b]/55 px-5 py-4 text-center">
-            <div className="text-xl font-black text-white sm:text-2xl">توزيع الشقق حسب الأدوار</div>
-            <div className="mt-1 text-xs font-semibold text-gray-500">كل دور في صف مستقل — اضغط على الشقة لعرض تفاصيلها</div>
+            <div className="text-xl font-black text-white sm:text-2xl">╪¬┘ê╪▓┘è╪╣ ╪º┘ä╪┤┘é┘é ╪¡╪│╪¿ ╪º┘ä╪ú╪»┘ê╪º╪▒</div>
+            <div className="mt-1 text-xs font-semibold text-gray-500">┘â┘ä ╪»┘ê╪▒ ┘ü┘è ╪╡┘ü ┘à╪│╪¬┘é┘ä ΓÇö ╪º╪╢╪║╪╖ ╪╣┘ä┘ë ╪º┘ä╪┤┘é╪⌐ ┘ä╪╣╪▒╪╢ ╪¬┘ü╪º╪╡┘è┘ä┘ç╪º</div>
           </div>
 
           <div className="space-y-3 bg-[#082f27]/45 p-3 sm:p-4">
             {orderedMapFloors.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-white/10 py-16 text-center text-gray-500">لا توجد شقق مطابقة للبحث.</div>
+              <div className="rounded-2xl border border-dashed border-white/10 py-16 text-center text-gray-500">┘ä╪º ╪¬┘ê╪¼╪» ╪┤┘é┘é ┘à╪╖╪º╪¿┘é╪⌐ ┘ä┘ä╪¿╪¡╪½.</div>
             ) : (
               orderedMapFloors.map((floor) => {
                 const floorApartments = apartmentsByMapFloor(floor);
@@ -4918,8 +4936,8 @@ export default function ApartmentMap() {
                     <div className="flex min-h-[82px] items-center gap-3 rounded-[18px] border border-blue-300/15 bg-gradient-to-br from-blue-400/10 to-white/[0.025] px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
                       <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-blue-300/15 bg-blue-400/10 text-blue-200"><Building2 size={25} /></div>
                       <div className="min-w-0">
-                        <div className="text-base font-black text-white">{floor === "غير محدد" ? "غير محدد" : `الدور ${floor}`}</div>
-                        <div className="mt-1 text-xs font-bold text-gray-500">{floorApartments.length} شقة</div>
+                        <div className="text-base font-black text-white">{floor === "╪║┘è╪▒ ┘à╪¡╪»╪»" ? "╪║┘è╪▒ ┘à╪¡╪»╪»" : `╪º┘ä╪»┘ê╪▒ ${floor}`}</div>
+                        <div className="mt-1 text-xs font-bold text-gray-500">{floorApartments.length} ╪┤┘é╪⌐</div>
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 md:grid-cols-6 xl:grid-cols-11">
@@ -4940,12 +4958,12 @@ export default function ApartmentMap() {
         {/* LEGEND */}
         <div className="relative mx-4 mb-5 grid grid-cols-2 gap-2 rounded-[22px] border border-[#79b99d]/15 bg-[#0b342b]/80 p-3 text-xs font-bold backdrop-blur-xl sm:grid-cols-3 lg:grid-cols-6 lg:mx-6">
           {[
-            ["bg-green-500", "شقة مؤجرة", "يوجد مستأجر"],
-            ["bg-red-500", "شقة شاغرة", "لا يوجد مستأجر"],
-            ["bg-yellow-400", "تحت الصيانة", "قيد الصيانة"],
-            ["bg-blue-500", "محجوزة", "محجوزة لمستأجر"],
-            ["bg-emerald-500", "مؤجرة للشركة", "يوجد مستأجر"],
-            ["bg-gray-500", "غير محدد", "لم يتم تحديد الحالة"],
+            ["bg-green-500", "╪┤┘é╪⌐ ┘à╪ñ╪¼╪▒╪⌐", "┘è┘ê╪¼╪» ┘à╪│╪¬╪ú╪¼╪▒"],
+            ["bg-red-500", "╪┤┘é╪⌐ ╪┤╪º╪║╪▒╪⌐", "┘ä╪º ┘è┘ê╪¼╪» ┘à╪│╪¬╪ú╪¼╪▒"],
+            ["bg-yellow-400", "╪¬╪¡╪¬ ╪º┘ä╪╡┘è╪º┘å╪⌐", "┘é┘è╪» ╪º┘ä╪╡┘è╪º┘å╪⌐"],
+            ["bg-blue-500", "┘à╪¡╪¼┘ê╪▓╪⌐", "┘à╪¡╪¼┘ê╪▓╪⌐ ┘ä┘à╪│╪¬╪ú╪¼╪▒"],
+            ["bg-emerald-500", "┘à╪ñ╪¼╪▒╪⌐ ┘ä┘ä╪┤╪▒┘â╪⌐", "┘è┘ê╪¼╪» ┘à╪│╪¬╪ú╪¼╪▒"],
+            ["bg-gray-500", "╪║┘è╪▒ ┘à╪¡╪»╪»", "┘ä┘à ┘è╪¬┘à ╪¬╪¡╪»┘è╪» ╪º┘ä╪¡╪º┘ä╪⌐"],
           ].map(([dot, title, sub]) => (
             <div key={title} className="flex items-center gap-3 rounded-2xl border border-white/5 bg-white/[0.025] px-3 py-3">
               <span className={`h-4 w-4 shrink-0 rounded-full ${dot}`} />
@@ -4963,16 +4981,16 @@ export default function ApartmentMap() {
             <div className="shrink-0 border-b border-white/10 bg-gradient-to-r from-[#081827] via-[#102b42] to-[#081827] px-5 py-5 sm:px-7">
               <div className="flex items-center justify-between gap-4">
                 <button type="button" onClick={closeDeleteApartmentModal} className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-gray-400 transition hover:border-red-300/40 hover:bg-red-500/10 hover:text-red-300"><X size={23} /></button>
-                <div className="text-center"><div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-2xl border border-red-300/20 bg-red-400/10 text-red-300"><Trash2 size={24} /></div><h2 className="text-xl font-black text-white sm:text-2xl">حذف الشقق</h2><p className="mt-1 text-xs font-semibold text-gray-500">حدد الشقق التي تريد حذفها من هذه العمارة</p></div>
-                <div className="min-w-[80px] text-left text-sm font-black text-red-300">{selectedDeleteApartments.length} محددة</div>
+                <div className="text-center"><div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-2xl border border-red-300/20 bg-red-400/10 text-red-300"><Trash2 size={24} /></div><h2 className="text-xl font-black text-white sm:text-2xl">╪¡╪░┘ü ╪º┘ä╪┤┘é┘é</h2><p className="mt-1 text-xs font-semibold text-gray-500">╪¡╪»╪» ╪º┘ä╪┤┘é┘é ╪º┘ä╪¬┘è ╪¬╪▒┘è╪» ╪¡╪░┘ü┘ç╪º ┘à┘å ┘ç╪░┘ç ╪º┘ä╪╣┘à╪º╪▒╪⌐</p></div>
+                <div className="min-w-[80px] text-left text-sm font-black text-red-300">{selectedDeleteApartments.length} ┘à╪¡╪»╪»╪⌐</div>
               </div>
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
               <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto_auto]">
-                <div className="relative"><Search size={19} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500" /><input value={deleteApartmentSearch} onChange={(event) => setDeleteApartmentSearch(event.target.value)} placeholder="ابحث عن رقم الشقة أو النوع..." className="h-12 w-full rounded-xl border border-white/10 bg-[#07182b] pl-4 pr-10 text-sm font-bold text-white outline-none focus:border-red-300/40" /></div>
-                <button type="button" onClick={toggleAllDeleteApartments} className="h-12 rounded-xl border border-white/10 bg-white/[0.04] px-5 text-sm font-black text-gray-300 transition hover:bg-white/[0.08]">{filteredDeleteApartments.length > 0 && filteredDeleteApartments.every((a) => selectedDeleteApartments.includes(a.number)) ? "إلغاء تحديد الكل" : "تحديد الكل"}</button>
-                <button type="button" onClick={() => setSelectedDeleteApartments([])} className="h-12 rounded-xl border border-white/10 bg-white/[0.04] px-5 text-sm font-black text-gray-300 transition hover:bg-white/[0.08]">إلغاء التحديد</button>
+                <div className="relative"><Search size={19} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500" /><input value={deleteApartmentSearch} onChange={(event) => setDeleteApartmentSearch(event.target.value)} placeholder="╪º╪¿╪¡╪½ ╪╣┘å ╪▒┘é┘à ╪º┘ä╪┤┘é╪⌐ ╪ú┘ê ╪º┘ä┘å┘ê╪╣..." className="h-12 w-full rounded-xl border border-white/10 bg-[#07182b] pl-4 pr-10 text-sm font-bold text-white outline-none focus:border-red-300/40" /></div>
+                <button type="button" onClick={toggleAllDeleteApartments} className="h-12 rounded-xl border border-white/10 bg-white/[0.04] px-5 text-sm font-black text-gray-300 transition hover:bg-white/[0.08]">{filteredDeleteApartments.length > 0 && filteredDeleteApartments.every((a) => selectedDeleteApartments.includes(a.number)) ? "╪Ñ┘ä╪║╪º╪í ╪¬╪¡╪»┘è╪» ╪º┘ä┘â┘ä" : "╪¬╪¡╪»┘è╪» ╪º┘ä┘â┘ä"}</button>
+                <button type="button" onClick={() => setSelectedDeleteApartments([])} className="h-12 rounded-xl border border-white/10 bg-white/[0.04] px-5 text-sm font-black text-gray-300 transition hover:bg-white/[0.08]">╪Ñ┘ä╪║╪º╪í ╪º┘ä╪¬╪¡╪»┘è╪»</button>
               </div>
 
               <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 lg:grid-cols-6">
@@ -4990,10 +5008,10 @@ export default function ApartmentMap() {
 
             <div className="shrink-0 border-t border-white/10 bg-[#061426] p-4 sm:p-5">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="text-sm font-bold text-gray-500">سيتم حذف {selectedDeleteApartments.length} شقة بعد التأكيد.</div>
+                <div className="text-sm font-bold text-gray-500">╪│┘è╪¬┘à ╪¡╪░┘ü {selectedDeleteApartments.length} ╪┤┘é╪⌐ ╪¿╪╣╪» ╪º┘ä╪¬╪ú┘â┘è╪».</div>
                 <div className="grid grid-cols-2 gap-3 sm:min-w-[340px]">
-                  <button type="button" onClick={closeDeleteApartmentModal} className="h-12 rounded-xl border border-white/10 bg-white/[0.04] text-sm font-black text-gray-300 transition hover:bg-white/[0.08]">إلغاء</button>
-                  <button type="button" onClick={deleteSelectedApartments} className="h-12 rounded-xl border border-red-300/35 bg-red-500/15 text-sm font-black text-red-300 transition hover:bg-red-500/25"><Trash2 size={17} className="mr-2 inline" />تأكيد الحذف</button>
+                  <button type="button" onClick={closeDeleteApartmentModal} className="h-12 rounded-xl border border-white/10 bg-white/[0.04] text-sm font-black text-gray-300 transition hover:bg-white/[0.08]">╪Ñ┘ä╪║╪º╪í</button>
+                  <button type="button" onClick={deleteSelectedApartments} className="h-12 rounded-xl border border-red-300/35 bg-red-500/15 text-sm font-black text-red-300 transition hover:bg-red-500/25"><Trash2 size={17} className="mr-2 inline" />╪¬╪ú┘â┘è╪» ╪º┘ä╪¡╪░┘ü</button>
                 </div>
               </div>
             </div>
@@ -5028,7 +5046,7 @@ export default function ApartmentMap() {
                 <button
                   type="button"
                   onClick={closeApartment}
-                  aria-label="إغلاق"
+                  aria-label="╪Ñ╪║┘ä╪º┘é"
                   className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-gray-400 transition hover:border-red-400/40 hover:bg-red-500/10 hover:text-red-400"
                 >
                   <X size={25} />
@@ -5036,10 +5054,10 @@ export default function ApartmentMap() {
 
                 <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
                   <h2 className="text-2xl font-bold text-[#f6c84a] lg:text-3xl">
-                    تفاصيل الشقة
+                    ╪¬┘ü╪º╪╡┘è┘ä ╪º┘ä╪┤┘é╪⌐
                   </h2>
                   <p className="mt-1 text-base font-semibold text-gray-300 lg:text-lg">
-                    عمارة سنتر
+                    ╪╣┘à╪º╪▒╪⌐ ╪│┘å╪¬╪▒
                   </p>
                 </div>
 
@@ -5049,7 +5067,7 @@ export default function ApartmentMap() {
                       TUMOUH STAR
                     </div>
                     <div className="text-sm font-semibold text-[#d89b18]">
-                      طموح ستار
+                      ╪╖┘à┘ê╪¡ ╪│╪¬╪º╪▒
                     </div>
                   </div>
                   <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[#f0ad18]/40 bg-[#f0ad18]/10 shadow-[0_0_25px_rgba(240,173,24,0.12)]">
@@ -5067,21 +5085,21 @@ export default function ApartmentMap() {
               <div className="relative min-h-[220px] overflow-hidden rounded-3xl border border-[#d89b18]/30 bg-[#0a1e33]">
                 <img
                   src="https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=1000&q=85"
-                  alt="صورة الشقة"
+                  alt="╪╡┘ê╪▒╪⌐ ╪º┘ä╪┤┘é╪⌐"
                   className="absolute inset-0 h-full w-full object-cover"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#020813]/95 via-[#061426]/35 to-transparent" />
                 <div className="absolute inset-x-0 bottom-0 p-5 text-right" dir="rtl">
                   <div className="flex items-center justify-between gap-3">
                     <div className="text-sm font-medium text-gray-300">
-                      شقة رقم
+                      ╪┤┘é╪⌐ ╪▒┘é┘à
                     </div>
 
                     {!isEditingApartmentNumber && (
                       <button
                         type="button"
                         onClick={startEditingApartmentNumber}
-                        title="تعديل رقم الشقة"
+                        title="╪¬╪╣╪»┘è┘ä ╪▒┘é┘à ╪º┘ä╪┤┘é╪⌐"
                         className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#f0ad18]/40 bg-[#f0ad18]/10 text-[#f6c84a] transition hover:border-[#f6c84a] hover:bg-[#f0ad18]/20"
                       >
                         <Edit3 size={17} />
@@ -5108,7 +5126,7 @@ export default function ApartmentMap() {
                           onClick={saveApartmentNumber}
                           className="rounded-xl bg-gradient-to-r from-[#c49a3a] to-[#f6d878] px-3 py-2 text-sm font-black text-[#16352b] transition hover:brightness-110"
                         >
-                          حفظ
+                          ╪¡┘ü╪╕
                         </button>
 
                         <button
@@ -5116,7 +5134,7 @@ export default function ApartmentMap() {
                           onClick={cancelEditingApartmentNumber}
                           className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-bold text-gray-200 transition hover:bg-white/10"
                         >
-                          إلغاء
+                          ╪Ñ┘ä╪║╪º╪í
                         </button>
                       </div>
                     </div>
@@ -5137,7 +5155,7 @@ export default function ApartmentMap() {
                   <div className="flex flex-1 flex-col justify-between rounded-2xl border border-[#2a5275] bg-white/[0.035] p-3 text-center backdrop-blur-xl transition hover:border-[#f0ad18]/50">
                     <div className="mb-2 flex flex-col items-center justify-center gap-1.5">
                       <span className="text-sm font-semibold text-gray-300">
-                        نوع الشقة
+                        ┘å┘ê╪╣ ╪º┘ä╪┤┘é╪⌐
                       </span>
                       <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-blue-400/20 bg-blue-400/10">
                         <Home size={19} className="text-blue-400" />
@@ -5154,18 +5172,18 @@ export default function ApartmentMap() {
                       }
                       className="mx-auto block w-full max-w-[230px] rounded-xl border border-white/10 bg-[#0b2039] px-3 py-2 text-center text-sm font-bold text-white outline-none transition focus:border-blue-400/60"
                     >
-                      <option value="غرفتين وصالة">
-                        غرفتين وصالة
+                      <option value="╪║╪▒┘ü╪¬┘è┘å ┘ê╪╡╪º┘ä╪⌐">
+                        ╪║╪▒┘ü╪¬┘è┘å ┘ê╪╡╪º┘ä╪⌐
                       </option>
-                      <option value="غرفة وصالة">
-                        غرفة وصالة
+                      <option value="╪║╪▒┘ü╪⌐ ┘ê╪╡╪º┘ä╪⌐">
+                        ╪║╪▒┘ü╪⌐ ┘ê╪╡╪º┘ä╪⌐
                       </option>
 
                       {customApartmentTypes
                         .filter(
                           (type) =>
-                            type !== "غرفتين وصالة" &&
-                            type !== "غرفة وصالة"
+                            type !== "╪║╪▒┘ü╪¬┘è┘å ┘ê╪╡╪º┘ä╪⌐" &&
+                            type !== "╪║╪▒┘ü╪⌐ ┘ê╪╡╪º┘ä╪⌐"
                         )
                         .map((type) => (
                           <option key={type} value={type}>
@@ -5174,7 +5192,7 @@ export default function ApartmentMap() {
                         ))}
 
                       <option value="__add_new__">
-                        + إضافة نوع جديد
+                        + ╪Ñ╪╢╪º┘ü╪⌐ ┘å┘ê╪╣ ╪¼╪»┘è╪»
                       </option>
                     </select>
 
@@ -5201,7 +5219,7 @@ export default function ApartmentMap() {
                             />
                           </div>
                           <span className="text-sm font-semibold text-gray-300">
-                            حالة الشقة
+                            ╪¡╪º┘ä╪⌐ ╪º┘ä╪┤┘é╪⌐
                           </span>
                         </div>
 
@@ -5215,11 +5233,11 @@ export default function ApartmentMap() {
                           }
                           className={`mx-auto mt-2 block w-full max-w-[230px] rounded-xl border bg-[#071a2d] px-3 py-2 text-center text-sm font-black outline-none transition ${statusCard.iconBorder} ${statusCard.valueClass}`}
                         >
-                          <option className="bg-[#071a2d] text-white" value="مؤجرة">مؤجرة</option>
-                          <option className="bg-[#071a2d] text-white" value="شاغرة">فارغة</option>
-                          <option className="bg-[#071a2d] text-white" value="تحت الصيانة">تحت الصيانة</option>
-                          <option className="bg-[#071a2d] text-white" value="محجوزة">محجوزة</option>
-                          <option className="bg-[#071a2d] text-white" value="مؤجرة للشركة">مؤجرة للشركة</option>
+                          <option className="bg-[#071a2d] text-white" value="┘à╪ñ╪¼╪▒╪⌐">┘à╪ñ╪¼╪▒╪⌐</option>
+                          <option className="bg-[#071a2d] text-white" value="╪┤╪º╪║╪▒╪⌐">┘ü╪º╪▒╪║╪⌐</option>
+                          <option className="bg-[#071a2d] text-white" value="╪¬╪¡╪¬ ╪º┘ä╪╡┘è╪º┘å╪⌐">╪¬╪¡╪¬ ╪º┘ä╪╡┘è╪º┘å╪⌐</option>
+                          <option className="bg-[#071a2d] text-white" value="┘à╪¡╪¼┘ê╪▓╪⌐">┘à╪¡╪¼┘ê╪▓╪⌐</option>
+                          <option className="bg-[#071a2d] text-white" value="┘à╪ñ╪¼╪▒╪⌐ ┘ä┘ä╪┤╪▒┘â╪⌐">┘à╪ñ╪¼╪▒╪⌐ ┘ä┘ä╪┤╪▒┘â╪⌐</option>
                           {customApartmentStatuses.map((status) => (
                             <option
                               key={status}
@@ -5233,7 +5251,7 @@ export default function ApartmentMap() {
                             className="bg-[#071a2d] text-[#f0ad18] font-black"
                             value="__add_new_status__"
                           >
-                            + إضافة حالة جديدة
+                            + ╪Ñ╪╢╪º┘ü╪⌐ ╪¡╪º┘ä╪⌐ ╪¼╪»┘è╪»╪⌐
                           </option>
                         </select>
                       </div>
@@ -5243,29 +5261,29 @@ export default function ApartmentMap() {
 
                 <div className="rounded-2xl border border-[#2a5275] bg-white/[0.035] p-5 text-center backdrop-blur-xl transition hover:border-[#f0ad18]/50">
                   <div className="mb-4 flex flex-col items-center justify-center gap-2">
-                    <span className="text-base font-semibold text-gray-300">قيمة الإيجار</span>
+                    <span className="text-base font-semibold text-gray-300">┘é┘è┘à╪⌐ ╪º┘ä╪Ñ┘è╪¼╪º╪▒</span>
                     <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-[#f0ad18]/20 bg-[#f0ad18]/10">
                       <Wallet size={23} className="text-[#f0ad18]" />
                     </div>
                   </div>
                   <div className="text-3xl font-black text-[#f6c84a]">{getApartmentRent(selectedApartment).toLocaleString("ar-SA")}</div>
-                  <div className="mt-2 text-sm text-gray-500">ريال / شهرياً</div>
+                  <div className="mt-2 text-sm text-gray-500">╪▒┘è╪º┘ä / ╪┤┘ç╪▒┘è╪º┘ï</div>
                 </div>
 
                 <div className="rounded-2xl border border-[#2a5275] bg-white/[0.035] p-5 text-center backdrop-blur-xl transition hover:border-[#f0ad18]/50">
                   <div className="mb-4 flex flex-col items-center justify-center gap-2">
-                    <span className="text-base font-semibold text-gray-300">تاريخ بداية العقد</span>
+                    <span className="text-base font-semibold text-gray-300">╪¬╪º╪▒┘è╪« ╪¿╪»╪º┘è╪⌐ ╪º┘ä╪╣┘é╪»</span>
                     <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-purple-400/20 bg-purple-400/10">
                       <CalendarDays size={23} className="text-purple-400" />
                     </div>
                   </div>
                   <div className="text-xl font-black text-white">{formatContractDate(getApartmentContractInfo(selectedApartment.number).startDate)}</div>
-                  <div className="mt-2 text-base font-semibold text-gray-400">منذ بداية العقد</div>
+                  <div className="mt-2 text-base font-semibold text-gray-400">┘à┘å╪░ ╪¿╪»╪º┘è╪⌐ ╪º┘ä╪╣┘é╪»</div>
                 </div>
 
                 <div className="rounded-2xl border border-[#2a5275] bg-white/[0.035] p-5 text-center backdrop-blur-xl transition hover:border-[#f0ad18]/50">
                   <div className="mb-4 flex flex-col items-center justify-center gap-2">
-                    <span className="text-base font-semibold text-gray-300">تاريخ نهاية العقد</span>
+                    <span className="text-base font-semibold text-gray-300">╪¬╪º╪▒┘è╪« ┘å┘ç╪º┘è╪⌐ ╪º┘ä╪╣┘é╪»</span>
                     <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-cyan-400/20 bg-cyan-400/10">
                       <CalendarDays size={23} className="text-cyan-400" />
                     </div>
@@ -5279,7 +5297,7 @@ export default function ApartmentMap() {
                     if (daysRemaining !== null && daysRemaining >= 46 && daysRemaining <= 90) {
                       return (
                         <div className="mt-2 text-base font-black text-yellow-400">
-                          متبقي {daysRemaining} يوم على انتهاء العقد
+                          ┘à╪¬╪¿┘é┘è {daysRemaining} ┘è┘ê┘à ╪╣┘ä┘ë ╪º┘å╪¬┘ç╪º╪í ╪º┘ä╪╣┘é╪»
                         </div>
                       );
                     }
@@ -5287,7 +5305,7 @@ export default function ApartmentMap() {
                     if (daysRemaining !== null && daysRemaining <= 45) {
                       return (
                         <div className="mt-2 text-base font-black text-red-400">
-                          متبقي {Math.max(0, daysRemaining)} يوم — يحتاج إلى تحديث
+                          ┘à╪¬╪¿┘é┘è {Math.max(0, daysRemaining)} ┘è┘ê┘à ΓÇö ┘è╪¡╪¬╪º╪¼ ╪Ñ┘ä┘ë ╪¬╪¡╪»┘è╪½
                         </div>
                       );
                     }
@@ -5305,49 +5323,49 @@ export default function ApartmentMap() {
             <div className="shrink-0 border-b border-white/10 bg-[#071a2d] p-3 lg:p-4" dir="rtl">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6">
 
-                {/* إضافة فاتورة أو مستحقات */}
+                {/* ╪Ñ╪╢╪º┘ü╪⌐ ┘ü╪º╪¬┘ê╪▒╪⌐ ╪ú┘ê ┘à╪│╪¬╪¡┘é╪º╪¬ */}
                 <button
                   type="button"
                   onClick={() => {
                     if (!selectedApartment) return;
-                    openChargeModal("charge", "فاتورة مياه", selectedApartment.number);
+                    openChargeModal("charge", "┘ü╪º╪¬┘ê╪▒╪⌐ ┘à┘è╪º┘ç", selectedApartment.number);
                   }}
                   className="rounded-2xl border border-cyan-400/40 bg-cyan-400/[0.06] p-5 text-right transition hover:border-cyan-400/60 hover:bg-cyan-400/[0.10]"
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <p className="text-base font-bold text-gray-100">إضافة فاتورة أو مستحقات</p>
-                      <p className="mt-1 text-sm text-gray-400">مياه، كهرباء أو مستحقات أخرى</p>
+                      <p className="text-base font-bold text-gray-100">╪Ñ╪╢╪º┘ü╪⌐ ┘ü╪º╪¬┘ê╪▒╪⌐ ╪ú┘ê ┘à╪│╪¬╪¡┘é╪º╪¬</p>
+                      <p className="mt-1 text-sm text-gray-400">┘à┘è╪º┘ç╪î ┘â┘ç╪▒╪¿╪º╪í ╪ú┘ê ┘à╪│╪¬╪¡┘é╪º╪¬ ╪ú╪«╪▒┘ë</p>
                     </div>
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-400 text-[#07182b]">
                       <Receipt size={21} />
                     </div>
                   </div>
-                  <div className="mt-4 text-base font-bold text-cyan-300">إضافة فاتورة +</div>
+                  <div className="mt-4 text-base font-bold text-cyan-300">╪Ñ╪╢╪º┘ü╪⌐ ┘ü╪º╪¬┘ê╪▒╪⌐ +</div>
                 </button>
 
-                {/* إضافة تحصيل */}
+                {/* ╪Ñ╪╢╪º┘ü╪⌐ ╪¬╪¡╪╡┘è┘ä */}
                 <button
                   type="button"
                   onClick={() => {
                     if (!selectedApartment) return;
-                    openChargeModal("collection", "إيجار", selectedApartment.number);
+                    openChargeModal("collection", "╪Ñ┘è╪¼╪º╪▒", selectedApartment.number);
                   }}
                   className="rounded-2xl border border-[#f0ad18]/60 bg-[#f0ad18]/10 p-5 text-right transition hover:bg-[#f0ad18]/20"
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <p className="text-base font-bold text-gray-100">إضافة تحصيل إيجار</p>
-                      <p className="mt-1 text-sm text-gray-400">تسجيل دفعة جديدة</p>
+                      <p className="text-base font-bold text-gray-100">╪Ñ╪╢╪º┘ü╪⌐ ╪¬╪¡╪╡┘è┘ä ╪Ñ┘è╪¼╪º╪▒</p>
+                      <p className="mt-1 text-sm text-gray-400">╪¬╪│╪¼┘è┘ä ╪»┘ü╪╣╪⌐ ╪¼╪»┘è╪»╪⌐</p>
                     </div>
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#f0ad18] text-[#07182b]">
                       <Plus size={22} />
                     </div>
                   </div>
-                  <div className="mt-4 text-base font-bold text-[#f6c84a]">إضافة تحصيل +</div>
+                  <div className="mt-4 text-base font-bold text-[#f6c84a]">╪Ñ╪╢╪º┘ü╪⌐ ╪¬╪¡╪╡┘è┘ä +</div>
                 </button>
 
-                {/* إجمالي التحصيلات */}
+                {/* ╪Ñ╪¼┘à╪º┘ä┘è ╪º┘ä╪¬╪¡╪╡┘è┘ä╪º╪¬ */}
                 <div
                   role="button"
                   tabIndex={0}
@@ -5362,15 +5380,15 @@ export default function ApartmentMap() {
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <p className="text-sm font-semibold text-gray-200">إجمالي التحصيلات</p>
-                      <p className="mt-1 text-[11px] text-gray-500">من تاريخ إلى تاريخ</p>
+                      <p className="text-sm font-semibold text-gray-200">╪Ñ╪¼┘à╪º┘ä┘è ╪º┘ä╪¬╪¡╪╡┘è┘ä╪º╪¬</p>
+                      <p className="mt-1 text-[11px] text-gray-500">┘à┘å ╪¬╪º╪▒┘è╪« ╪Ñ┘ä┘ë ╪¬╪º╪▒┘è╪«</p>
                     </div>
                     <Coins size={21} className="text-[#f0ad18]" />
                   </div>
 
                   <div className="mt-3 grid grid-cols-2 gap-2">
                     <label className="text-[10px] text-gray-500">
-                      من
+                      ┘à┘å
                       <input
                         type="date"
                         value={fromDate}
@@ -5379,7 +5397,7 @@ export default function ApartmentMap() {
                       />
                     </label>
                     <label className="text-[10px] text-gray-500">
-                      إلى
+                      ╪Ñ┘ä┘ë
                       <input
                         type="date"
                         value={toDate}
@@ -5392,12 +5410,12 @@ export default function ApartmentMap() {
                   <div className="mt-3 text-2xl font-black text-green-400">
                     {getSelectedApartmentPeriodPayments()
                       .reduce((sum, payment) => sum + (Number(payment.amount) || 0), 0)
-                      .toLocaleString("ar-SA")} <span className="text-xs text-gray-500">ريال</span>
+                      .toLocaleString("ar-SA")} <span className="text-xs text-gray-500">╪▒┘è╪º┘ä</span>
                   </div>
-                  <div className="mt-1 text-[10px] font-semibold text-gray-500">اضغط لعرض التفاصيل</div>
+                  <div className="mt-1 text-[10px] font-semibold text-gray-500">╪º╪╢╪║╪╖ ┘ä╪╣╪▒╪╢ ╪º┘ä╪¬┘ü╪º╪╡┘è┘ä</div>
                 </div>
 
-                {/* فواتير المياه */}
+                {/* ┘ü┘ê╪º╪¬┘è╪▒ ╪º┘ä┘à┘è╪º┘ç */}
                 <div
                   role="button"
                   tabIndex={0}
@@ -5412,15 +5430,15 @@ export default function ApartmentMap() {
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <p className="text-sm font-semibold text-gray-200">إجمالي فواتير المياه</p>
-                      <p className="mt-1 text-xs text-cyan-300/80">تحديد الفترة</p>
+                      <p className="text-sm font-semibold text-gray-200">╪Ñ╪¼┘à╪º┘ä┘è ┘ü┘ê╪º╪¬┘è╪▒ ╪º┘ä┘à┘è╪º┘ç</p>
+                      <p className="mt-1 text-xs text-cyan-300/80">╪¬╪¡╪»┘è╪» ╪º┘ä┘ü╪¬╪▒╪⌐</p>
                     </div>
                     <Droplets size={21} className="text-cyan-400" />
                   </div>
 
                   <div className="mt-3 grid grid-cols-2 gap-2">
                     <label className="text-[10px] font-semibold text-gray-400">
-                      من
+                      ┘à┘å
                       <input
                         type="date"
                         value={fromDate}
@@ -5429,7 +5447,7 @@ export default function ApartmentMap() {
                       />
                     </label>
                     <label className="text-[10px] font-semibold text-gray-400">
-                      إلى
+                      ╪Ñ┘ä┘ë
                       <input
                         type="date"
                         value={toDate}
@@ -5441,14 +5459,14 @@ export default function ApartmentMap() {
 
                   <div className="mt-3 text-2xl font-black text-cyan-400">
                     {getSelectedApartmentPeriodCharges()
-                      .filter((charge) => charge.type?.trim() === "فاتورة مياه")
+                      .filter((charge) => charge.type?.trim() === "┘ü╪º╪¬┘ê╪▒╪⌐ ┘à┘è╪º┘ç")
                       .reduce((sum, charge) => sum + (Number(charge.amount) || 0), 0)
-                      .toLocaleString("ar-SA")} <span className="text-xs font-semibold text-gray-500">ريال</span>
+                      .toLocaleString("ar-SA")} <span className="text-xs font-semibold text-gray-500">╪▒┘è╪º┘ä</span>
                   </div>
-                  <div className="mt-1 text-[10px] font-semibold text-gray-500">اضغط لعرض التفاصيل</div>
+                  <div className="mt-1 text-[10px] font-semibold text-gray-500">╪º╪╢╪║╪╖ ┘ä╪╣╪▒╪╢ ╪º┘ä╪¬┘ü╪º╪╡┘è┘ä</div>
                 </div>
 
-                {/* فواتير الكهرباء */}
+                {/* ┘ü┘ê╪º╪¬┘è╪▒ ╪º┘ä┘â┘ç╪▒╪¿╪º╪í */}
                 <div
                   role="button"
                   tabIndex={0}
@@ -5463,15 +5481,15 @@ export default function ApartmentMap() {
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <p className="text-sm font-semibold text-gray-200">إجمالي فواتير الكهرباء</p>
-                      <p className="mt-1 text-xs text-yellow-300/80">تحديد الفترة</p>
+                      <p className="text-sm font-semibold text-gray-200">╪Ñ╪¼┘à╪º┘ä┘è ┘ü┘ê╪º╪¬┘è╪▒ ╪º┘ä┘â┘ç╪▒╪¿╪º╪í</p>
+                      <p className="mt-1 text-xs text-yellow-300/80">╪¬╪¡╪»┘è╪» ╪º┘ä┘ü╪¬╪▒╪⌐</p>
                     </div>
                     <Zap size={21} className="text-yellow-400" />
                   </div>
 
                   <div className="mt-3 grid grid-cols-2 gap-2">
                     <label className="text-[10px] font-semibold text-gray-400">
-                      من
+                      ┘à┘å
                       <input
                         type="date"
                         value={fromDate}
@@ -5480,7 +5498,7 @@ export default function ApartmentMap() {
                       />
                     </label>
                     <label className="text-[10px] font-semibold text-gray-400">
-                      إلى
+                      ╪Ñ┘ä┘ë
                       <input
                         type="date"
                         value={toDate}
@@ -5492,14 +5510,14 @@ export default function ApartmentMap() {
 
                   <div className="mt-3 text-2xl font-black text-yellow-400">
                     {getSelectedApartmentPeriodCharges()
-                      .filter((charge) => charge.type?.trim() === "فاتورة كهرباء")
+                      .filter((charge) => charge.type?.trim() === "┘ü╪º╪¬┘ê╪▒╪⌐ ┘â┘ç╪▒╪¿╪º╪í")
                       .reduce((sum, charge) => sum + (Number(charge.amount) || 0), 0)
-                      .toLocaleString("ar-SA")} <span className="text-xs font-semibold text-gray-500">ريال</span>
+                      .toLocaleString("ar-SA")} <span className="text-xs font-semibold text-gray-500">╪▒┘è╪º┘ä</span>
                   </div>
-                  <div className="mt-1 text-[10px] font-semibold text-gray-500">اضغط لعرض التفاصيل</div>
+                  <div className="mt-1 text-[10px] font-semibold text-gray-500">╪º╪╢╪║╪╖ ┘ä╪╣╪▒╪╢ ╪º┘ä╪¬┘ü╪º╪╡┘è┘ä</div>
                 </div>
 
-                {/* التحصيلات المتأخرة */}
+                {/* ╪º┘ä╪¬╪¡╪╡┘è┘ä╪º╪¬ ╪º┘ä┘à╪¬╪ú╪«╪▒╪⌐ */}
                 <div
                   role="button"
                   tabIndex={0}
@@ -5514,15 +5532,15 @@ export default function ApartmentMap() {
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <p className="text-sm font-semibold text-gray-200">التحصيلات المتأخرة</p>
-                      <p className="mt-1 text-xs text-gray-500">إجمالي المتبقي على الشقة حتى اليوم</p>
+                      <p className="text-sm font-semibold text-gray-200">╪º┘ä╪¬╪¡╪╡┘è┘ä╪º╪¬ ╪º┘ä┘à╪¬╪ú╪«╪▒╪⌐</p>
+                      <p className="mt-1 text-xs text-gray-500">╪Ñ╪¼┘à╪º┘ä┘è ╪º┘ä┘à╪¬╪¿┘é┘è ╪╣┘ä┘ë ╪º┘ä╪┤┘é╪⌐ ╪¡╪¬┘ë ╪º┘ä┘è┘ê┘à</p>
                     </div>
                     <AlertCircle size={21} className="text-red-400" />
                   </div>
                   <div className="mt-3 text-2xl font-black text-red-400">
-                    {getSelectedApartmentLateRemaining().toLocaleString("ar-SA")} <span className="text-xs text-gray-500">ريال</span>
+                    {getSelectedApartmentLateRemaining().toLocaleString("ar-SA")} <span className="text-xs text-gray-500">╪▒┘è╪º┘ä</span>
                   </div>
-                  <div className="mt-1 text-[10px] font-semibold text-gray-500">اضغط لعرض التفاصيل</div>
+                  <div className="mt-1 text-[10px] font-semibold text-gray-500">╪º╪╢╪║╪╖ ┘ä╪╣╪▒╪╢ ╪º┘ä╪¬┘ü╪º╪╡┘è┘ä</div>
                 </div>
 
               </div>
@@ -5580,7 +5598,7 @@ export default function ApartmentMap() {
               {/* BASIC */}
 
               {activeTab ===
-                "البيانات الأساسية" && (
+                "╪º┘ä╪¿┘è╪º┘å╪º╪¬ ╪º┘ä╪ú╪│╪º╪│┘è╪⌐" && (
 
                 <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-5">
 
@@ -5588,7 +5606,7 @@ export default function ApartmentMap() {
 
                     <div className="relative mb-7 flex items-center justify-center">
                       <h3 className="text-2xl font-black text-white">
-                        حالة الشقة والمستأجر
+                        ╪¡╪º┘ä╪⌐ ╪º┘ä╪┤┘é╪⌐ ┘ê╪º┘ä┘à╪│╪¬╪ú╪¼╪▒
                       </h3>
 
                       <User
@@ -5599,10 +5617,10 @@ export default function ApartmentMap() {
 
                     <div className="space-y-4">
 
-                      {/* الحالة الحالية */}
+                      {/* ╪º┘ä╪¡╪º┘ä╪⌐ ╪º┘ä╪¡╪º┘ä┘è╪⌐ */}
                       <div className="flex min-h-[68px] items-center justify-between gap-5 rounded-2xl border border-white/5 bg-[#061a2d] px-5 py-4">
                         <span className="text-lg font-bold text-gray-200">
-                          الحالة الحالية
+                          ╪º┘ä╪¡╪º┘ä╪⌐ ╪º┘ä╪¡╪º┘ä┘è╪⌐
                         </span>
 
                         <select
@@ -5621,19 +5639,19 @@ export default function ApartmentMap() {
                         >
                           {availableApartmentStatuses.map((status) => (
                             <option key={status} value={status}>
-                              {status === "شاغرة" ? "فارغة" : status}
+                              {status === "╪┤╪º╪║╪▒╪⌐" ? "┘ü╪º╪▒╪║╪⌐" : status}
                             </option>
                           ))}
                           <option value="__add_new_status__">
-                            + إضافة حالة جديدة
+                            + ╪Ñ╪╢╪º┘ü╪⌐ ╪¡╪º┘ä╪⌐ ╪¼╪»┘è╪»╪⌐
                           </option>
                         </select>
                       </div>
 
-                      {/* اسم المستأجر */}
+                      {/* ╪º╪│┘à ╪º┘ä┘à╪│╪¬╪ú╪¼╪▒ */}
                       <div className="flex min-h-[68px] items-center justify-between gap-5 rounded-2xl border border-white/5 bg-[#061a2d] px-5 py-4">
                         <span className="shrink-0 text-lg font-bold text-gray-200">
-                          اسم المستأجر
+                          ╪º╪│┘à ╪º┘ä┘à╪│╪¬╪ú╪¼╪▒
                         </span>
 
                         <div className="flex min-w-0 flex-1 items-center justify-end gap-3">
@@ -5651,7 +5669,7 @@ export default function ApartmentMap() {
                                 event.target.value
                               )
                             }
-                            placeholder="اكتب اسم المستأجر"
+                            placeholder="╪º┘â╪¬╪¿ ╪º╪│┘à ╪º┘ä┘à╪│╪¬╪ú╪¼╪▒"
                             className="w-full max-w-[280px] rounded-xl border border-white/10 bg-[#0b2039] px-4 py-2.5 text-right text-base font-bold text-white outline-none transition placeholder:text-gray-600 focus:border-[#f0ad18]/60"
                           />
                           <Edit3
@@ -5668,15 +5686,15 @@ export default function ApartmentMap() {
                             }
                             className="hidden"
                           >
-                            حفظ
+                            ╪¡┘ü╪╕
                           </button>
                         </div>
                       </div>
 
-                      {/* رقم الجوال */}
+                      {/* ╪▒┘é┘à ╪º┘ä╪¼┘ê╪º┘ä */}
                       <div className="flex min-h-[68px] items-center justify-between gap-5 rounded-2xl border border-white/5 bg-[#061a2d] px-5 py-4">
                         <span className="shrink-0 text-lg font-bold text-gray-200">
-                          رقم الجوال
+                          ╪▒┘é┘à ╪º┘ä╪¼┘ê╪º┘ä
                         </span>
 
                         <div className="flex min-w-0 flex-1 items-center justify-end gap-3">
@@ -5711,15 +5729,15 @@ export default function ApartmentMap() {
                             }
                             className="hidden"
                           >
-                            حفظ
+                            ╪¡┘ü╪╕
                           </button>
                         </div>
                       </div>
 
-                      {/* رقم الهوية */}
+                      {/* ╪▒┘é┘à ╪º┘ä┘ç┘ê┘è╪⌐ */}
                       <div className="flex min-h-[68px] items-center justify-between gap-5 rounded-2xl border border-white/5 bg-[#061a2d] px-5 py-4">
                         <span className="shrink-0 text-lg font-bold text-gray-200">
-                          رقم الهوية
+                          ╪▒┘é┘à ╪º┘ä┘ç┘ê┘è╪⌐
                         </span>
 
                         <div className="flex min-w-0 flex-1 items-center justify-end gap-3">
@@ -5738,7 +5756,7 @@ export default function ApartmentMap() {
                                 event.target.value
                               )
                             }
-                            placeholder="اكتب رقم الهوية"
+                            placeholder="╪º┘â╪¬╪¿ ╪▒┘é┘à ╪º┘ä┘ç┘ê┘è╪⌐"
                             className="w-full max-w-[280px] rounded-xl border border-white/10 bg-[#0b2039] px-4 py-2.5 text-left text-base font-bold text-white outline-none transition placeholder:text-gray-600 focus:border-[#f0ad18]/60"
                           />
                           <Edit3
@@ -5755,7 +5773,7 @@ export default function ApartmentMap() {
                             }
                             className="hidden"
                           >
-                            حفظ
+                            ╪¡┘ü╪╕
                           </button>
                         </div>
                       </div>
@@ -5769,7 +5787,7 @@ export default function ApartmentMap() {
                     <div className="relative mb-6 flex items-center justify-center">
 
                       <h3 className="text-xl font-bold text-white">
-                        معلومات إضافية
+                        ┘à╪╣┘ä┘ê┘à╪º╪¬ ╪Ñ╪╢╪º┘ü┘è╪⌐
                       </h3>
 
                       <Info
@@ -5780,11 +5798,11 @@ export default function ApartmentMap() {
                     </div>
 
                     <div className="space-y-3">
-                      {/* الدور */}
+                      {/* ╪º┘ä╪»┘ê╪▒ */}
                       <div className="flex min-h-[68px] items-center justify-between gap-5 rounded-2xl border border-white/5 bg-[#061a2d] px-5 py-4">
                         <span className="flex shrink-0 items-center gap-2 text-lg font-bold text-gray-200">
                           <Building2 size={16} />
-                          الدور
+                          ╪º┘ä╪»┘ê╪▒
                         </span>
 
                         <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
@@ -5802,7 +5820,7 @@ export default function ApartmentMap() {
                                 event.target.value
                               )
                             }
-                            placeholder="اكتب الدور"
+                            placeholder="╪º┘â╪¬╪¿ ╪º┘ä╪»┘ê╪▒"
                             className="w-full max-w-[280px] rounded-xl border border-white/10 bg-[#0b2039] px-4 py-2.5 text-right text-base font-bold text-white outline-none transition placeholder:text-gray-600 focus:border-[#f0ad18]/60"
                           />
                           <Edit3
@@ -5816,16 +5834,16 @@ export default function ApartmentMap() {
                             }
                             className="hidden"
                           >
-                            حفظ
+                            ╪¡┘ü╪╕
                           </button>
                         </div>
                       </div>
 
-                      {/* موقف سيارة */}
+                      {/* ┘à┘ê┘é┘ü ╪│┘è╪º╪▒╪⌐ */}
                       <div className="flex min-h-[68px] items-center justify-between gap-5 rounded-2xl border border-white/5 bg-[#061a2d] px-5 py-4">
                         <span className="flex items-center gap-2 text-lg font-bold text-gray-200">
                           <Car size={16} />
-                          موقف سيارة
+                          ┘à┘ê┘é┘ü ╪│┘è╪º╪▒╪⌐
                         </span>
 
                         <select
@@ -5843,17 +5861,17 @@ export default function ApartmentMap() {
                           }
                           className="min-w-[180px] rounded-xl border border-white/10 bg-[#0b2039] px-4 py-2.5 text-base font-bold text-white outline-none transition focus:border-[#f0ad18]/60"
                         >
-                          <option value="غير محدد">غير محدد</option>
-                          <option value="متوفر">متوفر</option>
-                          <option value="لا يوجد">لا يوجد</option>
+                          <option value="╪║┘è╪▒ ┘à╪¡╪»╪»">╪║┘è╪▒ ┘à╪¡╪»╪»</option>
+                          <option value="┘à╪¬┘ê┘ü╪▒">┘à╪¬┘ê┘ü╪▒</option>
+                          <option value="┘ä╪º ┘è┘ê╪¼╪»">┘ä╪º ┘è┘ê╪¼╪»</option>
                         </select>
                       </div>
 
-                      {/* عداد الكهرباء */}
+                      {/* ╪╣╪»╪º╪» ╪º┘ä┘â┘ç╪▒╪¿╪º╪í */}
                       <div className="flex min-h-[68px] items-center justify-between gap-5 rounded-2xl border border-white/5 bg-[#061a2d] px-5 py-4">
                         <span className="flex items-center gap-2 text-lg font-bold text-gray-200">
                           <Zap size={16} />
-                          عداد الكهرباء
+                          ╪╣╪»╪º╪» ╪º┘ä┘â┘ç╪▒╪¿╪º╪í
                         </span>
 
                         <select
@@ -5871,16 +5889,16 @@ export default function ApartmentMap() {
                           }
                           className="min-w-[180px] rounded-xl border border-white/10 bg-[#0b2039] px-4 py-2.5 text-base font-bold text-white outline-none transition focus:border-[#f0ad18]/60"
                         >
-                          <option value="مشترك">مشترك</option>
-                          <option value="فردي">فردي</option>
+                          <option value="┘à╪┤╪¬╪▒┘â">┘à╪┤╪¬╪▒┘â</option>
+                          <option value="┘ü╪▒╪»┘è">┘ü╪▒╪»┘è</option>
                         </select>
                       </div>
 
-                      {/* عداد المياه */}
+                      {/* ╪╣╪»╪º╪» ╪º┘ä┘à┘è╪º┘ç */}
                       <div className="flex min-h-[68px] items-center justify-between gap-5 rounded-2xl border border-white/5 bg-[#061a2d] px-5 py-4">
                         <span className="flex items-center gap-2 text-lg font-bold text-gray-200">
                           <Droplets size={16} />
-                          عداد المياه
+                          ╪╣╪»╪º╪» ╪º┘ä┘à┘è╪º┘ç
                         </span>
 
                         <select
@@ -5898,16 +5916,16 @@ export default function ApartmentMap() {
                           }
                           className="min-w-[180px] rounded-xl border border-white/10 bg-[#0b2039] px-4 py-2.5 text-base font-bold text-white outline-none transition focus:border-[#f0ad18]/60"
                         >
-                          <option value="مشترك">مشترك</option>
-                          <option value="فردي">فردي</option>
+                          <option value="┘à╪┤╪¬╪▒┘â">┘à╪┤╪¬╪▒┘â</option>
+                          <option value="┘ü╪▒╪»┘è">┘ü╪▒╪»┘è</option>
                         </select>
                       </div>
 
-                      {/* حالة الأثاث */}
+                      {/* ╪¡╪º┘ä╪⌐ ╪º┘ä╪ú╪½╪º╪½ */}
                       <div className="flex min-h-[68px] items-center justify-between gap-5 rounded-2xl border border-white/5 bg-[#061a2d] px-5 py-4">
                         <span className="flex items-center gap-2 text-lg font-bold text-gray-200">
                           <Sofa size={16} />
-                          حالة الأثاث
+                          ╪¡╪º┘ä╪⌐ ╪º┘ä╪ú╪½╪º╪½
                         </span>
 
                         <select
@@ -5925,10 +5943,10 @@ export default function ApartmentMap() {
                           }
                           className="min-w-[180px] rounded-xl border border-white/10 bg-[#0b2039] px-4 py-2.5 text-base font-bold text-white outline-none transition focus:border-[#f0ad18]/60"
                         >
-                          <option value="مفروشة">فارغة</option>
-                          <option value="نص فرش">نص مفروش</option>
-                          <option value="مفروشة بالكامل">
-                            مفروشة بالكامل
+                          <option value="┘à┘ü╪▒┘ê╪┤╪⌐">┘ü╪º╪▒╪║╪⌐</option>
+                          <option value="┘å╪╡ ┘ü╪▒╪┤">┘å╪╡ ┘à┘ü╪▒┘ê╪┤</option>
+                          <option value="┘à┘ü╪▒┘ê╪┤╪⌐ ╪¿╪º┘ä┘â╪º┘à┘ä">
+                            ┘à┘ü╪▒┘ê╪┤╪⌐ ╪¿╪º┘ä┘â╪º┘à┘ä
                           </option>
                         </select>
                       </div>
@@ -5938,7 +5956,7 @@ export default function ApartmentMap() {
 
                   <div className="order-4 rounded-3xl border border-[#285273] bg-white/[0.025] p-5 backdrop-blur-xl lg:order-3">
                     <div className="mb-5 flex items-center justify-between">
-                      <h3 className="text-lg font-bold leading-relaxed">صورة الشقة</h3>
+                      <h3 className="text-lg font-bold leading-relaxed">╪╡┘ê╪▒╪⌐ ╪º┘ä╪┤┘é╪⌐</h3>
                       <ImageIcon size={21} className="text-cyan-400" />
                     </div>
 
@@ -5946,14 +5964,14 @@ export default function ApartmentMap() {
                       <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#061a2d]">
                         <img
                           src="https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=900&q=80"
-                          alt="غرفة الشقة"
+                          alt="╪║╪▒┘ü╪⌐ ╪º┘ä╪┤┘é╪⌐"
                           className="h-40 w-full object-cover"
                         />
                       </div>
                       <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#061a2d]">
                         <img
                           src="https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?auto=format&fit=crop&w=900&q=80"
-                          alt="مطبخ الشقة"
+                          alt="┘à╪╖╪¿╪« ╪º┘ä╪┤┘é╪⌐"
                           className="h-40 w-full object-cover"
                         />
                       </div>
@@ -5967,7 +5985,7 @@ export default function ApartmentMap() {
               {/* TENANT */}
 
               {activeTab ===
-                "بيانات المستأجر" && (
+                "╪¿┘è╪º┘å╪º╪¬ ╪º┘ä┘à╪│╪¬╪ú╪¼╪▒" && (
 
                 <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
 
@@ -5979,21 +5997,21 @@ export default function ApartmentMap() {
                       </div>
 
                       <h3 className="text-2xl font-black text-white">
-                        بيانات المستأجر
+                        ╪¿┘è╪º┘å╪º╪¬ ╪º┘ä┘à╪│╪¬╪ú╪¼╪▒
                       </h3>
 
                       <p className="mt-2 text-base font-medium text-gray-400">
-                        المعلومات الشخصية وبيانات التواصل
+                        ╪º┘ä┘à╪╣┘ä┘ê┘à╪º╪¬ ╪º┘ä╪┤╪«╪╡┘è╪⌐ ┘ê╪¿┘è╪º┘å╪º╪¬ ╪º┘ä╪¬┘ê╪º╪╡┘ä
                       </p>
                     </div>
 
                     <div className="grid min-w-0 gap-4 md:grid-cols-2 lg:gap-5">
 
-                      {/* الاسم */}
+                      {/* ╪º┘ä╪º╪│┘à */}
                       <div className="rounded-2xl border border-white/5 bg-[#061a2d] p-5">
                         <div className="mb-3 flex items-center justify-between gap-3">
                           <span className="text-lg font-bold text-gray-200">
-                            اسم المستأجر
+                            ╪º╪│┘à ╪º┘ä┘à╪│╪¬╪ú╪¼╪▒
                           </span>
                           <Edit3 size={19} className="text-[#f0ad18]" />
                         </div>
@@ -6012,16 +6030,16 @@ export default function ApartmentMap() {
                               event.target.value
                             )
                           }
-                          placeholder="اكتب اسم المستأجر"
+                          placeholder="╪º┘â╪¬╪¿ ╪º╪│┘à ╪º┘ä┘à╪│╪¬╪ú╪¼╪▒"
                           className="w-full rounded-xl border border-white/10 bg-[#0b2039] px-4 py-3 text-right text-lg font-bold text-white outline-none transition placeholder:text-gray-600 focus:border-[#f0ad18]/60"
                         />
                       </div>
 
-                      {/* رقم الجوال */}
+                      {/* ╪▒┘é┘à ╪º┘ä╪¼┘ê╪º┘ä */}
                       <div className="rounded-2xl border border-white/5 bg-[#061a2d] p-5">
                         <div className="mb-3 flex items-center justify-between gap-3">
                           <span className="text-lg font-bold text-gray-200">
-                            رقم الجوال
+                            ╪▒┘é┘à ╪º┘ä╪¼┘ê╪º┘ä
                           </span>
                           <Edit3 size={19} className="text-[#f0ad18]" />
                         </div>
@@ -6045,11 +6063,11 @@ export default function ApartmentMap() {
                         />
                       </div>
 
-                      {/* رقم الهوية */}
+                      {/* ╪▒┘é┘à ╪º┘ä┘ç┘ê┘è╪⌐ */}
                       <div className="rounded-2xl border border-white/5 bg-[#061a2d] p-5 md:col-span-2">
                         <div className="mb-3 flex items-center justify-between gap-3">
                           <span className="text-lg font-bold text-gray-200">
-                            رقم الهوية
+                            ╪▒┘é┘à ╪º┘ä┘ç┘ê┘è╪⌐
                           </span>
                           <Edit3 size={19} className="text-[#f0ad18]" />
                         </div>
@@ -6069,7 +6087,7 @@ export default function ApartmentMap() {
                               event.target.value
                             )
                           }
-                          placeholder="اكتب رقم الهوية"
+                          placeholder="╪º┘â╪¬╪¿ ╪▒┘é┘à ╪º┘ä┘ç┘ê┘è╪⌐"
                           className="w-full rounded-xl border border-white/10 bg-[#0b2039] px-4 py-3 text-left text-lg font-bold text-white outline-none transition placeholder:text-gray-600 focus:border-[#f0ad18]/60"
                         />
                       </div>
@@ -6087,11 +6105,11 @@ export default function ApartmentMap() {
                       </div>
 
                       <h3 className="text-2xl font-black text-white">
-                        حالة المستأجر
+                        ╪¡╪º┘ä╪⌐ ╪º┘ä┘à╪│╪¬╪ú╪¼╪▒
                       </h3>
 
                       <p className="mt-2 text-base font-medium text-gray-400">
-                        ملخص التعامل مع المستأجر
+                        ┘à┘ä╪«╪╡ ╪º┘ä╪¬╪╣╪º┘à┘ä ┘à╪╣ ╪º┘ä┘à╪│╪¬╪ú╪¼╪▒
                       </p>
 
                     </div>
@@ -6100,25 +6118,25 @@ export default function ApartmentMap() {
 
                       <div className="flex min-h-[70px] items-center justify-between rounded-2xl border border-white/5 bg-[#061a2d] px-5 py-4">
                         <span className="text-lg font-bold text-gray-300">
-                          حالة الحساب
+                          ╪¡╪º┘ä╪⌐ ╪º┘ä╪¡╪│╪º╪¿
                         </span>
                         <span className="text-lg font-black text-green-400">
-                          نشط
+                          ┘å╪┤╪╖
                         </span>
                       </div>
 
                       <div className="flex min-h-[70px] items-center justify-between rounded-2xl border border-white/5 bg-[#061a2d] px-5 py-4">
                         <span className="text-lg font-bold text-gray-300">
-                          الالتزام بالسداد
+                          ╪º┘ä╪º┘ä╪¬╪▓╪º┘à ╪¿╪º┘ä╪│╪»╪º╪»
                         </span>
                         <span className="text-lg font-black text-green-400">
-                          منتظم
+                          ┘à┘å╪¬╪╕┘à
                         </span>
                       </div>
 
                       <div className="flex min-h-[70px] items-center justify-between rounded-2xl border border-white/5 bg-[#061a2d] px-5 py-4">
                         <span className="text-lg font-bold text-gray-300">
-                          آخر دفعة
+                          ╪ó╪«╪▒ ╪»┘ü╪╣╪⌐
                         </span>
                         <span className="text-lg font-black text-white">
                           01 / 05 / 2026
@@ -6135,7 +6153,7 @@ export default function ApartmentMap() {
 
               {/* CONTRACT */}
 
-              {activeTab === "العقد" && (
+              {activeTab === "╪º┘ä╪╣┘é╪»" && (
 
                 <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-5">
 
@@ -6155,7 +6173,7 @@ export default function ApartmentMap() {
                           </div>
 
                           <div className="text-lg font-black text-gray-200">
-                            رقم العقد
+                            ╪▒┘é┘à ╪º┘ä╪╣┘é╪»
                           </div>
 
                           <div className="mt-4 flex items-center justify-center gap-3">
@@ -6181,7 +6199,7 @@ export default function ApartmentMap() {
                               }
                               className="hidden"
                             >
-                              حفظ
+                              ╪¡┘ü╪╕
                             </button>
                           </div>
 
@@ -6196,7 +6214,7 @@ export default function ApartmentMap() {
                           </div>
 
                           <div className="text-lg font-black text-gray-200">
-                            بداية العقد
+                            ╪¿╪»╪º┘è╪⌐ ╪º┘ä╪╣┘é╪»
                           </div>
 
                           <input
@@ -6243,12 +6261,12 @@ export default function ApartmentMap() {
                                 event.currentTarget.value = formatContractDate(contractInfo.startDate);
                               }
                             }}
-                            placeholder="يوم/شهر/سنة"
+                            placeholder="┘è┘ê┘à/╪┤┘ç╪▒/╪│┘å╪⌐"
                             className="mt-4 w-full rounded-xl border border-white/10 bg-[#061a2d] px-4 py-3 text-center text-xl font-black text-white outline-none transition focus:border-blue-400/60"
                           />
 
                           <div className="mt-2 text-sm text-gray-500">
-                            يتم حساب نهاية العقد تلقائيًا حسب المدة
+                            ┘è╪¬┘à ╪¡╪│╪º╪¿ ┘å┘ç╪º┘è╪⌐ ╪º┘ä╪╣┘é╪» ╪¬┘ä┘é╪º╪ª┘è┘ï╪º ╪¡╪│╪¿ ╪º┘ä┘à╪»╪⌐
                           </div>
 
                         </div>
@@ -6262,7 +6280,7 @@ export default function ApartmentMap() {
                           </div>
 
                           <div className="text-lg font-black text-gray-200">
-                            نهاية العقد
+                            ┘å┘ç╪º┘è╪⌐ ╪º┘ä╪╣┘é╪»
                           </div>
 
                           <input
@@ -6303,12 +6321,12 @@ export default function ApartmentMap() {
                                 );
                               }
                             }}
-                            placeholder="يوم/شهر/سنة"
+                            placeholder="┘è┘ê┘à/╪┤┘ç╪▒/╪│┘å╪⌐"
                             className="mt-4 w-full rounded-xl border border-white/10 bg-[#061a2d] px-4 py-3 text-center text-xl font-black text-white outline-none transition focus:border-red-400/60"
                           />
 
                           <div className="mt-2 text-sm text-gray-500">
-                            يمكنك تعديل التاريخ يدويًا عند الحاجة
+                            ┘è┘à┘â┘å┘â ╪¬╪╣╪»┘è┘ä ╪º┘ä╪¬╪º╪▒┘è╪« ┘è╪»┘ê┘è┘ï╪º ╪╣┘å╪» ╪º┘ä╪¡╪º╪¼╪⌐
                           </div>
 
                         </div>
@@ -6316,26 +6334,26 @@ export default function ApartmentMap() {
                         <div className="rounded-3xl border border-[#285273] bg-white/[0.025] p-6 lg:col-span-3">
 
                           <h3 className="mb-5 text-center text-2xl font-black text-[#f0ad18]">
-                            تفاصيل العقد
+                            ╪¬┘ü╪º╪╡┘è┘ä ╪º┘ä╪╣┘é╪»
                           </h3>
 
                           <div className="grid gap-4 md:grid-cols-3">
 
                             <div className="rounded-xl bg-[#061a2d] p-5 text-center">
                               <div className="text-lg font-black text-gray-200">
-                                قيمة الإيجار
+                                ┘é┘è┘à╪⌐ ╪º┘ä╪Ñ┘è╪¼╪º╪▒
                               </div>
                               <div className="mt-3 text-2xl font-black text-[#f0ad18]">
                                 {selectedApartment.rent.toLocaleString(
                                   "ar-SA"
                                 )} {" "}
-                                ريال
+                                ╪▒┘è╪º┘ä
                               </div>
                             </div>
 
                             <div className="rounded-xl bg-[#061a2d] p-5 text-center">
                               <div className="text-xl font-black text-gray-100 text-center">
-                                مدة العقد
+                                ┘à╪»╪⌐ ╪º┘ä╪╣┘é╪»
                               </div>
 
                               <div className="mt-4 flex flex-col items-center justify-center gap-3 sm:flex-row">
@@ -6351,13 +6369,13 @@ export default function ApartmentMap() {
                                   className="rounded-xl border border-white/10 bg-[#071a2d] px-4 py-2.5 text-center text-base font-black text-white outline-none transition focus:border-[#f0ad18]/60"
                                 >
                                   <option value="day" className="bg-[#071a2d] text-white">
-                                    يوم
+                                    ┘è┘ê┘à
                                   </option>
                                   <option value="month" className="bg-[#071a2d] text-white">
-                                    شهر
+                                    ╪┤┘ç╪▒
                                   </option>
                                   <option value="year" className="bg-[#071a2d] text-white">
-                                    سنة
+                                    ╪│┘å╪⌐
                                   </option>
                                 </select>
 
@@ -6387,7 +6405,7 @@ export default function ApartmentMap() {
 
                             <div className="rounded-xl bg-[#061a2d] p-5 text-center">
                               <div className="text-xl font-black text-gray-100 text-center">
-                                التأمين
+                                ╪º┘ä╪¬╪ú┘à┘è┘å
                               </div>
 
                               <div className="mt-3 flex items-center justify-center gap-2">
@@ -6403,10 +6421,10 @@ export default function ApartmentMap() {
                                       Math.max(0, Number(event.target.value) || 0)
                                     )
                                   }
-                                  placeholder="مبلغ التأمين"
+                                  placeholder="┘à╪¿┘ä╪║ ╪º┘ä╪¬╪ú┘à┘è┘å"
                                   className="w-full max-w-[190px] rounded-xl border border-white/10 bg-[#071a2d] px-4 py-2.5 text-center text-2xl font-black text-white outline-none transition focus:border-[#f0ad18]/60"
                                 />
-                                <span className="text-base font-bold text-gray-400">ريال</span>
+                                <span className="text-base font-bold text-gray-400">╪▒┘è╪º┘ä</span>
                               </div>
 
                               <input
@@ -6419,7 +6437,7 @@ export default function ApartmentMap() {
                                     event.target.value
                                   )
                                 }
-                                placeholder="ملاحظات التأمين"
+                                placeholder="┘à┘ä╪º╪¡╪╕╪º╪¬ ╪º┘ä╪¬╪ú┘à┘è┘å"
                                 className="mt-3 w-full rounded-xl border border-white/10 bg-[#071a2d] px-4 py-2.5 text-center text-base font-semibold text-white outline-none transition focus:border-[#f0ad18]/60"
                               />
                             </div>
@@ -6438,7 +6456,7 @@ export default function ApartmentMap() {
               {/* PAYMENTS */}
 
               {activeTab ===
-                "المدفوعات" && (() => {
+                "╪º┘ä┘à╪»┘ü┘ê╪╣╪º╪¬" && (() => {
                 const payments = getApartmentPayments(selectedApartment.number);
                 const contractInfo = getApartmentContractInfo(
                   selectedApartment.number
@@ -6455,8 +6473,8 @@ export default function ApartmentMap() {
 
                 const apartmentRent = getApartmentRent(selectedApartment);
                 const isRentedApartment =
-                  selectedApartment.status === "مؤجرة" ||
-                  selectedApartment.status === "مؤجرة للشركة";
+                  selectedApartment.status === "┘à╪ñ╪¼╪▒╪⌐" ||
+                  selectedApartment.status === "┘à╪ñ╪¼╪▒╪⌐ ┘ä┘ä╪┤╪▒┘â╪⌐";
                 const accruedRentMonths = isRentedApartment
                   ? getAccruedRentMonths(
                       contractInfo.startDate,
@@ -6476,7 +6494,7 @@ export default function ApartmentMap() {
                 const totalDue = totalRentDue + otherChargesTotal;
 
                 const totalRentCollected = contractPayments
-                  .filter((payment) => payment.type?.trim() === "إيجار")
+                  .filter((payment) => payment.type?.trim() === "╪Ñ┘è╪¼╪º╪▒")
                   .reduce(
                     (sum, payment) => sum + (Number(payment.amount) || 0),
                     0
@@ -6501,51 +6519,51 @@ export default function ApartmentMap() {
 
                       <div className="rounded-3xl border border-orange-400/25 bg-orange-500/[0.04] p-6">
                         <div className="text-sm font-bold text-gray-400">
-                          إجمالي المستحقات + الإيجارات
+                          ╪Ñ╪¼┘à╪º┘ä┘è ╪º┘ä┘à╪│╪¬╪¡┘é╪º╪¬ + ╪º┘ä╪Ñ┘è╪¼╪º╪▒╪º╪¬
                         </div>
                         <div className="mt-2 text-3xl font-black text-orange-300">
-                          {totalDue.toLocaleString("ar-SA")} ريال
+                          {totalDue.toLocaleString("ar-SA")} ╪▒┘è╪º┘ä
                         </div>
                         <div className="mt-2 text-xs font-semibold text-gray-500">
-                          {accruedRentMonths} {accruedRentMonths === 1 ? "شهر" : "أشهر"} إيجار + المستحقات المسجلة
+                          {accruedRentMonths} {accruedRentMonths === 1 ? "╪┤┘ç╪▒" : "╪ú╪┤┘ç╪▒"} ╪Ñ┘è╪¼╪º╪▒ + ╪º┘ä┘à╪│╪¬╪¡┘é╪º╪¬ ╪º┘ä┘à╪│╪¼┘ä╪⌐
                         </div>
                       </div>
 
                       <div className="rounded-3xl border border-blue-400/20 bg-blue-500/[0.04] p-6">
                         <div className="text-sm font-bold text-gray-400">
-                          إجمالي المدفوع
+                          ╪Ñ╪¼┘à╪º┘ä┘è ╪º┘ä┘à╪»┘ü┘ê╪╣
                         </div>
                         <div className="mt-2 text-3xl font-black text-blue-300">
-                          {totalPaid.toLocaleString("ar-SA")} ريال
+                          {totalPaid.toLocaleString("ar-SA")} ╪▒┘è╪º┘ä
                         </div>
                         <div className="mt-2 text-xs font-semibold text-gray-500">
-                          إيجارات + فواتير + مستحقات محصلة
+                          ╪Ñ┘è╪¼╪º╪▒╪º╪¬ + ┘ü┘ê╪º╪¬┘è╪▒ + ┘à╪│╪¬╪¡┘é╪º╪¬ ┘à╪¡╪╡┘ä╪⌐
                         </div>
                       </div>
 
                       <div className="rounded-3xl border border-red-400/20 bg-red-500/[0.04] p-6">
                         <div className="text-sm font-bold text-gray-400">
-                          إجمالي المتبقي
+                          ╪Ñ╪¼┘à╪º┘ä┘è ╪º┘ä┘à╪¬╪¿┘é┘è
                         </div>
                         <div className="mt-2 text-3xl font-black text-red-300">
-                          {totalRemaining.toLocaleString("ar-SA")} ريال
+                          {totalRemaining.toLocaleString("ar-SA")} ╪▒┘è╪º┘ä
                         </div>
                         <div className="mt-2 text-xs font-semibold text-gray-500">
-                          المبلغ غير المدفوع أو المتأخر حتى الآن
+                          ╪º┘ä┘à╪¿┘ä╪║ ╪║┘è╪▒ ╪º┘ä┘à╪»┘ü┘ê╪╣ ╪ú┘ê ╪º┘ä┘à╪¬╪ú╪«╪▒ ╪¡╪¬┘ë ╪º┘ä╪ó┘å
                         </div>
                       </div>
 
                       <div className="rounded-3xl border border-green-400/20 bg-green-500/[0.04] p-6">
                         <div className="text-sm font-bold text-gray-400">
-                          إجمالي الإيجارات المحصلة
+                          ╪Ñ╪¼┘à╪º┘ä┘è ╪º┘ä╪Ñ┘è╪¼╪º╪▒╪º╪¬ ╪º┘ä┘à╪¡╪╡┘ä╪⌐
                         </div>
                         <div className="mt-2 text-3xl font-black text-green-300">
-                          {totalRentCollected.toLocaleString("ar-SA")} ريال
+                          {totalRentCollected.toLocaleString("ar-SA")} ╪▒┘è╪º┘ä
                         </div>
                         <div className="mt-2 text-xs font-semibold text-gray-500">
-                          {collectedRentMonths} {collectedRentMonths === 1 ? "شهر محصل" : "أشهر محصلة"}
+                          {collectedRentMonths} {collectedRentMonths === 1 ? "╪┤┘ç╪▒ ┘à╪¡╪╡┘ä" : "╪ú╪┤┘ç╪▒ ┘à╪¡╪╡┘ä╪⌐"}
                           {partialRentCollected > 0
-                            ? ` + ${partialRentCollected.toLocaleString("ar-SA")} ريال جزئي`
+                            ? ` + ${partialRentCollected.toLocaleString("ar-SA")} ╪▒┘è╪º┘ä ╪¼╪▓╪ª┘è`
                             : ""}
                         </div>
                       </div>
@@ -6558,10 +6576,10 @@ export default function ApartmentMap() {
 
                         <div>
                           <h3 className="text-xl font-bold">
-                            سجل الدفعات
+                            ╪│╪¼┘ä ╪º┘ä╪»┘ü╪╣╪º╪¬
                           </h3>
                           <p className="mt-1 text-sm font-semibold text-gray-500">
-                            جميع عمليات الدفع والتحصيل الخاصة بهذه الشقة
+                            ╪¼┘à┘è╪╣ ╪╣┘à┘ä┘è╪º╪¬ ╪º┘ä╪»┘ü╪╣ ┘ê╪º┘ä╪¬╪¡╪╡┘è┘ä ╪º┘ä╪«╪º╪╡╪⌐ ╪¿┘ç╪░┘ç ╪º┘ä╪┤┘é╪⌐
                           </p>
                         </div>
 
@@ -6574,7 +6592,7 @@ export default function ApartmentMap() {
                             className="flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-[#f0ad18]/45 bg-[#f0ad18]/10 px-5 py-2.5 text-base font-black text-[#f6c84a] transition hover:border-[#f6c84a]/80 hover:bg-[#f0ad18]/20"
                           >
                             <Download size={19} />
-                            تصدير
+                            ╪¬╪╡╪»┘è╪▒
                           </button>
 
                           {isPaymentExportMenuOpen && (
@@ -6586,7 +6604,7 @@ export default function ApartmentMap() {
                                 className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-right text-sm font-black text-white transition hover:bg-red-500/10 hover:text-red-300"
                               >
                                 <FileText size={18} className="text-red-300" />
-                                تصدير PDF
+                                ╪¬╪╡╪»┘è╪▒ PDF
                               </button>
 
                               <button
@@ -6595,7 +6613,7 @@ export default function ApartmentMap() {
                                 className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-right text-sm font-black text-white transition hover:bg-green-500/10 hover:text-green-300"
                               >
                                 <Download size={18} className="text-green-300" />
-                                تصدير Excel
+                                ╪¬╪╡╪»┘è╪▒ Excel
                               </button>
 
                               <button
@@ -6604,7 +6622,7 @@ export default function ApartmentMap() {
                                 className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-right text-sm font-black text-white transition hover:bg-blue-500/10 hover:text-blue-300"
                               >
                                 <Printer size={18} className="text-blue-300" />
-                                طباعة
+                                ╪╖╪¿╪º╪╣╪⌐
                               </button>
 
                             </div>
@@ -6618,10 +6636,10 @@ export default function ApartmentMap() {
 
                           <div className="grid grid-cols-[70px_150px_1fr_150px_1.5fr] gap-3 bg-[#0a2137] px-5 py-4 text-sm font-black text-gray-300">
                             <div>#</div>
-                            <div>تاريخ الدفع</div>
-                            <div>نوع المستحق</div>
-                            <div>المبلغ</div>
-                            <div>تفاصيل المبلغ</div>
+                            <div>╪¬╪º╪▒┘è╪« ╪º┘ä╪»┘ü╪╣</div>
+                            <div>┘å┘ê╪╣ ╪º┘ä┘à╪│╪¬╪¡┘é</div>
+                            <div>╪º┘ä┘à╪¿┘ä╪║</div>
+                            <div>╪¬┘ü╪º╪╡┘è┘ä ╪º┘ä┘à╪¿┘ä╪║</div>
                           </div>
 
                           {payments.length > 0 ? (
@@ -6639,18 +6657,18 @@ export default function ApartmentMap() {
                                 </div>
 
                                 <div className="font-black text-white">
-                                  {payment.type || "غير محدد"}
+                                  {payment.type || "╪║┘è╪▒ ┘à╪¡╪»╪»"}
                                 </div>
 
                                 <div className="font-black text-green-400">
                                   {(Number(payment.amount) || 0).toLocaleString(
                                     "ar-SA"
                                   )}{" "}
-                                  ريال
+                                  ╪▒┘è╪º┘ä
                                 </div>
 
                                 <div className="font-semibold leading-6 text-gray-400">
-                                  {payment.notes || "لا توجد تفاصيل"}
+                                  {payment.notes || "┘ä╪º ╪¬┘ê╪¼╪» ╪¬┘ü╪º╪╡┘è┘ä"}
                                 </div>
                               </div>
                             ))
@@ -6661,10 +6679,10 @@ export default function ApartmentMap() {
                                 className="mx-auto text-gray-700"
                               />
                               <div className="mt-4 text-base font-bold text-gray-400">
-                                لا توجد دفعات مسجلة لهذه الشقة حتى الآن
+                                ┘ä╪º ╪¬┘ê╪¼╪» ╪»┘ü╪╣╪º╪¬ ┘à╪│╪¼┘ä╪⌐ ┘ä┘ç╪░┘ç ╪º┘ä╪┤┘é╪⌐ ╪¡╪¬┘ë ╪º┘ä╪ó┘å
                               </div>
                               <div className="mt-2 text-sm text-gray-600">
-                                عند تسجيل تحصيل من شاشة التحصيل سيظهر هنا تلقائيًا.
+                                ╪╣┘å╪» ╪¬╪│╪¼┘è┘ä ╪¬╪¡╪╡┘è┘ä ┘à┘å ╪┤╪º╪┤╪⌐ ╪º┘ä╪¬╪¡╪╡┘è┘ä ╪│┘è╪╕┘ç╪▒ ┘ç┘å╪º ╪¬┘ä┘é╪º╪ª┘è┘ï╪º.
                               </div>
                             </div>
                           )}
@@ -6681,17 +6699,17 @@ export default function ApartmentMap() {
               {/* DOCUMENTS */}
 
               {activeTab ===
-                "المستندات" && (
+                "╪º┘ä┘à╪│╪¬┘å╪»╪º╪¬" && (
 
                 <div className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 lg:gap-5">
 
                   {[
-                    "عقد الإيجار",
-                    "صورة الهوية",
-                    "إيصال التأمين",
-                    "محضر الاستلام",
-                    "صور الشقة",
-                    "مستندات إضافية",
+                    "╪╣┘é╪» ╪º┘ä╪Ñ┘è╪¼╪º╪▒",
+                    "╪╡┘ê╪▒╪⌐ ╪º┘ä┘ç┘ê┘è╪⌐",
+                    "╪Ñ┘è╪╡╪º┘ä ╪º┘ä╪¬╪ú┘à┘è┘å",
+                    "┘à╪¡╪╢╪▒ ╪º┘ä╪º╪│╪¬┘ä╪º┘à",
+                    "╪╡┘ê╪▒ ╪º┘ä╪┤┘é╪⌐",
+                    "┘à╪│╪¬┘å╪»╪º╪¬ ╪Ñ╪╢╪º┘ü┘è╪⌐",
                   ].map((document) => (
 
                     <div
@@ -6710,14 +6728,14 @@ export default function ApartmentMap() {
                       </div>
 
                       <div className="mt-2 text-sm text-gray-500">
-                        لم يتم رفع المستند بعد
+                        ┘ä┘à ┘è╪¬┘à ╪▒┘ü╪╣ ╪º┘ä┘à╪│╪¬┘å╪» ╪¿╪╣╪»
                       </div>
 
                       <button
                         type="button"
                         className="mt-5 rounded-xl border border-white/10 px-4 py-2 text-sm text-gray-400 transition hover:border-[#f0ad18]/40 hover:text-[#f0ad18]"
                       >
-                        إضافة مستند
+                        ╪Ñ╪╢╪º┘ü╪⌐ ┘à╪│╪¬┘å╪»
                       </button>
 
                     </div>
@@ -6731,7 +6749,7 @@ export default function ApartmentMap() {
               {/* NOTES */}
 
               {activeTab ===
-                "الملاحظات" && (
+                "╪º┘ä┘à┘ä╪º╪¡╪╕╪º╪¬" && (
 
                 <div className="min-w-0 rounded-3xl border border-[#285273] bg-white/[0.025] p-4 sm:p-6">
 
@@ -6744,11 +6762,11 @@ export default function ApartmentMap() {
                     <div>
 
                       <h3 className="text-xl font-bold">
-                        ملاحظات الشقة
+                        ┘à┘ä╪º╪¡╪╕╪º╪¬ ╪º┘ä╪┤┘é╪⌐
                       </h3>
 
                       <p className="text-sm text-gray-500">
-                        سجل الملاحظات والمعلومات المهمة
+                        ╪│╪¼┘ä ╪º┘ä┘à┘ä╪º╪¡╪╕╪º╪¬ ┘ê╪º┘ä┘à╪╣┘ä┘ê┘à╪º╪¬ ╪º┘ä┘à┘ç┘à╪⌐
                       </p>
 
                     </div>
@@ -6763,14 +6781,14 @@ export default function ApartmentMap() {
                     />
 
                     <div className="mt-4 text-gray-400">
-                      لا توجد ملاحظات مسجلة حاليًا
+                      ┘ä╪º ╪¬┘ê╪¼╪» ┘à┘ä╪º╪¡╪╕╪º╪¬ ┘à╪│╪¼┘ä╪⌐ ╪¡╪º┘ä┘è┘ï╪º
                     </div>
 
                     <button
                       type="button"
                       className="mt-5 rounded-xl bg-[#f0ad18] px-5 py-3 font-bold text-[#07182b] transition hover:bg-[#f6c84a]"
                     >
-                      + إضافة ملاحظة
+                      + ╪Ñ╪╢╪º┘ü╪⌐ ┘à┘ä╪º╪¡╪╕╪⌐
                     </button>
 
                   </div>
@@ -6793,7 +6811,7 @@ export default function ApartmentMap() {
                 className="flex min-h-[54px] min-w-[180px] items-center justify-center gap-3 rounded-2xl border border-green-400/60 bg-green-500/10 px-8 py-4 text-lg font-black text-green-400 transition hover:bg-green-500/15"
               >
                 <CheckCircle2 size={24} />
-                حفظ
+                ╪¡┘ü╪╕
               </button>
 
               <button
@@ -6801,7 +6819,7 @@ export default function ApartmentMap() {
                 onClick={closeApartment}
                 className="flex min-h-[54px] min-w-[180px] items-center justify-center gap-3 rounded-2xl border border-[#f0ad18]/60 bg-[#f0ad18]/10 px-8 py-4 text-lg font-black text-[#f6c84a] transition hover:bg-[#f0ad18] hover:text-[#07182b]"
               >
-                إغلاق
+                ╪Ñ╪║┘ä╪º┘é
                 <X size={23} />
               </button>
 
@@ -6837,10 +6855,10 @@ export default function ApartmentMap() {
                   </div>
                   <div className="min-w-0 text-center">
                     <h2 className="text-xl font-black text-blue-300 sm:text-2xl lg:text-3xl">
-                      أنواع الشقق
+                      ╪ú┘å┘ê╪º╪╣ ╪º┘ä╪┤┘é┘é
                     </h2>
                     <p className="mt-1 text-sm font-semibold text-gray-400">
-                      أضف أنواع الشقق وحدد أرقام الشقق التابعة لكل نوع
+                      ╪ú╪╢┘ü ╪ú┘å┘ê╪º╪╣ ╪º┘ä╪┤┘é┘é ┘ê╪¡╪»╪» ╪ú╪▒┘é╪º┘à ╪º┘ä╪┤┘é┘é ╪º┘ä╪¬╪º╪¿╪╣╪⌐ ┘ä┘â┘ä ┘å┘ê╪╣
                     </p>
                   </div>
                 </div>
@@ -6848,7 +6866,7 @@ export default function ApartmentMap() {
                 <button
                   type="button"
                   onClick={closeApartmentTypeModal}
-                  aria-label="إغلاق"
+                  aria-label="╪Ñ╪║┘ä╪º┘é"
                   className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-gray-400 transition hover:border-red-400/40 hover:bg-red-500/10 hover:text-red-400"
                 >
                   <X size={24} />
@@ -6861,11 +6879,11 @@ export default function ApartmentMap() {
                 <div className="rounded-3xl border border-blue-400/20 bg-[#081c31]/80 p-4 backdrop-blur-2xl sm:p-5">
                   <div className="mb-4 flex items-center justify-between gap-3">
                     <div>
-                      <h3 className="text-xl font-black text-white">أنواع الشقق المتاحة</h3>
-                      <p className="mt-1 text-sm font-semibold text-gray-500">اختر النوع لإدارة أرقام الشقق</p>
+                      <h3 className="text-xl font-black text-white">╪ú┘å┘ê╪º╪╣ ╪º┘ä╪┤┘é┘é ╪º┘ä┘à╪¬╪º╪¡╪⌐</h3>
+                      <p className="mt-1 text-sm font-semibold text-gray-500">╪º╪«╪¬╪▒ ╪º┘ä┘å┘ê╪╣ ┘ä╪Ñ╪»╪º╪▒╪⌐ ╪ú╪▒┘é╪º┘à ╪º┘ä╪┤┘é┘é</p>
                     </div>
                     <span className="rounded-full border border-blue-400/25 bg-blue-400/10 px-3 py-1.5 text-xs font-black text-blue-300">
-                      {availableApartmentTypes.length} أنواع
+                      {availableApartmentTypes.length} ╪ú┘å┘ê╪º╪╣
                     </span>
                   </div>
 
@@ -6879,7 +6897,7 @@ export default function ApartmentMap() {
                             addNewApartmentTypeFromCard();
                           }
                         }}
-                        placeholder="اكتب نوع شقة جديد"
+                        placeholder="╪º┘â╪¬╪¿ ┘å┘ê╪╣ ╪┤┘é╪⌐ ╪¼╪»┘è╪»"
                         className="h-11 min-w-0 flex-1 rounded-xl border border-white/10 bg-[#07182b] px-3 text-sm font-bold text-white outline-none transition placeholder:text-gray-600 focus:border-blue-400/60"
                       />
                       <button
@@ -6888,7 +6906,7 @@ export default function ApartmentMap() {
                         className="flex h-11 shrink-0 items-center gap-2 rounded-xl border border-blue-400/30 bg-blue-400/10 px-4 text-sm font-black text-blue-300 transition hover:bg-blue-400/20"
                       >
                         <Plus size={17} />
-                        إضافة
+                        ╪Ñ╪╢╪º┘ü╪⌐
                       </button>
                     </div>
 
@@ -6903,7 +6921,7 @@ export default function ApartmentMap() {
                           addNewApartmentTypeFromCard();
                         }
                       }}
-                      placeholder="قيمة الإيجار الشهري للنوع (ريال)"
+                      placeholder="┘é┘è┘à╪⌐ ╪º┘ä╪Ñ┘è╪¼╪º╪▒ ╪º┘ä╪┤┘ç╪▒┘è ┘ä┘ä┘å┘ê╪╣ (╪▒┘è╪º┘ä)"
                       className="h-11 w-full rounded-xl border border-[#f0ad18]/20 bg-[#07182b] px-3 text-sm font-bold text-white outline-none transition placeholder:text-gray-600 focus:border-[#f0ad18]/60"
                     />
                   </div>
@@ -6935,13 +6953,13 @@ export default function ApartmentMap() {
                               {type}
                             </span>
                             <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs font-bold text-gray-400">
-                              {count} شقة
+                              {count} ╪┤┘é╪⌐
                             </span>
                           </button>
 
                           <div className="mt-2 flex items-center gap-2">
                             <span className="shrink-0 text-xs font-bold text-gray-500">
-                              قيمة الإيجار
+                              ┘é┘è┘à╪⌐ ╪º┘ä╪Ñ┘è╪¼╪º╪▒
                             </span>
                             <div className="relative min-w-0 flex-1">
                               <input
@@ -6952,11 +6970,11 @@ export default function ApartmentMap() {
                                 onChange={(event) =>
                                   updateApartmentTypeRent(type, event.target.value)
                                 }
-                                placeholder="ريال / شهرياً"
+                                placeholder="╪▒┘è╪º┘ä / ╪┤┘ç╪▒┘è╪º┘ï"
                                 className="h-9 w-full rounded-lg border border-white/10 bg-[#07182b] px-3 pl-14 text-sm font-black text-[#f6c84a] outline-none transition placeholder:text-gray-600 focus:border-[#f0ad18]/60"
                               />
                               <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[11px] font-bold text-gray-500">
-                                ريال
+                                ╪▒┘è╪º┘ä
                               </span>
                             </div>
                           </div>
@@ -6972,15 +6990,15 @@ export default function ApartmentMap() {
                       <div className="flex items-center gap-2">
                         <Home size={22} className="text-blue-300" />
                         <h3 className="text-xl font-black text-white">
-                          تحديد شقق: {selectedApartmentType || "-"}
+                          ╪¬╪¡╪»┘è╪» ╪┤┘é┘é: {selectedApartmentType || "-"}
                         </h3>
                       </div>
                       <p className="mt-1 text-sm font-semibold text-gray-500">
-                        حدد أرقام الشقق التي تنتمي إلى النوع المختار
+                        ╪¡╪»╪» ╪ú╪▒┘é╪º┘à ╪º┘ä╪┤┘é┘é ╪º┘ä╪¬┘è ╪¬┘å╪¬┘à┘è ╪Ñ┘ä┘ë ╪º┘ä┘å┘ê╪╣ ╪º┘ä┘à╪«╪¬╪º╪▒
                       </p>
                     </div>
                     <div className="rounded-full border border-blue-400/30 bg-blue-400/10 px-3 py-1.5 text-xs font-black text-blue-300">
-                      {selectedTypeApartments.length} محددة
+                      {selectedTypeApartments.length} ┘à╪¡╪»╪»╪⌐
                     </div>
                   </div>
 
@@ -6995,8 +7013,8 @@ export default function ApartmentMap() {
                       filteredTypeApartments.every((apartment) =>
                         selectedTypeApartments.includes(apartment.number)
                       )
-                        ? "إلغاء تحديد الكل"
-                        : "تحديد الكل"}
+                        ? "╪Ñ┘ä╪║╪º╪í ╪¬╪¡╪»┘è╪» ╪º┘ä┘â┘ä"
+                        : "╪¬╪¡╪»┘è╪» ╪º┘ä┘â┘ä"}
                     </button>
 
                     <button
@@ -7004,7 +7022,7 @@ export default function ApartmentMap() {
                       onClick={() => setSelectedTypeApartments([])}
                       className="flex h-10 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 text-sm font-bold text-gray-400 transition hover:bg-white/10 hover:text-white"
                     >
-                      إلغاء التحديد
+                      ╪Ñ┘ä╪║╪º╪í ╪º┘ä╪¬╪¡╪»┘è╪»
                     </button>
                   </div>
 
@@ -7013,7 +7031,7 @@ export default function ApartmentMap() {
                     <input
                       value={apartmentTypeSearch}
                       onChange={(event) => setApartmentTypeSearch(event.target.value)}
-                      placeholder="ابحث عن رقم الشقة أو النوع..."
+                      placeholder="╪º╪¿╪¡╪½ ╪╣┘å ╪▒┘é┘à ╪º┘ä╪┤┘é╪⌐ ╪ú┘ê ╪º┘ä┘å┘ê╪╣..."
                       className="h-11 w-full rounded-xl border border-white/10 bg-[#07182b] pl-4 pr-10 text-sm font-semibold text-white outline-none transition placeholder:text-gray-600 focus:border-blue-400/50"
                     />
                   </div>
@@ -7046,7 +7064,7 @@ export default function ApartmentMap() {
                             <span className="flex-1">
                               <span className="flex items-center justify-between gap-3">
                                 <span className="text-base font-black text-white">
-                                  شقة {apartment.number}
+                                  ╪┤┘é╪⌐ {apartment.number}
                                 </span>
                                 <span className="text-sm font-bold text-gray-300">
                                   {getApartmentType(apartment)}
@@ -7059,14 +7077,14 @@ export default function ApartmentMap() {
 
                       {filteredTypeApartments.length === 0 && (
                         <div className="col-span-full py-10 text-center text-sm font-semibold text-gray-500">
-                          لا توجد شقق مطابقة للبحث
+                          ┘ä╪º ╪¬┘ê╪¼╪» ╪┤┘é┘é ┘à╪╖╪º╪¿┘é╪⌐ ┘ä┘ä╪¿╪¡╪½
                         </div>
                       )}
                     </div>
                   </div>
 
                   <div className="mt-3 rounded-2xl border border-blue-400/20 bg-blue-400/[0.05] px-4 py-3 text-sm font-bold text-gray-300">
-                    سيتم حفظ أرقام الشقق المحددة تحت النوع: <span className="font-black text-blue-300">{selectedApartmentType || "-"}</span>
+                    ╪│┘è╪¬┘à ╪¡┘ü╪╕ ╪ú╪▒┘é╪º┘à ╪º┘ä╪┤┘é┘é ╪º┘ä┘à╪¡╪»╪»╪⌐ ╪¬╪¡╪¬ ╪º┘ä┘å┘ê╪╣: <span className="font-black text-blue-300">{selectedApartmentType || "-"}</span>
                   </div>
                 </div>
               </div>
@@ -7080,7 +7098,7 @@ export default function ApartmentMap() {
                   className="flex h-14 items-center justify-center gap-2 rounded-2xl border border-blue-400/40 bg-gradient-to-r from-blue-700 to-blue-500 px-5 text-base font-black text-white shadow-[0_8px_30px_rgba(59,130,246,0.16)] transition hover:brightness-110 sm:text-lg"
                 >
                   <CheckCircle2 size={21} />
-                  حفظ توزيع النوع
+                  ╪¡┘ü╪╕ ╪¬┘ê╪▓┘è╪╣ ╪º┘ä┘å┘ê╪╣
                 </button>
 
                 <button
@@ -7089,7 +7107,7 @@ export default function ApartmentMap() {
                   className="flex h-14 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-5 text-base font-black text-gray-300 transition hover:bg-white/10 hover:text-white sm:text-lg"
                 >
                   <X size={21} />
-                  إغلاق
+                  ╪Ñ╪║┘ä╪º┘é
                 </button>
               </div>
             </div>
@@ -7152,21 +7170,21 @@ export default function ApartmentMap() {
                       }`}
                     >
                       {chargeModalMode === "collection"
-                        ? chargeForm.type === "إيجار"
-                          ? "تحصيل إيجار"
-                          : "تحصيل فاتورة أو مستحقات"
-                        : chargeForm.type === "إيجار"
-                        ? "إضافة إيجار"
-                        : "إضافة فاتورة أو مستحقات"}
+                        ? chargeForm.type === "╪Ñ┘è╪¼╪º╪▒"
+                          ? "╪¬╪¡╪╡┘è┘ä ╪Ñ┘è╪¼╪º╪▒"
+                          : "╪¬╪¡╪╡┘è┘ä ┘ü╪º╪¬┘ê╪▒╪⌐ ╪ú┘ê ┘à╪│╪¬╪¡┘é╪º╪¬"
+                        : chargeForm.type === "╪Ñ┘è╪¼╪º╪▒"
+                        ? "╪Ñ╪╢╪º┘ü╪⌐ ╪Ñ┘è╪¼╪º╪▒"
+                        : "╪Ñ╪╢╪º┘ü╪⌐ ┘ü╪º╪¬┘ê╪▒╪⌐ ╪ú┘ê ┘à╪│╪¬╪¡┘é╪º╪¬"}
                     </h2>
                     <p className="mt-1 text-sm font-semibold text-gray-400">
                       {selectedApartment
-                        ? `تسجيل العملية للشقة رقم ${selectedApartment.number} فقط`
+                        ? `╪¬╪│╪¼┘è┘ä ╪º┘ä╪╣┘à┘ä┘è╪⌐ ┘ä┘ä╪┤┘é╪⌐ ╪▒┘é┘à ${selectedApartment.number} ┘ü┘é╪╖`
                         : chargeModalMode === "collection"
-                        ? "تسجيل تحصيل جديد للشقق المحددة"
-                        : chargeForm.type === "إيجار"
-                        ? "تسجيل استحقاق إيجار جديد للشقق المحددة"
-                        : "تسجيل مستحق جديد للشقق المحددة"}
+                        ? "╪¬╪│╪¼┘è┘ä ╪¬╪¡╪╡┘è┘ä ╪¼╪»┘è╪» ┘ä┘ä╪┤┘é┘é ╪º┘ä┘à╪¡╪»╪»╪⌐"
+                        : chargeForm.type === "╪Ñ┘è╪¼╪º╪▒"
+                        ? "╪¬╪│╪¼┘è┘ä ╪º╪│╪¬╪¡┘é╪º┘é ╪Ñ┘è╪¼╪º╪▒ ╪¼╪»┘è╪» ┘ä┘ä╪┤┘é┘é ╪º┘ä┘à╪¡╪»╪»╪⌐"
+                        : "╪¬╪│╪¼┘è┘ä ┘à╪│╪¬╪¡┘é ╪¼╪»┘è╪» ┘ä┘ä╪┤┘é┘é ╪º┘ä┘à╪¡╪»╪»╪⌐"}
                     </p>
                   </div>
                 </div>
@@ -7174,7 +7192,7 @@ export default function ApartmentMap() {
                 <button
                   type="button"
                   onClick={() => setIsChargeModalOpen(false)}
-                  aria-label="إغلاق"
+                  aria-label="╪Ñ╪║┘ä╪º┘é"
                   className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-gray-400 transition hover:border-red-400/40 hover:bg-red-500/10 hover:text-red-400"
                 >
                   <X size={24} />
@@ -7211,15 +7229,15 @@ export default function ApartmentMap() {
                       </div>
 
                       <div className="text-center">
-                        <p className="text-xs font-bold text-gray-400">الشقة المحددة</p>
+                        <p className="text-xs font-bold text-gray-400">╪º┘ä╪┤┘é╪⌐ ╪º┘ä┘à╪¡╪»╪»╪⌐</p>
                         <h3 className="text-xl font-black text-white">
-                          شقة {selectedApartment.number}
+                          ╪┤┘é╪⌐ {selectedApartment.number}
                         </h3>
                         <div className="mt-1 text-lg font-black text-[#f6c84a]">
-                          {getApartmentRent(selectedApartment).toLocaleString("ar-SA")} ريال
+                          {getApartmentRent(selectedApartment).toLocaleString("ar-SA")} ╪▒┘è╪º┘ä
                         </div>
                         <div className="text-[11px] font-semibold text-gray-500">
-                          {getApartmentType(selectedApartment)} • {selectedApartment.status}
+                          {getApartmentType(selectedApartment)} ΓÇó {selectedApartment.status}
                         </div>
                       </div>
                     </div>
@@ -7245,11 +7263,11 @@ export default function ApartmentMap() {
                           }
                         />
                         <h3 className="text-xl font-black text-white">
-                          اختر الشقق
+                          ╪º╪«╪¬╪▒ ╪º┘ä╪┤┘é┘é
                         </h3>
                       </div>
                       <p className="mt-1 text-sm font-semibold text-gray-500">
-                        يمكنك اختيار شقة واحدة أو أكثر أو الكل
+                        ┘è┘à┘â┘å┘â ╪º╪«╪¬┘è╪º╪▒ ╪┤┘é╪⌐ ┘ê╪º╪¡╪»╪⌐ ╪ú┘ê ╪ú┘â╪½╪▒ ╪ú┘ê ╪º┘ä┘â┘ä
                       </p>
                     </div>
 
@@ -7262,7 +7280,7 @@ export default function ApartmentMap() {
                           : "border-white/10 bg-white/5 text-gray-500"
                       }`}
                     >
-                      {selectedChargeApartments.length} محددة
+                      {selectedChargeApartments.length} ┘à╪¡╪»╪»╪⌐
                     </div>
                   </div>
 
@@ -7281,8 +7299,8 @@ export default function ApartmentMap() {
                       visibleChargeApartments.every((apartment) =>
                         selectedChargeApartments.includes(apartment.number)
                       )
-                        ? "إلغاء تحديد الكل"
-                        : "تحديد الكل"}
+                        ? "╪Ñ┘ä╪║╪º╪í ╪¬╪¡╪»┘è╪» ╪º┘ä┘â┘ä"
+                        : "╪¬╪¡╪»┘è╪» ╪º┘ä┘â┘ä"}
                     </button>
 
                     <button
@@ -7290,7 +7308,7 @@ export default function ApartmentMap() {
                       onClick={() => setSelectedChargeApartments([])}
                       className="flex h-10 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 text-sm font-bold text-gray-400 transition hover:bg-white/10 hover:text-white"
                     >
-                      إلغاء التحديد
+                      ╪Ñ┘ä╪║╪º╪í ╪º┘ä╪¬╪¡╪»┘è╪»
                     </button>
                   </div>
 
@@ -7302,7 +7320,7 @@ export default function ApartmentMap() {
                       }
                       className="h-11 w-full appearance-none rounded-xl border border-white/10 bg-[#07182b] px-4 text-sm font-bold text-white outline-none transition focus:border-cyan-400/50"
                     >
-                      <option value="">كل أنواع الشقق</option>
+                      <option value="">┘â┘ä ╪ú┘å┘ê╪º╪╣ ╪º┘ä╪┤┘é┘é</option>
                       {apartmentTypeOptions.map((type) => (
                         <option key={type} value={type}>
                           {type}
@@ -7319,7 +7337,7 @@ export default function ApartmentMap() {
                       }
                       className="h-11 w-full appearance-none rounded-xl border border-white/10 bg-[#07182b] px-4 text-sm font-bold text-white outline-none transition focus:border-cyan-400/50"
                     >
-                      <option value="">كل حالات الشقق</option>
+                      <option value="">┘â┘ä ╪¡╪º┘ä╪º╪¬ ╪º┘ä╪┤┘é┘é</option>
                       {availableApartmentStatuses.map((status) => (
                         <option key={status} value={status}>
                           {status}
@@ -7338,7 +7356,7 @@ export default function ApartmentMap() {
                       onChange={(event) =>
                         setApartmentSearch(event.target.value)
                       }
-                      placeholder="ابحث عن رقم الشقة..."
+                      placeholder="╪º╪¿╪¡╪½ ╪╣┘å ╪▒┘é┘à ╪º┘ä╪┤┘é╪⌐..."
                       className="h-11 w-full rounded-xl border border-white/10 bg-[#07182b] pl-4 pr-10 text-sm font-semibold text-white outline-none transition placeholder:text-gray-600 focus:border-cyan-400/50"
                     />
                   </div>
@@ -7379,14 +7397,14 @@ export default function ApartmentMap() {
                             <span className="flex-1">
                               <span className="flex items-center justify-between gap-3">
                                 <span className="text-base font-black text-white">
-                                  شقة {apartment.number}
+                                  ╪┤┘é╪⌐ {apartment.number}
                                 </span>
                                 <span className="text-sm font-bold text-white">
-                                  {getApartmentRent(apartment).toLocaleString("ar-SA")} ريال
+                                  {getApartmentRent(apartment).toLocaleString("ar-SA")} ╪▒┘è╪º┘ä
                                 </span>
                               </span>
                               <span className="mt-0.5 block text-xs font-semibold text-gray-500">
-                                {getApartmentType(apartment)} •{" "}
+                                {getApartmentType(apartment)} ΓÇó{" "}
                                 {apartment.status}
                               </span>
                             </span>
@@ -7396,7 +7414,7 @@ export default function ApartmentMap() {
 
                       {visibleChargeApartments.length === 0 && (
                         <div className="py-10 text-center text-sm font-semibold text-gray-500">
-                          لا توجد شقق مطابقة للبحث
+                          ┘ä╪º ╪¬┘ê╪¼╪» ╪┤┘é┘é ┘à╪╖╪º╪¿┘é╪⌐ ┘ä┘ä╪¿╪¡╪½
                         </div>
                       )}
                     </div>
@@ -7410,7 +7428,7 @@ export default function ApartmentMap() {
                     }`}
                   >
                     <Users size={18} />
-                    تم اختيار {selectedChargeApartments.length} شقة
+                    ╪¬┘à ╪º╪«╪¬┘è╪º╪▒ {selectedChargeApartments.length} ╪┤┘é╪⌐
                   </div>
                 </div>
                 )}
@@ -7432,12 +7450,12 @@ export default function ApartmentMap() {
                     </div>
                     <div className="text-center">
                       <h3 className="text-lg font-black text-white">
-                        بيانات المستحق
+                        ╪¿┘è╪º┘å╪º╪¬ ╪º┘ä┘à╪│╪¬╪¡┘é
                       </h3>
                       <p className="mt-1 text-sm font-semibold text-gray-500">
                         {selectedApartment
-                          ? `العملية مخصصة للشقة رقم ${selectedApartment.number} فقط`
-                          : "نفس البيانات ستطبق على كل الشقق المحددة"}
+                          ? `╪º┘ä╪╣┘à┘ä┘è╪⌐ ┘à╪«╪╡╪╡╪⌐ ┘ä┘ä╪┤┘é╪⌐ ╪▒┘é┘à ${selectedApartment.number} ┘ü┘é╪╖`
+                          : "┘å┘ü╪│ ╪º┘ä╪¿┘è╪º┘å╪º╪¬ ╪│╪¬╪╖╪¿┘é ╪╣┘ä┘ë ┘â┘ä ╪º┘ä╪┤┘é┘é ╪º┘ä┘à╪¡╪»╪»╪⌐"}
                       </p>
                     </div>
                   </div>
@@ -7445,7 +7463,7 @@ export default function ApartmentMap() {
                   <div className="space-y-3">
                     <label className="block text-center">
                       <span className="mb-2 block text-sm font-black text-gray-300 text-center">
-                        نوع المستحق
+                        ┘å┘ê╪╣ ╪º┘ä┘à╪│╪¬╪¡┘é
                       </span>
                       <select
                         value={chargeForm.type}
@@ -7461,22 +7479,22 @@ export default function ApartmentMap() {
                             : "border-cyan-400/20 focus:border-cyan-400/70"
                         }`}
                       >
-                        <option value="إيجار">إيجار</option>
-                        <option value="فاتورة مياه">فاتورة مياه</option>
-                        <option value="فاتورة كهرباء">فاتورة كهرباء</option>
-                        <option value="مصاريف نظافة">مصاريف نظافة</option>
-                        <option value="مستحقات أخرى">مستحقات أخرى</option>
+                        <option value="╪Ñ┘è╪¼╪º╪▒">╪Ñ┘è╪¼╪º╪▒</option>
+                        <option value="┘ü╪º╪¬┘ê╪▒╪⌐ ┘à┘è╪º┘ç">┘ü╪º╪¬┘ê╪▒╪⌐ ┘à┘è╪º┘ç</option>
+                        <option value="┘ü╪º╪¬┘ê╪▒╪⌐ ┘â┘ç╪▒╪¿╪º╪í">┘ü╪º╪¬┘ê╪▒╪⌐ ┘â┘ç╪▒╪¿╪º╪í</option>
+                        <option value="┘à╪╡╪º╪▒┘è┘ü ┘å╪╕╪º┘ü╪⌐">┘à╪╡╪º╪▒┘è┘ü ┘å╪╕╪º┘ü╪⌐</option>
+                        <option value="┘à╪│╪¬╪¡┘é╪º╪¬ ╪ú╪«╪▒┘ë">┘à╪│╪¬╪¡┘é╪º╪¬ ╪ú╪«╪▒┘ë</option>
                       </select>
                     </label>
 
                     <label className="block text-center">
                       <span className="mb-2 block text-sm font-black text-gray-300 text-center">
-                        {chargeForm.type === "إيجار"
-                          ? "إجمالي الإيجار للشقق المحددة (ريال)"
-                          : "المبلغ لكل شقة (ريال)"}
+                        {chargeForm.type === "╪Ñ┘è╪¼╪º╪▒"
+                          ? "╪Ñ╪¼┘à╪º┘ä┘è ╪º┘ä╪Ñ┘è╪¼╪º╪▒ ┘ä┘ä╪┤┘é┘é ╪º┘ä┘à╪¡╪»╪»╪⌐ (╪▒┘è╪º┘ä)"
+                          : "╪º┘ä┘à╪¿┘ä╪║ ┘ä┘â┘ä ╪┤┘é╪⌐ (╪▒┘è╪º┘ä)"}
                       </span>
                       <div className="relative">
-                        {chargeForm.type === "إيجار" ? (
+                        {chargeForm.type === "╪Ñ┘è╪¼╪º╪▒" ? (
                           <div
                             className={`flex h-14 w-full items-center justify-center rounded-xl border bg-[#0b2039] px-4 pl-16 text-center text-xl font-black text-white ${
                               chargeModalMode === "collection"
@@ -7498,7 +7516,7 @@ export default function ApartmentMap() {
                                 amount: event.target.value,
                               }))
                             }
-                            placeholder="اكتب المبلغ"
+                            placeholder="╪º┘â╪¬╪¿ ╪º┘ä┘à╪¿┘ä╪║"
                             className={`h-14 w-full rounded-xl border bg-[#0b2039] px-4 pl-16 text-center text-xl font-black text-white outline-none transition placeholder:text-gray-600 ${
                               chargeModalMode === "collection"
                                 ? "border-[#f0ad18]/25 focus:border-[#f0ad18]/70"
@@ -7507,15 +7525,15 @@ export default function ApartmentMap() {
                           />
                         )}
                         <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm font-black text-gray-500">
-                          ريال
+                          ╪▒┘è╪º┘ä
                         </span>
                       </div>
                     </label>
 
-                    {chargeModalMode === "collection" && chargeForm.type === "إيجار" && (
+                    {chargeModalMode === "collection" && chargeForm.type === "╪Ñ┘è╪¼╪º╪▒" && (
                       <label className="block text-center">
                         <span className="mb-2 block text-sm font-black text-gray-300 text-center">
-                          عدد أشهر التحصيل
+                          ╪╣╪»╪» ╪ú╪┤┘ç╪▒ ╪º┘ä╪¬╪¡╪╡┘è┘ä
                         </span>
                         <div className="relative">
                           <input
@@ -7534,18 +7552,18 @@ export default function ApartmentMap() {
                             className="h-14 w-full rounded-xl border border-[#f0ad18]/25 bg-[#0b2039] px-4 text-center text-xl font-black text-white outline-none transition focus:border-[#f0ad18]/70"
                           />
                           <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm font-black text-gray-500">
-                            شهر
+                            ╪┤┘ç╪▒
                           </span>
                         </div>
                         <p className="mt-2 text-xs font-semibold text-gray-500">
-                          الافتراضي شهر واحد — الحد الأقصى المتاح للتحصيل: {selectedRentCollectionMaxMonths.toLocaleString("ar-SA")} أشهر
+                          ╪º┘ä╪º┘ü╪¬╪▒╪º╪╢┘è ╪┤┘ç╪▒ ┘ê╪º╪¡╪» ΓÇö ╪º┘ä╪¡╪» ╪º┘ä╪ú┘é╪╡┘ë ╪º┘ä┘à╪¬╪º╪¡ ┘ä┘ä╪¬╪¡╪╡┘è┘ä: {selectedRentCollectionMaxMonths.toLocaleString("ar-SA")} ╪ú╪┤┘ç╪▒
                         </p>
                       </label>
                     )}
 
                     <label className="block text-center">
                       <span className="mb-2 block text-sm font-black text-gray-300 text-center">
-                        التاريخ
+                        ╪º┘ä╪¬╪º╪▒┘è╪«
                       </span>
                       <input
                         type="date"
@@ -7566,7 +7584,7 @@ export default function ApartmentMap() {
 
                     <label className="block text-center">
                       <span className="mb-2 block text-sm font-black text-gray-300 text-center">
-                        ملاحظات
+                        ┘à┘ä╪º╪¡╪╕╪º╪¬
                       </span>
                       <textarea
                         rows={3}
@@ -7577,7 +7595,7 @@ export default function ApartmentMap() {
                             notes: event.target.value,
                           }))
                         }
-                        placeholder="اكتب أي ملاحظات إضافية..."
+                        placeholder="╪º┘â╪¬╪¿ ╪ú┘è ┘à┘ä╪º╪¡╪╕╪º╪¬ ╪Ñ╪╢╪º┘ü┘è╪⌐..."
                         className={`min-h-[90px] w-full resize-none rounded-xl border bg-[#0b2039] px-4 py-2.5 text-center text-base font-semibold text-white outline-none transition placeholder:text-gray-600 ${
                           chargeModalMode === "collection"
                             ? "border-[#f0ad18]/25 focus:border-[#f0ad18]/70"
@@ -7594,7 +7612,7 @@ export default function ApartmentMap() {
                       }`}
                     >
                       <div className="flex items-center justify-between gap-3">
-                        <span>عدد الشقق المحددة</span>
+                        <span>╪╣╪»╪» ╪º┘ä╪┤┘é┘é ╪º┘ä┘à╪¡╪»╪»╪⌐</span>
                         <span
                           className={`text-lg font-black ${
                             chargeModalMode === "collection"
@@ -7606,9 +7624,9 @@ export default function ApartmentMap() {
                         </span>
                       </div>
                       <div className="mt-1 flex items-center justify-between gap-3">
-                        <span>إجمالي العملية</span>
+                        <span>╪Ñ╪¼┘à╪º┘ä┘è ╪º┘ä╪╣┘à┘ä┘è╪⌐</span>
                         <span className="text-base font-black text-white">
-                          {chargeForm.type === "إيجار"
+                          {chargeForm.type === "╪Ñ┘è╪¼╪º╪▒"
                             ? selectedRentCollectionTotal.toLocaleString("ar-SA")
                             : selectedChargeApartments.length > 0 &&
                               Number(chargeForm.amount) > 0
@@ -7617,7 +7635,7 @@ export default function ApartmentMap() {
                                 Number(chargeForm.amount)
                               ).toLocaleString("ar-SA")
                             : "0"}{" "}
-                          ريال
+                          ╪▒┘è╪º┘ä
                         </span>
                       </div>
                     </div>
@@ -7638,21 +7656,21 @@ export default function ApartmentMap() {
                     }
 
                     if (selectedChargeApartments.length === 0) {
-                      window.alert("من فضلك اختر شقة واحدة على الأقل");
+                      window.alert("┘à┘å ┘ü╪╢┘ä┘â ╪º╪«╪¬╪▒ ╪┤┘é╪⌐ ┘ê╪º╪¡╪»╪⌐ ╪╣┘ä┘ë ╪º┘ä╪ú┘é┘ä");
                       return;
                     }
 
                     if (
-                      chargeForm.type !== "إيجار" &&
+                      chargeForm.type !== "╪Ñ┘è╪¼╪º╪▒" &&
                       (!chargeForm.amount.trim() || Number(chargeForm.amount) <= 0)
                     ) {
-                      window.alert("من فضلك اكتب مبلغًا صحيحًا أولاً");
+                      window.alert("┘à┘å ┘ü╪╢┘ä┘â ╪º┘â╪¬╪¿ ┘à╪¿┘ä╪║┘ï╪º ╪╡╪¡┘è╪¡┘ï╪º ╪ú┘ê┘ä╪º┘ï");
                       return;
                     }
 
-                    if (chargeModalMode === "collection" && chargeForm.type === "إيجار") {
+                    if (chargeModalMode === "collection" && chargeForm.type === "╪Ñ┘è╪¼╪º╪▒") {
                       if (rentCollectionMonths < 1) {
-                        window.alert("عدد أشهر التحصيل يجب أن يكون شهرًا واحدًا على الأقل.");
+                        window.alert("╪╣╪»╪» ╪ú╪┤┘ç╪▒ ╪º┘ä╪¬╪¡╪╡┘è┘ä ┘è╪¼╪¿ ╪ú┘å ┘è┘â┘ê┘å ╪┤┘ç╪▒┘ï╪º ┘ê╪º╪¡╪»┘ï╪º ╪╣┘ä┘ë ╪º┘ä╪ú┘é┘ä.");
                         return;
                       }
 
@@ -7670,8 +7688,8 @@ export default function ApartmentMap() {
                         const maxMonths = getApartmentRemainingRentMonths(invalidApartment);
                         window.alert(
                           maxMonths > 0
-                            ? `لا يمكن تحصيل أكثر من ${maxMonths} شهر للشقة رقم ${invalidApartment.number} لأن هذا هو المتبقي من قيمة عقدها بعد التحصيلات السابقة.`
-                            : `لا يوجد متبقي من قيمة عقد الشقة رقم ${invalidApartment.number} يمكن تحصيله.`
+                            ? `┘ä╪º ┘è┘à┘â┘å ╪¬╪¡╪╡┘è┘ä ╪ú┘â╪½╪▒ ┘à┘å ${maxMonths} ╪┤┘ç╪▒ ┘ä┘ä╪┤┘é╪⌐ ╪▒┘é┘à ${invalidApartment.number} ┘ä╪ú┘å ┘ç╪░╪º ┘ç┘ê ╪º┘ä┘à╪¬╪¿┘é┘è ┘à┘å ┘é┘è┘à╪⌐ ╪╣┘é╪»┘ç╪º ╪¿╪╣╪» ╪º┘ä╪¬╪¡╪╡┘è┘ä╪º╪¬ ╪º┘ä╪│╪º╪¿┘é╪⌐.`
+                            : `┘ä╪º ┘è┘ê╪¼╪» ┘à╪¬╪¿┘é┘è ┘à┘å ┘é┘è┘à╪⌐ ╪╣┘é╪» ╪º┘ä╪┤┘é╪⌐ ╪▒┘é┘à ${invalidApartment.number} ┘è┘à┘â┘å ╪¬╪¡╪╡┘è┘ä┘ç.`
                         );
                         return;
                       }
@@ -7695,19 +7713,19 @@ export default function ApartmentMap() {
                           );
                           const monthlyRent = apartment ? getApartmentRent(apartment) : 0;
                           const rentMonths =
-                            chargeModalMode === "collection" && chargeForm.type === "إيجار"
+                            chargeModalMode === "collection" && chargeForm.type === "╪Ñ┘è╪¼╪º╪▒"
                               ? Math.max(1, rentCollectionMonths)
                               : undefined;
 
                           return {
                             ...chargeForm,
                             amount:
-                              chargeForm.type === "إيجار"
+                              chargeForm.type === "╪Ñ┘è╪¼╪º╪▒"
                                 ? String(monthlyRent * (rentMonths ?? 1))
                                 : chargeForm.amount,
                             notes:
-                              chargeForm.type === "إيجار" && rentMonths
-                                ? `${chargeForm.notes ? `${chargeForm.notes} — ` : ""}تحصيل إيجار عن ${rentMonths} ${rentMonths === 1 ? "شهر" : "أشهر"}`
+                              chargeForm.type === "╪Ñ┘è╪¼╪º╪▒" && rentMonths
+                                ? `${chargeForm.notes ? `${chargeForm.notes} ΓÇö ` : ""}╪¬╪¡╪╡┘è┘ä ╪Ñ┘è╪¼╪º╪▒ ╪╣┘å ${rentMonths} ${rentMonths === 1 ? "╪┤┘ç╪▒" : "╪ú╪┤┘ç╪▒"}`
                                 : chargeForm.notes,
                             apartmentNumber,
                             ...(rentMonths ? { rentMonths } : {}),
@@ -7719,7 +7737,7 @@ export default function ApartmentMap() {
                         ? currentCharges.map((record) =>
                             getChargeRecordKey(
                               record,
-                              chargeModalMode === "collection" ? "تحصيل" : "مستحق"
+                              chargeModalMode === "collection" ? "╪¬╪¡╪╡┘è┘ä" : "┘à╪│╪¬╪¡┘é"
                             ) === editingChargeKey
                               ? { ...newCharges[0], id: record.id || `${Date.now()}` }
                               : record
@@ -7732,11 +7750,11 @@ export default function ApartmentMap() {
                       window.localStorage.setItem(storageKey, JSON.stringify(chargesToSave));
                       setChargeSyncVersion((value) => value + 1);
                     } catch {
-                      // تجاهل خطأ التخزين المحلي مع إغلاق النموذج.
+                      // ╪¬╪¼╪º┘ç┘ä ╪«╪╖╪ú ╪º┘ä╪¬╪«╪▓┘è┘å ╪º┘ä┘à╪¡┘ä┘è ┘à╪╣ ╪Ñ╪║┘ä╪º┘é ╪º┘ä┘å┘à┘ê╪░╪¼.
                     }
 
                     setChargeForm({
-                      type: "إيجار",
+                      type: "╪Ñ┘è╪¼╪º╪▒",
                       amount: "",
                       date: new Date().toISOString().slice(0, 10),
                       notes: "",
@@ -7757,9 +7775,9 @@ export default function ApartmentMap() {
                 >
                   <CheckCircle2 size={21} />
                   <span>
-                    حفظ{" "}
+                    ╪¡┘ü╪╕{" "}
                     {selectedChargeApartments.length > 0
-                      ? `للشقق المحددة (${selectedChargeApartments.length})`
+                      ? `┘ä┘ä╪┤┘é┘é ╪º┘ä┘à╪¡╪»╪»╪⌐ (${selectedChargeApartments.length})`
                       : ""}
                   </span>
                 </button>
@@ -7770,7 +7788,7 @@ export default function ApartmentMap() {
                   className="flex h-14 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-5 text-base font-black text-gray-300 transition hover:bg-white/10 hover:text-white sm:text-lg"
                 >
                   <X size={21} />
-                  إغلاق
+                  ╪Ñ╪║┘ä╪º┘é
                 </button>
               </div>
             </div>
@@ -7811,7 +7829,7 @@ export default function ApartmentMap() {
                         {getApartmentTypeReportTitle()}
                       </h2>
                       <p className="mt-1 text-xs font-semibold text-gray-400 sm:text-sm">
-                        تفاصيل جميع الشقق المسجلة تحت هذا النوع
+                        ╪¬┘ü╪º╪╡┘è┘ä ╪¼┘à┘è╪╣ ╪º┘ä╪┤┘é┘é ╪º┘ä┘à╪│╪¼┘ä╪⌐ ╪¬╪¡╪¬ ┘ç╪░╪º ╪º┘ä┘å┘ê╪╣
                       </p>
                     </div>
 
@@ -7819,7 +7837,7 @@ export default function ApartmentMap() {
                       type="button"
                       onClick={() => setSelectedApartmentTypeReport(null)}
                       className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-gray-300 transition hover:border-red-400/40 hover:bg-red-400/10 hover:text-red-300"
-                      aria-label="إغلاق التقرير"
+                      aria-label="╪Ñ╪║┘ä╪º┘é ╪º┘ä╪¬┘é╪▒┘è╪▒"
                     >
                       <X size={21} />
                     </button>
@@ -7827,33 +7845,33 @@ export default function ApartmentMap() {
 
                   <div className="shrink-0 grid grid-cols-2 gap-3 border-b border-white/10 bg-[#0b2039] p-4 sm:grid-cols-4">
                     <div className="rounded-2xl border border-[#f0ad18]/20 bg-[#07182b] p-3 text-center">
-                      <div className="text-xs font-bold text-gray-400">عدد الشقق</div>
+                      <div className="text-xs font-bold text-gray-400">╪╣╪»╪» ╪º┘ä╪┤┘é┘é</div>
                       <div className="mt-1 text-2xl font-black text-[#f6c84a]">
                         {rows.length}
                       </div>
                     </div>
 
                     <div className="rounded-2xl border border-green-400/20 bg-[#07182b] p-3 text-center">
-                      <div className="text-xs font-bold text-gray-400">إيجار الشقة</div>
+                      <div className="text-xs font-bold text-gray-400">╪Ñ┘è╪¼╪º╪▒ ╪º┘ä╪┤┘é╪⌐</div>
                       <div className="mt-1 text-2xl font-black text-green-300">
                         {rows.length
                           ? getApartmentRent(rows[0].apartment).toLocaleString("ar-SA")
                           : "0"}{" "}
-                        ريال
+                        ╪▒┘è╪º┘ä
                       </div>
                     </div>
 
                     <div className="rounded-2xl border border-blue-400/20 bg-[#07182b] p-3 text-center">
-                      <div className="text-xs font-bold text-gray-400">إجمالي الإيجار الشهري</div>
+                      <div className="text-xs font-bold text-gray-400">╪Ñ╪¼┘à╪º┘ä┘è ╪º┘ä╪Ñ┘è╪¼╪º╪▒ ╪º┘ä╪┤┘ç╪▒┘è</div>
                       <div className="mt-1 text-2xl font-black text-blue-300">
-                        {totalRent.toLocaleString("ar-SA")} ريال
+                        {totalRent.toLocaleString("ar-SA")} ╪▒┘è╪º┘ä
                       </div>
                     </div>
 
                     <div className="rounded-2xl border border-purple-400/20 bg-[#07182b] p-3 text-center">
-                      <div className="text-xs font-bold text-gray-400">إجمالي المدفوعات</div>
+                      <div className="text-xs font-bold text-gray-400">╪Ñ╪¼┘à╪º┘ä┘è ╪º┘ä┘à╪»┘ü┘ê╪╣╪º╪¬</div>
                       <div className="mt-1 text-2xl font-black text-purple-300">
-                        {totalPaid.toLocaleString("ar-SA")} ريال
+                        {totalPaid.toLocaleString("ar-SA")} ╪▒┘è╪º┘ä
                       </div>
                     </div>
                   </div>
@@ -7863,26 +7881,26 @@ export default function ApartmentMap() {
                       <table className="w-full min-w-[2200px] border-collapse text-xs">
                         <thead className="sticky top-0 z-10 bg-[#0b2039]">
                           <tr className="text-gray-300">
-                            <th className="border-b border-white/10 px-3 py-3 text-center">رقم الشقة</th>
-                            <th className="border-b border-white/10 px-3 py-3 text-center">النوع</th>
-                            <th className="border-b border-white/10 px-3 py-3 text-center">الحالة</th>
-                            <th className="border-b border-white/10 px-3 py-3 text-center">الإيجار الشهري</th>
-                            <th className="border-b border-white/10 px-3 py-3 text-center">اسم المستأجر / الجهة</th>
-                            <th className="border-b border-white/10 px-3 py-3 text-center">الجوال</th>
-                            <th className="border-b border-white/10 px-3 py-3 text-center">رقم الهوية</th>
-                            <th className="border-b border-white/10 px-3 py-3 text-center">الدور</th>
-                            <th className="border-b border-white/10 px-3 py-3 text-center">المواقف</th>
-                            <th className="border-b border-white/10 px-3 py-3 text-center">عداد الكهرباء</th>
-                            <th className="border-b border-white/10 px-3 py-3 text-center">عداد المياه</th>
-                            <th className="border-b border-white/10 px-3 py-3 text-center">حالة الفرش</th>
-                            <th className="border-b border-white/10 px-3 py-3 text-center">رقم العقد</th>
-                            <th className="border-b border-white/10 px-3 py-3 text-center">بداية العقد</th>
-                            <th className="border-b border-white/10 px-3 py-3 text-center">نهاية العقد</th>
-                            <th className="border-b border-white/10 px-3 py-3 text-center">مدة العقد</th>
-                            <th className="border-b border-white/10 px-3 py-3 text-center">التأمين</th>
-                            <th className="border-b border-white/10 px-3 py-3 text-center">ملاحظات التأمين</th>
-                            <th className="border-b border-white/10 px-3 py-3 text-center">عدد الدفعات</th>
-                            <th className="border-b border-white/10 px-3 py-3 text-center">إجمالي المدفوع</th>
+                            <th className="border-b border-white/10 px-3 py-3 text-center">╪▒┘é┘à ╪º┘ä╪┤┘é╪⌐</th>
+                            <th className="border-b border-white/10 px-3 py-3 text-center">╪º┘ä┘å┘ê╪╣</th>
+                            <th className="border-b border-white/10 px-3 py-3 text-center">╪º┘ä╪¡╪º┘ä╪⌐</th>
+                            <th className="border-b border-white/10 px-3 py-3 text-center">╪º┘ä╪Ñ┘è╪¼╪º╪▒ ╪º┘ä╪┤┘ç╪▒┘è</th>
+                            <th className="border-b border-white/10 px-3 py-3 text-center">╪º╪│┘à ╪º┘ä┘à╪│╪¬╪ú╪¼╪▒ / ╪º┘ä╪¼┘ç╪⌐</th>
+                            <th className="border-b border-white/10 px-3 py-3 text-center">╪º┘ä╪¼┘ê╪º┘ä</th>
+                            <th className="border-b border-white/10 px-3 py-3 text-center">╪▒┘é┘à ╪º┘ä┘ç┘ê┘è╪⌐</th>
+                            <th className="border-b border-white/10 px-3 py-3 text-center">╪º┘ä╪»┘ê╪▒</th>
+                            <th className="border-b border-white/10 px-3 py-3 text-center">╪º┘ä┘à┘ê╪º┘é┘ü</th>
+                            <th className="border-b border-white/10 px-3 py-3 text-center">╪╣╪»╪º╪» ╪º┘ä┘â┘ç╪▒╪¿╪º╪í</th>
+                            <th className="border-b border-white/10 px-3 py-3 text-center">╪╣╪»╪º╪» ╪º┘ä┘à┘è╪º┘ç</th>
+                            <th className="border-b border-white/10 px-3 py-3 text-center">╪¡╪º┘ä╪⌐ ╪º┘ä┘ü╪▒╪┤</th>
+                            <th className="border-b border-white/10 px-3 py-3 text-center">╪▒┘é┘à ╪º┘ä╪╣┘é╪»</th>
+                            <th className="border-b border-white/10 px-3 py-3 text-center">╪¿╪»╪º┘è╪⌐ ╪º┘ä╪╣┘é╪»</th>
+                            <th className="border-b border-white/10 px-3 py-3 text-center">┘å┘ç╪º┘è╪⌐ ╪º┘ä╪╣┘é╪»</th>
+                            <th className="border-b border-white/10 px-3 py-3 text-center">┘à╪»╪⌐ ╪º┘ä╪╣┘é╪»</th>
+                            <th className="border-b border-white/10 px-3 py-3 text-center">╪º┘ä╪¬╪ú┘à┘è┘å</th>
+                            <th className="border-b border-white/10 px-3 py-3 text-center">┘à┘ä╪º╪¡╪╕╪º╪¬ ╪º┘ä╪¬╪ú┘à┘è┘å</th>
+                            <th className="border-b border-white/10 px-3 py-3 text-center">╪╣╪»╪» ╪º┘ä╪»┘ü╪╣╪º╪¬</th>
+                            <th className="border-b border-white/10 px-3 py-3 text-center">╪Ñ╪¼┘à╪º┘ä┘è ╪º┘ä┘à╪»┘ü┘ê╪╣</th>
                           </tr>
                         </thead>
 
@@ -7914,25 +7932,25 @@ export default function ApartmentMap() {
                                       className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-black ${statusColor.badge}`}
                                     >
                                       <span className={`h-2 w-2 rounded-full ${statusColor.dot}`} />
-                                      {apartment.status === "شاغرة"
-                                        ? "فارغة"
+                                      {apartment.status === "╪┤╪º╪║╪▒╪⌐"
+                                        ? "┘ü╪º╪▒╪║╪⌐"
                                         : apartment.status}
                                     </span>
                                   </td>
                                   <td className="px-3 py-3 text-center font-black text-green-300">
-                                    {getApartmentRent(apartment).toLocaleString("ar-SA")} ريال
+                                    {getApartmentRent(apartment).toLocaleString("ar-SA")} ╪▒┘è╪º┘ä
                                   </td>
                                   <td className="px-3 py-3 text-center font-semibold text-gray-300">
-                                    {tenantInfo.tenantName || apartment.tenant || "غير مضاف"}
+                                    {tenantInfo.tenantName || apartment.tenant || "╪║┘è╪▒ ┘à╪╢╪º┘ü"}
                                   </td>
                                   <td className="px-3 py-3 text-center font-semibold text-gray-300">
-                                    {tenantInfo.phone || "غير مضاف"}
+                                    {tenantInfo.phone || "╪║┘è╪▒ ┘à╪╢╪º┘ü"}
                                   </td>
                                   <td className="px-3 py-3 text-center font-semibold text-gray-300">
-                                    {tenantInfo.identityNumber || "غير مضاف"}
+                                    {tenantInfo.identityNumber || "╪║┘è╪▒ ┘à╪╢╪º┘ü"}
                                   </td>
                                   <td className="px-3 py-3 text-center font-semibold text-gray-300">
-                                    {extraInfo.floor || "غير محدد"}
+                                    {extraInfo.floor || "╪║┘è╪▒ ┘à╪¡╪»╪»"}
                                   </td>
                                   <td className="px-3 py-3 text-center font-semibold text-gray-300">
                                     {extraInfo.parking}
@@ -7947,7 +7965,7 @@ export default function ApartmentMap() {
                                     {extraInfo.furnitureStatus}
                                   </td>
                                   <td className="px-3 py-3 text-center font-semibold text-gray-300">
-                                    {contractInfo.contractNumber || "غير محدد"}
+                                    {contractInfo.contractNumber || "╪║┘è╪▒ ┘à╪¡╪»╪»"}
                                   </td>
                                   <td className="px-3 py-3 text-center font-semibold text-gray-300">
                                     {formatContractDate(contractInfo.startDate)}
@@ -7962,16 +7980,16 @@ export default function ApartmentMap() {
                                     )}
                                   </td>
                                   <td className="px-3 py-3 text-center font-black text-[#f6c84a]">
-                                    {Number(contractInfo.insuranceAmount || 0).toLocaleString("ar-SA")} ريال
+                                    {Number(contractInfo.insuranceAmount || 0).toLocaleString("ar-SA")} ╪▒┘è╪º┘ä
                                   </td>
                                   <td className="px-3 py-3 text-center font-semibold text-gray-400">
-                                    {contractInfo.insuranceNotes || "لا توجد ملاحظات"}
+                                    {contractInfo.insuranceNotes || "┘ä╪º ╪¬┘ê╪¼╪» ┘à┘ä╪º╪¡╪╕╪º╪¬"}
                                   </td>
                                   <td className="px-3 py-3 text-center font-black text-blue-300">
                                     {paymentCount}
                                   </td>
                                   <td className="px-3 py-3 text-center font-black text-purple-300">
-                                    {apartmentTotalPaid.toLocaleString("ar-SA")} ريال
+                                    {apartmentTotalPaid.toLocaleString("ar-SA")} ╪▒┘è╪º┘ä
                                   </td>
                                 </tr>
                               );
@@ -7990,7 +8008,7 @@ export default function ApartmentMap() {
                         className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-green-400/30 bg-green-500/10 px-4 text-sm font-black text-green-300 transition hover:bg-green-500/20"
                       >
                         <Download size={19} />
-                        تصدير Excel
+                        ╪¬╪╡╪»┘è╪▒ Excel
                       </button>
 
                       <button
@@ -7999,7 +8017,7 @@ export default function ApartmentMap() {
                         className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-blue-400/30 bg-blue-500/10 px-4 text-sm font-black text-blue-300 transition hover:bg-blue-500/20"
                       >
                         <Printer size={19} />
-                        طباعة
+                        ╪╖╪¿╪º╪╣╪⌐
                       </button>
 
                       <button
@@ -8008,7 +8026,7 @@ export default function ApartmentMap() {
                         className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-red-400/30 bg-red-500/10 px-4 text-sm font-black text-red-300 transition hover:bg-red-500/20"
                       >
                         <FileText size={19} />
-                        تصدير PDF
+                        ╪¬╪╡╪»┘è╪▒ PDF
                       </button>
                     </div>
                   </div>
@@ -8056,7 +8074,7 @@ export default function ApartmentMap() {
                       type="button"
                       onClick={closeApartmentReport}
                       className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-gray-300 transition hover:border-red-400/40 hover:bg-red-400/10 hover:text-red-300"
-                      aria-label="إغلاق التقرير"
+                      aria-label="╪Ñ╪║┘ä╪º┘é ╪º┘ä╪¬┘é╪▒┘è╪▒"
                     >
                       <X size={21} />
                     </button>
@@ -8064,28 +8082,28 @@ export default function ApartmentMap() {
 
                   <div className="shrink-0 grid grid-cols-2 gap-3 border-b border-white/10 bg-[#0b2039] p-4 sm:grid-cols-4">
                     <div className="rounded-2xl border border-[#f0ad18]/20 bg-[#07182b] p-3 text-center">
-                      <div className="text-xs font-bold text-gray-400">عدد الشقق</div>
+                      <div className="text-xs font-bold text-gray-400">╪╣╪»╪» ╪º┘ä╪┤┘é┘é</div>
                       <div className="mt-1 text-2xl font-black text-[#f6c84a]">
                         {report.data.length}
                       </div>
                     </div>
 
                     <div className="rounded-2xl border border-green-400/20 bg-[#07182b] p-3 text-center">
-                      <div className="text-xs font-bold text-gray-400">الإيجار الشهري</div>
+                      <div className="text-xs font-bold text-gray-400">╪º┘ä╪Ñ┘è╪¼╪º╪▒ ╪º┘ä╪┤┘ç╪▒┘è</div>
                       <div className="mt-1 text-2xl font-black text-green-300">
                         {totalReportRent.toLocaleString("ar-SA")}
                       </div>
                     </div>
 
                     <div className="rounded-2xl border border-blue-400/20 bg-[#07182b] p-3 text-center">
-                      <div className="text-xs font-bold text-gray-400">الفترة</div>
+                      <div className="text-xs font-bold text-gray-400">╪º┘ä┘ü╪¬╪▒╪⌐</div>
                       <div className="mt-1 text-sm font-black text-blue-300">
-                        تقرير حالي
+                        ╪¬┘é╪▒┘è╪▒ ╪¡╪º┘ä┘è
                       </div>
                     </div>
 
                     <div className="rounded-2xl border border-purple-400/20 bg-[#07182b] p-3 text-center">
-                      <div className="text-xs font-bold text-gray-400">نسبة الإشغال</div>
+                      <div className="text-xs font-bold text-gray-400">┘å╪│╪¿╪⌐ ╪º┘ä╪Ñ╪┤╪║╪º┘ä</div>
                       <div className="mt-1 text-2xl font-black text-purple-300">
                         {occupancyRate}%
                       </div>
@@ -8097,11 +8115,11 @@ export default function ApartmentMap() {
                       <table className="w-full min-w-[760px] border-collapse text-sm">
                         <thead className="sticky top-0 z-10 bg-[#0b2039]">
                           <tr className="text-gray-300">
-                            <th className="border-b border-white/10 px-4 py-3 text-center">رقم الشقة</th>
-                            <th className="border-b border-white/10 px-4 py-3 text-center">نوع الشقة</th>
-                            <th className="border-b border-white/10 px-4 py-3 text-center">الحالة</th>
-                            <th className="border-b border-white/10 px-4 py-3 text-center">الإيجار الشهري</th>
-                            <th className="border-b border-white/10 px-4 py-3 text-center">المستأجر / الجهة</th>
+                            <th className="border-b border-white/10 px-4 py-3 text-center">╪▒┘é┘à ╪º┘ä╪┤┘é╪⌐</th>
+                            <th className="border-b border-white/10 px-4 py-3 text-center">┘å┘ê╪╣ ╪º┘ä╪┤┘é╪⌐</th>
+                            <th className="border-b border-white/10 px-4 py-3 text-center">╪º┘ä╪¡╪º┘ä╪⌐</th>
+                            <th className="border-b border-white/10 px-4 py-3 text-center">╪º┘ä╪Ñ┘è╪¼╪º╪▒ ╪º┘ä╪┤┘ç╪▒┘è</th>
+                            <th className="border-b border-white/10 px-4 py-3 text-center">╪º┘ä┘à╪│╪¬╪ú╪¼╪▒ / ╪º┘ä╪¼┘ç╪⌐</th>
                           </tr>
                         </thead>
 
@@ -8125,16 +8143,16 @@ export default function ApartmentMap() {
                                     className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-black ${statusColor.badge}`}
                                   >
                                     <span className={`h-2 w-2 rounded-full ${statusColor.dot}`} />
-                                    {apartment.status === "شاغرة"
-                                      ? "فارغة"
+                                    {apartment.status === "╪┤╪º╪║╪▒╪⌐"
+                                      ? "┘ü╪º╪▒╪║╪⌐"
                                       : apartment.status}
                                   </span>
                                 </td>
                                 <td className="px-4 py-3 text-center font-black text-green-300">
-                                  {getApartmentRent(apartment).toLocaleString("ar-SA")} ريال
+                                  {getApartmentRent(apartment).toLocaleString("ar-SA")} ╪▒┘è╪º┘ä
                                 </td>
                                 <td className="px-4 py-3 text-center font-semibold text-gray-300">
-                                  {apartment.tenant || "غير مضاف"}
+                                  {apartment.tenant || "╪║┘è╪▒ ┘à╪╢╪º┘ü"}
                                 </td>
                               </tr>
                             );
@@ -8152,7 +8170,7 @@ export default function ApartmentMap() {
                         className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-green-400/30 bg-green-500/10 px-4 text-sm font-black text-green-300 transition hover:bg-green-500/20"
                       >
                         <Download size={19} />
-                        تصدير Excel
+                        ╪¬╪╡╪»┘è╪▒ Excel
                       </button>
 
                       <button
@@ -8161,7 +8179,7 @@ export default function ApartmentMap() {
                         className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-blue-400/30 bg-blue-500/10 px-4 text-sm font-black text-blue-300 transition hover:bg-blue-500/20"
                       >
                         <Printer size={19} />
-                        طباعة
+                        ╪╖╪¿╪º╪╣╪⌐
                       </button>
 
                       <button
@@ -8170,7 +8188,7 @@ export default function ApartmentMap() {
                         className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-red-400/30 bg-red-500/10 px-4 text-sm font-black text-red-300 transition hover:bg-red-500/20"
                       >
                         <FileText size={19} />
-                        تصدير PDF
+                        ╪¬╪╡╪»┘è╪▒ PDF
                       </button>
                     </div>
                   </div>
@@ -8214,7 +8232,7 @@ export default function ApartmentMap() {
                       type="button"
                       onClick={() => setIsMonthlyDueReportOpen(false)}
                       className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-gray-300 transition hover:border-red-400/40 hover:bg-red-400/10 hover:text-red-300"
-                      aria-label="إغلاق التقرير"
+                      aria-label="╪Ñ╪║┘ä╪º┘é ╪º┘ä╪¬┘é╪▒┘è╪▒"
                     >
                       <X size={21} />
                     </button>
@@ -8223,16 +8241,16 @@ export default function ApartmentMap() {
                   <div className="shrink-0 grid grid-cols-1 gap-3 border-b border-white/10 bg-[#0b2039] p-4 sm:grid-cols-3">
                     <div className="rounded-2xl border border-orange-400/20 bg-[#07182b] p-3 text-center">
                       <div className="text-xs font-bold text-gray-400">
-                        إجمالي المستحق
+                        ╪Ñ╪¼┘à╪º┘ä┘è ╪º┘ä┘à╪│╪¬╪¡┘é
                       </div>
                       <div className="mt-1 text-2xl font-black text-orange-300">
-                        {report.total.toLocaleString("ar-SA")} ريال
+                        {report.total.toLocaleString("ar-SA")} ╪▒┘è╪º┘ä
                       </div>
                     </div>
 
                     <div className="rounded-2xl border border-blue-400/20 bg-[#07182b] p-3 text-center">
                       <div className="text-xs font-bold text-gray-400">
-                        عدد العمليات
+                        ╪╣╪»╪» ╪º┘ä╪╣┘à┘ä┘è╪º╪¬
                       </div>
                       <div className="mt-1 text-2xl font-black text-blue-300">
                         {report.rows.length}
@@ -8241,10 +8259,10 @@ export default function ApartmentMap() {
 
                     <div className="rounded-2xl border border-green-400/20 bg-[#07182b] p-3 text-center">
                       <div className="text-xs font-bold text-gray-400">
-                        الفترة المحددة
+                        ╪º┘ä┘ü╪¬╪▒╪⌐ ╪º┘ä┘à╪¡╪»╪»╪⌐
                       </div>
                       <div className="mt-1 text-sm font-black text-green-300">
-                        {formatContractDate(fromDate)} —{" "}
+                        {formatContractDate(fromDate)} ΓÇö{" "}
                         {formatContractDate(toDate)}
                       </div>
                     </div>
@@ -8259,22 +8277,22 @@ export default function ApartmentMap() {
                               #
                             </th>
                             <th className="border-b border-white/10 px-4 py-3 text-center">
-                              رقم الشقة
+                              ╪▒┘é┘à ╪º┘ä╪┤┘é╪⌐
                             </th>
                             <th className="border-b border-white/10 px-4 py-3 text-center">
-                              المستأجر / الجهة
+                              ╪º┘ä┘à╪│╪¬╪ú╪¼╪▒ / ╪º┘ä╪¼┘ç╪⌐
                             </th>
                             <th className="border-b border-white/10 px-4 py-3 text-center">
-                              التاريخ
+                              ╪º┘ä╪¬╪º╪▒┘è╪«
                             </th>
                             <th className="border-b border-white/10 px-4 py-3 text-center">
-                              نوع المستحق
+                              ┘å┘ê╪╣ ╪º┘ä┘à╪│╪¬╪¡┘é
                             </th>
                             <th className="border-b border-white/10 px-4 py-3 text-center">
-                              المبلغ
+                              ╪º┘ä┘à╪¿┘ä╪║
                             </th>
                             <th className="border-b border-white/10 px-4 py-3 text-center">
-                              تفاصيل / ملاحظات
+                              ╪¬┘ü╪º╪╡┘è┘ä / ┘à┘ä╪º╪¡╪╕╪º╪¬
                             </th>
                           </tr>
                         </thead>
@@ -8290,7 +8308,7 @@ export default function ApartmentMap() {
                                   {index + 1}
                                 </td>
                                 <td className="px-4 py-3 text-center font-black text-[#f6c84a]">
-                                  {row.apartmentNumber ?? "غير محدد"}
+                                  {row.apartmentNumber ?? "╪║┘è╪▒ ┘à╪¡╪»╪»"}
                                 </td>
                                 <td className="px-4 py-3 text-center font-semibold text-gray-200">
                                   {row.tenant}
@@ -8302,7 +8320,7 @@ export default function ApartmentMap() {
                                   {row.type}
                                 </td>
                                 <td className="px-4 py-3 text-center font-black text-green-300">
-                                  {row.amount.toLocaleString("ar-SA")} ريال
+                                  {row.amount.toLocaleString("ar-SA")} ╪▒┘è╪º┘ä
                                 </td>
                                 <td className="px-4 py-3 text-center font-semibold leading-6 text-gray-400">
                                   {row.notes}
@@ -8320,10 +8338,10 @@ export default function ApartmentMap() {
                                   className="mx-auto text-gray-700"
                                 />
                                 <div className="mt-4 text-base font-bold text-gray-400">
-                                  لا توجد بيانات مسجلة خلال الفترة المحددة
+                                  ┘ä╪º ╪¬┘ê╪¼╪» ╪¿┘è╪º┘å╪º╪¬ ┘à╪│╪¼┘ä╪⌐ ╪«┘ä╪º┘ä ╪º┘ä┘ü╪¬╪▒╪⌐ ╪º┘ä┘à╪¡╪»╪»╪⌐
                                 </div>
                                 <div className="mt-2 text-sm text-gray-600">
-                                  عند إضافة البيانات الخاصة بهذا النوع ستظهر هنا تلقائيًا.
+                                  ╪╣┘å╪» ╪Ñ╪╢╪º┘ü╪⌐ ╪º┘ä╪¿┘è╪º┘å╪º╪¬ ╪º┘ä╪«╪º╪╡╪⌐ ╪¿┘ç╪░╪º ╪º┘ä┘å┘ê╪╣ ╪│╪¬╪╕┘ç╪▒ ┘ç┘å╪º ╪¬┘ä┘é╪º╪ª┘è┘ï╪º.
                                 </div>
                               </td>
                             </tr>
@@ -8341,7 +8359,7 @@ export default function ApartmentMap() {
                         className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-green-400/30 bg-green-500/10 px-4 text-sm font-black text-green-300 transition hover:bg-green-500/20"
                       >
                         <Download size={19} />
-                        تصدير Excel
+                        ╪¬╪╡╪»┘è╪▒ Excel
                       </button>
 
                       <button
@@ -8350,7 +8368,7 @@ export default function ApartmentMap() {
                         className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-blue-400/30 bg-blue-500/10 px-4 text-sm font-black text-blue-300 transition hover:bg-blue-500/20"
                       >
                         <Printer size={19} />
-                        طباعة
+                        ╪╖╪¿╪º╪╣╪⌐
                       </button>
 
                       <button
@@ -8359,7 +8377,7 @@ export default function ApartmentMap() {
                         className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-red-400/30 bg-red-500/10 px-4 text-sm font-black text-red-300 transition hover:bg-red-500/20"
                       >
                         <FileText size={19} />
-                        تصدير PDF
+                        ╪¬╪╡╪»┘è╪▒ PDF
                       </button>
                     </div>
                   </div>
@@ -8403,7 +8421,7 @@ export default function ApartmentMap() {
                       type="button"
                       onClick={() => setIsMonthlyCollectionReportOpen(false)}
                       className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-gray-300 transition hover:border-red-400/40 hover:bg-red-400/10 hover:text-red-300"
-                      aria-label="إغلاق تقرير التحصيلات"
+                      aria-label="╪Ñ╪║┘ä╪º┘é ╪¬┘é╪▒┘è╪▒ ╪º┘ä╪¬╪¡╪╡┘è┘ä╪º╪¬"
                     >
                       <X size={21} />
                     </button>
@@ -8412,37 +8430,37 @@ export default function ApartmentMap() {
                   <div className="shrink-0 grid grid-cols-1 gap-3 border-b border-white/10 bg-[#0b2039] p-4 sm:grid-cols-4">
                     <div className="rounded-2xl border border-orange-400/20 bg-[#07182b] p-3 text-center">
                       <div className="text-xs font-bold text-gray-400">
-                        إجمالي المستحق
+                        ╪Ñ╪¼┘à╪º┘ä┘è ╪º┘ä┘à╪│╪¬╪¡┘é
                       </div>
                       <div className="mt-1 text-2xl font-black text-orange-300">
-                        {report.dueTotal.toLocaleString("ar-SA")} ريال
+                        {report.dueTotal.toLocaleString("ar-SA")} ╪▒┘è╪º┘ä
                       </div>
                     </div>
 
                     <div className="rounded-2xl border border-green-400/20 bg-[#07182b] p-3 text-center">
                       <div className="text-xs font-bold text-gray-400">
-                        إجمالي المحصل
+                        ╪Ñ╪¼┘à╪º┘ä┘è ╪º┘ä┘à╪¡╪╡┘ä
                       </div>
                       <div className="mt-1 text-2xl font-black text-green-300">
-                        {report.collectedTotal.toLocaleString("ar-SA")} ريال
+                        {report.collectedTotal.toLocaleString("ar-SA")} ╪▒┘è╪º┘ä
                       </div>
                     </div>
 
                     <div className="rounded-2xl border border-red-400/20 bg-[#07182b] p-3 text-center">
                       <div className="text-xs font-bold text-gray-400">
-                        المتبقي
+                        ╪º┘ä┘à╪¬╪¿┘é┘è
                       </div>
                       <div className="mt-1 text-2xl font-black text-red-300">
-                        {report.remainingTotal.toLocaleString("ar-SA")} ريال
+                        {report.remainingTotal.toLocaleString("ar-SA")} ╪▒┘è╪º┘ä
                       </div>
                     </div>
 
                     <div className="rounded-2xl border border-blue-400/20 bg-[#07182b] p-3 text-center">
                       <div className="text-xs font-bold text-gray-400">
-                        الفترة المحددة
+                        ╪º┘ä┘ü╪¬╪▒╪⌐ ╪º┘ä┘à╪¡╪»╪»╪⌐
                       </div>
                       <div className="mt-1 text-sm font-black text-blue-300">
-                        {formatContractDate(fromDate)} —{" "}
+                        {formatContractDate(fromDate)} ΓÇö{" "}
                         {formatContractDate(toDate)}
                       </div>
                     </div>
@@ -8457,28 +8475,28 @@ export default function ApartmentMap() {
                               #
                             </th>
                             <th className="border-b border-white/10 px-4 py-3 text-center">
-                              رقم الشقة
+                              ╪▒┘é┘à ╪º┘ä╪┤┘é╪⌐
                             </th>
                             <th className="border-b border-white/10 px-4 py-3 text-center">
-                              المستأجر / الجهة
+                              ╪º┘ä┘à╪│╪¬╪ú╪¼╪▒ / ╪º┘ä╪¼┘ç╪⌐
                             </th>
                             <th className="border-b border-white/10 px-4 py-3 text-center">
-                              التاريخ
+                              ╪º┘ä╪¬╪º╪▒┘è╪«
                             </th>
                             <th className="border-b border-white/10 px-4 py-3 text-center">
-                              نوع المستحق
+                              ┘å┘ê╪╣ ╪º┘ä┘à╪│╪¬╪¡┘é
                             </th>
                             <th className="border-b border-white/10 px-4 py-3 text-center">
-                              نوع العملية
+                              ┘å┘ê╪╣ ╪º┘ä╪╣┘à┘ä┘è╪⌐
                             </th>
                             <th className="border-b border-white/10 px-4 py-3 text-center">
-                              المبلغ
+                              ╪º┘ä┘à╪¿┘ä╪║
                             </th>
                             <th className="border-b border-white/10 px-4 py-3 text-center">
-                              تفاصيل / ملاحظات
+                              ╪¬┘ü╪º╪╡┘è┘ä / ┘à┘ä╪º╪¡╪╕╪º╪¬
                             </th>
                             <th className="border-b border-white/10 px-4 py-3 text-center">
-                              الإجراءات
+                              ╪º┘ä╪Ñ╪¼╪▒╪º╪í╪º╪¬
                             </th>
                           </tr>
                         </thead>
@@ -8494,7 +8512,7 @@ export default function ApartmentMap() {
                                   {index + 1}
                                 </td>
                                 <td className="px-4 py-3 text-center font-black text-[#f6c84a]">
-                                  {row.apartmentNumber ?? "غير محدد"}
+                                  {row.apartmentNumber ?? "╪║┘è╪▒ ┘à╪¡╪»╪»"}
                                 </td>
                                 <td className="px-4 py-3 text-center font-semibold text-gray-200">
                                   {row.tenant}
@@ -8508,7 +8526,7 @@ export default function ApartmentMap() {
                                 <td className="px-4 py-3 text-center">
                                   <span
                                     className={`inline-flex rounded-full border px-3 py-1.5 text-xs font-black ${
-                                      row.transactionType === "تحصيل"
+                                      row.transactionType === "╪¬╪¡╪╡┘è┘ä"
                                         ? "border-green-400/25 bg-green-400/10 text-green-300"
                                         : "border-orange-400/25 bg-orange-400/10 text-orange-300"
                                     }`}
@@ -8518,12 +8536,12 @@ export default function ApartmentMap() {
                                 </td>
                                 <td
                                   className={`px-4 py-3 text-center font-black ${
-                                    row.transactionType === "تحصيل"
+                                    row.transactionType === "╪¬╪¡╪╡┘è┘ä"
                                       ? "text-green-300"
                                       : "text-orange-300"
                                   }`}
                                 >
-                                  {row.amount.toLocaleString("ar-SA")} ريال
+                                  {row.amount.toLocaleString("ar-SA")} ╪▒┘è╪º┘ä
                                 </td>
                                 <td className="px-4 py-3 text-center font-semibold leading-6 text-gray-400">
                                   {row.notes}
@@ -8534,26 +8552,26 @@ export default function ApartmentMap() {
                                       type="button"
                                       onClick={() =>
                                         row.sourceMode && row.sourceKey
-                                          ? window.alert(row.notes || "لا توجد تفاصيل إضافية")
-                                          : window.alert("هذه العملية محسوبة تلقائيًا ولا يوجد سجل مستقل لها.")
+                                          ? window.alert(row.notes || "┘ä╪º ╪¬┘ê╪¼╪» ╪¬┘ü╪º╪╡┘è┘ä ╪Ñ╪╢╪º┘ü┘è╪⌐")
+                                          : window.alert("┘ç╪░┘ç ╪º┘ä╪╣┘à┘ä┘è╪⌐ ┘à╪¡╪│┘ê╪¿╪⌐ ╪¬┘ä┘é╪º╪ª┘è┘ï╪º ┘ê┘ä╪º ┘è┘ê╪¼╪» ╪│╪¼┘ä ┘à╪│╪¬┘é┘ä ┘ä┘ç╪º.")
                                       }
                                       className="rounded-lg border border-blue-400/30 bg-blue-500/10 px-2.5 py-1.5 text-xs font-black text-blue-300 transition hover:bg-blue-500/20"
                                     >
-                                      عرض
+                                      ╪╣╪▒╪╢
                                     </button>
                                     <button
                                       type="button"
                                       onClick={() => openChargeForReportRow(row)}
                                       className="rounded-lg border border-amber-400/30 bg-amber-500/10 px-2.5 py-1.5 text-xs font-black text-amber-300 transition hover:bg-amber-500/20"
                                     >
-                                      تعديل
+                                      ╪¬╪╣╪»┘è┘ä
                                     </button>
                                     <button
                                       type="button"
                                       onClick={() => deleteChargeForReportRow(row)}
                                       className="rounded-lg border border-red-400/30 bg-red-500/10 px-2.5 py-1.5 text-xs font-black text-red-300 transition hover:bg-red-500/20"
                                     >
-                                      حذف
+                                      ╪¡╪░┘ü
                                     </button>
                                   </div>
                                 </td>
@@ -8570,11 +8588,11 @@ export default function ApartmentMap() {
                                   className="mx-auto text-gray-700"
                                 />
                                 <div className="mt-4 text-base font-bold text-gray-400">
-                                  لا توجد بيانات مسجلة خلال الفترة المحددة
+                                  ┘ä╪º ╪¬┘ê╪¼╪» ╪¿┘è╪º┘å╪º╪¬ ┘à╪│╪¼┘ä╪⌐ ╪«┘ä╪º┘ä ╪º┘ä┘ü╪¬╪▒╪⌐ ╪º┘ä┘à╪¡╪»╪»╪⌐
                                 </div>
                                 <div className="mt-2 text-sm text-gray-600">
-                                  عند إضافة المستحقات أو تسجيل التحصيلات ستظهر
-                                  هنا تلقائيًا.
+                                  ╪╣┘å╪» ╪Ñ╪╢╪º┘ü╪⌐ ╪º┘ä┘à╪│╪¬╪¡┘é╪º╪¬ ╪ú┘ê ╪¬╪│╪¼┘è┘ä ╪º┘ä╪¬╪¡╪╡┘è┘ä╪º╪¬ ╪│╪¬╪╕┘ç╪▒
+                                  ┘ç┘å╪º ╪¬┘ä┘é╪º╪ª┘è┘ï╪º.
                                 </div>
                               </td>
                             </tr>
@@ -8592,7 +8610,7 @@ export default function ApartmentMap() {
                         className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-green-400/30 bg-green-500/10 px-4 text-sm font-black text-green-300 transition hover:bg-green-500/20"
                       >
                         <Download size={19} />
-                        تصدير Excel
+                        ╪¬╪╡╪»┘è╪▒ Excel
                       </button>
 
                       <button
@@ -8601,7 +8619,7 @@ export default function ApartmentMap() {
                         className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-blue-400/30 bg-blue-500/10 px-4 text-sm font-black text-blue-300 transition hover:bg-blue-500/20"
                       >
                         <Printer size={19} />
-                        طباعة
+                        ╪╖╪¿╪º╪╣╪⌐
                       </button>
 
                       <button
@@ -8610,7 +8628,7 @@ export default function ApartmentMap() {
                         className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-red-400/30 bg-red-500/10 px-4 text-sm font-black text-red-300 transition hover:bg-red-500/20"
                       >
                         <FileText size={19} />
-                        تصدير PDF
+                        ╪¬╪╡╪»┘è╪▒ PDF
                       </button>
                     </div>
                   </div>
@@ -8645,7 +8663,7 @@ export default function ApartmentMap() {
                         {report.title}
                       </h2>
                       <p className="mt-1 text-sm font-semibold text-gray-400">
-                        شقة رقم {selectedApartment.number} — {formatContractDate(fromDate)} إلى {formatContractDate(toDate)}
+                        ╪┤┘é╪⌐ ╪▒┘é┘à {selectedApartment.number} ΓÇö {formatContractDate(fromDate)} ╪Ñ┘ä┘ë {formatContractDate(toDate)}
                       </p>
                     </div>
                     <button
@@ -8659,21 +8677,21 @@ export default function ApartmentMap() {
 
                   <div className="grid shrink-0 grid-cols-1 gap-3 border-b border-white/10 bg-[#0b2039] p-4 sm:grid-cols-3">
                     <div className="rounded-2xl border border-[#f0ad18]/20 bg-[#07182b] p-4 text-center">
-                      <div className="text-xs font-bold text-gray-400">إجمالي التقرير</div>
+                      <div className="text-xs font-bold text-gray-400">╪Ñ╪¼┘à╪º┘ä┘è ╪º┘ä╪¬┘é╪▒┘è╪▒</div>
                       <div className="mt-1 text-2xl font-black text-[#f6c84a]">
-                        {report.total.toLocaleString("ar-SA")} ريال
+                        {report.total.toLocaleString("ar-SA")} ╪▒┘è╪º┘ä
                       </div>
                     </div>
                     <div className="rounded-2xl border border-blue-400/20 bg-[#07182b] p-4 text-center">
-                      <div className="text-xs font-bold text-gray-400">عدد العمليات</div>
+                      <div className="text-xs font-bold text-gray-400">╪╣╪»╪» ╪º┘ä╪╣┘à┘ä┘è╪º╪¬</div>
                       <div className="mt-1 text-2xl font-black text-blue-300">
                         {report.rows.length}
                       </div>
                     </div>
                     <div className="rounded-2xl border border-green-400/20 bg-[#07182b] p-4 text-center">
-                      <div className="text-xs font-bold text-gray-400">الفترة</div>
+                      <div className="text-xs font-bold text-gray-400">╪º┘ä┘ü╪¬╪▒╪⌐</div>
                       <div className="mt-1 text-sm font-black text-green-300">
-                        {formatContractDate(fromDate)} — {formatContractDate(toDate)}
+                        {formatContractDate(fromDate)} ΓÇö {formatContractDate(toDate)}
                       </div>
                     </div>
                   </div>
@@ -8684,10 +8702,10 @@ export default function ApartmentMap() {
                         <thead className="sticky top-0 z-10 bg-[#0b2039]">
                           <tr className="text-gray-300">
                             <th className="border-b border-white/10 px-4 py-3 text-center">#</th>
-                            <th className="border-b border-white/10 px-4 py-3 text-center">التاريخ</th>
-                            <th className="border-b border-white/10 px-4 py-3 text-center">نوع العملية</th>
-                            <th className="border-b border-white/10 px-4 py-3 text-center">المبلغ</th>
-                            <th className="border-b border-white/10 px-4 py-3 text-center">التفاصيل</th>
+                            <th className="border-b border-white/10 px-4 py-3 text-center">╪º┘ä╪¬╪º╪▒┘è╪«</th>
+                            <th className="border-b border-white/10 px-4 py-3 text-center">┘å┘ê╪╣ ╪º┘ä╪╣┘à┘ä┘è╪⌐</th>
+                            <th className="border-b border-white/10 px-4 py-3 text-center">╪º┘ä┘à╪¿┘ä╪║</th>
+                            <th className="border-b border-white/10 px-4 py-3 text-center">╪º┘ä╪¬┘ü╪º╪╡┘è┘ä</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -8696,14 +8714,14 @@ export default function ApartmentMap() {
                               <tr key={`${row.date}-${row.type}-${index}`} className="border-b border-white/5 bg-white/[0.02] hover:bg-white/[0.05]">
                                 <td className="px-4 py-3 text-center font-bold text-gray-500">{index + 1}</td>
                                 <td className="px-4 py-3 text-center font-bold text-gray-300">{formatContractDate(row.date)}</td>
-                                <td className="px-4 py-3 text-center font-black text-white">{row.type || "غير محدد"}</td>
-                                <td className="px-4 py-3 text-center font-black text-green-300">{(Number(row.amount) || 0).toLocaleString("ar-SA")} ريال</td>
-                                <td className="px-4 py-3 text-center font-semibold text-gray-400">{row.notes || "لا توجد تفاصيل"}</td>
+                                <td className="px-4 py-3 text-center font-black text-white">{row.type || "╪║┘è╪▒ ┘à╪¡╪»╪»"}</td>
+                                <td className="px-4 py-3 text-center font-black text-green-300">{(Number(row.amount) || 0).toLocaleString("ar-SA")} ╪▒┘è╪º┘ä</td>
+                                <td className="px-4 py-3 text-center font-semibold text-gray-400">{row.notes || "┘ä╪º ╪¬┘ê╪¼╪» ╪¬┘ü╪º╪╡┘è┘ä"}</td>
                               </tr>
                             ))
                           ) : (
                             <tr>
-                              <td colSpan={5} className="px-5 py-14 text-center text-gray-500">لا توجد بيانات خلال الفترة المحددة.</td>
+                              <td colSpan={5} className="px-5 py-14 text-center text-gray-500">┘ä╪º ╪¬┘ê╪¼╪» ╪¿┘è╪º┘å╪º╪¬ ╪«┘ä╪º┘ä ╪º┘ä┘ü╪¬╪▒╪⌐ ╪º┘ä┘à╪¡╪»╪»╪⌐.</td>
                             </tr>
                           )}
                         </tbody>
@@ -8720,7 +8738,7 @@ export default function ApartmentMap() {
                           className="flex h-11 items-center justify-center gap-2 rounded-2xl border border-blue-400/30 bg-blue-500/10 px-5 text-sm font-black text-blue-300 transition hover:bg-blue-500/20"
                         >
                           <Printer size={18} />
-                          طباعة
+                          ╪╖╪¿╪º╪╣╪⌐
                         </button>
 
                         <button
@@ -8729,7 +8747,7 @@ export default function ApartmentMap() {
                           className="flex h-11 items-center justify-center gap-2 rounded-2xl border border-red-400/30 bg-red-500/10 px-5 text-sm font-black text-red-300 transition hover:bg-red-500/20"
                         >
                           <FileText size={18} />
-                          تصدير PDF
+                          ╪¬╪╡╪»┘è╪▒ PDF
                         </button>
 
                         <button
@@ -8738,7 +8756,7 @@ export default function ApartmentMap() {
                           className="flex h-11 items-center justify-center gap-2 rounded-2xl border border-green-400/30 bg-green-500/10 px-5 text-sm font-black text-green-300 transition hover:bg-green-500/20"
                         >
                           <Download size={18} />
-                          تصدير Excel
+                          ╪¬╪╡╪»┘è╪▒ Excel
                         </button>
                       </div>
 
@@ -8748,7 +8766,7 @@ export default function ApartmentMap() {
                         className="flex h-11 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-8 text-sm font-black text-gray-300 transition hover:border-red-400/40 hover:bg-red-400/10 hover:text-red-300"
                       >
                         <X size={19} />
-                        إغلاق
+                        ╪Ñ╪║┘ä╪º┘é
                       </button>
                     </div>
                   </div>
@@ -8764,7 +8782,7 @@ export default function ApartmentMap() {
       {/* ===================================================== */}
 
       <div className="mt-6 text-center text-sm text-gray-500">
-        Aqary Smart ERP System — تفاصيل عمارة سنتر
+        Aqary Smart ERP System ΓÇö ╪¬┘ü╪º╪╡┘è┘ä ╪╣┘à╪º╪▒╪⌐ ╪│┘å╪¬╪▒
       </div>
 
     </div>

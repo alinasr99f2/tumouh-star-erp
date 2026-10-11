@@ -127,6 +127,9 @@ export type PermissionKey =
   // =======================================================
   // Settings
   // =======================================================
+  | "building_apartment_add"
+  | "building_apartment_edit"
+  | "building_apartment_delete"
   | "settings_view";
 
 
