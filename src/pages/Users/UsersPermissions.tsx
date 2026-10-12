@@ -134,9 +134,11 @@ type PermissionKey =
 
   | "invoices_delete"
 
+  | "collections_view"
   | "collections_add"
 
   | "collections_edit"
+  | "collections_delete"
 
   | "apartment_map_view"
 
@@ -336,8 +338,10 @@ const permissionGroups: PermissionGroup[] = [
       { key: "invoices_add", title: "➕ إضافة فاتورة" },
       { key: "invoices_edit", title: "✏️ تعديل فاتورة" },
       { key: "invoices_delete", title: "🗑 حذف فاتورة" },
+      { key: "collections_view", title: "👁 عرض التحصيلات" },
       { key: "collections_add", title: "💰 تحصيل مستحق" },
       { key: "collections_edit", title: "✏️ تعديل تحصيل" },
+      { key: "collections_delete", title: "🗑 حذف تحصيل" },
       { key: "apartment_map_view", title: "👁 عرض خريطة الشقق" },
     ],
     sections: [
@@ -373,8 +377,10 @@ const permissionGroups: PermissionGroup[] = [
           { key: "invoices_add", title: "➕ إضافة فاتورة" },
           { key: "invoices_edit", title: "✏️ تعديل فاتورة" },
           { key: "invoices_delete", title: "🗑 حذف فاتورة" },
-          { key: "collections_add", title: "💰 تحصيل مستحق" },
+          { key: "collections_view", title: "👁 عرض التحصيلات" },
+      { key: "collections_add", title: "💰 تحصيل مستحق" },
           { key: "collections_edit", title: "✏️ تعديل تحصيل" },
+      { key: "collections_delete", title: "🗑 حذف تحصيل" },
         ],
       },
       {
@@ -493,9 +499,11 @@ const defaultPermissions: Record<PermissionKey, boolean> = {
 
   invoices_delete: false,
 
+  collections_view: false,
   collections_add: false,
 
   collections_edit: false,
+  collections_delete: false,
 
   apartment_map_view: true,
 
@@ -757,6 +765,78 @@ const editAvatarInputRef = useRef<HTMLInputElement | null>(null);
 
 
 
+  // Restore unsaved user/permission edits after navigating away.
+  // Passwords and image files are intentionally never persisted.
+  // Remember the exact permissions sub-dialog (new-user or edit-user).
+  const [newOpenPermissionGroup, setNewOpenPermissionGroup] = useState<string | null>(null);
+  const [editOpenPermissionGroup, setEditOpenPermissionGroup] = useState<string | null>(null);
+  const [usersDraftKey, setUsersDraftKey] = useState<string | null>(null);
+  const [usersDraftReady, setUsersDraftReady] = useState(false);
+  const usersDraftRestored = useRef(false);
+  const skipNextRoleDefaults = useRef(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void supabase.auth.getUser().then(({ data }) => {
+      if (cancelled || !data.user) return;
+      setUsersDraftKey(`aqary:users-draft:${data.user.id}`);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (!usersDraftKey || loadingUsers || usersDraftRestored.current) return;
+    usersDraftRestored.current = true;
+    try {
+      const raw = sessionStorage.getItem(usersDraftKey);
+      if (raw) {
+        const d = JSON.parse(raw);
+        if (typeof d.newOpenPermissionGroup === "string" && permissionGroups.some(g => g.key === d.newOpenPermissionGroup))
+          setNewOpenPermissionGroup(d.newOpenPermissionGroup);
+        if (typeof d.editOpenPermissionGroup === "string" && permissionGroups.some(g => g.key === d.editOpenPermissionGroup))
+          setEditOpenPermissionGroup(d.editOpenPermissionGroup);
+        if (typeof d.overviewGroupKey === "string" && permissionGroups.some(g => g.key === d.overviewGroupKey))
+          setOverviewGroupKey(d.overviewGroupKey);
+        if (typeof d.search === "string") setSearch(d.search);
+        if (typeof d.roleFilter === "string") setRoleFilter(d.roleFilter);
+        if (typeof d.statusFilter === "string") setStatusFilter(d.statusFilter);
+        if (typeof d.newName === "string") setNewName(d.newName);
+        if (typeof d.newEmail === "string") setNewEmail(d.newEmail);
+        if (typeof d.newRole === "string") { skipNextRoleDefaults.current = true; setNewRole(d.newRole); }
+        if (d.selectedPermissions && typeof d.selectedPermissions === "object")
+          setSelectedPermissions({ ...defaultPermissions, ...d.selectedPermissions });
+        if (typeof d.editingUserId === "number") {
+          const match = users.find((u) => u.id === d.editingUserId);
+          if (match && (isSystemOwner || isManager)) {
+            setEditingUser(match);
+            setEditName(typeof d.editName === "string" ? d.editName : match.name);
+            setEditEmail(typeof d.editEmail === "string" ? d.editEmail : match.email);
+            setEditRole(typeof d.editRole === "string" ? d.editRole : match.role);
+            setEditActive(typeof d.editActive === "boolean" ? d.editActive : match.active);
+            setEditPermissions(d.editPermissions && typeof d.editPermissions === "object"
+              ? { ...defaultPermissions, ...d.editPermissions } : { ...match.permissions });
+          }
+        }
+      }
+    } catch (error) { console.warn("Unable to restore users draft", error); }
+    setUsersDraftReady(true);
+  }, [usersDraftKey, loadingUsers, users, isSystemOwner, isManager]);
+
+  useEffect(() => {
+    if (!usersDraftReady || !usersDraftKey) return;
+    try {
+      sessionStorage.setItem(usersDraftKey, JSON.stringify({
+        search, roleFilter, statusFilter, newName, newEmail, newRole,
+        selectedPermissions, editingUserId: editingUser?.id ?? null,
+        newOpenPermissionGroup, editOpenPermissionGroup, overviewGroupKey,
+        editName, editEmail, editRole, editActive, editPermissions,
+      }));
+    } catch (error) { console.warn("Unable to save users draft", error); }
+  }, [usersDraftReady, usersDraftKey, search, roleFilter, statusFilter,
+    newName, newEmail, newRole, selectedPermissions, editingUser,
+    editName, editEmail, editRole, editActive, editPermissions,
+    newOpenPermissionGroup, editOpenPermissionGroup, overviewGroupKey]);
+
   const normalizePermissions = (
 
     value: unknown,
@@ -906,9 +986,8 @@ const editAvatarInputRef = useRef<HTMLInputElement | null>(null);
   // مع بقاء إمكانية تعديل أي مربع يدويًا بعد ذلك.
 
   useEffect(() => {
-
+    if (skipNextRoleDefaults.current) { skipNextRoleDefaults.current = false; return; }
     setSelectedPermissions(getRolePermissions(newRole));
-
   }, [newRole]);
 
 
@@ -1435,6 +1514,7 @@ const editAvatarInputRef = useRef<HTMLInputElement | null>(null);
 
 
 
+    setEditOpenPermissionGroup(null);
     setEditingUser(user);
 
     setEditName(user.name);
@@ -1459,6 +1539,7 @@ const editAvatarInputRef = useRef<HTMLInputElement | null>(null);
     setEditAvatarPreview(null);
     setEditAvatarFile(null);
     setEditingUser(null);
+    setEditOpenPermissionGroup(null);
   };
 
 
@@ -2148,6 +2229,8 @@ const editAvatarInputRef = useRef<HTMLInputElement | null>(null);
                     key={group.key}
 
                     groupKey={group.key}
+                    open={newOpenPermissionGroup === group.key}
+                    onOpenChange={(next) => setNewOpenPermissionGroup(next ? group.key : null)}
 
                     title={group.title}
 
@@ -3387,6 +3470,8 @@ const editAvatarInputRef = useRef<HTMLInputElement | null>(null);
                       key={`edit-${group.key}`}
 
                       groupKey={group.key}
+                      open={editOpenPermissionGroup === group.key}
+                      onOpenChange={(next) => setEditOpenPermissionGroup(next ? group.key : null)}
 
                       title={group.title}
 
@@ -3758,6 +3843,8 @@ function FilterSelect({
 
 function PermissionGroupCard({
   groupKey,
+  open,
+  onOpenChange,
   title,
   icon: Icon,
   permissions,
@@ -3767,6 +3854,8 @@ function PermissionGroupCard({
   disabledKeys,
 }: {
   groupKey: string;
+  open: boolean;
+  onOpenChange: (next: boolean) => void;
   title: string;
   icon: typeof LayoutDashboard;
   permissions: PermissionItem[];
@@ -3775,7 +3864,8 @@ function PermissionGroupCard({
   onChange: (key: PermissionKey) => void;
   disabledKeys?: Set<PermissionKey>;
 }) {
-  const [isOpen, setIsOpen] = useState(false);
+  const isOpen = open;
+  const setIsOpen = onOpenChange;
 
   const actionKeys: Record<"view" | "add" | "edit" | "delete", PermissionKey | undefined> = {
     view: permissions.find((permission) => permission.key.endsWith("_view"))?.key,

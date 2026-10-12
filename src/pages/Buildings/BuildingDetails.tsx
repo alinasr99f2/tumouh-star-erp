@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { usePermissions } from "../../utils/permissions";
 import PermissionDeniedModal from "../../components/PermissionDeniedModal";
 import { supabase } from "../../utils/supabase";
+import { applyFinancialOperation } from "../../utils/financialOperations";
 import {
   X,
   Building2,
@@ -321,9 +322,11 @@ const canAddBuildings = hasPermission("buildings_add");
 const canDeleteBuildings = hasPermission("buildings_delete");
 
 const canViewApartments = hasPermission("apartments_view");
-const canEditApartments = hasPermission("apartments_edit");
-const canAddApartments = hasPermission("apartments_add");
-const canDeleteApartments = hasPermission("apartments_delete");
+const canEditApartments = hasPermission("building_apartment_edit");
+const canAddApartments = hasPermission("building_apartment_add");
+const canDeleteApartments = hasPermission("building_apartment_delete");
+const canAddInvoices = hasPermission("invoices_add");
+const canAddCollections = hasPermission("collections_add");
 
 const [permissionMessage, setPermissionMessage] =
   useState<string | null>(null);
@@ -814,8 +817,7 @@ const denyApartmentDelete = () => {
     permissionsLoading ||
     !currentBuildingId ||
     !buildingStateHydratedRef.current ||
-    !canEditBuildings ||
-    !canEditApartments
+    !(canEditBuildings && canEditApartments) && !canAddApartments
   ) {
     return;
   }
@@ -824,15 +826,6 @@ const denyApartmentDelete = () => {
         JSON.stringify(apartments) === lastLoadedApartmentsRef.current) return;
 
     const saveCurrentBuildingState = async () => {
-      const readScopedArray = (key: string): BuildingCharge[] => {
-        try {
-          const saved = getBuildingStorageValue(key);
-          return saved ? (JSON.parse(saved) as BuildingCharge[]) : [];
-        } catch {
-          return [];
-        }
-      };
-
       // Safety: never overwrite a newer or differently shaped apartment map.
       const { data: latest, error: checkError } = await supabase
         .from("building_state")
@@ -854,14 +847,34 @@ const denyApartmentDelete = () => {
           .map((item: { number?: string | number }) => String(item.number))
       );
       const localNumbers = new Set(apartments.map((item) => String(item.number)));
-      if (remoteNumbers.size !== localNumbers.size ||
-          [...remoteNumbers].some((number) => !localNumbers.has(number))) {
-        console.warn("تم منع الكتابة فوق قائمة شقق مختلفة في قاعدة البيانات.");
+      const hasDuplicateNumbers = localNumbers.size !== apartments.length;
+      const hasInvalidNumbers = apartments.some((item) =>
+        item.number == null || ["", "null", "NaN", "undefined"].includes(String(item.number).trim())
+      );
+      const removedNumbers = [...remoteNumbers].filter((number) => !localNumbers.has(number));
+      const addedNumbers = [...localNumbers].filter((number) => !remoteNumbers.has(number));
+      // Adding apartments is authorized by apartments_add, not buildings_add/edit.
+      // Existing apartment numbers must stay intact. Deletions remain blocked here
+      // until their dedicated permission-safe persistence path is implemented.
+      const isAddition = addedNumbers.length > 0 && removedNumbers.length === 0;
+      const isEdit = addedNumbers.length === 0 && removedNumbers.length === 0;
+      const loadedByNumber = new Map(
+        (loadedApartments as Apartment[]).map((item) => [String(item.number), item])
+      );
+      const changedExistingDuringAddition = isAddition && apartments.some((item) =>
+        remoteNumbers.has(String(item.number)) &&
+        JSON.stringify(item) !== JSON.stringify(loadedByNumber.get(String(item.number)))
+      );
+      if (hasDuplicateNumbers || hasInvalidNumbers || changedExistingDuringAddition || removedNumbers.length > 0 ||
+          (isAddition && !canAddApartments) ||
+          (isEdit && !(canEditBuildings && canEditApartments))) {
+        console.warn("تم منع حفظ عملية غير مصرح بها أو أرقام شقق غير صالحة.");
         return;
       }
 
-      const { data: savedRows, error } = await supabase.from("building_state").update(
-        {
+      // Adding a new apartment must not overwrite unrelated financial/tenant data.
+      // The updated_at condition provides an optimistic concurrency check.
+      const payload = isAddition ? { apartments, updated_at: new Date().toISOString() } : {
           apartments,
           apartment_types: apartmentTypes,
           custom_apartment_types: customApartmentTypes,
@@ -870,10 +883,11 @@ const denyApartmentDelete = () => {
           apartment_extra_info: apartmentExtraInfo,
           apartment_tenant_info: apartmentTenantInfo,
           apartment_contract_info: apartmentContractInfo,
-          building_charges: readScopedArray("tumouh_star_building_charges"),
-          building_collections: readScopedArray("tumouh_star_building_collections"),
+
           updated_at: new Date().toISOString(),
-        },
+        };
+      const { data: savedRows, error } = await supabase.from("building_state").update(
+        payload,
       ).eq("building_id", currentBuildingId)
        .eq("updated_at", latest.updated_at)
        .select("updated_at");
@@ -901,6 +915,7 @@ const denyApartmentDelete = () => {
     permissionsLoading,
     canEditBuildings,
     canEditApartments,
+    canAddApartments,
   ]);
 
   useEffect(() => {
@@ -952,7 +967,6 @@ const denyApartmentDelete = () => {
 
   const addApartment = () => {
     if (denyApartmentAdd()) return;
-    if (denyAdd()) return;
     setApartments((current) => {
       const nextNumber =
         current.length > 0
@@ -1282,7 +1296,6 @@ const denyApartmentDelete = () => {
 
   const openDeleteApartmentModal = () => {
     if (denyApartmentDelete()) return;
-    if (denyDelete()) return;
     setSelectedDeleteApartments([]);
     setDeleteApartmentSearch("");
     setIsDeleteApartmentModalOpen(true);
@@ -1335,7 +1348,6 @@ const denyApartmentDelete = () => {
 
   const deleteSelectedApartments = () => {
     if (denyApartmentDelete()) return;
-    if (denyDelete()) return;
     if (selectedDeleteApartments.length === 0) {
       window.alert("اختر شقة واحدة على الأقل للحذف.");
       return;
@@ -1502,7 +1514,6 @@ const denyApartmentDelete = () => {
 
   const addNewApartmentTypeFromCard = () => {
     if (denyApartmentAdd()) return;
-    if (denyAdd()) return;
     const type = newApartmentType.trim();
     const rent = Number(newApartmentTypeRent);
 
@@ -1640,7 +1651,6 @@ const denyApartmentDelete = () => {
 
   const addNewApartmentStatus = (apartment?: Apartment) => {
     if (denyApartmentAdd()) return;
-    if (denyAdd()) return;
     const newStatus = window.prompt("اكتب اسم حالة الشقة الجديدة:")?.trim();
 
     if (!newStatus) {
@@ -8427,8 +8437,11 @@ const denyApartmentDelete = () => {
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <button
                   type="button"
-                  onClick={() => {
-                    if (denyApartmentEdit()) return;
+                  onClick={async () => {
+                    if (!(chargeModalMode === "charge" ? canAddInvoices : canAddCollections)) {
+                      showPermissionDenied("ليس لديك صلاحية إضافة هذه العملية المالية.");
+                      return;
+                    }
 
                     if (selectedChargeApartments.length === 0) {
                       window.alert("من فضلك اختر شقة واحدة على الأقل");
@@ -8486,15 +8499,10 @@ const denyApartmentDelete = () => {
                     }
 
                     try {
-                      const storageKey =
-                        chargeModalMode === "collection"
-                          ? "tumouh_star_building_collections"
-                          : "tumouh_star_building_charges";
-
-                      const saved = getBuildingStorageValue(storageKey);
-                      const currentCharges: BuildingCharge[] = saved
-                        ? JSON.parse(saved)
-                        : [];
+                      if (!currentBuildingId) throw new Error("رقم العمارة غير صالح");
+                      const storageKey = chargeModalMode === "collection"
+                        ? "tumouh_star_building_collections"
+                        : "tumouh_star_building_charges";
 
                       const newCharges = selectedChargeApartments.flatMap(
                         (apartmentNumber) => {
@@ -8545,12 +8553,20 @@ const denyApartmentDelete = () => {
                         }
                       );
 
-                      setBuildingStorageValue(
-                        storageKey,
-                        JSON.stringify([...currentCharges, ...newCharges])
-                      );
-                    } catch {
-                      // تجاهل خطأ التخزين المحلي مع إغلاق النموذج.
+                      let savedRecords: Record<string, unknown>[] = [];
+                      for (const record of newCharges) {
+                        savedRecords = await applyFinancialOperation(
+                          currentBuildingId,
+                          chargeModalMode === "collection" ? "collection" : "charge",
+                          "add",
+                          { ...record, apartmentNumber: String(record.apartmentNumber) }
+                        );
+                      }
+                      setBuildingStorageValue(storageKey, JSON.stringify(savedRecords));
+                    } catch (error) {
+                      console.error("تعذر حفظ العملية المالية:", error);
+                      window.alert("تعذر حفظ العملية المالية في Supabase. يرجى إعادة تحميل البيانات والتحقق قبل المحاولة مرة أخرى لتجنب تكرار العملية.");
+                      return;
                     }
 
                     setChargeForm({

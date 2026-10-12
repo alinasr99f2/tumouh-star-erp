@@ -80,6 +80,34 @@ export default function ProjectDetails() {
   const [accounts, setAccounts] = useState<any[]>([]);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [editingExpense, setEditingExpense] = useState<any | null>(null);
+
+  const [expenseModalRestored, setExpenseModalRestored] = useState(false);
+  // Keep the expense dialog open when returning to this route in the same session.
+  useEffect(() => {
+    let cancelled = false;
+    void supabase.auth.getUser().then(({ data }) => {
+      if (cancelled || !data.user || !id) return;
+      const key = `aqary:expense-modal:${data.user.id}:${id}`;
+      try { if (sessionStorage.getItem(key) === "open") setShowExpenseModal(true); }
+      catch { /* session storage may be disabled */ }
+      setExpenseModalRestored(true);
+    });
+    return () => { cancelled = true; };
+  }, [id]);
+
+  useEffect(() => {
+    if (!id || !expenseModalRestored) return;
+    let cancelled = false;
+    void supabase.auth.getUser().then(({ data }) => {
+      if (cancelled || !data.user) return;
+      try {
+        const key = `aqary:expense-modal:${data.user.id}:${id}`;
+        if (showExpenseModal && !editingExpense) sessionStorage.setItem(key, "open");
+        else sessionStorage.removeItem(key);
+      } catch { /* session storage may be disabled */ }
+    });
+    return () => { cancelled = true; };
+  }, [id, showExpenseModal, editingExpense, expenseModalRestored]);
   const [selectedExpense, setSelectedExpense] = useState<any | null>(null);
   const [openExpenseExport, setOpenExpenseExport] = useState<string | null>(null);
 

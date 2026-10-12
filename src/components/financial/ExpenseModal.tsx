@@ -101,6 +101,55 @@ const [paymentMethod, setPaymentMethod] =
 const [description, setDescription] =
   useState("");
 
+// Drafts are scoped to the signed-in user and the expense context.
+const [draftStorageKey, setDraftStorageKey] = useState<string | null>(null);
+const [draftReady, setDraftReady] = useState(false);
+const expenseDraft = {
+  entryDate, expenseDate, supplier, projectId, villaId, accountId,
+  stageId, categoryId, itemId, voucherNo, amount, paymentMethod, description,
+};
+
+useEffect(() => {
+  let cancelled = false;
+  setDraftReady(false);
+  setDraftStorageKey(null);
+  if (!open || isEditing) return;
+  void supabase.auth.getUser().then(({ data }) => {
+    if (cancelled || !data.user) return;
+    const context = [forcedProjectId ?? "all", forcedVillaId ?? "all", forceGeneralExpense ? "general" : "regular"].join(":");
+    const key = `aqary:expense-draft:${data.user.id}:${context}`;
+    try {
+      const raw = sessionStorage.getItem(key);
+      if (raw) {
+        const d = JSON.parse(raw) as Record<string, string>;
+        if (typeof d.entryDate === "string") setEntryDate(d.entryDate);
+        if (typeof d.expenseDate === "string") setExpenseDate(d.expenseDate);
+        if (typeof d.supplier === "string") setSupplier(d.supplier);
+        if (typeof d.projectId === "string" && forcedProjectId == null) setProjectId(d.projectId);
+        if (typeof d.villaId === "string" && forcedVillaId == null && !forceGeneralExpense) setVillaId(d.villaId);
+        if (typeof d.accountId === "string") setAccountId(d.accountId);
+        if (typeof d.stageId === "string") setStageId(d.stageId);
+        if (typeof d.categoryId === "string") setCategoryId(d.categoryId);
+        if (typeof d.itemId === "string") setItemId(d.itemId);
+        if (typeof d.voucherNo === "string") setVoucherNo(d.voucherNo);
+        if (typeof d.amount === "string") setAmount(d.amount);
+        if (typeof d.paymentMethod === "string") setPaymentMethod(d.paymentMethod);
+        if (typeof d.description === "string") setDescription(d.description);
+      }
+    } catch (error) { console.warn("Unable to restore expense draft", error); }
+    setDraftStorageKey(key);
+    setDraftReady(true);
+  });
+  return () => { cancelled = true; };
+}, [open, isEditing, forcedProjectId, forcedVillaId, forceGeneralExpense]);
+
+useEffect(() => {
+  if (!draftReady || !draftStorageKey || !open || isEditing) return;
+  try { sessionStorage.setItem(draftStorageKey, JSON.stringify(expenseDraft)); }
+  catch (error) { console.warn("Unable to save expense draft", error); }
+}, [draftReady, draftStorageKey, open, isEditing, entryDate, expenseDate, supplier, projectId, villaId, accountId, stageId, categoryId, itemId, voucherNo, amount, paymentMethod, description]);
+
+
 useEffect(() => {
   setLocalAccounts(accounts);
 }, [accounts]);
@@ -535,6 +584,11 @@ const resetForm = () => {
   setDescription("");
 };
 
+const cancelExpense = () => {
+  if (draftStorageKey) sessionStorage.removeItem(draftStorageKey);
+  onClose();
+};
+
 const handleSave = async (addAnother = false) => {
 
   if (!accountId) {
@@ -595,6 +649,7 @@ if (!success) {
 
 console.log(expense);
 
+if (draftStorageKey) sessionStorage.removeItem(draftStorageKey);
 resetForm();
 
 if (forcedProjectId != null) {
@@ -628,7 +683,7 @@ return (
 
         <button
           type="button"
-          onClick={onClose}
+          onClick={cancelExpense}
           className="text-2xl text-gray-400 transition hover:text-red-400"
         >
           ✕
@@ -1268,7 +1323,7 @@ return (
         {/* إلغاء */}
         <button
           type="button"
-          onClick={onClose}
+          onClick={cancelExpense}
           className="
             rounded-xl
             border border-white/10

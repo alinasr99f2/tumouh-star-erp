@@ -30,7 +30,6 @@ import TenantDetails from "./pages/Buildings/TenantDetails";
 
 import FinancialCenter from "./pages/FinancialCenter/FinancialCenter";
 
-import UsersPermissions from "./pages/Users/UsersPermissions";
 import ContactUs from "./pages/Contact/ContactUs";
 import Apartments from "./pages/Apartments/Apartments";
 import ActivityLog from "./pages/ActivityLog/ActivityLog";
@@ -229,12 +228,12 @@ function App() {
             </Route>
 
             {/* خريطة الشقق */}
-            <Route element={<PermissionRoute permission="apartments_view" />}>
+            <Route element={<PermissionRoute permission="apartment_map_view" />}>
               <Route path="/buildings/:id/apartments" element={<ApartmentMap />} />
             </Route>
 
             {/* تفاصيل العمارة */}
-            <Route element={<PermissionRoute permission="buildings_view" />}>
+            <Route element={<PermissionRoute permission="building_details_view" />}>
               <Route path="/buildings/:id" element={<BuildingDetails />} />
             </Route>
 
@@ -265,7 +264,7 @@ function App() {
     المستخدمين والصلاحيات
 ========================================= */}
 <Route element={<PermissionRoute permission="users_view" />}>
-              <Route path="/users-permissions" element={<UsersPermissions />} />
+              <Route path="/users-permissions" element={null} />
             </Route>
 
 

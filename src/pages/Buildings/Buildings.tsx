@@ -112,7 +112,7 @@ export default function Buildings() {
   const { hasPermission } = usePermissions();
   const canAddBuildings = hasPermission("buildings_add");
   const canEditBuildings = hasPermission("buildings_edit");
-  const canDeleteBuildings = hasPermission("buildings_edit");
+  const canDeleteBuildings = hasPermission("buildings_delete");
   const [permissionMessage, setPermissionMessage] = useState<string | null>(null);
 
 
@@ -189,11 +189,9 @@ const [showArchived, setShowArchived] = useState(false);
 
   .from("buildings")
 
-  .select("*")
+  .select("id, name, address, building_number, units_count, status")
 
   .eq("status", "active")
-
-        .select("id, name, address, building_number, units_count, status")
 
         .order("id", { ascending: true });
 
@@ -452,6 +450,10 @@ const [showArchived, setShowArchived] = useState(false);
 
 
   const createBuilding = async () => {
+    if (!canAddBuildings) {
+      setPermissionMessage("غير مسموح للمستخدم الحالي بإضافة عمارة جديدة.");
+      return;
+    }
 
     if (isCreatingBuilding) return;
 
@@ -608,7 +610,7 @@ console.log("BUILDING CREATED:", building);
       const initialApartments = Array.from(
         { length: unitsCount },
         (_, index) => ({
-          number: index + 1,
+          number: String(index + 1),
           type: "غير محدد",
           rent: 0,
           status: "شاغرة",
@@ -618,7 +620,7 @@ console.log("BUILDING CREATED:", building);
 
       const { error: buildingStateError } = await supabase
         .from("building_state")
-        .upsert(
+        .insert(
           {
             building_id: Number(building.id),
             apartments: initialApartments,
@@ -632,8 +634,7 @@ console.log("BUILDING CREATED:", building);
             building_charges: [],
             building_collections: [],
             updated_at: new Date().toISOString(),
-          },
-          { onConflict: "building_id" }
+          }
         );
 
       if (buildingStateError) {

@@ -127,6 +127,18 @@ export type PermissionKey =
   // =======================================================
   // Settings
   // =======================================================
+  | "dashboard_add"
+  | "dashboard_edit"
+  | "dashboard_delete"
+  | "building_apartment_add"
+  | "building_apartment_edit"
+  | "building_apartment_delete"
+  | "reports_add"
+  | "reports_edit"
+  | "reports_delete"
+  | "settings_add"
+  | "settings_edit"
+  | "settings_delete"
   | "settings_view";
 
 
@@ -225,6 +237,20 @@ const ALL_PERMISSIONS: PermissionKey[] = [
   "users_add",
   "users_edit",
   "users_delete",
+
+  // Additional permissions exposed in UsersPermissions
+  "dashboard_add",
+  "dashboard_edit",
+  "dashboard_delete",
+  "building_apartment_add",
+  "building_apartment_edit",
+  "building_apartment_delete",
+  "reports_add",
+  "reports_edit",
+  "reports_delete",
+  "settings_add",
+  "settings_edit",
+  "settings_delete",
 
   // Settings
   "settings_view",

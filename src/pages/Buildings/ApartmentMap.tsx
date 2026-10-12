@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "../../utils/supabase";
+import { applyFinancialOperation } from "../../utils/financialOperations";
 import { usePermissions } from "../../utils/permissions";
 import PermissionDeniedModal from "../../components/PermissionDeniedModal";
 import {
@@ -281,8 +282,13 @@ const getBuildingStorageKey = (baseKey: string) => {
 export default function ApartmentMap() {
   const { hasPermission } = usePermissions();
   const canViewApartments = hasPermission("apartments_view");
-  const canAddApartments = hasPermission("apartments_add");
-  const canEditApartments = hasPermission("apartments_edit");
+  const canAddApartments = hasPermission("building_apartment_add");
+  const canEditApartments = hasPermission("building_apartment_edit");
+  const canDeleteApartments = hasPermission("building_apartment_delete");
+  const canAddInvoices = hasPermission("invoices_add");
+  const canEditInvoices = hasPermission("invoices_edit");
+  const canAddCollections = hasPermission("collections_add");
+  const canEditCollections = hasPermission("collections_edit");
   const [permissionMessage, setPermissionMessage] = useState<string | null>(null);
 
   const showPermissionDenied = (message = "غير مسموح للمستخدم الحالي بهذا الإجراء.") => {
@@ -450,22 +456,11 @@ export default function ApartmentMap() {
   const remoteStateHydratedRef = useRef(false);
   const [chargeSyncVersion, setChargeSyncVersion] = useState(0);
   const [buildingRefreshVersion, setBuildingRefreshVersion] = useState(0);
+  const [isRefreshingMap, setIsRefreshingMap] = useState(false);
+  const refreshStartedAtRef = useRef<number | null>(null);
+  const refreshAnimationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const getCurrentBuildingId = getBuildingIdFromPath;
-
-  const readBuildingChargesFromStorage = (key: string): BuildingCharge[] => {
-    try {
-      const saved = window.localStorage.getItem(key);
-      if (!saved) {
-        return [];
-      }
-
-      const parsed = JSON.parse(saved);
-      return Array.isArray(parsed) ? (parsed as BuildingCharge[]) : [];
-    } catch {
-      return [];
-    }
-  };
 
   const getBuildingStatePayload = (
     updatedApartments: Apartment[] = apartments
@@ -479,19 +474,13 @@ export default function ApartmentMap() {
     apartment_extra_info: apartmentExtraInfo,
     apartment_tenant_info: apartmentTenantInfo,
     apartment_contract_info: apartmentContractInfo,
-    building_charges: readBuildingChargesFromStorage(
-      getBuildingStorageKey("tumouh_star_building_charges")
-    ),
-    building_collections: readBuildingChargesFromStorage(
-      getBuildingStorageKey("tumouh_star_building_collections")
-    ),
     updated_at: new Date().toISOString(),
   });
 
   const saveBuildingStateToSupabase = async (
     updatedApartments: Apartment[] = apartments
   ) => {
-    if (!canEditApartments) {
+    if (!canEditApartments && !canAddApartments) {
       return;
     }
 
@@ -508,7 +497,7 @@ export default function ApartmentMap() {
     }
     const { data: latest, error: checkError } = await supabase
       .from("building_state")
-      .select("apartments")
+      .select("apartments, updated_at")
       .eq("building_id", buildingId)
       .maybeSingle();
     if (checkError) throw checkError;
@@ -522,6 +511,38 @@ export default function ApartmentMap() {
         console.warn("Apartment map shrink detected; background save blocked.");
         return;
       }
+    }
+
+    // Add-only users may append apartments but must not change existing records,
+    // delete apartments, or write tenant, contract, charge or collection columns.
+    if (!canEditApartments) {
+      if (!latest || !Array.isArray(latest.apartments)) {
+        console.warn("تعذر إضافة الشقة: سجل العمارة لم يُحمّل بعد.");
+        return;
+      }
+      const existing = latest.apartments as Apartment[];
+      const oldByNumber = new Map(existing.map((item) => [String(item.number), item]));
+      const newNumbers = updatedApartments.map((item) => String(item.number));
+      const isSafeAddition = updatedApartments.length > existing.length &&
+        new Set(newNumbers).size === newNumbers.length &&
+        existing.every((oldItem) => {
+          const current = updatedApartments.find((item) => String(item.number) === String(oldItem.number));
+          return current && JSON.stringify(current) === JSON.stringify(oldItem);
+        }) &&
+        updatedApartments.some((item) => !oldByNumber.has(String(item.number)));
+      if (!isSafeAddition) {
+        console.warn("تم منع حفظ تعديل غير مصرح به على الشقق.");
+        return;
+      }
+      const { data: saved, error: addError } = await supabase
+        .from("building_state")
+        .update({ apartments: updatedApartments, updated_at: new Date().toISOString() })
+        .eq("building_id", buildingId)
+        .eq("updated_at", latest.updated_at)
+        .select("building_id");
+      if (addError) throw addError;
+      if (!saved?.length) throw new Error("تغيّرت بيانات العمارة أثناء الحفظ. حدّث الصفحة وأعد المحاولة.");
+      return;
     }
 
     const { error } = await supabase
@@ -756,9 +777,23 @@ export default function ApartmentMap() {
       setChargeSyncVersion((value) => value + 1);
     };
 
-    void loadBuildingStateFromSupabase().catch((error) => {
-      console.error("فشل تحميل بيانات العمارة:", error);
-    });
+    void loadBuildingStateFromSupabase()
+      .catch((error) => {
+        console.error("فشل تحميل بيانات العمارة:", error);
+      })
+      .finally(() => {
+        if (cancelled || refreshStartedAtRef.current === null) return;
+        const elapsed = Date.now() - refreshStartedAtRef.current;
+        const remaining = Math.max(0, 650 - elapsed);
+        if (refreshAnimationTimerRef.current !== null) {
+          clearTimeout(refreshAnimationTimerRef.current);
+        }
+        refreshAnimationTimerRef.current = setTimeout(() => {
+          if (!cancelled) setIsRefreshingMap(false);
+          refreshStartedAtRef.current = null;
+          refreshAnimationTimerRef.current = null;
+        }, remaining);
+      });
 
     return () => {
       cancelled = true;
@@ -1087,6 +1122,7 @@ export default function ApartmentMap() {
   };
 
   const openDeleteApartmentModal = () => {
+    if (!canDeleteApartments) { showPermissionDenied(); return; }
     setSelectedDeleteApartments([]);
     setDeleteApartmentSearch("");
     setIsDeleteApartmentModalOpen(true);
@@ -1137,8 +1173,8 @@ export default function ApartmentMap() {
     );
   };
 
-  const deleteSelectedApartments = () => {
-    if (!canEditApartments) {
+  const deleteSelectedApartments = async () => {
+    if (!canDeleteApartments) {
       showPermissionDenied();
       return;
     }
@@ -1147,71 +1183,81 @@ export default function ApartmentMap() {
       return;
     }
 
-    const selectedNumbers = new Set(selectedDeleteApartments);
-    const confirmed = window.confirm(
-      `هل أنت متأكد من حذف ${selectedDeleteApartments.length} شقة محددة؟`
-    );
-
-    if (!confirmed) {
+    const buildingId = getCurrentBuildingId();
+    if (!buildingId) {
+      window.alert("تعذر تحديد العمارة الحالية.");
       return;
     }
 
-    setApartments((current) => {
-      const updated = current.filter(
-        (apartment) => !selectedNumbers.has(apartment.number)
-      );
+    const selectedNumbers = new Set(selectedDeleteApartments.map(String));
+    if (!window.confirm(`هل أنت متأكد من حذف ${selectedNumbers.size} شقة محددة؟`)) return;
 
+    try {
+      // Explicit deletion only: verify the local map is identical to the
+      // current remote map, then update the apartments column conditionally.
+      const { data: latest, error: readError } = await supabase
+        .from("building_state")
+        .select("apartments, updated_at")
+        .eq("building_id", buildingId)
+        .maybeSingle();
+      if (readError) throw readError;
+      if (!latest || !Array.isArray(latest.apartments)) {
+        throw new Error("تعذر تحميل بيانات العمارة من قاعدة البيانات.");
+      }
+      const remote = latest.apartments as Apartment[];
+      const localByNumber = new Map(apartments.map((item) => [String(item.number), item]));
+      if (remote.length !== apartments.length || remote.some((item) => {
+        const local = localByNumber.get(String(item.number));
+        return !local || JSON.stringify(local) !== JSON.stringify(item);
+      })) {
+        throw new Error("بيانات الشقق تغيرت منذ فتح الصفحة. اضغط تحديث ثم أعد المحاولة.");
+      }
+      if (remote.some((item) => item.number == null || !String(item.number).trim())) {
+        throw new Error("تم منع الحذف لوجود رقم شقة غير صالح في قاعدة البيانات.");
+      }
+      if (![...selectedNumbers].every((number) => remote.some((item) => String(item.number) === number))) {
+        throw new Error("بعض الشقق المحددة لم تعد موجودة. حدّث الصفحة.");
+      }
+      const updated = remote.filter((item) => !selectedNumbers.has(String(item.number)));
+      const { data: saved, error: saveError } = await supabase
+        .from("building_state")
+        .update({ apartments: updated, updated_at: new Date().toISOString() })
+        .eq("building_id", buildingId)
+        .eq("updated_at", latest.updated_at)
+        .select("building_id");
+      if (saveError) throw saveError;
+      if (!saved?.length) {
+        throw new Error("تم تعديل العمارة من جهاز آخر. اضغط تحديث ثم أعد المحاولة.");
+      }
+
+      setApartments(updated);
       window.localStorage.setItem(
         getBuildingStorageKey("tumouh_star_building_apartments"),
         JSON.stringify(updated)
       );
-
-      return updated;
-    });
-
-    setApartmentTypes((current) => {
-      const updated = { ...current };
-
-      selectedNumbers.forEach((apartmentNumber) => {
-        delete updated[apartmentNumber];
+      setApartmentTypes((current) => {
+        const next = { ...current };
+        selectedNumbers.forEach((number) => { delete next[number]; });
+        return next;
       });
-
-      window.localStorage.setItem(
-        getBuildingStorageKey("tumouh_star_apartment_types"),
-        JSON.stringify(updated)
-      );
-
-      return updated;
-    });
-
-    setApartmentExtraInfo((current) => {
-      const updated = { ...current };
-
-      selectedNumbers.forEach((apartmentNumber) => {
-        delete updated[apartmentNumber];
+      setApartmentExtraInfo((current) => {
+        const next = { ...current };
+        selectedNumbers.forEach((number) => { delete next[number]; });
+        return next;
       });
-
-      return updated;
-    });
-
-    setApartmentTenantInfo((current) => {
-      const updated = { ...current };
-
-      selectedNumbers.forEach((apartmentNumber) => {
-        delete updated[apartmentNumber];
+      setApartmentTenantInfo((current) => {
+        const next = { ...current };
+        selectedNumbers.forEach((number) => { delete next[number]; });
+        return next;
       });
-
-      return updated;
-    });
-
-    if (
-      selectedApartment &&
-      selectedNumbers.has(selectedApartment.number)
-    ) {
-      closeApartment();
+      if (selectedApartment && selectedNumbers.has(String(selectedApartment.number))) closeApartment();
+      closeDeleteApartmentModal();
+      // Refresh from the authoritative DB record after the explicit deletion.
+      setBuildingRefreshVersion((value) => value + 1);
+    } catch (error) {
+      console.error("فشل حذف الشقق:", error);
+      window.alert(error instanceof Error ? error.message : "تعذر حذف الشقق.");
     }
-
-    closeDeleteApartmentModal();
   };
 
   const updateApartmentTypeRent = (type: string, value: string) => {
@@ -4899,27 +4945,20 @@ export default function ApartmentMap() {
 
             <button
               type="button"
-              onClick={async () => {
-                // احفظ التعديلات الحالية قبل إعادة تحميل البيانات حتى لا يستبدل التحديث
-                // تغييرات لم يكتمل حفظها بعد بالنسخة الأقدم الموجودة في قاعدة البيانات.
-                if (!canEditApartments) {
-                  showPermissionDenied("لا يمكن تحديث الخريطة قبل توفر صلاحية تعديل الشقق.");
-                  return;
+              onClick={() => {
+                // Refresh only reads data; it never requires editing permission.
+                if (isRefreshingMap) return;
+                if (refreshAnimationTimerRef.current !== null) {
+                  clearTimeout(refreshAnimationTimerRef.current);
+                  refreshAnimationTimerRef.current = null;
                 }
-
-                try {
-                  await saveBuildingStateToSupabase(apartments);
-                  setBuildingRefreshVersion((value) => value + 1);
-                } catch (error) {
-                  console.error("تعذر حفظ تعديلات الشقق قبل التحديث:", error);
-                  window.alert(
-                    "لم يتم تحديث الخريطة لأن حفظ التعديلات لم ينجح. تحقق من الاتصال والصلاحيات ثم حاول مرة أخرى."
-                  );
-                }
+                refreshStartedAtRef.current = Date.now();
+                setIsRefreshingMap(true);
+                setBuildingRefreshVersion((value) => value + 1);
               }}
               className="group relative min-h-[74px] overflow-hidden rounded-[22px] border border-blue-300/35 bg-gradient-to-br from-blue-400/20 to-white/[0.035] px-3 py-3 shadow-[0_12px_35px_rgba(59,130,246,0.12)] backdrop-blur-xl transition hover:-translate-y-1 hover:border-blue-300/65">
               <div className="flex h-full items-center justify-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-400/15 text-blue-300"><RefreshCw size={27} /></div>
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-400/15 text-blue-300"><RefreshCw size={27} className={isRefreshingMap ? "animate-spin" : "transition-transform duration-300 group-hover:rotate-45"} /></div>
                 <div className="text-right"><div className="text-base font-black text-white sm:text-lg">تحديث</div><div className="text-[10px] font-semibold text-blue-100/60 sm:text-xs">إعادة تحميل البيانات</div></div>
               </div>
             </button>
@@ -7658,8 +7697,11 @@ export default function ApartmentMap() {
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <button
                   type="button"
-                  onClick={() => {
-                    if (editingChargeKey ? !canEditApartments : !canAddApartments) {
+                  onClick={async () => {
+                    const financialAllowed = chargeModalMode === "collection"
+                      ? (editingChargeKey ? canEditCollections : canAddCollections)
+                      : (editingChargeKey ? canEditInvoices : canAddInvoices);
+                    if (!financialAllowed) {
                       showPermissionDenied();
                       return;
                     }
@@ -7742,24 +7784,30 @@ export default function ApartmentMap() {
                         }
                       );
 
-                      const chargesToSave = editingChargeKey
-                        ? currentCharges.map((record) =>
-                            getChargeRecordKey(
-                              record,
-                              chargeModalMode === "collection" ? "تحصيل" : "مستحق"
-                            ) === editingChargeKey
-                              ? { ...newCharges[0], id: record.id || `${Date.now()}` }
-                              : record
-                          )
-                        : [...currentCharges, ...newCharges.map((record) => ({
-                            ...record,
-                            id: record.id || `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-                          }))];
-
-                      window.localStorage.setItem(storageKey, JSON.stringify(chargesToSave));
+                      const buildingId = getCurrentBuildingId();
+                      if (!buildingId) throw new Error("رقم العمارة غير صالح");
+                      const kind = chargeModalMode === "collection" ? "collection" : "charge";
+                      let savedRecords: Record<string, unknown>[] = [];
+                      if (editingChargeKey) {
+                        const original = currentCharges.find((record) =>
+                          getChargeRecordKey(record, chargeModalMode === "collection" ? "تحصيل" : "مستحق") === editingChargeKey
+                        );
+                        if (!original) throw new Error("تعذر العثور على العملية الأصلية");
+                        savedRecords = await applyFinancialOperation(buildingId, kind, "edit",
+                          { ...newCharges[0], apartmentNumber: String(newCharges[0].apartmentNumber) },
+                          original as unknown as Record<string, unknown>);
+                      } else {
+                        for (const record of newCharges) {
+                          savedRecords = await applyFinancialOperation(buildingId, kind, "add",
+                            { ...record, apartmentNumber: String(record.apartmentNumber) });
+                        }
+                      }
+                      window.localStorage.setItem(storageKey, JSON.stringify(savedRecords));
                       setChargeSyncVersion((value) => value + 1);
-                    } catch {
-                      // تجاهل خطأ التخزين المحلي مع إغلاق النموذج.
+                    } catch (error) {
+                      console.error("فشل حفظ العملية المالية:", error);
+                      window.alert("تعذر تأكيد الحفظ في Supabase. حدّث البيانات وتحقق قبل إعادة المحاولة لتجنب التكرار.");
+                      return;
                     }
 
                     setChargeForm({

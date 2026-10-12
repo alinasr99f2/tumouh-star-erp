@@ -1,12 +1,24 @@
-import { useState } from "react";
-import { Outlet, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 
 import Sidebar from "../components/sidebar/Sidebar";
 import Topbar from "../components/topbar/Topbar";
 import { supabase } from "../utils/supabase";
+import { usePermissions } from "../utils/permissions";
+import UsersPermissions from "../pages/Users/UsersPermissions";
 
 function MainLayout() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { loading: permissionsLoading, hasPermission } = usePermissions();
+  const onUsersPage = location.pathname === "/users-permissions";
+  const canViewUsers = !permissionsLoading && hasPermission("users_view");
+  const [usersPageVisited, setUsersPageVisited] = useState(false);
+
+  // Mount once on the first authorized visit; hide rather than unmount on navigation.
+  useEffect(() => {
+    if (onUsersPage && canViewUsers) setUsersPageVisited(true);
+  }, [onUsersPage, canViewUsers]);
 
   const [showLogoutModal, setShowLogoutModal] =
     useState(false);
@@ -246,7 +258,18 @@ function MainLayout() {
             "
           >
 
-            <Outlet />
+            {/* React Router still handles navigation and permission-denied screens. */}
+            <div style={{ display: onUsersPage && canViewUsers ? "none" : undefined }}>
+              <Outlet />
+            </div>
+
+            {/* Keep the Users/Permissions component mounted after its first visit.
+                This preserves open dialogs, expanded sections and unsaved input. */}
+            {usersPageVisited && canViewUsers && (
+              <div style={{ display: onUsersPage ? undefined : "none" }}>
+                <UsersPermissions />
+              </div>
+            )}
 
           </div>
 
