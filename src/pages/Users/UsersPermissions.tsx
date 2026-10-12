@@ -2674,7 +2674,9 @@ const editAvatarInputRef = useRef<HTMLInputElement | null>(null);
 
                 {filteredUsers.map((user, index) => {
 
-                  const meta = roleMeta[user.role];
+                  // بعض الحسابات القديمة قد تحتوي على نوع مستخدم غير معرّف في roleMeta.
+                  // استخدم شكل الموظف كبديل للعرض فقط، مع إبقاء نوع المستخدم وصلاحياته كما هي.
+                  const meta = roleMeta[user.role] ?? roleMeta["موظف"];
 
                   const RoleIcon = meta.icon;
 
