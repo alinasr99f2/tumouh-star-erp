@@ -524,6 +524,9 @@ const denyApartmentDelete = () => {
   const [buildingName, setBuildingName] = useState("العمارة");
   const buildingStateHydratedRef = useRef(false);
   const [buildingDataSyncVersion, setBuildingDataSyncVersion] = useState(0);
+  const lastLoadedApartmentsRef = useRef<string | null>(null);
+  const lastLoadedUpdatedAtRef = useRef<string | null>(null);
+
 
   // عند الانتقال بين عمارتين بدون إعادة تحميل الصفحة، يجب إعادة تحميل
   // كل حالة العمارة من الـ storage الخاص بنفس رقم العمارة فقط.
@@ -628,6 +631,8 @@ const denyApartmentDelete = () => {
   // ============================================================
   useEffect(() => {
     let cancelled = false;
+    lastLoadedApartmentsRef.current = null;
+    lastLoadedUpdatedAtRef.current = null;
 
     const loadCurrentBuildingState = async () => {
       if (!currentBuildingId) return;
@@ -655,7 +660,7 @@ const denyApartmentDelete = () => {
       const { data: state, error: stateError } = await supabase
         .from("building_state")
         .select(
-          "apartments, apartment_types, custom_apartment_types, custom_apartment_statuses, apartment_type_rents, apartment_extra_info, apartment_tenant_info, apartment_contract_info, building_charges, building_collections"
+          "apartments, updated_at, apartment_types, custom_apartment_types, custom_apartment_statuses, apartment_type_rents, apartment_extra_info, apartment_tenant_info, apartment_contract_info, building_charges, building_collections"
         )
         .eq("building_id", currentBuildingId)
         .maybeSingle();
@@ -679,6 +684,8 @@ const denyApartmentDelete = () => {
               tenant: apartment.tenant || "لا يوجد مستأجر",
             }));
 
+          lastLoadedApartmentsRef.current = JSON.stringify(normalizedApartments);
+          lastLoadedUpdatedAtRef.current = state.updated_at ?? null;
           setApartments(normalizedApartments);
           setBuildingStorageValue(
             "tumouh_star_building_apartments",
@@ -813,6 +820,9 @@ const denyApartmentDelete = () => {
     return;
   }
 
+    if (lastLoadedApartmentsRef.current === null ||
+        JSON.stringify(apartments) === lastLoadedApartmentsRef.current) return;
+
     const saveCurrentBuildingState = async () => {
       const readScopedArray = (key: string): BuildingCharge[] => {
         try {
@@ -829,8 +839,14 @@ const denyApartmentDelete = () => {
         .select("apartments, updated_at")
         .eq("building_id", currentBuildingId)
         .maybeSingle();
-      if (checkError || !latest) {
+      if (checkError || !latest ||
+          (lastLoadedUpdatedAtRef.current !== null && latest.updated_at !== lastLoadedUpdatedAtRef.current)) {
         console.warn("تم إيقاف الحفظ لحماية بيانات العمارة.", checkError);
+        return;
+      }
+      const loadedApartments = JSON.parse(lastLoadedApartmentsRef.current ?? "[]");
+      if (JSON.stringify(latest.apartments) !== JSON.stringify(loadedApartments)) {
+        console.warn("تم منع الحفظ لأن بيانات الشقق تغيرت على جهاز آخر.");
         return;
       }
       const remoteNumbers = new Set(
@@ -844,9 +860,8 @@ const denyApartmentDelete = () => {
         return;
       }
 
-      const { error } = await supabase.from("building_state").upsert(
+      const { data: savedRows, error } = await supabase.from("building_state").update(
         {
-          building_id: currentBuildingId,
           apartments,
           apartment_types: apartmentTypes,
           custom_apartment_types: customApartmentTypes,
@@ -859,11 +874,15 @@ const denyApartmentDelete = () => {
           building_collections: readScopedArray("tumouh_star_building_collections"),
           updated_at: new Date().toISOString(),
         },
-        { onConflict: "building_id" }
-      );
+      ).eq("building_id", currentBuildingId)
+       .eq("updated_at", latest.updated_at)
+       .select("updated_at");
 
-      if (error) {
-        console.error("خطأ في حفظ بيانات العمارة الحالية:", error);
+      if (error || !savedRows?.length) {
+        console.error("تعذر حفظ بيانات العمارة أو تم تعديلها بالتزامن:", error);
+      } else {
+        lastLoadedApartmentsRef.current = JSON.stringify(apartments);
+        lastLoadedUpdatedAtRef.current = savedRows[0].updated_at;
       }
     };
 
@@ -928,42 +947,8 @@ const denyApartmentDelete = () => {
     };
   }, [currentBuildingId]);
 
-  // مزامنة فورية مع شاشة خريطة الشقق. الخريطة تحفظ القائمة في localStorage،
-  // لذلك نعيد قراءتها عند الرجوع للصفحة أو وصول حدث storage.
-  useEffect(() => {
-    const syncApartmentsFromStorage = () => {
-      try {
-        const saved = getBuildingStorageValue("tumouh_star_building_apartments");
-        if (!saved) return;
-
-        const parsed = JSON.parse(saved);
-        if (!Array.isArray(parsed)) return;
-
-        setApartments(
-          parsed
-            .filter((apartment) => apartment && apartment.number != null)
-            .map((apartment) => ({
-              ...(apartment as Apartment),
-              number: String((apartment as Apartment).number) as unknown as number,
-            }))
-        );
-      } catch {
-        // تجاهل أي بيانات تخزين غير صالحة بدون تعطيل الصفحة.
-      }
-    };
-
-    window.addEventListener("focus", syncApartmentsFromStorage);
-    window.addEventListener("pageshow", syncApartmentsFromStorage);
-    window.addEventListener("storage", syncApartmentsFromStorage);
-    window.addEventListener("building-apartments-updated", syncApartmentsFromStorage);
-
-    return () => {
-      window.removeEventListener("focus", syncApartmentsFromStorage);
-      window.removeEventListener("pageshow", syncApartmentsFromStorage);
-      window.removeEventListener("storage", syncApartmentsFromStorage);
-      window.removeEventListener("building-apartments-updated", syncApartmentsFromStorage);
-    };
-  }, [currentBuildingId]);
+  // The database is the authoritative source. Do not import a stale local copy
+  // on focus: doing so can overwrite the freshly recovered apartment numbers.
 
   const addApartment = () => {
     if (denyApartmentAdd()) return;
@@ -2314,7 +2299,7 @@ const denyApartmentDelete = () => {
 
     return charges.map((charge) => {
       const apartment = apartments.find(
-        (item) => Number(item.number) === Number(charge.apartmentNumber)
+        (item) => String(item.number) === String(charge.apartmentNumber)
       );
       const tenantInfo = apartment ? getApartmentTenantInfo(apartment) : null;
 
@@ -2357,7 +2342,7 @@ const denyApartmentDelete = () => {
         .map((charge) => {
           const apartment = apartments.find(
             (item) =>
-              Number(item.number) === Number(charge.apartmentNumber)
+              String(item.number) === String(charge.apartmentNumber)
           );
           const tenantInfo = apartment
             ? getApartmentTenantInfo(apartment)
@@ -2390,7 +2375,7 @@ const denyApartmentDelete = () => {
         .map((charge) => {
           const apartment = apartments.find(
             (item) =>
-              Number(item.number) === Number(charge.apartmentNumber)
+              String(item.number) === String(charge.apartmentNumber)
           );
           const tenantInfo = apartment
             ? getApartmentTenantInfo(apartment)
@@ -2420,7 +2405,7 @@ const denyApartmentDelete = () => {
     const rows = charges.map((charge) => {
       const apartment = apartments.find(
         (item) =>
-          Number(item.number) === Number(charge.apartmentNumber)
+          String(item.number) === String(charge.apartmentNumber)
       );
       const tenantInfo = apartment
         ? getApartmentTenantInfo(apartment)
@@ -2496,7 +2481,7 @@ const denyApartmentDelete = () => {
 
     const getTenantForApartment = (apartmentNumber?: number) => {
       const apartment = apartments.find(
-        (item) => Number(item.number) === Number(apartmentNumber)
+        (item) => String(item.number) === String(apartmentNumber)
       );
 
       if (!apartment) {
@@ -3306,7 +3291,7 @@ const denyApartmentDelete = () => {
 
       return charges.filter(
         (charge) =>
-          Number(charge.apartmentNumber) === Number(selectedApartment.number) &&
+          String(charge.apartmentNumber) === String(selectedApartment.number) &&
           Boolean(charge.date) &&
           charge.date >= fromDate &&
           charge.date <= toDate

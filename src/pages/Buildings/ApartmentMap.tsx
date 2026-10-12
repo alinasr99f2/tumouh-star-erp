@@ -501,6 +501,11 @@ export default function ApartmentMap() {
       throw new Error("لم يتم التعرف على رقم العمارة من الرابط.");
     }
 
+    if (updatedApartments.some((item) => item.number == null ||
+      String(item.number).trim() === "" || String(item.number) === "NaN" ||
+      String(item.number) === "null")) {
+      throw new Error("تم منع الحفظ: يوجد رقم شقة غير صالح.");
+    }
     const { data: latest, error: checkError } = await supabase
       .from("building_state")
       .select("apartments")
