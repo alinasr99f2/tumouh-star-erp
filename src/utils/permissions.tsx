@@ -321,6 +321,19 @@ export function PermissionsProvider({
    * تحميل صلاحيات المستخدم
    */
   const loadPermissions = async () => {
+    // Local UI preview only. Vite production builds always disable this bypass.
+    // This does not grant Supabase database permissions or authentication.
+    if (import.meta.env.DEV && import.meta.env.VITE_DEV_MODE === "true") {
+      const previewPermissions = ALL_PERMISSIONS.reduce((result, permission) => {
+        result[permission] = true;
+        return result;
+      }, {} as PermissionsMap);
+      setPermissions(previewPermissions);
+      setIsSystemOwner(true);
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
 

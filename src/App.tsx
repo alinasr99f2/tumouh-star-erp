@@ -12,7 +12,7 @@ import MainLayout from "./layouts/MainLayout";
 import Login from "./pages/Login/Login";
 import { supabase } from "./utils/supabase";
 import { PermissionsProvider, usePermissions, type PermissionKey } from "./utils/permissions";
-
+``
 import Home from "./pages/Home/Home";
 import CompanyDashboard from "./pages/Dashboard/CompanyDashboard";
 
@@ -35,7 +35,7 @@ import Apartments from "./pages/Apartments/Apartments";
 import ActivityLog from "./pages/ActivityLog/ActivityLog";
 function ProtectedRoute() {
 
-  const DEV_MODE = import.meta.env.VITE_DEV_MODE === "true";
+  const DEV_MODE = import.meta.env.DEV && import.meta.env.VITE_DEV_MODE === "true";
 
   const [sessionReady, setSessionReady] = useState(DEV_MODE);
   const [hasSession, setHasSession] = useState(DEV_MODE);
