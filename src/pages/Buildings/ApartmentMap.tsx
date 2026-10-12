@@ -501,6 +501,24 @@ export default function ApartmentMap() {
       throw new Error("لم يتم التعرف على رقم العمارة من الرابط.");
     }
 
+    const { data: latest, error: checkError } = await supabase
+      .from("building_state")
+      .select("apartments")
+      .eq("building_id", buildingId)
+      .maybeSingle();
+    if (checkError) throw checkError;
+    if (latest && Array.isArray(latest.apartments)) {
+      const oldNumbers = new Set(latest.apartments.map((item: Apartment) => String(item.number)));
+      const newNumbers = new Set(updatedApartments.map((item) => String(item.number)));
+      // A shrinking map may be a deliberate deletion, but must never happen
+      // through the background autosave without an explicit deletion workflow.
+      if (oldNumbers.size > newNumbers.size &&
+          [...oldNumbers].some((number) => !newNumbers.has(number))) {
+        console.warn("Apartment map shrink detected; background save blocked.");
+        return;
+      }
+    }
+
     const { error } = await supabase
       .from("building_state")
       .upsert(
@@ -521,6 +539,7 @@ export default function ApartmentMap() {
 
   useEffect(() => {
     let cancelled = false;
+    remoteStateHydratedRef.current = false;
 
     const loadBuildingStateFromSupabase = async () => {
       const buildingId = getCurrentBuildingId();
@@ -781,7 +800,10 @@ export default function ApartmentMap() {
         current.length > 0
           ? String(
               Math.max(
-                ...current.map((apartment) => Number(apartment.number) || 0)
+                ...current.map((apartment) => {
+                  const match = String(apartment.number).match(/^\d+$/);
+                  return match ? Number(match[0]) : 0;
+                })
               ) + 1
             )
           : "1";

@@ -91,7 +91,7 @@ const getCurrentBuildingIdFromPath = () => {
 
 const getBuildingStorageKey = (baseKey: string) => {
   const buildingId = getCurrentBuildingIdFromPath();
-  return buildingId ? `${baseKey}_${buildingId}` : baseKey;
+  return `${baseKey}:${buildingId ?? "unknown"}`;
 };
 
 const getBuildingStorageValue = (baseKey: string) => {
@@ -548,7 +548,7 @@ const denyApartmentDelete = () => {
       Array.isArray(savedApartments)
         ? savedApartments.map((apartment) => ({
             ...(apartment as Apartment),
-            number: Number((apartment as Apartment).number),
+            number: String((apartment as Apartment).number) as unknown as number,
           }))
         : []
     );
@@ -672,7 +672,7 @@ const denyApartmentDelete = () => {
             .filter((apartment: Apartment) => apartment && apartment.number != null)
             .map((apartment: Apartment) => ({
               ...apartment,
-              number: Number(apartment.number),
+              number: String(apartment.number) as unknown as number,
               rent: Number(apartment.rent) || 0,
               type: apartment.type || "غرفة وصالة",
               status: apartment.status || "شاغرة",
@@ -761,7 +761,7 @@ const denyApartmentDelete = () => {
               setApartments(
                 parsed.map((apartment) => ({
                   ...apartment,
-                  number: Number(apartment.number),
+                  number: String(apartment.number) as unknown as number,
                 }))
               );
             }
@@ -822,6 +822,27 @@ const denyApartmentDelete = () => {
           return [];
         }
       };
+
+      // Safety: never overwrite a newer or differently shaped apartment map.
+      const { data: latest, error: checkError } = await supabase
+        .from("building_state")
+        .select("apartments, updated_at")
+        .eq("building_id", currentBuildingId)
+        .maybeSingle();
+      if (checkError || !latest) {
+        console.warn("تم إيقاف الحفظ لحماية بيانات العمارة.", checkError);
+        return;
+      }
+      const remoteNumbers = new Set(
+        (Array.isArray(latest.apartments) ? latest.apartments : [])
+          .map((item: { number?: string | number }) => String(item.number))
+      );
+      const localNumbers = new Set(apartments.map((item) => String(item.number)));
+      if (remoteNumbers.size !== localNumbers.size ||
+          [...remoteNumbers].some((number) => !localNumbers.has(number))) {
+        console.warn("تم منع الكتابة فوق قائمة شقق مختلفة في قاعدة البيانات.");
+        return;
+      }
 
       const { error } = await supabase.from("building_state").upsert(
         {
@@ -923,7 +944,7 @@ const denyApartmentDelete = () => {
             .filter((apartment) => apartment && apartment.number != null)
             .map((apartment) => ({
               ...(apartment as Apartment),
-              number: Number((apartment as Apartment).number),
+              number: String((apartment as Apartment).number) as unknown as number,
             }))
         );
       } catch {
@@ -950,7 +971,7 @@ const denyApartmentDelete = () => {
     setApartments((current) => {
       const nextNumber =
         current.length > 0
-          ? Math.max(...current.map((apartment) => apartment.number)) + 1
+          ? Math.max(0, ...current.map((apartment) => /^\d+$/.test(String(apartment.number)) ? Number(apartment.number) : 0)) + 1
           : 1;
 
       const updated = [
