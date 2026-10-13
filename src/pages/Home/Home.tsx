@@ -370,7 +370,7 @@ export default function Home() {
           "
         >
           <img
-            src="/aqar-smart-logo.png"
+            src="/aqary-smart-logo.png"
             alt="عقاري سمارت"
             className="
               h-[82px]

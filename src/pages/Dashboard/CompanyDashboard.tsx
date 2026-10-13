@@ -5,7 +5,7 @@ import ProjectsSection from "../../components/dashboard/ProjectsSection";
 
 export default function CompanyDashboard() {
   return (
-    <div className="aqar-home-page relative min-h-screen overflow-hidden">
+    <div className="aqary-home-page relative min-h-screen overflow-hidden">
       {/* ========================= */}
       {/* محتوى لوحة التحكم */}
       {/* ========================= */}

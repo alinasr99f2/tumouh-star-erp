@@ -2886,7 +2886,7 @@ console.log("BUILDING CREATED:", building);
 
                   <img
 
-                    src="/aqar-smart-logo.png"
+                    src="/aqary-smart-logo.png"
 
                     alt="عقاري سمارت"
 

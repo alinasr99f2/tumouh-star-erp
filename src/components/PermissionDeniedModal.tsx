@@ -128,7 +128,7 @@ export default function PermissionDeniedModal({
               "
             >
               <img
-                src="/aqar-smart-logo.png"
+                src="/aqary-smart-logo.png"
                 alt="AQARY SMART"
                 className="h-[68px] w-[68px] object-contain"
                 onError={(event) => {

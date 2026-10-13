@@ -210,7 +210,7 @@ function MainLayout() {
             >
 
               <img
-                src="/aqar-smart-logo.png"
+                src="/aqary-smart-logo.png"
                 alt=""
                 aria-hidden="true"
                 className="

@@ -4,7 +4,7 @@ function Header() {
 
       <div className="header-company">
         <img
-          src="/aqar-smart-logo.png"
+          src="/aqary-smart-logo.png"
           alt="عقاري سمارت"
           className="company-logo"
         />
