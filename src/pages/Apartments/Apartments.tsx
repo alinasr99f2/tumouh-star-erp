@@ -212,10 +212,77 @@ export default function Apartments() {
     setChoiceEditor(null); setNewChoice(""); setChoiceError("");
   };
 
+  type ResidentialTenant = { id: string; full_name: string; phone: string | null; identity_number: string | null; nationality: string | null; email: string | null; notes: string | null };
+  const [tenants, setTenants] = useState<ResidentialTenant[]>([]);
+  const [tenantModal, setTenantModal] = useState(false);
+  const [nationalities, setNationalities] = useState<string[]>(["سعودي", "مصري", "يمني", "سوداني", "سوري", "أردني", "باكستاني", "هندي", "فلبيني"]);
+  const [nationalityEditor, setNationalityEditor] = useState(false);
+  const [newNationality, setNewNationality] = useState("");
+  const [nationalityError, setNationalityError] = useState("");
+  const [savingNationality, setSavingNationality] = useState(false);
+  const loadNationalities = async () => {
+    const { data, error } = await supabase.from("residential_nationalities").select("name")
+      .eq("company_id", RESIDENTIAL_COMPANY_ID).order("name");
+    if (!error) setNationalities(prev => Array.from(new Set([...prev, ...(data ?? []).map(item => item.name as string)])));
+  };
+  useEffect(() => { void loadNationalities(); }, []);
+  const saveNationality = async () => {
+    const name = newNationality.trim().replace(/\s+/g, " ");
+    if (!canWrite) { setNationalityError("ليس لديك صلاحية إضافة جنسية."); return; }
+    if (!name) { setNationalityError("اكتب الجنسية أولًا."); return; }
+    if (name.length > 80) { setNationalityError("الحد الأقصى 80 حرفًا."); return; }
+    if (nationalities.some(v => v.toLocaleLowerCase() === name.toLocaleLowerCase())) {
+      setTenantForm(prev => ({...prev, nationality: name})); setNationalityEditor(false); return;
+    }
+    setSavingNationality(true); setNationalityError("");
+    const { error } = await supabase.from("residential_nationalities").insert({company_id: RESIDENTIAL_COMPANY_ID, name});
+    setSavingNationality(false);
+    if (error) { setNationalityError(`تعذر حفظ الجنسية: ${error.message}. تأكد من تنفيذ ملف SQL المرفق.`); return; }
+    setNationalities(prev => [...prev, name].sort((a,b)=>a.localeCompare(b,"ar")));
+    setTenantForm(prev => ({...prev, nationality: name}));
+    setNewNationality(""); setNationalityEditor(false);
+  };
+  const [savingTenant, setSavingTenant] = useState(false);
+  const [tenantError, setTenantError] = useState("");
+  const [tenantForm, setTenantForm] = useState({ full_name: "", phone: "", identity_number: "", nationality: "", email: "", notes: "" });
+  const loadResidentialTenants = async () => {
+    const { data, error } = await supabase.from("residential_tenants")
+      .select("id,full_name,phone,identity_number,nationality,email,notes")
+      .eq("company_id", RESIDENTIAL_COMPANY_ID).order("created_at", { ascending: false });
+    if (error) { setTenantError(`تعذر تحميل العملاء: ${error.message}`); return; }
+    setTenants((data ?? []) as ResidentialTenant[]);
+    setNationalities(prev => Array.from(new Set([...prev, ...(data ?? []).map(item => item.nationality).filter((v): v is string => typeof v === "string" && !!v.trim())])));
+  };
+  useEffect(() => { void loadResidentialTenants(); }, []);
+  const saveResidentialTenant = async () => {
+    if (savingTenant) return;
+    if (!canWrite) { setTenantError("ليس لديك صلاحية إضافة العملاء."); return; }
+    const full_name = tenantForm.full_name.trim();
+    if (!full_name) { setTenantError("اسم العميل مطلوب."); return; }
+    if (tenantForm.email.trim() && !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(tenantForm.email.trim())) {
+      setTenantError("البريد الإلكتروني غير صحيح."); return;
+    }
+    setSavingTenant(true); setTenantError("");
+    const { error } = await supabase.from("residential_tenants").insert({
+      company_id: RESIDENTIAL_COMPANY_ID, full_name,
+      phone: tenantForm.phone.trim() || null,
+      identity_number: tenantForm.identity_number.trim() || null,
+      nationality: tenantForm.nationality.trim() || null,
+      email: tenantForm.email.trim() || null,
+      notes: tenantForm.notes.trim() || null,
+    });
+    setSavingTenant(false);
+    if (error) { setTenantError(`تعذر حفظ العميل: ${error.message}`); return; }
+    setTenantModal(false);
+    setTenantForm({ full_name: "", phone: "", identity_number: "", nationality: "", email: "", notes: "" });
+    await loadResidentialTenants();
+    setActionNotice("تم تسجيل العميل الجديد بنجاح.");
+  };
+
   const [search, setSearch] = useState("");
   const [detailCategory, setDetailCategory] = useState<string | null>(null);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
-  const isSaveSuccess = actionNotice?.startsWith("تم حفظ بيانات الشقة في Supabase بنجاح") ?? false;
+  const isSaveSuccess = actionNotice?.startsWith("تم حفظ بيانات الشقة في Supabase بنجاح") || actionNotice === "تم تسجيل العميل الجديد بنجاح.";
   useEffect(() => {
     if (!isSaveSuccess) return;
     const timeout = window.setTimeout(() => setActionNotice(null), 5000);
@@ -442,7 +509,7 @@ export default function Apartments() {
             {label:"حذف / أرشفة شقة",icon:<Trash2 size={34}/>,click:()=>setArchivePicker(true),color:"#FB7185",base:"#452A37"},
             {label:"تحديث البيانات",icon:<RefreshCw size={34}/>,click:()=>{setSearch("");setStatusFilter("الكل");setTypeFilter("الكل");setActionNotice("تم تحديث العرض المحلي وإلغاء عوامل التصفية. هذه الصفحة غير مرتبطة بقاعدة البيانات بعد.");},color:"#38BDF8",base:"#123E50"},
             {label:"حجز جديد",icon:<CalendarPlus size={34}/>,click:()=>setActionNotice("الحجوزات الجديدة تحتاج إلى ربط نظام الحجوزات بقاعدة البيانات. لم يتم إنشاء حجز."),color:"#FBBF24",base:"#4A3E1D"},
-            {label:"عميل جديد",icon:<UserRoundPlus size={34}/>,click:()=>setActionNotice("إضافة العملاء تحتاج إلى نموذج وبيانات عملاء مرتبطة بقاعدة البيانات. لم يتم إنشاء عميل."),color:"#C4B5FD",base:"#373052"},
+            {label:"عميل جديد",icon:<UserRoundPlus size={34}/>,click:()=>{setTenantError("");setTenantModal(true);},color:"#C4B5FD",base:"#373052"},
             {label:"استعلام جديد",icon:<SearchCheck size={34}/>,click:()=>setActionNotice("نموذج الاستعلامات سيُربط بوحدة العملاء والاستعلامات لاحقًا. لم يتم حفظ استعلام."),color:"#22D3EE",base:"#10434B"},
           ]).map((a)=><button key={a.label} type="button" onClick={a.click}
             style={{borderColor:`${a.color}95`,background:`linear-gradient(155deg, ${a.base} 0%, #092c29 58%, #051c1a 100%)`,boxShadow:`inset 0 1px 0 ${a.color}35, 0 10px 26px rgba(0,0,0,.24)`}}
@@ -663,6 +730,86 @@ export default function Apartments() {
         )}
       </section>
 
+      {tenantModal && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/85 p-2 backdrop-blur-lg sm:p-5" dir="rtl"
+          onMouseDown={event => { if (event.target === event.currentTarget && !savingTenant) setTenantModal(false); }}>
+          <div role="dialog" aria-modal="true" aria-label="إضافة عميل جديد"
+            className="relative w-full max-w-[1330px] overflow-hidden rounded-[30px] border border-amber-300/65 bg-[#052d27] text-white shadow-[0_30px_100px_rgba(0,0,0,.7)]"
+            style={{maxHeight:"calc(100dvh - 24px)"}}>
+            <div className="pointer-events-none absolute inset-0 bg-cover bg-center" style={{backgroundImage:"url('/add-client-bg.png')"}} />
+            <div className="pointer-events-none absolute inset-0 bg-[#04261f]/40 lg:bg-transparent" />
+            <button type="button" disabled={savingTenant} onClick={()=>setTenantModal(false)} aria-label="إغلاق النافذة"
+              className="absolute left-4 top-4 z-20 grid h-10 w-10 place-items-center rounded-full border border-amber-200/60 bg-[#032b25]/80 text-white hover:bg-emerald-700"><X size={21}/></button>
+            <div className="relative grid max-h-[calc(100dvh-24px)] grid-cols-1 overflow-y-auto lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] lg:overflow-hidden">
+              <div className="min-w-0 p-5 sm:p-8 lg:max-h-[calc(100dvh-24px)] lg:overflow-y-auto lg:p-9">
+                <div className="mb-5 flex items-center gap-3 border-b border-amber-300/25 pb-4">
+                  <span className="grid h-14 w-14 place-items-center rounded-2xl border border-amber-300/60 bg-emerald-950/80 text-amber-300"><UserRoundPlus size={31}/></span>
+                  <div><h2 className="text-2xl font-black text-white sm:text-3xl">بيانات العميل</h2><p className="mt-1 text-xs text-emerald-100/75 sm:text-sm">الرجاء تعبئة البيانات التالية بدقة</p></div>
+                </div>
+                <form onSubmit={event=>{event.preventDefault();void saveResidentialTenant();}}>
+                  <div className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
+                    {([ ["full_name","الاسم الكامل *","text","أدخل الاسم الكامل للعميل"], ["phone","رقم الجوال","tel","05xxxxxxxx"], ["identity_number","رقم الهوية / الإقامة","text","أدخل رقم الهوية أو الإقامة"], ["email","البريد الإلكتروني","email","example@email.com"] ] as const).map(([key,label,type,placeholder])=>(
+                      <label key={key} className="block text-sm font-bold text-emerald-50">{label}
+                        <input value={tenantForm[key]} onChange={e=>setTenantForm(prev=>({...prev,[key]:e.target.value}))}
+                          type={type} placeholder={placeholder} required={key==="full_name"}
+                          className="mt-2 h-12 w-full rounded-xl border border-emerald-300/45 bg-[#013d32]/85 px-4 text-right text-sm text-white outline-none placeholder:text-emerald-100/45 focus:border-amber-300 focus:ring-2 focus:ring-amber-300/20" />
+                      </label>
+                    ))}
+                    <div className="sm:col-span-2">
+                      <label className="mb-2 block text-sm font-bold text-emerald-50">الجنسية</label>
+                      <div className="flex gap-2">
+                        <select value={tenantForm.nationality} onChange={e=>setTenantForm(prev=>({...prev,nationality:e.target.value}))}
+                          className="h-12 min-w-0 flex-1 rounded-xl border border-emerald-300/45 bg-[#013d32] px-3 text-white outline-none focus:border-amber-300">
+                          <option value="">اختر الجنسية</option>
+                          {nationalities.map(item=><option key={item} value={item}>{item}</option>)}
+                        </select>
+                        <button type="button" onClick={()=>{setNewNationality("");setNationalityError("");setNationalityEditor(true);}}
+                          className="flex h-12 shrink-0 items-center gap-2 rounded-xl border border-amber-300 bg-amber-300/15 px-4 font-black text-amber-200 transition hover:bg-amber-300/25"><Plus size={20}/> إضافة</button>
+                      </div>
+                    </div>
+                    <label className="block text-sm font-bold text-emerald-50 sm:col-span-2">ملاحظات
+                      <textarea value={tenantForm.notes} onChange={e=>setTenantForm(prev=>({...prev,notes:e.target.value}))} rows={3} maxLength={500}
+                        placeholder="أدخل أي ملاحظات إضافية عن العميل (اختياري)"
+                        className="mt-2 w-full resize-y rounded-xl border border-emerald-300/45 bg-[#013d32]/85 p-3 text-sm text-white outline-none placeholder:text-emerald-100/45 focus:border-amber-300" />
+                      <span className="mt-1 block text-left text-xs text-emerald-100/55">{tenantForm.notes.length}/500</span>
+                    </label>
+                  </div>
+                  {tenantError && <p role="alert" className="mt-3 rounded-xl border border-rose-300/50 bg-rose-950/70 p-3 text-sm text-rose-100">{tenantError}</p>}
+                  <div className="mt-5 flex flex-col-reverse gap-3 sm:flex-row">
+                    <button type="submit" disabled={savingTenant || !canWrite}
+                      className="h-13 min-h-12 flex-1 rounded-xl border border-yellow-200/70 bg-gradient-to-b from-[#f8d675] to-[#bf9024] px-5 text-base font-black text-[#05281f] shadow-[0_5px_20px_rgba(245,189,62,.22)] disabled:opacity-50">{savingTenant?"جارٍ حفظ العميل...":"حفظ العميل"}</button>
+                    <button type="button" disabled={savingTenant} onClick={()=>setTenantModal(false)} className="min-h-12 flex-1 rounded-xl border border-emerald-200/70 bg-emerald-950/65 px-5 font-black text-white">إلغاء</button>
+                  </div>
+                </form>
+              </div>
+              <div className="relative hidden min-h-[620px] flex-col justify-end p-7 text-center lg:flex" dir="rtl">
+                <div className="rounded-2xl border border-amber-200/30 bg-[#032a24]/65 p-4 backdrop-blur-sm">
+                  <h3 className="text-2xl font-black text-amber-200">إضافة عميل جديد</h3>
+                  <p className="mt-2 text-sm leading-7 text-white/85">سجّل بيانات المستأجر واحفظها بأمان لربطها بالعقود والشقق لاحقًا</p>
+                  <p className="mt-2 text-xs text-amber-100/70">العملاء المسجلون: {tenants.length}</p>
+                </div>
+              </div>
+            </div>
+            {nationalityEditor && (
+              <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/80 p-4 backdrop-blur-md" onMouseDown={e=>{if(e.target===e.currentTarget&&!savingNationality)setNationalityEditor(false);}}>
+                <form onSubmit={e=>{e.preventDefault();void saveNationality();}} className="w-full max-w-md rounded-[24px] border border-amber-300/65 bg-gradient-to-br from-[#0b493b] to-[#03261f] p-6 shadow-2xl">
+                  <h3 className="mb-2 flex items-center gap-2 text-xl font-black text-amber-200"><Plus size={22}/> إضافة جنسية جديدة</h3>
+                  <p className="mb-4 text-xs leading-6 text-emerald-100/75">سيتم حفظ الجنسية في Supabase لتظهر لاحقًا لجميع المستخدمين المصرح لهم في نفس الشركة.</p>
+                  <label className="block text-sm font-bold">اسم الجنسية
+                    <input autoFocus value={newNationality} maxLength={80} onChange={e=>setNewNationality(e.target.value)} placeholder="مثال: مصري"
+                      className="mt-2 h-12 w-full rounded-xl border border-emerald-300/45 bg-[#02382f] px-4 text-white outline-none focus:border-amber-300" />
+                  </label>
+                  {nationalityError && <p role="alert" className="mt-3 text-sm text-rose-200">{nationalityError}</p>}
+                  <div className="mt-5 flex gap-3">
+                    <button type="submit" disabled={savingNationality || !canWrite} className="min-h-12 flex-1 rounded-xl bg-amber-300 font-black text-emerald-950 disabled:opacity-50">{savingNationality?"جارٍ الحفظ...":"حفظ الجنسية"}</button>
+                    <button type="button" disabled={savingNationality} onClick={()=>setNationalityEditor(false)} className="min-h-12 flex-1 rounded-xl border border-white/25 font-bold">إلغاء</button>
+                  </div>
+                </form>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       {operationModal && (() => {
         const isTypes = operationModal === "types";
         const isCollection = operationModal === "collectCharge" || operationModal === "collectRent";
@@ -734,9 +881,9 @@ export default function Apartments() {
           <div className="relative w-full max-w-[580px] overflow-hidden rounded-[28px] border border-emerald-300/50 bg-gradient-to-br from-[#104d3d] via-[#092d27] to-[#061c1a] px-7 pb-9 pt-10 text-center text-white shadow-[0_24px_90px_rgba(0,0,0,.6),0_0_35px_rgba(52,211,153,.15)] sm:px-10">
             <button type="button" onClick={() => setActionNotice(null)} aria-label="إغلاق رسالة النجاح" className="absolute left-4 top-4 rounded-xl border border-white/15 bg-white/5 p-2 text-emerald-100 transition hover:bg-white/15"><X size={20}/></button>
             <div className="mx-auto mb-5 grid h-20 w-20 place-items-center rounded-full border-2 border-emerald-300/60 bg-emerald-400/15 text-4xl font-black text-emerald-200 shadow-[0_0_35px_rgba(52,211,153,.25)]">✓</div>
-            <h2 className="mb-4 text-2xl font-black text-emerald-200 sm:text-3xl">تم حفظ الشقة بنجاح</h2>
-            <p className="mx-auto max-w-md text-base font-semibold leading-8 text-emerald-50/90 sm:text-lg">تم حفظ بيانات الشقة في Supabase بنجاح.</p>
-            <p className="mx-auto mt-2 max-w-md text-sm leading-7 text-emerald-100/65">بيانات المستأجر والعقد تُسجّل من وحدتها المستقلة لاحقًا.</p>
+            <h2 className="mb-4 text-2xl font-black text-emerald-200 sm:text-3xl">{actionNotice === "تم تسجيل العميل الجديد بنجاح." ? "تم حفظ العميل بنجاح" : "تم حفظ الشقة بنجاح"}</h2>
+            <p className="mx-auto max-w-md text-base font-semibold leading-8 text-emerald-50/90 sm:text-lg">{actionNotice === "تم تسجيل العميل الجديد بنجاح." ? "تم تسجيل بيانات العميل في Supabase بنجاح." : "تم حفظ بيانات الشقة في Supabase بنجاح."}</p>
+            <p className="mx-auto mt-2 max-w-md text-sm leading-7 text-emerald-100/65">{actionNotice === "تم تسجيل العميل الجديد بنجاح." ? "يمكن الآن استخدام بيانات العميل عند إنشاء عقد إيجار." : "بيانات المستأجر والعقد تُسجّل من وحدتها المستقلة لاحقًا."}</p>
             <div className="mt-7 text-sm font-bold text-emerald-200/85">تُغلق الرسالة تلقائيًا بعد 5 ثوانٍ</div>
             <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-black/35" dir="ltr">
               <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 via-teal-300 to-amber-300 shadow-[0_0_14px_rgba(110,231,183,.7)]" style={{ width: "100%", animation: "residential-save-progress 5s linear forwards" }} />
