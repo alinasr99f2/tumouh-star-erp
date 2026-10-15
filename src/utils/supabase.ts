@@ -19,5 +19,6 @@ if (!supabasePublishableKey) {
 
 export const supabase = createClient(
   supabaseUrl.trim(),
-  supabasePublishableKey.trim()
+  supabasePublishableKey.trim(),
+  { auth: { storage: typeof window !== "undefined" ? window.sessionStorage : undefined, persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } }
 );

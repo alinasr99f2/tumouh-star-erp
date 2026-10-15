@@ -4,6 +4,7 @@ import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import Sidebar from "../components/sidebar/Sidebar";
 import Topbar from "../components/topbar/Topbar";
 import { supabase } from "../utils/supabase";
+import { clearManagedSession } from "../utils/sessionGuard";
 import { usePermissions } from "../utils/permissions";
 import UsersPermissions from "../pages/Users/UsersPermissions";
 
@@ -46,7 +47,7 @@ function MainLayout() {
       }
 
       const { error } =
-        await supabase.auth.signOut();
+        await supabase.auth.signOut({ scope: "local" });
 
       if (error) {
         console.error(
@@ -61,6 +62,7 @@ function MainLayout() {
         return;
       }
 
+      clearManagedSession();
       setShowLogoutModal(false);
 
       navigate("/login", {

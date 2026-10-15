@@ -440,15 +440,11 @@ const permissionGroups: PermissionGroup[] = [
     ],
   },
   {
-    key: "settings",
-    title: "إعدادات النظام",
-    icon: Settings,
+    key: "activity_logs",
+    title: "سجل النشاط",
+    icon: ShieldCheck,
     children: [
-      { key: "settings_view", title: "عرض" },
-      { key: "settings_add", title: "إضافة" },
-      { key: "settings_edit", title: "تعديل" },
-      { key: "settings_delete", title: "حذف" },
-      { key: "activity_logs_view", title: "عرض سجل النشاط" },
+      { key: "activity_logs_view", title: "عرض" },
     ],
   },
 ];
@@ -570,9 +566,9 @@ const getRolePermissions = (role: Role): Record<PermissionKey, boolean> => {
 
 
 
-      // إعدادات النظام: ممنوعة على كل التصنيفات ما عدا مسؤول النظام.
+      // سجل النشاط: لا يُمنح تلقائيًا إلا لمسؤول النظام؛ يمكن تخصيصه يدويًا.
 
-      if (group.key === "settings") {
+      if (group.key === "activity_logs") {
 
         permissions[permission.key] = false;
 
@@ -2654,9 +2650,10 @@ const editAvatarInputRef = useRef<HTMLInputElement | null>(null);
 
                       key={group.key}
 
-                      colSpan={4}
+                      colSpan={group.key === "activity_logs" ? 1 : 4}
 
                       className="border border-white/10 px-2 py-2 text-center text-amber-100"
+                      style={group.key === "activity_logs" ? { minWidth: 150 } : undefined}
 
                     >
 
@@ -2674,15 +2671,15 @@ const editAvatarInputRef = useRef<HTMLInputElement | null>(null);
                           <span className="flex h-6 w-6 items-center justify-center rounded-lg border border-sky-300/20 bg-sky-400/5 text-sky-200" title="عرض">
                             <Eye size={12} />
                           </span>
-                          <span className="flex h-6 w-6 items-center justify-center rounded-lg border border-violet-300/20 bg-violet-400/5 text-violet-200" title="تعديل">
+                          {group.key !== "activity_logs" && <span className="flex h-6 w-6 items-center justify-center rounded-lg border border-violet-300/20 bg-violet-400/5 text-violet-200" title="تعديل">
                             <Pencil size={12} />
-                          </span>
-                          <span className="flex h-6 w-6 items-center justify-center rounded-lg border border-emerald-300/20 bg-emerald-400/5 text-emerald-200" title="إضافة">
+                          </span>}
+                          {group.key !== "activity_logs" && <span className="flex h-6 w-6 items-center justify-center rounded-lg border border-emerald-300/20 bg-emerald-400/5 text-emerald-200" title="إضافة">
                             <Plus size={12} />
-                          </span>
-                          <span className="flex h-6 w-6 items-center justify-center rounded-lg border border-red-300/20 bg-red-400/5 text-red-200" title="حذف">
+                          </span>}
+                          {group.key !== "activity_logs" && <span className="flex h-6 w-6 items-center justify-center rounded-lg border border-red-300/20 bg-red-400/5 text-red-200" title="حذف">
                             <Trash2 size={12} />
-                          </span>
+                          </span>}
                         </div>
                       </button>
 
@@ -2711,28 +2708,19 @@ const editAvatarInputRef = useRef<HTMLInputElement | null>(null);
                 <tr className="bg-black/10 text-[11px] text-slate-400">
 
                   {permissionGroups.flatMap((group) =>
-
-                    [
-                      { suffix: "_view", title: "عرض" },
-                      { suffix: "_edit", title: "تعديل" },
-                      { suffix: "_add", title: "إضافة" },
-                      { suffix: "_delete", title: "حذف" },
-                    ].map((action) => (
-
-                      <th
-
-                        key={`${group.key}-${action.suffix}`}
-
-                        className="border border-white/10 px-2 py-2 text-center"
-
-                      >
-
+                    (group.key === "activity_logs"
+                      ? [{ suffix: "_view", title: "عرض" }]
+                      : [
+                          { suffix: "_view", title: "عرض" },
+                          { suffix: "_edit", title: "تعديل" },
+                          { suffix: "_add", title: "إضافة" },
+                          { suffix: "_delete", title: "حذف" },
+                        ]
+                    ).map((action) => (
+                      <th key={`${group.key}-${action.suffix}`} className="border border-white/10 px-2 py-2 text-center" style={group.key === "activity_logs" ? { minWidth: 150 } : undefined}>
                         {action.title}
-
                       </th>
-
-                    )),
-
+                    ))
                   )}
 
                 </tr>
@@ -2863,7 +2851,7 @@ const editAvatarInputRef = useRef<HTMLInputElement | null>(null);
 
                       {permissionGroups.flatMap((group) =>
 
-                        ["_view", "_edit", "_add", "_delete"].map((suffix) => {
+                        (group.key === "activity_logs" ? ["_view"] : ["_view", "_edit", "_add", "_delete"]).map((suffix) => {
                           const child = group.children.find((permission) => permission.key === `${group.key}${suffix}`);
 
                           return (
@@ -2872,10 +2860,12 @@ const editAvatarInputRef = useRef<HTMLInputElement | null>(null);
                               key={`${user.id}-${group.key}-${suffix}`}
 
                               className="border border-white/[0.07] px-2 py-3 text-center"
+                              style={group.key === "activity_logs" ? { minWidth: 150 } : undefined}
 
                             >
 
                               {child ? (
+                                <div className={group.key === "activity_logs" ? "flex w-full items-center justify-center" : ""}>
                                 <PermissionBox
 
                                   checked={user.permissions[child.key]}
@@ -2893,6 +2883,7 @@ const editAvatarInputRef = useRef<HTMLInputElement | null>(null);
                                   }
 
                                 />
+                                </div>
                               ) : (
                                 <span className="text-[10px] text-slate-700">—</span>
                               )}

@@ -11,6 +11,7 @@ import PermissionDeniedModal from "./components/PermissionDeniedModal";
 import MainLayout from "./layouts/MainLayout";
 import Login from "./pages/Login/Login";
 import { supabase } from "./utils/supabase";
+import { sessionExpiryReason, recordActivity, endManagedSession } from "./utils/sessionGuard";
 import { PermissionsProvider, usePermissions, type PermissionKey } from "./utils/permissions";
 import Home from "./pages/Home/Home";
 import CompanyDashboard from "./pages/Dashboard/CompanyDashboard";
@@ -33,72 +34,71 @@ import ContactUs from "./pages/Contact/ContactUs";
 import Apartments from "./pages/Apartments/Apartments";
 import ActivityLog from "./pages/ActivityLog/ActivityLog";
 function ProtectedRoute() {
-
   const DEV_MODE = import.meta.env.DEV && import.meta.env.VITE_DEV_MODE === "true";
-
   const [sessionReady, setSessionReady] = useState(DEV_MODE);
   const [hasSession, setHasSession] = useState(DEV_MODE);
 
   useEffect(() => {
-
-    // تشغيل النظام بدون تسجيل دخول على جهاز العمل
-    if (DEV_MODE) {
+    if (DEV_MODE) return;
+    let mounted = true;
+    let closing = false;
+    const check = async () => {
+      if (closing) return;
+      const { data: { user }, error } = await supabase.auth.getUser();
+      if (!mounted) return;
+      if (error || !user) {
+        setHasSession(false);
+        setSessionReady(true);
+        return;
+      }
+      const reason = sessionExpiryReason(user.id);
+      if (reason) {
+        closing = true;
+        setHasSession(false);
+        setSessionReady(true);
+        try { await endManagedSession(reason); }
+        catch (err) { console.error("تعذر إنهاء الجلسة:", err); }
+        finally { if (mounted) window.location.replace("/login"); }
+        return;
+      }
       setHasSession(true);
       setSessionReady(true);
-      return;
-    }
-    let mounted = true;
-
-    const checkSession = async () => {
-      try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-
-        if (!mounted) return;
-
-        setHasSession(!!user);
-      } catch (error) {
-        console.error("خطأ أثناء التحقق من تسجيل الدخول:", error);
-
-        if (!mounted) return;
-
-        setHasSession(false);
-      } finally {
-        if (mounted) {
-          setSessionReady(true);
-        }
-      }
     };
-
-    void checkSession();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    const onActivity = () => {
+      // Check expiry BEFORE accepting activity so an expired session cannot revive.
+      void check();
+      // Only update last activity if the stored session is still valid.
+      const id = sessionStorage.getItem("aqary_session_user_v1");
+      if (id && !sessionExpiryReason(id)) recordActivity();
+    };
+    const onWake = () => { void check(); };
+    const events = ["pointerdown", "keydown", "touchstart", "scroll"] as const;
+    events.forEach((event) => window.addEventListener(event, onActivity, { passive: true }));
+    window.addEventListener("focus", onWake);
+    document.addEventListener("visibilitychange", onWake);
+    const timer = window.setInterval(() => { void check(); }, 15000);
+    void check();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (!mounted) return;
-
-      setHasSession(!!session);
-      setSessionReady(true);
+      if (event === "SIGNED_OUT") {
+        setHasSession(false);
+        setSessionReady(true);
+      }
     });
-
     return () => {
       mounted = false;
       subscription.unsubscribe();
+      window.clearInterval(timer);
+      events.forEach((event) => window.removeEventListener(event, onActivity));
+      window.removeEventListener("focus", onWake);
+      document.removeEventListener("visibilitychange", onWake);
     };
   }, []);
 
-  if (!sessionReady) {
-    return null;
-  }
-
-  if (!hasSession) {
-    return <Navigate to="/login" replace />;
-  }
-
+  if (!sessionReady) return null;
+  if (!hasSession) return <Navigate to="/login" replace />;
   return <Outlet />;
 }
-
 
 function PermissionRoute({
   permission,

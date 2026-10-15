@@ -12,6 +12,7 @@ import {
 
 import { sidebarMenu } from "../../data/menu";
 import { supabase } from "../../utils/supabase";
+import { usePermissions } from "../../utils/permissions";
 
 type SidebarProps = {
   onLogout: () => void;
@@ -25,6 +26,7 @@ type CurrentUser = {
 
 function Sidebar({ onLogout }: SidebarProps) {
   const location = useLocation();
+  const { loading: permissionsLoading, hasPermission } = usePermissions();
 
   const [projectsOpen, setProjectsOpen] = useState(() => {
     return (
@@ -435,7 +437,11 @@ function Sidebar({ onLogout }: SidebarProps) {
 
           <div className="space-y-3">
             {sidebarMenu
-              .filter((item) => item.title !== "المركز المالي")
+              .filter((item) => {
+                if (item.title === "المركز المالي") return false;
+                if (item.path === "/activity-log") return !permissionsLoading && hasPermission("activity_logs_view");
+                return true;
+              })
               .map((item) => {
               const isProjects = item.title === "المشاريع";
               const isBuildings = item.title === "العمائر";

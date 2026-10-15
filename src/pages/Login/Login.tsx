@@ -18,6 +18,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../utils/supabase";
 import "./Login.css";
+import { startManagedSession, clearManagedSession } from "../../utils/sessionGuard";
 
 const features = [
   { icon: ChartNoAxesCombined, title: "تقارير دقيقة" },
@@ -195,7 +196,8 @@ export default function Login() {
         return;
       }
 
-      await supabase.auth.signOut();
+      await supabase.auth.signOut({ scope: "local" });
+      clearManagedSession();
       setRecoveryMode(false);
       setResetMode(false);
       setNewPassword("");
@@ -273,6 +275,7 @@ export default function Login() {
         console.error("تعذر تسجيل نشاط الدخول:", auditException);
       }
 
+      startManagedSession(authUserId);
       navigate("/home");
     } catch (loginException) {
       console.error(loginException);
