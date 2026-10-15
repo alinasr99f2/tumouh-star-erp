@@ -318,6 +318,9 @@ export function PermissionsProvider({
   const [isSystemOwner, setIsSystemOwner] =
     React.useState(false);
 
+  // Track the authenticated identity so a token refresh does not unmount the page.
+  const currentUserId = React.useRef<string | null>(null);
+
 
   /**
    * تحميل صلاحيات المستخدم
@@ -337,8 +340,6 @@ export function PermissionsProvider({
     }
 
     try {
-      setLoading(true);
-
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -348,11 +349,18 @@ export function PermissionsProvider({
        * لا يوجد مستخدم
        */
       if (!user) {
+        currentUserId.current = null;
         setPermissions(emptyPermissions);
         setIsSystemOwner(false);
         return;
       }
 
+
+      // Block the protected UI only when the actual signed-in user changes.
+      if (currentUserId.current !== user.id) {
+        setLoading(true);
+        currentUserId.current = user.id;
+      }
 
       /**
        * تحميل المستخدم من قاعدة البيانات
@@ -491,8 +499,22 @@ export function PermissionsProvider({
     const {
       data: { subscription },
     } =
-      supabase.auth.onAuthStateChange(() => {
-        void loadPermissions();
+      supabase.auth.onAuthStateChange((event, session) => {
+        if (event === "SIGNED_OUT") {
+          currentUserId.current = null;
+          setLoading(true);
+          setPermissions(emptyPermissions);
+          setIsSystemOwner(false);
+          return;
+        }
+        // Supabase can emit SIGNED_IN on tab focus and TOKEN_REFRESHED in the
+        // background. Refresh permissions without temporarily removing the page.
+        if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
+          if (session?.user?.id && currentUserId.current !== session.user.id) {
+            setLoading(true);
+          }
+          void loadPermissions();
+        }
       });
 
 
