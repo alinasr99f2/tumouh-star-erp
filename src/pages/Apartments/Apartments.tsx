@@ -734,7 +734,7 @@ export default function Apartments() {
         <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/85 p-2 backdrop-blur-lg sm:p-5" dir="rtl"
           onMouseDown={event => { if (event.target === event.currentTarget && !savingTenant) setTenantModal(false); }}>
           <div role="dialog" aria-modal="true" aria-label="إضافة عميل جديد"
-            className="relative w-full max-w-[1330px] overflow-hidden rounded-[30px] border border-amber-300/65 bg-[#052d27] text-white shadow-[0_30px_100px_rgba(0,0,0,.7)]"
+            className="relative w-full max-w-[1180px] overflow-hidden rounded-[30px] border border-amber-300/65 bg-[#052d27] text-white shadow-[0_30px_100px_rgba(0,0,0,.7)]"
             style={{maxHeight:"calc(100dvh - 24px)"}}>
             <div className="pointer-events-none absolute inset-0 bg-cover bg-center" style={{backgroundImage:"url('/add-client-bg.png')"}} />
             <div className="pointer-events-none absolute inset-0 bg-[#04261f]/40 lg:bg-transparent" />
