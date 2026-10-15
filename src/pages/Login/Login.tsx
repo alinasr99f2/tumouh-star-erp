@@ -223,7 +223,7 @@ export default function Login() {
     try {
       setLoading(true);
 
-      const { error: loginError } =
+      const { data: loginData, error: loginError } =
         await supabase.auth.signInWithPassword({
           email,
           password,
@@ -232,6 +232,33 @@ export default function Login() {
       if (loginError) {
         console.error(loginError);
         setError("اسم المستخدم أو كلمة المرور غير صحيحة");
+        return;
+      }
+
+      // لا يكفي نجاح Authentication: يجب وجود حساب محلي نشط ومربوط بنفس Auth ID.
+      const authUserId = loginData.user?.id;
+      if (!authUserId) {
+        await supabase.auth.signOut();
+        setError("تعذر التحقق من حساب المستخدم. حاول مرة أخرى.");
+        return;
+      }
+
+      const { data: account, error: accountError } = await supabase
+        .from("users")
+        .select("id, active")
+        .eq("auth_user_id", authUserId)
+        .maybeSingle();
+
+      if (accountError) {
+        await supabase.auth.signOut();
+        console.error("تعذر التحقق من حالة الحساب:", accountError);
+        setError("تعذر التحقق من حالة الحساب حاليًا. حاول مرة أخرى.");
+        return;
+      }
+
+      if (!account || account.active !== true) {
+        await supabase.auth.signOut();
+        setError("هذا الحساب غير نشط أو تم حذفه. يرجى التواصل مع مسؤول النظام.");
         return;
       }
 

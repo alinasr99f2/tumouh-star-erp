@@ -61,6 +61,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { supabase } from "../../utils/supabase";
+import { createClient } from "@supabase/supabase-js";
 
 const SYSTEM_OWNER_EMAIL = "alinasr99f@gmail.com";
 const USER_AVATARS_BUCKET = "user-avatars";
@@ -1161,72 +1162,55 @@ const editAvatarInputRef = useRef<HTMLInputElement | null>(null);
 
 
 
-      const {
+      // إنشاء الحساب في عميل Auth منفصل حتى لا تتبدل جلسة المدير الحالية
+      // إذا كان تأكيد البريد معطلاً أو أرجع signUp جلسة للمستخدم الجديد.
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      if (!supabaseUrl || !supabaseAnonKey) {
+        throw new Error("إعدادات اتصال Supabase غير متاحة في متغيرات البيئة.");
+      }
+      const signupClient = createClient(supabaseUrl, supabaseAnonKey, {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+          detectSessionInUrl: false,
+        },
+      });
 
-        data: { session: currentSession },
+      const { data: authData, error: authError } = await signupClient.auth.signUp({
+        email: newEmail.trim(),
+        password: newPassword,
+        options: {
+          data: { name: newName.trim(), role: newRole },
+        },
+      });
 
-      } = await supabase.auth.getSession();
-
-
-
-      const { data: authData, error: authError } =
-
-        await supabase.auth.signUp({
-
-          email: newEmail.trim(),
-
-          password: newPassword,
-
-          options: {
-
-            data: {
-
-              name: newName.trim(),
-
-              role: newRole,
-
-            },
-
-          },
-
-        });
-
-
-
-      if (currentSession) {
-
-        await supabase.auth.setSession({
-
-          access_token: currentSession.access_token,
-
-          refresh_token: currentSession.refresh_token,
-
-        });
-
+      // Supabase قد يعيد مستخدمًا وهميًا عند محاولة تسجيل بريد موجود مسبقًا.
+      // لا نربط أي حساب ما لم نتأكد من إنشاء هوية جديدة فعلًا.
+      if (authError || !authData.user || authData.user.identities?.length === 0) {
+        const { error: cleanupError } = await supabase
+          .from("users")
+          .delete()
+          .eq("id", insertedUser.id);
+        if (cleanupError) console.error("تعذر التراجع عن سجل المستخدم:", cleanupError);
+        throw authError ?? new Error("تعذر إنشاء حساب تسجيل الدخول؛ ربما البريد مستخدم بالفعل.");
       }
 
+      // أهم خطوة: ربط سجل المستخدم بمعرّف Supabase Auth الحقيقي.
+      const { data: linkedUser, error: linkError } = await supabase
+        .from("users")
+        .update({ auth_user_id: authData.user.id })
+        .eq("id", insertedUser.id)
+        .select("id, auth_user_id")
+        .single();
 
-
-      if (authError || !authData.user) {
-
-        await supabase
-
-          .from("users")
-
-          .delete()
-
-          .eq("id", insertedUser.id);
-
-
-
-        throw (
-
-          authError ??
-
-          new Error("لم يتم إنشاء حساب المستخدم في Auth.")
-
+      if (linkError || linkedUser?.auth_user_id !== authData.user.id) {
+        // لا نحذف السجل هنا: حساب Auth قد أُنشئ بالفعل، والحذف سيتركه يتيمًا.
+        // يحتفظ المسؤول بالسجل لتصحيح الربط بدل إعادة إنشاء حساب مكرر.
+        throw new Error(
+          `تم إنشاء حساب الدخول، لكن تعذر ربط الصلاحيات تلقائيًا. ` +
+          `احتفظ بالمستخدم ولا تعِد إنشاءه. التفاصيل: ${linkError?.message ?? "لم يتم تأكيد حفظ الربط"}`
         );
-
       }
 
       let avatarUrl: string | null = insertedUser.avatar_url ? String(insertedUser.avatar_url) : null;
@@ -1282,7 +1266,7 @@ const editAvatarInputRef = useRef<HTMLInputElement | null>(null);
 
 
 
-      alert("تم إضافة المستخدم وحفظه في قاعدة البيانات بنجاح.");
+      alert("تم إنشاء المستخدم وربط حساب تسجيل الدخول بصلاحياته بنجاح. إذا كان تأكيد البريد مفعّلًا، يجب على المستخدم تأكيد بريده أولًا.");
 
     } catch (error) {
 
@@ -1337,66 +1321,67 @@ const editAvatarInputRef = useRef<HTMLInputElement | null>(null);
 
 
   const confirmDeleteUser = async () => {
-
-    if (!deleteUserTarget) return;
-
-
-
-    setSavingUsers(true);
-
-
-
-    try {
-
-      const { error } = await supabase
-
-        .from("users")
-
-        .delete()
-
-        .eq("id", deleteUserTarget.id);
-
-
-
-      if (error) throw error;
-
-      await deleteUserAvatar(deleteUserTarget.id);
-
-
-
-      setUsers((current) =>
-
-        current.filter((user) => user.id !== deleteUserTarget.id),
-
-      );
-
-      setDeleteUserTarget(null);
-
-      alert("تم حذف المستخدم من قاعدة البيانات.");
-
-    } catch (error) {
-
-      console.error("خطأ في حذف المستخدم:", error);
-
-      alert(
-
-        `تعذر حذف المستخدم من قاعدة البيانات:\n${
-
-          error instanceof Error ? error.message : "خطأ غير معروف"
-
-        }`,
-
-      );
-
-    } finally {
-
-      setSavingUsers(false);
-
+    if (!deleteUserTarget || savingUsers) return;
+    if (!isSystemOwner && !Boolean(currentUser?.permissions?.users_delete)) {
+      alert("ليس لديك صلاحية حذف المستخدمين.");
+      return;
+    }
+    if (deleteUserTarget.email.trim().toLowerCase() === SYSTEM_OWNER_EMAIL.toLowerCase()) {
+      alert("لا يمكن حذف مسؤول النظام.");
+      return;
     }
 
+    setSavingUsers(true);
+    try {
+      // الحذف/التعطيل قرار خادمي حصري؛ لا نحذف صف users مباشرة من المتصفح.
+      const { data, error } = await supabase.functions.invoke("manage-user-removal", {
+        body: { targetUserId: deleteUserTarget.id },
+      });
+      if (error) {
+        // Supabase FunctionsHttpError exposes the JSON response through context.
+        // Show the actual server reason instead of the generic non-2xx message.
+        let serverMessage = "";
+        const context = (error as { context?: Response }).context;
+        if (context && typeof context.json === "function") {
+          try {
+            const payload: unknown = await context.json();
+            if (payload && typeof payload === "object" && "error" in payload) {
+              const detail = (payload as { error?: unknown }).error;
+              if (typeof detail === "string") serverMessage = detail;
+            }
+          } catch {
+            // Keep the original Supabase error if response parsing fails.
+          }
+        }
+        throw new Error(serverMessage || error.message);
+      }
+      if (!data || data.success !== true) {
+        throw new Error(data?.error || "تعذر إتمام الإجراء من الخادم.");
+      }
+
+      if (data.action === "deleted") {
+        await deleteUserAvatar(deleteUserTarget.id);
+        setUsers((current) => current.filter((user) => user.id !== deleteUserTarget.id));
+        alert("تم حذف الحساب نهائيًا من المستخدمين وAuthentication لعدم وجود نشاط مسجل.");
+      } else if (data.action === "deactivated") {
+        setUsers((current) => current.map((user) =>
+          user.id === deleteUserTarget.id ? { ...user, active: false } : user
+        ));
+        alert(data.reason === "inspection_incomplete"
+          ? "تم تعطيل الحساب ومنع تسجيل الدخول، لكن تعذر استكمال فحص بعض السجلات؛ لذلك لم يتم حذفه نهائيًا. راجع سجلات Edge Function."
+          : "المستخدم لديه نشاط مسجل؛ تم تعطيل حسابه والاحتفاظ بكل سجلاته.");
+      } else {
+        throw new Error("استجابة غير متوقعة من خدمة إدارة المستخدمين.");
+      }
+      setDeleteUserTarget(null);
+      await loadUsers();
+    } catch (error) {
+      console.error("خطأ في حذف/تعطيل المستخدم:", error);
+      alert(`تعذر تنفيذ الإجراء بأمان: ${error instanceof Error ? error.message : "خطأ غير معروف"}`);
+    } finally {
+      setSavingUsers(false);
+    }
   };
-
-
 
   const toggleUserPermission = async (
 
@@ -3206,7 +3191,7 @@ const editAvatarInputRef = useRef<HTMLInputElement | null>(null);
 
                   <p className="mt-1 text-xs text-red-300/80">
 
-                    سيتم حذف المستخدم من قاعدة البيانات وإزالة صورته إن وُجدت، ولا يمكن التراجع عن هذا الإجراء بعد تأكيد الحذف.
+                    سيتم فحص نشاط المستخدم: إذا وُجد نشاط، سيُعطّل الحساب مع الاحتفاظ بسجلاته؛ وإلا سيُحذف نهائيًا من قاعدة البيانات وAuthentication.
 
                   </p>
 
