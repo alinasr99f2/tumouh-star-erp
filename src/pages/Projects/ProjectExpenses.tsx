@@ -1270,39 +1270,6 @@ export default function ProjectDetails() {
        
       </section>
 
-      {selectedExpense && (
-        <ExpenseDetailsModal
-          expense={selectedExpense}
-          projectName={project.name}
-          villaName={
-            villaNameMap.get(Number(selectedExpense.villaId)) ??
-            "مصروف عام على المشروع"
-          }
-          accountName={
-            accountNameMap.get(Number(selectedExpense.accountId)) ?? "-"
-          }
-          stageName={getExpenseStageName(selectedExpense)}
-          categoryName={
-            categoryNameMap.get(Number(selectedExpense.categoryId)) ?? "-"
-          }
-          itemName={itemNameMap.get(Number(selectedExpense.itemId)) ?? "-"}
-          onClose={() => setSelectedExpense(null)}
-        />
-      )}
-
-      {showExpenseModal && (
-        <ExpenseModal
-          open={showExpenseModal}
-          onClose={closeExpenseModal}
-          onSave={handleSaveExpense}
-          accounts={accounts}
-          initialExpense={editingExpense}
-          isEditing={Boolean(editingExpense)}
-          forcedProjectId={project.id}
-        />
-      )}
-
-
       {
         
       /* =====================================================

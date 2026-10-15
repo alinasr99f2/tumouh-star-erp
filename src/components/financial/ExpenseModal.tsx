@@ -298,7 +298,8 @@ useEffect(() => {
     setPaymentMethod(String(initialExpense.paymentMethod ?? initialExpense.payment_method ?? ""));
     setDescription(String(initialExpense.description ?? ""));
     if (forceGeneralExpense) setVillaId("general");
-  } else {
+  } else if (!draftReady) {
+    // Only initialize before restoring the saved draft. Never overwrite a restored form.
     resetForm();
     setEntryDate(today);
     if (forcedProjectId != null) {
@@ -585,7 +586,10 @@ const resetForm = () => {
 };
 
 const cancelExpense = () => {
-  if (draftStorageKey) sessionStorage.removeItem(draftStorageKey);
+  setDraftReady(false);
+  if (draftStorageKey) {
+    try { sessionStorage.removeItem(draftStorageKey); } catch { /* storage unavailable */ }
+  }
   onClose();
 };
 
