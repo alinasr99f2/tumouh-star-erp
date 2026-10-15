@@ -12,7 +12,6 @@ import MainLayout from "./layouts/MainLayout";
 import Login from "./pages/Login/Login";
 import { supabase } from "./utils/supabase";
 import { PermissionsProvider, usePermissions, type PermissionKey } from "./utils/permissions";
-``
 import Home from "./pages/Home/Home";
 import CompanyDashboard from "./pages/Dashboard/CompanyDashboard";
 
@@ -271,10 +270,9 @@ function App() {
 {/* =========================================
     سجل النشاط
 ========================================= */}
-<Route
-  path="/activity-log"
-  element={<ActivityLog />}
-/>
+<Route element={<PermissionRoute permission="activity_logs_view" />}>
+  <Route path="/activity-log" element={<ActivityLog />} />
+</Route>
 
 
             {/* =========================================

@@ -181,7 +181,8 @@ type PermissionKey =
 
   | "settings_edit"
 
-  | "settings_delete";
+  | "settings_delete"
+  | "activity_logs_view";
 
 
 
@@ -447,6 +448,7 @@ const permissionGroups: PermissionGroup[] = [
       { key: "settings_add", title: "إضافة" },
       { key: "settings_edit", title: "تعديل" },
       { key: "settings_delete", title: "حذف" },
+      { key: "activity_logs_view", title: "عرض سجل النشاط" },
     ],
   },
 ];
@@ -542,6 +544,7 @@ const defaultPermissions: Record<PermissionKey, boolean> = {
 
   settings_edit: false,
   settings_delete: false,
+  activity_logs_view: false,
 
 };
 

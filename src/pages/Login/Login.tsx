@@ -262,6 +262,17 @@ export default function Login() {
         return;
       }
 
+      // تسجيل الدخول في سجل النشاط عبر دالة محمية في قاعدة البيانات.
+      // فشل التسجيل لا يمنع المستخدم من الدخول بعد نجاح المصادقة.
+      try {
+        const { error: auditError } = await supabase.rpc("record_auth_activity", {
+          p_action: "login",
+        });
+        if (auditError) console.error("تعذر تسجيل نشاط الدخول:", auditError);
+      } catch (auditException) {
+        console.error("تعذر تسجيل نشاط الدخول:", auditException);
+      }
+
       navigate("/home");
     } catch (loginException) {
       console.error(loginException);

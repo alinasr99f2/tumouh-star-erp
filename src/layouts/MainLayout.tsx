@@ -34,6 +34,17 @@ function MainLayout() {
       // تسجيل خروج حقيقي من Supabase
       // يجب تنفيذ تسجيل الخروج في جميع البيئات
       // ==========================================
+      // تسجيل طلب الخروج قبل إلغاء جلسة Supabase حتى تبقى الهوية متاحة.
+      // لا نمنع تسجيل الخروج إذا تعذّر تسجيل النشاط.
+      try {
+        const { error: auditError } = await supabase.rpc("record_auth_activity", {
+          p_action: "logout",
+        });
+        if (auditError) console.error("تعذر تسجيل نشاط الخروج:", auditError);
+      } catch (auditException) {
+        console.error("تعذر تسجيل نشاط الخروج:", auditException);
+      }
+
       const { error } =
         await supabase.auth.signOut();
 

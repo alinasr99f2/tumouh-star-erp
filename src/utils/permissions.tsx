@@ -139,7 +139,8 @@ export type PermissionKey =
   | "settings_add"
   | "settings_edit"
   | "settings_delete"
-  | "settings_view";
+  | "settings_view"
+  | "activity_logs_view";
 
 
 /**
@@ -254,6 +255,7 @@ const ALL_PERMISSIONS: PermissionKey[] = [
 
   // Settings
   "settings_view",
+  "activity_logs_view",
 ];
 
 

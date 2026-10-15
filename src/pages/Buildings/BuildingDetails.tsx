@@ -42,6 +42,7 @@ import {
 type ApartmentStatus = string;
 
 type Apartment = {
+  id?: string;
   number: number;
   type: string;
   rent: number;
@@ -115,6 +116,7 @@ const setBuildingStorageValue = (baseKey: string, value: string) => {
 
 const createBlankApartments = (count: number): Apartment[] =>
   Array.from({ length: Math.max(0, count) }, (_, index) => ({
+    id: crypto.randomUUID(),
     number: index + 1,
     type: "غرفة وصالة",
     rent: 0,
@@ -837,38 +839,58 @@ const denyApartmentDelete = () => {
         console.warn("تم إيقاف الحفظ لحماية بيانات العمارة.", checkError);
         return;
       }
-      const loadedApartments = JSON.parse(lastLoadedApartmentsRef.current ?? "[]");
-      if (JSON.stringify(latest.apartments) !== JSON.stringify(loadedApartments)) {
+      // The UI normalizes number/rent/default values on load. Compare the
+      // remote snapshot using the same normalization so a harmless difference
+      // in JSON key order or numeric representation does not block all saves.
+      const normalizeForComparison = (items: Apartment[]): Apartment[] =>
+        items.filter((item) => item && item.number != null).map((item) => ({
+          ...item,
+          number: String(item.number) as unknown as number,
+          rent: Number(item.rent) || 0,
+          type: item.type || "غرفة وصالة",
+          status: item.status || "شاغرة",
+          tenant: item.tenant || "لا يوجد مستأجر",
+        }));
+      const stableJson = (value: unknown): string => JSON.stringify(value, (_key, item) =>
+        item && typeof item === "object" && !Array.isArray(item)
+          ? Object.fromEntries(Object.entries(item).sort(([a], [b]) => a.localeCompare(b)))
+          : item
+      );
+      const loadedApartments = JSON.parse(lastLoadedApartmentsRef.current ?? "[]") as Apartment[];
+      const remoteApartments = Array.isArray(latest.apartments)
+        ? latest.apartments as Apartment[] : [];
+      if (stableJson(normalizeForComparison(remoteApartments)) !== stableJson(loadedApartments)) {
         console.warn("تم منع الحفظ لأن بيانات الشقق تغيرت على جهاز آخر.");
         return;
       }
-      const remoteNumbers = new Set(
-        (Array.isArray(latest.apartments) ? latest.apartments : [])
-          .map((item: { number?: string | number }) => String(item.number))
+
+      // Stable IDs are mandatory. Compare records by ID, not by the editable
+      // apartment number, to avoid misclassifying a rename as delete + add.
+      const oldById = new Map(remoteApartments.map((item) => [item.id, item]));
+      const newById = new Map(apartments.map((item) => [item.id, item]));
+      const hasInvalidIds = [...remoteApartments, ...apartments].some((item) =>
+        typeof item.id !== "string" || !item.id.trim()
       );
-      const localNumbers = new Set(apartments.map((item) => String(item.number)));
-      const hasDuplicateNumbers = localNumbers.size !== apartments.length;
-      const hasInvalidNumbers = apartments.some((item) =>
-        item.number == null || ["", "null", "NaN", "undefined"].includes(String(item.number).trim())
+      const hasDuplicateIds = oldById.size !== remoteApartments.length ||
+        newById.size !== apartments.length;
+      const localNumbers = apartments.map((item) => String(item.number).trim());
+      const hasDuplicateNumbers = new Set(localNumbers).size !== apartments.length;
+      const hasInvalidNumbers = localNumbers.some((number) =>
+        ["", "null", "NaN", "undefined"].includes(number)
       );
-      const removedNumbers = [...remoteNumbers].filter((number) => !localNumbers.has(number));
-      const addedNumbers = [...localNumbers].filter((number) => !remoteNumbers.has(number));
-      // Adding apartments is authorized by apartments_add, not buildings_add/edit.
-      // Existing apartment numbers must stay intact. Deletions remain blocked here
-      // until their dedicated permission-safe persistence path is implemented.
-      const isAddition = addedNumbers.length > 0 && removedNumbers.length === 0;
-      const isEdit = addedNumbers.length === 0 && removedNumbers.length === 0;
-      const loadedByNumber = new Map(
-        (loadedApartments as Apartment[]).map((item) => [String(item.number), item])
-      );
+      const removedIds = [...oldById.keys()].filter((id) => !newById.has(id));
+      const addedIds = [...newById.keys()].filter((id) => !oldById.has(id));
+      const isAddition = addedIds.length > 0 && removedIds.length === 0;
+      const isEdit = addedIds.length === 0 && removedIds.length === 0;
       const changedExistingDuringAddition = isAddition && apartments.some((item) =>
-        remoteNumbers.has(String(item.number)) &&
-        JSON.stringify(item) !== JSON.stringify(loadedByNumber.get(String(item.number)))
+        oldById.has(item.id) &&
+        stableJson(item) !== stableJson(normalizeForComparison([oldById.get(item.id)!])[0])
       );
-      if (hasDuplicateNumbers || hasInvalidNumbers || changedExistingDuringAddition || removedNumbers.length > 0 ||
+      if (hasInvalidIds || hasDuplicateIds || hasDuplicateNumbers || hasInvalidNumbers ||
+          changedExistingDuringAddition || removedIds.length > 0 ||
           (isAddition && !canAddApartments) ||
           (isEdit && !(canEditBuildings && canEditApartments))) {
-        console.warn("تم منع حفظ عملية غير مصرح بها أو أرقام شقق غير صالحة.");
+        console.warn("تم منع حفظ عملية غير مصرح بها أو معرّفات شقق غير صالحة.");
         return;
       }
 
@@ -976,6 +998,7 @@ const denyApartmentDelete = () => {
       const updated = [
         ...current,
         {
+          id: crypto.randomUUID(),
           number: nextNumber,
           type: "غرفة وصالة",
           rent: 3000,

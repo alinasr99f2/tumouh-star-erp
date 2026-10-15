@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { supabase } from "../../utils/supabase";
 import {
   Activity,
   CalendarDays,
@@ -30,10 +31,13 @@ type ActivityType =
   | "delete"
   | "view"
   | "upload"
-  | "permission";
+  | "permission"
+  | "other";
 
 interface ActivityItem {
   id: number;
+  userId: string;
+  avatarUrl: string;
   user: string;
   role: string;
   type: ActivityType;
@@ -42,98 +46,8 @@ interface ActivityItem {
   date: string;
   time: string;
   ip: string;
+  createdAt: string;
 }
-
-const activities: ActivityItem[] = [
-  {
-    id: 1,
-    user: "أبو حمزة",
-    role: "مشرف النظام",
-    type: "login",
-    section: "النظام",
-    details: "تم تسجيل الدخول إلى النظام بنجاح",
-    date: "02/10/2026",
-    time: "02:58 ص",
-    ip: "192.168.1.20",
-  },
-  {
-    id: 2,
-    user: "أبو سالم",
-    role: "مستخدم",
-    type: "add",
-    section: "المشاريع",
-    details: "تمت إضافة عقار جديد إلى النظام",
-    date: "02/10/2026",
-    time: "02:45 ص",
-    ip: "192.168.1.35",
-  },
-  {
-    id: 3,
-    user: "أبو حمزة",
-    role: "مشرف النظام",
-    type: "edit",
-    section: "العقار",
-    details: "تم تعديل بيانات عمارة النخيل",
-    date: "02/10/2026",
-    time: "02:32 ص",
-    ip: "192.168.1.20",
-  },
-  {
-    id: 4,
-    user: "أبو سالم",
-    role: "مستخدم",
-    type: "delete",
-    section: "المصروفات",
-    details: "تم حذف مصروف من النظام",
-    date: "02/10/2026",
-    time: "02:18 ص",
-    ip: "192.168.1.35",
-  },
-  {
-    id: 5,
-    user: "أبو فهد",
-    role: "مدير",
-    type: "permission",
-    section: "المستخدمين",
-    details: "تم تعديل صلاحيات مستخدم",
-    date: "02/10/2026",
-    time: "01:55 ص",
-    ip: "192.168.1.50",
-  },
-  {
-    id: 6,
-    user: "أبو حمزة",
-    role: "مشرف النظام",
-    type: "add",
-    section: "الشقق",
-    details: "تمت إضافة شقة جديدة (شقة 5 - عمارة الورود)",
-    date: "02/10/2026",
-    time: "01:40 ص",
-    ip: "192.168.1.20",
-  },
-  {
-    id: 7,
-    user: "أبو سالم",
-    role: "مستخدم",
-    type: "view",
-    section: "التقارير",
-    details: "تم عرض تقرير المشاريع",
-    date: "02/10/2026",
-    time: "01:22 ص",
-    ip: "192.168.1.35",
-  },
-  {
-    id: 8,
-    user: "أبو حمزة",
-    role: "مشرف النظام",
-    type: "upload",
-    section: "المشاريع",
-    details: "تم رفع ملف مخطط المشروع",
-    date: "02/10/2026",
-    time: "01:10 ص",
-    ip: "192.168.1.20",
-  },
-];
 
 const typeConfig: Record<
   ActivityType,
@@ -143,6 +57,7 @@ const typeConfig: Record<
     className: string;
   }
 > = {
+  other: { label: "عملية", icon: Activity, className: "activity-view" },
   login: {
     label: "تسجيل دخول",
     icon: LogIn,
@@ -180,7 +95,92 @@ const typeConfig: Record<
   },
 };
 
+function UserAvatar({ name, url }: { name: string; url: string }) {
+  const [imageFailed, setImageFailed] = useState(false);
+  useEffect(() => { setImageFailed(false); }, [url]);
+  return (
+    <div className="user-avatar" style={{ overflow: "hidden", position: "relative" }}>
+      {url && !imageFailed ? (
+        <img
+          src={url}
+          alt={`صورة ${name}`}
+          loading="lazy"
+          referrerPolicy="no-referrer"
+          onError={() => setImageFailed(true)}
+          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", borderRadius: "inherit" }}
+        />
+      ) : name.charAt(0)}
+    </div>
+  );
+}
+
 function ActivityLog() {
+  const [activities, setActivities] = useState<ActivityItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const loadActivities = useCallback(async () => {
+    setLoading(true);
+    setErrorMessage("");
+    const { data, error } = await supabase.from("activity_logs")
+      .select("id, user_id, user_name, user_role, action_type, section, details, ip_address, created_at")
+      .order("created_at", { ascending: false }).order("id", { ascending: false }).limit(1000);
+    if (error) {
+      setErrorMessage(`تعذر تحميل سجل النشاط: ${error.message}`);
+      setActivities([]);
+    } else {
+      const formatter = new Intl.DateTimeFormat("ar-SA", { dateStyle: "short", timeZone: "Asia/Riyadh" });
+      const timeFormatter = new Intl.DateTimeFormat("ar-SA", { timeStyle: "short", timeZone: "Asia/Riyadh" });
+      // Fetch current profile pictures by auth_user_id; keep the activity log usable
+      // even if the separate profile query is unavailable.
+      const avatarByUserId = new Map<string, string>();
+      const actorIds = Array.from(new Set((data ?? []).map((row) => String(row.user_id ?? "")).filter(Boolean)));
+      if (actorIds.length > 0) {
+        const { data: profiles, error: profileError } = await supabase
+          .from("users")
+          .select("auth_user_id, avatar_url")
+          .in("auth_user_id", actorIds);
+        if (!profileError) {
+          for (const profile of profiles ?? []) {
+            if (profile.auth_user_id && profile.avatar_url) {
+              avatarByUserId.set(String(profile.auth_user_id), String(profile.avatar_url));
+            }
+          }
+        }
+      }
+      setActivities((data ?? []).map((row, index) => {
+        const timestamp = String(row.created_at ?? "");
+        const date = new Date(timestamp);
+        const validDate = !Number.isNaN(date.getTime());
+        const rawType = String(row.action_type ?? "other");
+        const knownTypes = ["login", "add", "edit", "delete", "view", "upload", "permission"];
+        return {
+          id: Number(row.id) || index + 1,
+          userId: String(row.user_id ?? ""),
+          avatarUrl: avatarByUserId.get(String(row.user_id ?? "")) ?? "",
+          user: String(row.user_name ?? "غير معروف"),
+          role: String(row.user_role ?? ""),
+          type: (knownTypes.includes(rawType) ? rawType : "other") as ActivityType,
+          section: String(row.section ?? "النظام"),
+          details: String(row.details ?? ""),
+          date: validDate ? formatter.format(date) : "—",
+          time: validDate ? timeFormatter.format(date) : "—",
+          ip: String(row.ip_address ?? "—"),
+          createdAt: timestamp,
+        };
+      }));
+    }
+    setLoading(false);
+  }, []);
+  useEffect(() => {
+    void loadActivities();
+    // Refresh recent activity automatically while the page is open.
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === "visible") void loadActivities();
+    }, 15000);
+    return () => window.clearInterval(interval);
+  }, [loadActivities]);
   const [search, setSearch] = useState("");
   const [sectionFilter, setSectionFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
@@ -204,9 +204,11 @@ function ActivityLog() {
       const userMatch =
         userFilter === "all" || item.user === userFilter;
 
-      return searchMatch && sectionMatch && typeMatch && userMatch;
+      const day = item.createdAt ? new Date(item.createdAt).toLocaleDateString("en-CA", { timeZone: "Asia/Riyadh" }) : "";
+      const dateMatch = (!fromDate || day >= fromDate) && (!toDate || day <= toDate);
+      return searchMatch && sectionMatch && typeMatch && userMatch && dateMatch;
     });
-  }, [search, sectionFilter, typeFilter, userFilter]);
+  }, [activities, search, sectionFilter, typeFilter, userFilter, fromDate, toDate]);
 
   const exportCSV = () => {
     const headers = [
@@ -220,8 +222,8 @@ function ActivityLog() {
       "الجهاز / IP",
     ];
 
-    const rows = filteredActivities.map((item) => [
-      item.id,
+    const rows = filteredActivities.map((item, index) => [
+      index + 1,
       item.user,
       typeConfig[item.type].label,
       item.section,
@@ -261,6 +263,8 @@ function ActivityLog() {
     setSectionFilter("all");
     setTypeFilter("all");
     setUserFilter("all");
+    setFromDate("");
+    setToDate("");
   };
 
   return (
@@ -312,7 +316,7 @@ function ActivityLog() {
 
           <div className="stat-info">
             <span>إجمالي العمليات</span>
-            <strong>1,482</strong>
+            <strong>{activities.length.toLocaleString("ar-SA")}</strong>
           </div>
         </div>
 
@@ -324,7 +328,7 @@ function ActivityLog() {
 
           <div className="stat-info">
             <span>عمليات اليوم</span>
-            <strong>86</strong>
+            <strong>{activities.filter((a) => a.createdAt && new Date(a.createdAt).toLocaleDateString("en-CA", { timeZone: "Asia/Riyadh" }) === new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Riyadh" })).length}</strong>
           </div>
         </div>
 
@@ -336,7 +340,7 @@ function ActivityLog() {
 
           <div className="stat-info">
             <span>المستخدمون النشطون</span>
-            <strong>6</strong>
+            <strong>{new Set(activities.map((a) => a.user)).size}</strong>
           </div>
         </div>
 
@@ -348,7 +352,7 @@ function ActivityLog() {
 
           <div className="stat-info">
             <span>آخر عملية</span>
-            <strong>منذ 5 دقائق</strong>
+            <strong>{activities[0]?.time ?? "لا توجد عمليات"}</strong>
           </div>
         </div>
 
@@ -390,17 +394,11 @@ function ActivityLog() {
 
           <div className="date-range">
 
-            <div>
-              <CalendarDays size={16} />
-              02/10/2026
-            </div>
+            <input aria-label="من تاريخ" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
 
             <span>إلى</span>
 
-            <div>
-              <CalendarDays size={16} />
-              02/10/2026
-            </div>
+            <input aria-label="من تاريخ" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
 
           </div>
 
@@ -422,13 +420,8 @@ function ActivityLog() {
               onChange={(e) => setSectionFilter(e.target.value)}
             >
               <option value="all">كل الأقسام</option>
-              <option value="النظام">النظام</option>
-              <option value="المشاريع">المشاريع</option>
-              <option value="العقار">العقار</option>
-              <option value="المصروفات">المصروفات</option>
-              <option value="المستخدمين">المستخدمين</option>
-              <option value="الشقق">الشقق</option>
-              <option value="التقارير">التقارير</option>
+              {Array.from(new Set(activities.map((a) => a.section))).sort().map((section) => <option key={section} value={section}>{section}</option>)}
+              {/* dynamically populated */}
             </select>
 
             <ChevronDown size={15} />
@@ -484,9 +477,7 @@ function ActivityLog() {
               onChange={(e) => setUserFilter(e.target.value)}
             >
               <option value="all">كل المستخدمين</option>
-              <option value="أبو حمزة">أبو حمزة</option>
-              <option value="أبو سالم">أبو سالم</option>
-              <option value="أبو فهد">أبو فهد</option>
+              {Array.from(new Set(activities.map((a) => a.user))).sort().map((name) => <option key={name} value={name}>{name}</option>)}
             </select>
 
             <ChevronDown size={15} />
@@ -539,7 +530,7 @@ function ActivityLog() {
 
             <button
               className="refresh-button"
-              onClick={() => window.location.reload()}
+              onClick={() => void loadActivities()}
             >
               <RefreshCw size={16} />
               تحديث
@@ -560,6 +551,8 @@ function ActivityLog() {
 
         <div className="activity-table-wrapper">
 
+          {errorMessage && <p role="alert" style={{ color: "#fca5a5", padding: 16 }}>{errorMessage}</p>}
+          {loading && <p style={{ padding: 16 }}>جاري تحميل السجل...</p>}
           <table className="activity-table">
 
             <thead>
@@ -601,7 +594,7 @@ function ActivityLog() {
 
             <tbody>
 
-              {filteredActivities.map((item) => {
+              {filteredActivities.map((item, index) => {
 
                 const config = typeConfig[item.type];
                 const Icon = config.icon;
@@ -610,7 +603,7 @@ function ActivityLog() {
                   <tr key={item.id}>
 
                     <td className="row-number">
-                      {item.id}
+                      {index + 1}
                     </td>
 
 
@@ -631,9 +624,7 @@ function ActivityLog() {
 
                       <div className="user-cell">
 
-                        <div className="user-avatar">
-                          {item.user.charAt(3)}
-                        </div>
+                        <UserAvatar name={item.user} url={item.avatarUrl} />
 
                         <div>
                           <strong>
@@ -696,6 +687,7 @@ function ActivityLog() {
                       <button
                         className="more-button"
                         title="عرض التفاصيل"
+                        onClick={() => window.alert(`${item.user} — ${item.section}\n${item.details}\n${item.date} ${item.time}`)}
                       >
                         ...
                       </button>

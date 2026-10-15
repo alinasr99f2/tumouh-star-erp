@@ -42,6 +42,7 @@ import {
 type ApartmentStatus = string;
 
 type Apartment = {
+  id?: string;
   number: string;
   type: string;
   rent: number;
@@ -712,6 +713,7 @@ export default function ApartmentMap() {
         const emptyApartments: Apartment[] = Array.from(
           { length: unitsCount },
           (_, index) => ({
+            id: crypto.randomUUID(),
             number: String(index + 1),
             type: "غير محدد",
             rent: 0,
@@ -851,6 +853,7 @@ export default function ApartmentMap() {
       const updated = [
         ...current,
         {
+          id: crypto.randomUUID(),
           number: nextNumber,
           type: "غرفة وصالة",
           rent: 3000,

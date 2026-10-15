@@ -21,7 +21,8 @@ const ACTIVITY_TABLES = [
   ["residential_apartments", "created_by"], ["residential_contracts", "created_by"],
   ["residential_tenants", "created_by"], ["suppliers", "created_by"],
   ["tenant_leases", "created_by"], ["tenants", "created_by"],
-  ["residential_company_users", "user_id"], ["user_permissions", "user_id"],
+  ["building_state_backup_20261012", "created_by"],
+  ["building_state_backup_before_number_fix_20261012", "created_by"],
 ] as const;
 
 function json(status: number, body: unknown) {
@@ -94,15 +95,21 @@ Deno.serve(async (request) => {
     let inspectionUncertain = false;
     for (const [table, column] of ACTIVITY_TABLES) {
       const { count, error } = await admin.from(table)
-        .select("*", { count: "exact", head: true })
+        .select(column, { count: "exact", head: true })
         .eq(column, target.auth_user_id);
       if (error) {
-        console.error(`Unable to inspect ${table}.${column}:`, error.message);
+        console.error(`Unable to inspect ${table}.${column}:`, JSON.stringify({ message: error.message, code: error.code, details: error.details, hint: error.hint }));
         hasActivityOrUncertainty = true;
         inspectionUncertain = true;
         break;
       }
-      if ((count ?? 0) > 0) {
+      if (count === null) {
+        console.error(`Unable to inspect ${table}.${column}: count returned null without an error`);
+        hasActivityOrUncertainty = true;
+        inspectionUncertain = true;
+        break;
+      }
+      if (count > 0) {
         hasActivityOrUncertainty = true;
         break;
       }
@@ -121,24 +128,18 @@ Deno.serve(async (request) => {
       return json(500, { error: "Database account disabled, but Auth ban failed; review required" });
     }
 
-    if (hasActivityOrUncertainty) {
-      return json(200, { success: true, action: "deactivated", reason: inspectionUncertain ? "inspection_incomplete" : "activity_found" });
-    }
-
-    // Clean account: delete Auth and then the application row. If an unexpected
-    // dependency blocks either operation, the account remains inactive/banned.
-    const { error: deleteAuthError } = await admin.auth.admin.deleteUser(target.auth_user_id);
-    if (deleteAuthError) {
-      console.error("Unable to delete Auth user:", deleteAuthError.message);
-      return json(500, { error: "Account disabled, but Auth deletion failed; review required" });
-    }
-    const { error: deleteRowError } = await admin.from("users")
-      .delete().eq("id", target.id);
-    if (deleteRowError) {
-      console.error("Unable to delete public.users row:", deleteRowError.message);
-      return json(500, { error: "Auth deleted, but database row remains inactive; manual cleanup required" });
-    }
-    return json(200, { success: true, action: "deleted" });
+    // Safety gate: historical activity tracking is not yet comprehensive.
+    // Never permanently delete an account until server-side auditing is complete.
+    // Existing access records are retained for possible review and reactivation.
+    return json(200, {
+      success: true,
+      action: "deactivated",
+      reason: inspectionUncertain
+        ? "inspection_incomplete"
+        : hasActivityOrUncertainty
+          ? "activity_found"
+          : "audit_not_ready",
+    });
   } catch (error) {
     console.error("manage-user-removal failed:", error);
     return json(500, { error: "Unexpected server error" });
