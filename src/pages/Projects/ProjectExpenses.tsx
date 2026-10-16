@@ -567,7 +567,7 @@ export default function ProjectDetails() {
               align-items: center;
               margin-bottom: 24px;
               padding-bottom: 16px;
-              border-bottom: 2px solid #0f2d4d;
+              border-bottom: 2px solid #07523F;
             }
             h1 { margin: 0; font-size: 26px; }
             .date { color: #6b7280; font-size: 13px; }
@@ -582,7 +582,7 @@ export default function ProjectDetails() {
               text-align: right;
             }
             th {
-              background: #0f2d4d;
+              background: #07523F;
               color: white;
               font-weight: 700;
             }
@@ -1119,7 +1119,7 @@ export default function ProjectDetails() {
             .total { margin:16px 0; padding:12px; border:1px solid #d1d5db; border-radius:10px; font-size:20px; font-weight:800; }
             table { width:100%; border-collapse:collapse; font-size:12px; }
             th,td { border:1px solid #d1d5db; padding:8px; text-align:right; }
-            th { background:#0f2d4d; color:white; }
+            th { background:#07523F; color:white; }
             @media print { body { padding:10px; } }
           </style>
         </head>
@@ -1160,7 +1160,7 @@ export default function ProjectDetails() {
         <button
           type="button"
           onClick={() => navigate("/projects")}
-          className="mt-6 rounded-xl bg-yellow-400 px-6 py-3 font-bold text-[#081B33] transition hover:bg-yellow-500"
+          className="mt-6 rounded-xl bg-yellow-400 px-6 py-3 font-bold text-[#062E26] transition hover:bg-yellow-500"
         >
           رجوع للمشاريع
         </button>
@@ -1173,9 +1173,9 @@ export default function ProjectDetails() {
       {/* =====================================================
           EXPENSES PAGE HEADER
       ===================================================== */}
-      <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#173C63] via-[#0D2948] to-[#101C2D] px-8 py-7 shadow-xl">
+      <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#07523F] via-[#063B30] to-[#03251F] px-8 py-7 shadow-xl">
         <div className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-yellow-400/10 blur-3xl" />
-        <div className="pointer-events-none absolute -left-20 -bottom-20 h-64 w-64 rounded-full bg-blue-500/10 blur-3xl" />
+        <div className="pointer-events-none absolute -left-20 -bottom-20 h-64 w-64 rounded-full bg-emerald-500/10 blur-3xl" />
 
         <div className="relative z-10 flex items-center justify-between gap-6">
           <button
@@ -1208,7 +1208,7 @@ export default function ProjectDetails() {
           EXPENSE SUMMARY - 4 CARDS
       ===================================================== */}
       <section className="space-y-5">
-        <div className="flex flex-col gap-4 rounded-3xl border border-white/10 bg-[#081B33] p-5 md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-col gap-4 rounded-3xl border border-white/10 bg-[#062E26] p-5 md:flex-row md:items-center md:justify-between">
           <div className="text-right">
             <h2 className="text-2xl font-extrabold text-white">
               ملخص مصروفات المشروع
@@ -1221,7 +1221,7 @@ export default function ProjectDetails() {
           <button
             type="button"
             onClick={refreshProjectExpenses}
-            className="flex items-center justify-center gap-2 rounded-xl border border-cyan-400/20 bg-cyan-400/10 px-5 py-3 font-bold text-cyan-300 transition hover:bg-cyan-400/20"
+            className="flex items-center justify-center gap-2 rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-5 py-3 font-bold text-emerald-300 transition hover:bg-emerald-400/20"
           >
             <RefreshCw size={18} />
             تحديث
@@ -1314,8 +1314,8 @@ export default function ProjectDetails() {
       {/* =====================================================
           EXPENSE DETAILS TABLE
       ===================================================== */}
-      <section className="overflow-hidden rounded-3xl border border-white/10 bg-[#081B33] shadow-xl">
-        <div className="flex flex-col gap-4 border-b border-white/10 bg-[#102947] p-5 xl:flex-row xl:items-center xl:justify-between">
+      <section className="overflow-hidden rounded-3xl border border-white/10 bg-[#062E26] shadow-xl">
+        <div className="flex flex-col gap-4 border-b border-white/10 bg-[#0A4537] p-5 xl:flex-row xl:items-center xl:justify-between">
           <div className="text-right">
             <h2 className="text-2xl font-extrabold text-white">تفاصيل مصروفات المشروع</h2>
             <p className="mt-1 text-sm text-gray-400">
@@ -1330,7 +1330,7 @@ export default function ProjectDetails() {
                 setEditingExpense(null);
                 setShowExpenseModal(true);
               }}
-              className="flex items-center gap-2 rounded-xl bg-yellow-400 px-5 py-3 font-bold text-[#081B33] transition hover:bg-yellow-300"
+              className="flex items-center gap-2 rounded-xl bg-yellow-400 px-5 py-3 font-bold text-[#062E26] transition hover:bg-yellow-300"
             >
               <Plus size={18} />
               إضافة مصروف
@@ -1339,7 +1339,7 @@ export default function ProjectDetails() {
             <button
               type="button"
               onClick={refreshProjectExpenses}
-              className="flex items-center gap-2 rounded-xl border border-cyan-400/20 bg-cyan-400/10 px-4 py-3 font-bold text-cyan-300 transition hover:bg-cyan-400/20"
+              className="flex items-center gap-2 rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 font-bold text-emerald-300 transition hover:bg-emerald-400/20"
             >
               <RefreshCw size={17} />
               تحديث
@@ -1359,7 +1359,7 @@ export default function ProjectDetails() {
               </button>
 
               {openExpenseExport === "table" && (
-                <div className="absolute right-0 top-14 z-50 w-52 overflow-hidden rounded-2xl border border-white/10 bg-[#102947] p-1 shadow-2xl">
+                <div className="absolute right-0 top-14 z-50 w-52 overflow-hidden rounded-2xl border border-white/10 bg-[#0A4537] p-1 shadow-2xl">
                   <button type="button" onClick={() => handleExpenseExport("all", "pdf")} className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-right text-sm text-white hover:bg-white/10">
                     <FileText size={17} className="text-red-400" />
                     PDF / حفظ PDF
@@ -1369,7 +1369,7 @@ export default function ProjectDetails() {
                     Excel
                   </button>
                   <button type="button" onClick={() => handleExpenseExport("all", "print")} className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-right text-sm text-white hover:bg-white/10">
-                    <Printer size={17} className="text-sky-400" />
+                    <Printer size={17} className="text-emerald-400" />
                     طباعة
                   </button>
                 </div>
@@ -1380,7 +1380,7 @@ export default function ProjectDetails() {
 
         <div className="overflow-x-auto">
           <table className="min-w-[1500px] w-full text-sm text-white">
-            <thead className="bg-[#102947] text-gray-300">
+            <thead className="bg-[#0A4537] text-gray-300">
               <tr>
                 <th className="p-3 text-center">التاريخ</th>
                 <th className="p-3 text-center">رقم الفاتورة</th>
@@ -1420,10 +1420,10 @@ export default function ProjectDetails() {
                     <td className="p-3 text-center font-bold text-yellow-400">{getExpenseTotal(expense).toLocaleString("ar-SA")}</td>
                     <td className="p-3">
                       <div className="flex justify-center gap-2">
-                        <button type="button" onClick={() => setSelectedExpense(expense)} className="flex items-center gap-1 rounded-lg bg-sky-500 px-3 py-2 text-xs font-bold text-white hover:bg-sky-600">
+                        <button type="button" onClick={() => setSelectedExpense(expense)} className="flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-500">
                           <Eye size={14} /> عرض
                         </button>
-                        <button type="button" onClick={() => handleEditExpense(expense)} className="flex items-center gap-1 rounded-lg bg-yellow-500 px-3 py-2 text-xs font-bold text-[#081B33] hover:bg-yellow-400">
+                        <button type="button" onClick={() => handleEditExpense(expense)} className="flex items-center gap-1 rounded-lg bg-yellow-500 px-3 py-2 text-xs font-bold text-[#062E26] hover:bg-yellow-400">
                           <Pencil size={14} /> تعديل
                         </button>
                         <button type="button" onClick={() => handleDeleteExpense(expense)} className="flex items-center gap-1 rounded-lg bg-red-500 px-3 py-2 text-xs font-bold text-white hover:bg-red-600">
@@ -1502,12 +1502,12 @@ function TopCostPanel({
             "border-emerald-400/20 bg-emerald-400/5 hover:bg-emerald-400/10",
         }
       : {
-          border: "border-blue-400/20",
-          icon: "text-blue-400",
-          number: "bg-blue-400/10 text-blue-300 border-blue-400/20",
-          bar: "bg-blue-400",
+          border: "border-emerald-400/20",
+          icon: "text-emerald-400",
+          number: "bg-emerald-400/10 text-emerald-300 border-emerald-400/20",
+          bar: "bg-emerald-400",
           button:
-            "border-blue-400/20 bg-blue-400/5 hover:bg-blue-400/10",
+            "border-emerald-400/20 bg-emerald-400/5 hover:bg-emerald-400/10",
         };
 
   return (
@@ -1518,9 +1518,9 @@ function TopCostPanel({
         border
         ${accentClasses.border}
         bg-gradient-to-br
-        from-[#102A43]
-        via-[#102337]
-        to-[#0B1928]
+        from-[#0B4B3B]
+        via-[#073A30]
+        to-[#03251F]
         shadow-xl
       `}
     >
@@ -1784,9 +1784,9 @@ function AllCostItemsModal({
           border
           border-white/10
           bg-gradient-to-br
-          from-[#102A43]
-          via-[#102337]
-          to-[#0B1928]
+          from-[#0B4B3B]
+          via-[#073A30]
+          to-[#03251F]
           shadow-2xl
         "
       >
@@ -1827,7 +1827,7 @@ function AllCostItemsModal({
 
         {/* Summary */}
         <div className="grid grid-cols-1 gap-4 border-b border-white/10 bg-black/10 p-5 md:grid-cols-2">
-          <div className="rounded-2xl border border-blue-400/20 bg-blue-400/5 p-4">
+          <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/5 p-4">
             <p className="text-sm font-semibold text-gray-400">عدد البنود</p>
             <p className="mt-1 text-2xl font-extrabold text-white">
               {items.length}
@@ -1885,8 +1885,8 @@ function AllCostItemsModal({
                       <span
                         className="
                           flex h-9 w-9 items-center justify-center rounded-xl
-                          border border-blue-400/20 bg-blue-400/10
-                          text-sm font-extrabold text-blue-300
+                          border border-emerald-400/20 bg-emerald-400/10
+                          text-sm font-extrabold text-emerald-300
                         "
                       >
                         {index + 1}
@@ -1900,7 +1900,7 @@ function AllCostItemsModal({
 
                       <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
                         <div
-                          className="h-full rounded-full bg-blue-400"
+                          className="h-full rounded-full bg-emerald-400"
                           style={{ width: `${percentage}%` }}
                         />
                       </div>
@@ -1914,7 +1914,7 @@ function AllCostItemsModal({
                     </div>
 
                     <div className="text-center">
-                      <span className="inline-flex rounded-full border border-blue-400/20 bg-blue-400/10 px-3 py-1 text-sm font-extrabold text-blue-300">
+                      <span className="inline-flex rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-sm font-extrabold text-emerald-300">
                         {percentage.toFixed(1)}%
                       </span>
                     </div>
@@ -1967,7 +1967,7 @@ function AllCostItemsModal({
             className="
               flex items-center justify-center gap-2 rounded-2xl
               border border-emerald-400/20 bg-emerald-400/10 px-5 py-3
-              font-bold text-emerald-300 transition hover:bg-emerald-400 hover:text-[#081B33]
+              font-bold text-emerald-300 transition hover:bg-emerald-400 hover:text-[#062E26]
             "
           >
             <FileSpreadsheet size={19} />
@@ -1979,8 +1979,8 @@ function AllCostItemsModal({
             onClick={onPrint}
             className="
               flex items-center justify-center gap-2 rounded-2xl
-              border border-blue-400/20 bg-blue-400/10 px-5 py-3
-              font-bold text-blue-300 transition hover:bg-blue-400 hover:text-white
+              border border-emerald-400/20 bg-emerald-400/10 px-5 py-3
+              font-bold text-emerald-300 transition hover:bg-emerald-400 hover:text-white
             "
           >
             <Printer size={19} />
@@ -2067,7 +2067,7 @@ function ExpensePeriodCard({
   const key = `period-${period}`;
 
   return (
-    <div className={`relative rounded-3xl border ${styles.border} ${styles.bg} bg-[#081B33] p-5 shadow-xl`}>
+    <div className={`relative rounded-3xl border ${styles.border} ${styles.bg} bg-[#062E26] p-5 shadow-xl`}>
       <p className="text-sm font-semibold text-gray-400">{title}</p>
 
       <div className="mt-3 flex items-baseline gap-2">
@@ -2089,7 +2089,7 @@ function ExpensePeriodCard({
         </button>
 
         {openExport === key && (
-          <div className="absolute right-0 top-12 z-50 w-48 overflow-hidden rounded-xl border border-white/10 bg-[#102947] p-1 shadow-2xl">
+          <div className="absolute right-0 top-12 z-50 w-48 overflow-hidden rounded-xl border border-white/10 bg-[#0A4537] p-1 shadow-2xl">
             <button
               type="button"
               onClick={() => onExport(period, "pdf")}
@@ -2111,7 +2111,7 @@ function ExpensePeriodCard({
               onClick={() => onExport(period, "print")}
               className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-right text-sm text-white hover:bg-white/10"
             >
-              <Printer size={17} className="text-sky-400" />
+              <Printer size={17} className="text-emerald-400" />
               طباعة
             </button>
           </div>
@@ -2143,7 +2143,7 @@ function ExpenseDetailsModal({
   onClose,
 }: ExpenseDetailsModalProps) {
   const ViewBox = ({ label, value }: { label: string; value: string }) => (
-    <div className="rounded-2xl border border-white/10 bg-[#102947] p-4">
+    <div className="rounded-2xl border border-white/10 bg-[#0A4537] p-4">
       <p className="mb-2 text-xs text-gray-400">{label}</p>
       <p className="font-bold text-white">{value || "-"}</p>
     </div>
@@ -2156,8 +2156,8 @@ function ExpenseDetailsModal({
         if (event.target === event.currentTarget) onClose();
       }}
     >
-      <div className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-3xl border border-white/10 bg-[#081B33] shadow-2xl">
-        <div className="flex items-center justify-between border-b border-white/10 bg-[#102947] px-7 py-5">
+      <div className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-3xl border border-white/10 bg-[#062E26] shadow-2xl">
+        <div className="flex items-center justify-between border-b border-white/10 bg-[#0A4537] px-7 py-5">
           <div>
             <h2 className="text-2xl font-bold text-white">تفاصيل المصروف</h2>
             <p className="mt-1 text-sm text-gray-400">
@@ -2191,14 +2191,14 @@ function ExpenseDetailsModal({
           </div>
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <div className="rounded-2xl border border-white/10 bg-[#102947] p-5">
+            <div className="rounded-2xl border border-white/10 bg-[#0A4537] p-5">
               <p className="text-sm text-gray-400">قبل الضريبة</p>
               <p className="mt-2 text-2xl font-bold text-white">
                 {Number(expense.amount ?? 0).toLocaleString("ar-SA")}
                 <span className="mr-2 text-sm text-gray-500">ريال</span>
               </p>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-[#102947] p-5">
+            <div className="rounded-2xl border border-white/10 bg-[#0A4537] p-5">
               <p className="text-sm text-gray-400">الضريبة</p>
               <p className="mt-2 text-2xl font-bold text-orange-400">
                 {Number(expense.tax ?? 0).toLocaleString("ar-SA")}
@@ -2215,18 +2215,18 @@ function ExpenseDetailsModal({
           </div>
 
           {expense.description && (
-            <div className="mt-6 rounded-2xl border border-white/10 bg-[#102947] p-5">
+            <div className="mt-6 rounded-2xl border border-white/10 bg-[#0A4537] p-5">
               <p className="mb-2 text-sm text-gray-400">الوصف</p>
               <p className="leading-7 text-white">{expense.description}</p>
             </div>
           )}
         </div>
 
-        <div className="flex justify-end border-t border-white/10 bg-[#102947] px-7 py-4">
+        <div className="flex justify-end border-t border-white/10 bg-[#0A4537] px-7 py-4">
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl bg-yellow-400 px-7 py-3 font-bold text-[#081B33] hover:bg-yellow-300"
+            className="rounded-xl bg-yellow-400 px-7 py-3 font-bold text-[#062E26] hover:bg-yellow-300"
           >
             إغلاق
           </button>

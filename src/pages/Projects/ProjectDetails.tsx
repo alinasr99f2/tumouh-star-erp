@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -20,11 +21,15 @@ import {
   Trash2,
   BarChart3,
   Boxes,
+  Filter,
+  Search,
 } from "lucide-react";
 
 import { projects } from "../../data/projects";
 import { supabase } from "../../utils/supabase";
 import ExpenseModal from "../../components/financial/ExpenseModal";
+import ExpenseExcelImport from "../../components/financial/ExpenseExcelImport";
+import AccountSettlementModal from "../../components/financial/AccountSettlementModal";
 
 // إجمالي المصروفات المتوقع للمشروع، ويُستخدم كأساس لحساب النسبة المحددة للتصنيفات.
 const DEFAULT_EXPECTED_PROJECT_EXPENSE_TOTAL = 7_200_000;
@@ -107,10 +112,22 @@ export default function ProjectDetails() {
   // Expense management state
   const [accounts, setAccounts] = useState<any[]>([]);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
+  const [showExcelImport, setShowExcelImport] = useState(false);
+  const [showAccountSettlement, setShowAccountSettlement] = useState(false);
   const [editingExpense, setEditingExpense] = useState<any | null>(null);
   const [selectedExpense, setSelectedExpense] = useState<any | null>(null);
   const [openExpenseExport, setOpenExpenseExport] = useState<string | null>(null);
   const [expenseReferenceDate, setExpenseReferenceDate] = useState(localDateString());
+
+  // فلاتر جدول المصروفات فقط، ولا تؤثر على إجماليات المشروع أو قاعدة البيانات.
+  const [expenseTableFilters, setExpenseTableFilters] = useState<Record<string, string[]>>({});
+  const [expenseTableSearch, setExpenseTableSearch] = useState("");
+  const [expenseTableFromDate, setExpenseTableFromDate] = useState("");
+  const [expenseTableToDate, setExpenseTableToDate] = useState("");
+  const [expenseTableMinAmount, setExpenseTableMinAmount] = useState("");
+  const [expenseTableMaxAmount, setExpenseTableMaxAmount] = useState("");
+  const [expenseTableSort, setExpenseTableSort] = useState("default");
+
 
   // إجمالي مساحة المشروع قابل للتعديل من كارت إجمالي المساحة.
   const [projectTotalArea, setProjectTotalArea] = useState<number>(0);
@@ -135,6 +152,7 @@ export default function ProjectDetails() {
   // Lookup data used by the project expense table.
   const [categories, setCategories] = useState<any[]>([]);
   const [expenseItems, setExpenseItems] = useState<any[]>([]);
+  const [expenseUnits, setExpenseUnits] = useState<{ id: number; name: string }[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [stages, setStages] = useState<any[]>([]);
 
@@ -224,6 +242,133 @@ export default function ProjectDetails() {
     [expenseItems]
   );
 
+  const unitNameMap = useMemo(
+    () => new Map<number, string>(expenseUnits.map((unit) => [Number(unit.id), unit.name])),
+    [expenseUnits]
+  );
+
+  const getExpenseUnitName = (expense: any) => {
+    const unitId = expense?.unitId ?? expense?.unit_id;
+    return unitId != null && unitId !== "" ? unitNameMap.get(Number(unitId)) ?? "-" : "-";
+  };
+
+  const getExpenseTableValue = (expense: any, field: string): string => {
+    switch (field) {
+      case "date": return getExpenseDateValue(expense) || "-";
+      case "invoice": return String(expense.voucherNo ?? expense.invoice_number ?? "-").trim() || "-";
+      case "villa": return "مصروف عام على المشروع";
+      case "stage": return getExpenseStageName(expense);
+      case "account": return accountNameMap.get(Number(expense.accountId ?? expense.account_id)) ?? "-";
+      case "category": return categoryNameMap.get(Number(expense.categoryId ?? expense.category_id)) ?? "-";
+      case "item": return itemNameMap.get(Number(expense.itemId ?? expense.item_id)) ?? "-";
+      case "unit": return getExpenseUnitName(expense);
+      case "specification": return String(expense.specification ?? "-").trim() || "-";
+      case "quantity": return expense.quantity == null || expense.quantity === "" ? "-" : String(expense.quantity);
+      case "attachment": return getExpenseAttachment(expense) ? "يوجد مرفق" : "لا يوجد";
+      default: return "-";
+    }
+  };
+
+  const expenseTableFields = ["date", "invoice", "villa", "stage", "account", "category", "item", "unit", "quantity", "specification", "attachment"];
+  const expenseTableOptions = useMemo(() => {
+    const result: Record<string, string[]> = {};
+    for (const field of expenseTableFields) {
+      result[field] = Array.from(new Set(expenseRows.map((row) => getExpenseTableValue(row, field))))
+        .sort((a, b) => a.localeCompare(b, "ar", { numeric: true }));
+    }
+    return result;
+  }, [expenseRows, accountNameMap, categoryNameMap, stageNameMap, itemNameMap, unitNameMap, categories]);
+
+  const filteredExpenseRows = useMemo(() => {
+    const search = expenseTableSearch.trim().toLocaleLowerCase();
+    const min = expenseTableMinAmount.trim() === "" ? null : Number(expenseTableMinAmount);
+    const max = expenseTableMaxAmount.trim() === "" ? null : Number(expenseTableMaxAmount);
+    const rows = expenseRows.filter((expense) => {
+      for (const [field, value] of Object.entries(expenseTableFilters)) {
+        if (value.length > 0 && !value.includes(getExpenseTableValue(expense, field))) return false;
+      }
+      const date = getExpenseDateValue(expense);
+      if (expenseTableFromDate && date < expenseTableFromDate) return false;
+      if (expenseTableToDate && date > expenseTableToDate) return false;
+      const total = getExpenseTotal(expense);
+      if (min !== null && Number.isFinite(min) && total < min) return false;
+      if (max !== null && Number.isFinite(max) && total > max) return false;
+      if (search) {
+        const searchable = [...expenseTableFields.map((field) => getExpenseTableValue(expense, field)), String(total), String(expense.description ?? "")].join(" ").toLocaleLowerCase();
+        if (!searchable.includes(search)) return false;
+      }
+      return true;
+    });
+    if (expenseTableSort === "default") return rows;
+    return [...rows].sort((a, b) => {
+      if (expenseTableSort === "amount_asc") return getExpenseTotal(a) - getExpenseTotal(b);
+      if (expenseTableSort === "amount_desc") return getExpenseTotal(b) - getExpenseTotal(a);
+      if (expenseTableSort === "quantity_asc") return Number(a.quantity ?? 0) - Number(b.quantity ?? 0);
+      if (expenseTableSort === "quantity_desc") return Number(b.quantity ?? 0) - Number(a.quantity ?? 0);
+      if (expenseTableSort === "date_asc") return getExpenseDateValue(a).localeCompare(getExpenseDateValue(b));
+      if (expenseTableSort === "date_desc") return getExpenseDateValue(b).localeCompare(getExpenseDateValue(a));
+      return 0;
+    });
+  }, [expenseRows, expenseTableFilters, expenseTableSearch, expenseTableFromDate, expenseTableToDate, expenseTableMinAmount, expenseTableMaxAmount, expenseTableSort, accountNameMap, categoryNameMap, stageNameMap, itemNameMap, unitNameMap, categories]);
+
+  const filteredExpenseTotal = useMemo(
+    () => filteredExpenseRows.reduce((sum, expense) => sum + getExpenseTotal(expense), 0),
+    [filteredExpenseRows]
+  );
+
+  const clearExpenseTableFilters = () => {
+    setExpenseTableFilters({});
+    setExpenseTableSearch("");
+    setExpenseTableFromDate("");
+    setExpenseTableToDate("");
+    setExpenseTableMinAmount("");
+    setExpenseTableMaxAmount("");
+    setExpenseTableSort("default");
+  };
+
+  // تصدير النتائج الظاهرة فقط بعد تطبيق جميع الفلاتر، دون تعديل البيانات الأصلية.
+  const exportFilteredExpenses = (type: "excel" | "print") => {
+    const headings = ["التاريخ", "رقم الفاتورة", "الفيلا", "المرحلة", "العهدة", "التصنيف", "البند", "الوحدة", "الكمية", "المواصفة", "الإجمالي", "المرفقات"];
+    const fields = ["date", "invoice", "villa", "stage", "account", "category", "item", "unit", "quantity", "specification"];
+    const body = filteredExpenseRows.map((expense) => `<tr>${fields.map((field) => `<td>${escapeHtml(getExpenseTableValue(expense, field))}</td>`).join("")}<td>${getExpenseTotal(expense).toFixed(2)}</td><td>${escapeHtml(getExpenseTableValue(expense, "attachment"))}</td></tr>`).join("");
+    const html = `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"/><title>تقرير المصروفات المفلترة - ${escapeHtml(project?.name ?? "المشروع")}</title><style>
+      *{box-sizing:border-box}body{font-family:Arial,Tahoma,sans-serif;padding:20px;color:#172b26;background:#fff}
+      .report-header{display:flex;direction:ltr;align-items:flex-start;justify-content:space-between;gap:20px;border-bottom:2px solid #0a4537;padding-bottom:14px;margin-bottom:18px}
+      .brand{direction:rtl;text-align:center;flex:0 0 155px}.brand img{width:118px;height:118px;object-fit:contain;display:block;margin:0 auto 5px}.brand-name{font-size:13px;font-weight:800;color:#0a4537;white-space:nowrap}.brand-phone{font-size:12px;font-weight:700;color:#374151;direction:ltr}
+      .report-heading{direction:rtl;text-align:right;flex:1;padding-top:20px}.report-heading h2{margin:0 0 12px;font-size:23px;color:#0a4537}.report-heading p{font-weight:bold;margin:0;font-size:15px}
+      table{border-collapse:collapse;width:100%;font-size:12px}th,td{border:1px solid #9ca3af;padding:8px;text-align:right}th{background:#0a4537;color:white}tfoot td{background:#e8f4ee;font-weight:bold}
+      @page{size:A4 landscape;margin:12mm}@media print{body{padding:0}.report-header{break-inside:avoid}thead{display:table-header-group}tr{break-inside:avoid}}
+      </style></head><body>
+      <header class="report-header"><div class="brand"><img src="${window.location.origin}/aqary-smart-logo.png" alt="شعار عقاري سمارت"/><div class="brand-name">م/ علي نصر</div><div class="brand-phone">0570026229</div></div><div class="report-heading"><h2>تقرير مصروفات ${escapeHtml(project?.name ?? "المشروع")} — نتائج الفلترة</h2><p>عدد المصروفات: ${filteredExpenseRows.length} | إجمالي المصروفات: ${filteredExpenseTotal.toLocaleString("ar-SA", { maximumFractionDigits: 2 })} ريال</p></div></header>
+      <table><thead><tr>${headings.map((heading) => `<th>${heading}</th>`).join("")}</tr></thead><tbody>${body}</tbody><tfoot><tr><td colspan="10">الإجمالي (${filteredExpenseRows.length} مصروف)</td><td>${filteredExpenseTotal.toFixed(2)}</td><td></td></tr></tfoot></table></body></html>`;
+    if (type === "excel") {
+      const blob = new Blob(["\ufeff", html], { type: "application/vnd.ms-excel;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `تقرير_المصروفات_المفلترة_${project?.name ?? "المشروع"}.xls`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } else {
+      const win = window.open("", "_blank", "width=1300,height=850");
+      if (!win) { alert("يرجى السماح بالنوافذ المنبثقة لفتح التقرير."); return; }
+      win.document.write(html);
+      win.document.close();
+      win.focus();
+      const reportLogo = win.document.querySelector(".brand img") as HTMLImageElement | null;
+      if (reportLogo && !reportLogo.complete) {
+        reportLogo.onload = () => win.print();
+        reportLogo.onerror = () => win.print();
+        setTimeout(() => { if (!reportLogo.complete) win.print(); }, 1800);
+      } else {
+        setTimeout(() => win.print(), 350);
+      }
+    }
+    setOpenExpenseExport(null);
+  };
+
   const supplierNameMap = useMemo(
     () =>
       new Map<number, string>(
@@ -248,6 +393,7 @@ export default function ProjectDetails() {
       accountsResult,
       categoriesResult,
       itemsResult,
+      unitsResult,
       suppliersResult,
       stagesResult,
       projectMetaResult,
@@ -283,6 +429,11 @@ export default function ProjectDetails() {
         .from("expense_items")
         .select("id, name, category_id")
         .order("id", { ascending: true }),
+
+      supabase
+        .from("expense_units")
+        .select("id, name")
+        .order("name", { ascending: true }),
 
       supabase
         .from("suppliers")
@@ -336,6 +487,14 @@ export default function ProjectDetails() {
 
   setTopCostItems(allItems);
 }
+
+    if (unitsResult.error) {
+      console.error("خطأ في تحميل وحدات المصروفات:", unitsResult.error);
+    } else {
+      setExpenseUnits((unitsResult.data ?? []).map((unit: any) => ({
+        id: Number(unit.id), name: String(unit.name ?? ""),
+      })));
+    }
 
     if (accountsResult.error) {
       console.error("خطأ في تحميل العهد:", accountsResult.error);
@@ -419,6 +578,9 @@ export default function ProjectDetails() {
       categoryId: row.category_id ?? null,
       stageId: row.stage_id ?? null,
       itemId: row.item_id ?? null,
+      unitId: row.unit_id ?? null,
+       quantity: row.quantity ?? null,
+      specification: row.specification ?? null,
       supplier:
         row.supplier_name ??
         row.supplier?.name ??
@@ -971,6 +1133,9 @@ export default function ProjectDetails() {
     const accountId = Number(expense?.accountId);
     const categoryId = expense?.categoryId ? Number(expense.categoryId) : null;
     const itemId = expense?.itemId ? Number(expense.itemId) : null;
+    const unitId = expense?.unitId ? Number(expense.unitId) : null;
+    const quantity = expense?.quantity == null || expense.quantity === "" ? null : Number(expense.quantity);
+    const specification = String(expense?.specification ?? "").trim() || null;
     // مشروع فلل تبوك: جميع المصروفات عامة على المشروع ولا ترتبط بفيلا.
     const villaId = null;
 
@@ -1060,6 +1225,9 @@ export default function ProjectDetails() {
             category_id: categoryId,
             stage_id: expense?.stageId ? Number(expense.stageId) : Number(categories.find((c: any) => Number(c.id) === categoryId)?.stage_id ?? 0) || null,
             item_id: itemId,
+            unit_id: unitId,
+            quantity,
+            specification,
             invoice_number: expense?.voucherNo || null,
             amount_before_tax: amount,
             tax,
@@ -1137,6 +1305,9 @@ export default function ProjectDetails() {
           category_id: categoryId,
           stage_id: expense?.stageId ? Number(expense.stageId) : Number(categories.find((c: any) => Number(c.id) === categoryId)?.stage_id ?? 0) || null,
           item_id: itemId,
+          unit_id: unitId,
+          quantity,
+          specification,
           invoice_number: expense?.voucherNo || null,
           amount_before_tax: amount,
           tax,
@@ -1447,7 +1618,7 @@ ${error?.message ?? ""}`);
     return (
       <div className="min-h-[70vh] space-y-6 pb-10" dir="rtl">
 
-            <div className="flex shrink-0 items-center justify-between border-b border-white/10 bg-[#102947] px-7 py-5">
+            <div className="flex shrink-0 items-center justify-between border-b border-white/10 bg-[#0A4537] px-7 py-5">
               <div className="text-right">
                 <h2 className="text-2xl font-extrabold text-white">تفاصيل إجمالي مصروفات المشروع</h2>
                 <p className="mt-1 text-sm text-gray-400">كل ملخصات المصروفات والتفاصيل وبنود التكلفة الخاصة بـ {project.name}</p>
@@ -1466,7 +1637,7 @@ ${error?.message ?? ""}`);
           EXPENSE SUMMARY - 4 CARDS
       ===================================================== */}
       <section className="space-y-5">
-        <div className="flex flex-col gap-4 rounded-3xl border border-white/10 bg-[#081B33] p-5 md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-col gap-4 rounded-3xl border border-white/10 bg-[#062E26] p-5 md:flex-row md:items-center md:justify-between">
           <div className="text-right">
             <h2 className="text-2xl font-extrabold text-white">
               ملخص مصروفات المشروع
@@ -1479,7 +1650,7 @@ ${error?.message ?? ""}`);
           <button
             type="button"
             onClick={refreshProjectExpenses}
-            className="flex items-center justify-center gap-2 rounded-xl border border-cyan-400/20 bg-cyan-400/10 px-5 py-3 font-bold text-cyan-300 transition hover:bg-cyan-400/20"
+            className="flex items-center justify-center gap-2 rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-5 py-3 font-bold text-emerald-300 transition hover:bg-emerald-400/20"
           >
             <RefreshCw size={18} />
             تحديث
@@ -1544,7 +1715,7 @@ ${error?.message ?? ""}`);
       {/* =====================================================
           TOP 5 CATEGORIES
       ===================================================== */}
-      <section className="overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#102A43] via-[#0E233A] to-[#081727] shadow-2xl">
+      <section className="overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#0B4B3B] via-[#07382F] to-[#03251F] shadow-2xl">
         <div className="flex flex-col gap-4 border-b border-white/10 px-6 py-5 md:flex-row md:items-center md:justify-between">
           <div className="text-right">
             <div className="flex items-center gap-3">
@@ -1621,7 +1792,7 @@ ${error?.message ?? ""}`);
         </div>
 
         <div className="border-t border-white/10 p-5">
-          <button type="button" onClick={() => setShowAllCostItems(true)} className="w-full rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-5 py-3 font-bold text-cyan-300 transition hover:bg-cyan-400/20">
+          <button type="button" onClick={() => setShowAllCostItems(true)} className="w-full rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-5 py-3 font-bold text-emerald-300 transition hover:bg-emerald-400/20">
             عرض جميع التصنيفات
             <span className="mr-2">←</span>
           </button>
@@ -1629,8 +1800,8 @@ ${error?.message ?? ""}`);
       </section>
 
 
-        <div className="overflow-hidden rounded-3xl border border-white/10 bg-[#081B33] shadow-xl">
-          <div className="flex flex-col gap-4 border-b border-white/10 bg-[#102947] p-5 xl:flex-row xl:items-center xl:justify-between">
+        <div className="overflow-hidden rounded-3xl border border-white/10 bg-[#062E26] shadow-xl">
+          <div className="flex flex-col gap-4 border-b border-white/10 bg-[#0A4537] p-5 xl:flex-row xl:items-center xl:justify-between">
             <div className="text-right">
               <h2 className="text-2xl font-extrabold text-white">
                 تفاصيل مصروفات المشروع
@@ -1647,16 +1818,22 @@ ${error?.message ?? ""}`);
                   setEditingExpense(null);
                   setShowExpenseModal(true);
                 }}
-                className="flex items-center gap-2 rounded-xl bg-yellow-400 px-5 py-3 font-bold text-[#081B33] transition hover:bg-yellow-300"
+                className="flex items-center gap-2 rounded-xl bg-yellow-400 px-5 py-3 font-bold text-[#062E26] transition hover:bg-yellow-300"
               >
                 <Plus size={18} />
                 إضافة مصروف
               </button>
 
+              <button type="button" onClick={() => setShowAccountSettlement(true)} className="flex items-center gap-2 rounded-xl border border-emerald-400/40 bg-emerald-400/10 px-5 py-3 font-bold text-emerald-200 transition hover:bg-emerald-400/20"><WalletCards size={18} /> تسوية عهدة</button>
+
+              <button type="button" onClick={() => setShowExcelImport(true)} className="flex items-center gap-2 rounded-xl border border-yellow-400/40 bg-yellow-400/10 px-5 py-3 font-bold text-yellow-300 transition hover:bg-yellow-400/20">
+                <FileSpreadsheet size={18} /> استيراد Excel
+              </button>
+
               <button
                 type="button"
                 onClick={refreshProjectExpenses}
-                className="flex items-center gap-2 rounded-xl border border-cyan-400/20 bg-cyan-400/10 px-4 py-3 font-bold text-cyan-300 transition hover:bg-cyan-400/20"
+                className="flex items-center gap-2 rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 font-bold text-emerald-300 transition hover:bg-emerald-400/20"
               >
                 <RefreshCw size={17} />
                 تحديث
@@ -1678,11 +1855,15 @@ ${error?.message ?? ""}`);
                 </button>
 
                 {openExpenseExport === "table" && (
-                  <div className="absolute right-0 top-14 z-50 w-52 overflow-hidden rounded-2xl border border-white/10 bg-[#102947] p-1 shadow-2xl">
+                  <div dir="rtl" className="absolute left-0 top-14 z-[100] w-[310px] max-w-[calc(100vw-32px)] rounded-2xl border border-emerald-400/40 bg-[#07382F] p-2 text-right shadow-2xl shadow-black/60">
+                    <div className="border-b border-emerald-400/20 px-3 py-2 text-xs font-bold text-yellow-300">تقرير نتائج الفلترة ({filteredExpenseRows.length})</div>
+                    <button type="button" onClick={() => exportFilteredExpenses("excel")} className="flex w-full items-center justify-start gap-3 whitespace-normal rounded-xl px-3 py-3 text-right text-sm font-semibold leading-relaxed text-white hover:bg-white/10"><FileSpreadsheet size={17} className="text-green-400" />Excel — النتائج المفلترة</button>
+                    <button type="button" onClick={() => exportFilteredExpenses("print")} className="flex w-full items-center justify-start gap-3 whitespace-normal rounded-xl px-3 py-3 text-right text-sm font-semibold leading-relaxed text-white hover:bg-white/10"><FileText size={17} className="text-red-400" />PDF / طباعة — النتائج المفلترة</button>
+                    <div className="border-b border-emerald-400/20 px-3 py-2 text-xs text-gray-300">التقرير الكامل بدون فلترة</div>
                     <button
                       type="button"
                       onClick={() => handleExpenseExport("all", "pdf")}
-                      className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-right text-sm text-white hover:bg-white/10"
+                      className="flex w-full items-center justify-start gap-3 whitespace-normal rounded-xl px-3 py-3 text-right text-sm font-semibold leading-relaxed text-white hover:bg-white/10"
                     >
                       <FileText size={17} className="text-red-400" />
                       PDF / حفظ PDF
@@ -1690,7 +1871,7 @@ ${error?.message ?? ""}`);
                     <button
                       type="button"
                       onClick={() => handleExpenseExport("all", "excel")}
-                      className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-right text-sm text-white hover:bg-white/10"
+                      className="flex w-full items-center justify-start gap-3 whitespace-normal rounded-xl px-3 py-3 text-right text-sm font-semibold leading-relaxed text-white hover:bg-white/10"
                     >
                       <FileSpreadsheet size={17} className="text-green-400" />
                       Excel
@@ -1698,9 +1879,9 @@ ${error?.message ?? ""}`);
                     <button
                       type="button"
                       onClick={() => handleExpenseExport("all", "print")}
-                      className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-right text-sm text-white hover:bg-white/10"
+                      className="flex w-full items-center justify-start gap-3 whitespace-normal rounded-xl px-3 py-3 text-right text-sm font-semibold leading-relaxed text-white hover:bg-white/10"
                     >
-                      <Printer size={17} className="text-sky-400" />
+                      <Printer size={17} className="text-teal-400" />
                       طباعة
                     </button>
                   </div>
@@ -1709,9 +1890,42 @@ ${error?.message ?? ""}`);
             </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="min-w-[2200px] w-max text-[14px] leading-6 text-white">
-              <thead className="bg-[#102947] text-gray-300">
+          {/* فلاتر مستقلة للجدول، ويمكن الجمع بين أكثر من فلتر. */}
+          <div className="space-y-3 border-b border-emerald-400/15 bg-[#07392F] px-4 py-4" dir="rtl">
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="inline-flex items-center gap-2 text-sm font-extrabold text-emerald-200"><Filter size={17} /> فلترة المصروفات</span>
+              <div className="relative min-w-[200px] flex-1">
+                <Search size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-emerald-300" />
+                <input type="search" value={expenseTableSearch} onChange={(e) => setExpenseTableSearch(e.target.value)} placeholder="بحث في كل بيانات المصروفات..." className="w-full rounded-xl border border-emerald-400/20 bg-[#0B493C] py-2.5 pl-3 pr-9 text-sm text-white outline-none placeholder:text-gray-400 focus:border-yellow-400" />
+              </div>
+              <label className="flex items-center gap-2 text-xs text-gray-300">من تاريخ <input type="date" value={expenseTableFromDate} onChange={(e) => setExpenseTableFromDate(e.target.value)} className="rounded-lg border border-emerald-400/20 bg-[#0B493C] p-2 text-white" /></label>
+              <label className="flex items-center gap-2 text-xs text-gray-300">إلى تاريخ <input type="date" value={expenseTableToDate} onChange={(e) => setExpenseTableToDate(e.target.value)} className="rounded-lg border border-emerald-400/20 bg-[#0B493C] p-2 text-white" /></label>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <label className="flex items-center gap-2 text-xs text-gray-300">المبلغ من <input type="number" min="0" step="any" value={expenseTableMinAmount} onChange={(e) => setExpenseTableMinAmount(e.target.value)} placeholder="0" className="w-28 rounded-lg border border-emerald-400/20 bg-[#0B493C] p-2 text-white outline-none" /></label>
+              <label className="flex items-center gap-2 text-xs text-gray-300">إلى <input type="number" min="0" step="any" value={expenseTableMaxAmount} onChange={(e) => setExpenseTableMaxAmount(e.target.value)} placeholder="بدون حد" className="w-28 rounded-lg border border-emerald-400/20 bg-[#0B493C] p-2 text-white outline-none" /></label>
+              <select aria-label="ترتيب المصروفات" value={expenseTableSort} onChange={(e) => setExpenseTableSort(e.target.value)} className="rounded-lg border border-emerald-400/20 bg-[#0B493C] px-3 py-2 text-sm text-white outline-none">
+                <option value="default">الترتيب الأصلي</option>
+                <option value="amount_desc">الإجمالي: الأعلى أولًا</option>
+                <option value="amount_asc">الإجمالي: الأقل أولًا</option>
+                <option value="date_desc">التاريخ: الأحدث أولًا</option>
+                <option value="date_asc">التاريخ: الأقدم أولًا</option>
+                <option value="quantity_desc">الكمية: الأكبر أولًا</option>
+                <option value="quantity_asc">الكمية: الأصغر أولًا</option>
+              </select>
+              <button type="button" onClick={clearExpenseTableFilters} className="rounded-lg border border-yellow-400/40 bg-yellow-400/10 px-4 py-2 text-sm font-bold text-yellow-300 hover:bg-yellow-400/20">مسح جميع الفلاتر</button>
+              <div className="mr-auto flex flex-wrap items-center gap-3 text-sm font-bold">
+                <span className="text-emerald-200">النتائج: {filteredExpenseRows.length} من {expenseRows.length} مصروف</span>
+                <span className="rounded-lg border border-yellow-400/20 bg-yellow-400/10 px-3 py-1.5 text-yellow-300">إجمالي النتائج: {filteredExpenseTotal.toLocaleString("ar-SA", { maximumFractionDigits: 2 })} ريال</span>
+              </div>
+            </div>
+            <p className="text-xs text-emerald-200/70">يمكنك تحديد أكثر من قيمة داخل كل فلتر مثل Excel، والجمع بين عدة فلاتر في نفس الوقت. ثم تصدير النتائج الظاهرة فقط من قائمة تصدير. إجماليات المشروع الأساسية لا تتغير.</p>
+          </div>
+
+          <div className="expense-table-scroll overflow-x-auto pb-2" style={{ scrollbarWidth: "auto", scrollbarColor: "#eab308 #064638" }}>
+            <style>{`.expense-table-scroll::-webkit-scrollbar{height:15px}.expense-table-scroll::-webkit-scrollbar-track{background:#064638;border:2px solid #0e6854;border-radius:14px}.expense-table-scroll::-webkit-scrollbar-thumb{background:linear-gradient(90deg,#facc15,#f59e0b);border:2px solid #064638;border-radius:14px;min-width:90px}.expense-table-scroll::-webkit-scrollbar-thumb:hover{background:#fde047}`}</style>
+            <table className="min-w-[2600px] w-full text-[14px] leading-6 text-white">
+              <thead className="bg-[#0A4537] text-gray-300">
                 <tr>
                   <th className="p-3 text-center">التاريخ</th>
                   <th className="p-3 text-center">رقم الفاتورة</th>
@@ -1720,27 +1934,47 @@ ${error?.message ?? ""}`);
                   <th className="p-3 text-center">العهدة</th>
                   <th className="p-3 text-center">التصنيف</th>
                   <th className="p-3 text-center">البند</th>
+                  <th className="p-3 text-center">الوحدة</th>
+                  <th className="p-3 text-center">الكمية</th>
+                  <th className="p-3 text-center">المواصفة</th>
                   <th className="p-3 text-center">الإجمالي</th>
                   <th className="p-3 text-center">المرفقات</th>
                   <th className="p-3 text-center">الإجراءات</th>
+                </tr>
+                <tr className="bg-[#083B31]">
+                  {(["date", "invoice", "villa", "stage", "account", "category", "item", "unit", "quantity", "specification"] as const).map((field) => (
+                    <th key={field} className="px-2 pb-3 pt-1">
+                      <ExpenseMultiFilter
+                        field={field}
+                        options={expenseTableOptions[field] ?? []}
+                        selected={expenseTableFilters[field] ?? []}
+                        onChange={(next) => setExpenseTableFilters((current) => ({ ...current, [field]: next }))}
+                      />
+                    </th>
+                  ))}
+                  <th className="px-2 pb-3 pt-1 text-xs text-emerald-200">حسب المبلغ أعلاه</th>
+                  <th className="px-2 pb-3 pt-1">
+                    <ExpenseMultiFilter field="attachment" options={["يوجد مرفق", "لا يوجد"]} selected={expenseTableFilters.attachment ?? []} onChange={(next) => setExpenseTableFilters((current) => ({ ...current, attachment: next }))} />
+                  </th>
+                  <th className="px-2 pb-3 pt-1" />
                 </tr>
               </thead>
 
               <tbody className="divide-y divide-white/10">
                 {loadingProjectData ? (
                   <tr>
-                    <td colSpan={10} className="p-10 text-center text-gray-400">
+                    <td colSpan={13} className="p-10 text-center text-gray-400">
                       جاري تحميل المصروفات...
                     </td>
                   </tr>
-                ) : expenseRows.length === 0 ? (
+                ) : filteredExpenseRows.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="p-10 text-center text-gray-400">
-                      لا توجد مصروفات لهذا المشروع حتى الآن.
+                    <td colSpan={13} className="p-10 text-center text-gray-400">
+                      {expenseRows.length === 0 ? "لا توجد مصروفات لهذا المشروع حتى الآن." : "لا توجد مصروفات مطابقة للفلاتر المحددة."}
                     </td>
                   </tr>
                 ) : (
-                  expenseRows.map((expense: any) => (
+                  filteredExpenseRows.map((expense: any) => (
                     <tr
                       key={String(expense.id)}
                       className="transition hover:bg-white/[0.03]"
@@ -1754,7 +1988,7 @@ ${error?.message ?? ""}`);
                       <td className="p-3 text-center whitespace-nowrap">
                         مصروف عام على المشروع
                       </td>
-                      <td className="p-3 text-center font-semibold text-cyan-300">
+                      <td className="p-3 text-center font-semibold text-emerald-300">
                         {getExpenseStageName(expense)}
                       </td>
                       <td className="p-3 text-center whitespace-nowrap">
@@ -1766,6 +2000,13 @@ ${error?.message ?? ""}`);
                       <td className="p-3 text-center whitespace-nowrap">
                         {itemNameMap.get(Number(expense.itemId)) ?? "-"}
                       </td>
+                      <td className="p-3 text-center whitespace-nowrap text-emerald-200">
+                        {getExpenseUnitName(expense)}
+                      </td>
+                      <td className="p-3 text-center whitespace-nowrap text-emerald-200">
+                        {expense.quantity == null || expense.quantity === "" ? "-" : Number(expense.quantity).toLocaleString("ar-SA", { maximumFractionDigits: 6 })}
+                      </td>
+                      <td className="p-3 text-center whitespace-nowrap text-emerald-200">{expense.specification || "-"}</td>
 
                       {/* الإجمالي */}
                       <td className="p-3 text-center font-bold text-yellow-400">
@@ -1792,7 +2033,7 @@ ${error?.message ?? ""}`);
 
                               window.open(url, "_blank", "noopener,noreferrer");
                             }}
-                            className="inline-flex items-center gap-1 rounded-lg bg-sky-500 px-3 py-2 text-xs font-bold text-white hover:bg-sky-600"
+                            className="inline-flex items-center gap-1 rounded-lg bg-teal-500 px-3 py-2 text-xs font-bold text-white hover:bg-teal-600"
                             title={getExpenseAttachmentName(expense)}
                           >
                             <Eye size={14} />
@@ -1809,7 +2050,7 @@ ${error?.message ?? ""}`);
                           <button
                             type="button"
                             onClick={() => setSelectedExpense(expense)}
-                            className="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-500 text-white shadow-sm transition hover:bg-sky-600"
+                            className="flex h-9 w-9 items-center justify-center rounded-xl bg-teal-500 text-white shadow-sm transition hover:bg-teal-600"
                             title="عرض"
                             aria-label="عرض"
                           >
@@ -1818,7 +2059,7 @@ ${error?.message ?? ""}`);
                           <button
                             type="button"
                             onClick={() => handleEditExpense(expense)}
-                            className="flex h-9 w-9 items-center justify-center rounded-xl bg-yellow-500 text-[#081B33] shadow-sm transition hover:bg-yellow-400"
+                            className="flex h-9 w-9 items-center justify-center rounded-xl bg-yellow-500 text-[#062E26] shadow-sm transition hover:bg-yellow-400"
                             title="تعديل"
                             aria-label="تعديل"
                           >
@@ -1858,6 +2099,26 @@ ${error?.message ?? ""}`);
           stageName={getExpenseStageName(selectedExpense)}
           itemName={itemNameMap.get(Number(selectedExpense.itemId)) ?? "-"}
           onClose={() => setSelectedExpense(null)}
+        />
+      )}
+
+      {showExcelImport && (
+        <ExpenseExcelImport
+          projectId={project.id}
+          projectName={project.name}
+          accounts={accounts}
+          categories={categories}
+          onClose={() => setShowExcelImport(false)}
+          onImported={refreshProjectExpenses}
+        />
+      )}
+
+      {showAccountSettlement && (
+        <AccountSettlementModal
+          projectId={project.id}
+          accounts={accounts}
+          onClose={() => setShowAccountSettlement(false)}
+          onSaved={refreshProjectExpenses}
         />
       )}
 
@@ -2615,7 +2876,7 @@ function ExpensePeriodCard({
   const key = `period-${period}`;
 
   return (
-    <div className={`relative rounded-3xl border ${styles.border} ${styles.bg} bg-[#081B33] p-5 shadow-xl`}>
+    <div className={`relative rounded-3xl border ${styles.border} ${styles.bg} bg-[#062E26] p-5 shadow-xl`}>
       <p className="text-sm font-semibold text-gray-400">{title}</p>
 
       <div className="mt-3 flex items-baseline gap-2">
@@ -2631,7 +2892,7 @@ function ExpensePeriodCard({
           type="date"
           value={referenceDate}
           onChange={(e) => onReferenceDateChange(e.target.value)}
-          className="w-full rounded-xl border border-white/10 bg-[#102947] px-3 py-2 text-sm font-bold text-white outline-none focus:border-cyan-400/50"
+          className="w-full rounded-xl border border-white/10 bg-[#0A4537] px-3 py-2 text-sm font-bold text-white outline-none focus:border-emerald-400/50"
         />
       </div>
 
@@ -2645,7 +2906,7 @@ function ExpensePeriodCard({
             {highestCostItem ? `${highestCostItem.amount.toLocaleString("ar-SA")} ريال` : "-"}
           </p>
         </div>
-        <div className="rounded-2xl border border-sky-400/20 bg-sky-400/5 p-3">
+        <div className="rounded-2xl border border-teal-400/20 bg-teal-400/5 p-3">
           <p className="text-[11px] font-bold text-sky-300">أقل بند تكلفة</p>
           <p className="mt-1 truncate text-sm font-extrabold text-white">
             {lowestCostItem?.name ?? "لا توجد بيانات"}
@@ -2668,7 +2929,7 @@ function ExpensePeriodCard({
         </button>
 
         {openExport === key && (
-          <div className="absolute right-0 top-12 z-50 w-48 overflow-hidden rounded-xl border border-white/10 bg-[#102947] p-1 shadow-2xl">
+          <div className="absolute right-0 top-12 z-50 w-48 overflow-hidden rounded-xl border border-white/10 bg-[#0A4537] p-1 shadow-2xl">
             <button
               type="button"
               onClick={() => onExport(period, "pdf")}
@@ -2690,7 +2951,7 @@ function ExpensePeriodCard({
               onClick={() => onExport(period, "print")}
               className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-right text-sm text-white hover:bg-white/10"
             >
-              <Printer size={17} className="text-sky-400" />
+              <Printer size={17} className="text-teal-400" />
               طباعة
             </button>
           </div>
@@ -2722,7 +2983,7 @@ function ExpenseDetailsModal({
   onClose,
 }: ExpenseDetailsModalProps) {
   const ViewBox = ({ label, value }: { label: string; value: string }) => (
-    <div className="rounded-2xl border border-white/10 bg-[#102947] p-4">
+    <div className="rounded-2xl border border-white/10 bg-[#0A4537] p-4">
       <p className="mb-2 text-xs text-gray-400">{label}</p>
       <p className="font-bold text-white">{value || "-"}</p>
     </div>
@@ -2735,8 +2996,8 @@ function ExpenseDetailsModal({
         if (event.target === event.currentTarget) onClose();
       }}
     >
-      <div className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-3xl border border-white/10 bg-[#081B33] shadow-2xl">
-        <div className="flex items-center justify-between border-b border-white/10 bg-[#102947] px-7 py-5">
+      <div className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-3xl border border-white/10 bg-[#062E26] shadow-2xl">
+        <div className="flex items-center justify-between border-b border-white/10 bg-[#0A4537] px-7 py-5">
           <div>
             <h2 className="text-2xl font-bold text-white">تفاصيل المصروف</h2>
             <p className="mt-1 text-sm text-gray-400">
@@ -2769,14 +3030,14 @@ function ExpenseDetailsModal({
           </div>
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <div className="rounded-2xl border border-white/10 bg-[#102947] p-5">
+            <div className="rounded-2xl border border-white/10 bg-[#0A4537] p-5">
               <p className="text-sm text-gray-400">قبل الضريبة</p>
               <p className="mt-2 text-2xl font-bold text-white">
                 {Number(expense.amount ?? 0).toLocaleString("ar-SA")}
                 <span className="mr-2 text-sm text-gray-500">ريال</span>
               </p>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-[#102947] p-5">
+            <div className="rounded-2xl border border-white/10 bg-[#0A4537] p-5">
               <p className="text-sm text-gray-400">الضريبة</p>
               <p className="mt-2 text-2xl font-bold text-orange-400">
                 {Number(expense.tax ?? 0).toLocaleString("ar-SA")}
@@ -2799,7 +3060,7 @@ function ExpenseDetailsModal({
             const attachment = attachmentUrl || attachmentPath;
             if (!attachment) return null;
             return (
-              <div className="mt-6 flex flex-col gap-4 rounded-2xl border border-sky-400/20 bg-sky-400/10 p-5 md:flex-row md:items-center md:justify-between">
+              <div className="mt-6 flex flex-col gap-4 rounded-2xl border border-teal-400/20 bg-teal-400/10 p-5 md:flex-row md:items-center md:justify-between">
                 <div>
                   <p className="text-sm font-bold text-sky-300">المرفقات</p>
                   <p className="mt-1 text-xs text-gray-400">{attachmentName}</p>
@@ -2810,7 +3071,7 @@ function ExpenseDetailsModal({
                     if (String(attachment).startsWith("http")) window.open(String(attachment), "_blank", "noopener,noreferrer");
                     else alert("المرفق محفوظ بمسار داخلي ولا يوجد رابط مباشر لفتحه.");
                   }}
-                  className="rounded-xl bg-sky-500 px-5 py-3 font-bold text-white hover:bg-sky-600"
+                  className="rounded-xl bg-teal-500 px-5 py-3 font-bold text-white hover:bg-teal-600"
                 >
                   عرض المرفق
                 </button>
@@ -2819,18 +3080,18 @@ function ExpenseDetailsModal({
           })()}
 
           {expense.description && (
-            <div className="mt-6 rounded-2xl border border-white/10 bg-[#102947] p-5">
+            <div className="mt-6 rounded-2xl border border-white/10 bg-[#0A4537] p-5">
               <p className="mb-2 text-sm text-gray-400">الوصف</p>
               <p className="leading-7 text-white">{expense.description}</p>
             </div>
           )}
         </div>
 
-        <div className="flex justify-end border-t border-white/10 bg-[#102947] px-7 py-4">
+        <div className="flex justify-end border-t border-white/10 bg-[#0A4537] px-7 py-4">
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl bg-yellow-400 px-7 py-3 font-bold text-[#081B33] hover:bg-yellow-300"
+            className="rounded-xl bg-yellow-400 px-7 py-3 font-bold text-[#062E26] hover:bg-yellow-300"
           >
             إغلاق
           </button>
@@ -2877,12 +3138,12 @@ function TopCostPanel({
             "border-emerald-400/20 bg-emerald-400/5 hover:bg-emerald-400/10",
         }
       : {
-          border: "border-blue-400/20",
-          icon: "text-blue-400",
-          number: "bg-blue-400/10 text-blue-300 border-blue-400/20",
-          bar: "bg-blue-400",
+          border: "border-emerald-400/20",
+          icon: "text-emerald-400",
+          number: "bg-emerald-400/10 text-emerald-300 border-emerald-400/20",
+          bar: "bg-emerald-400",
           button:
-            "border-blue-400/20 bg-blue-400/5 hover:bg-blue-400/10",
+            "border-emerald-400/20 bg-emerald-400/5 hover:bg-emerald-400/10",
         };
 
   return (
@@ -2893,9 +3154,9 @@ function TopCostPanel({
         border
         ${accentClasses.border}
         bg-gradient-to-br
-        from-[#102A43]
-        via-[#102337]
-        to-[#0B1928]
+        from-[#0B4B3B]
+        via-[#07382F]
+        to-[#03251F]
         shadow-xl
       `}
     >
@@ -3159,9 +3420,9 @@ function AllCostItemsModal({
           border
           border-white/10
           bg-gradient-to-br
-          from-[#102A43]
-          via-[#102337]
-          to-[#0B1928]
+          from-[#0B4B3B]
+          via-[#07382F]
+          to-[#03251F]
           shadow-2xl
         "
       >
@@ -3202,7 +3463,7 @@ function AllCostItemsModal({
 
         {/* Summary */}
         <div className="grid grid-cols-1 gap-4 border-b border-white/10 bg-black/10 p-5 md:grid-cols-2">
-          <div className="rounded-2xl border border-blue-400/20 bg-blue-400/5 p-4">
+          <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/5 p-4">
             <p className="text-sm font-semibold text-gray-400">عدد التصنيفات</p>
             <p className="mt-1 text-2xl font-extrabold text-white">
               {items.length}
@@ -3221,12 +3482,12 @@ function AllCostItemsModal({
 
         {/* Table */}
         <div className="min-h-0 flex-1 overflow-auto p-5">
-          <div className="mb-4 rounded-2xl border border-cyan-400/20 bg-cyan-400/5 px-5 py-3 text-sm text-gray-300">
+          <div className="mb-4 rounded-2xl border border-emerald-400/20 bg-emerald-400/5 px-5 py-3 text-sm text-gray-300">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <span>
                 أساس <strong className="text-white">النسبة المحددة</strong>:
                 إجمالي المصروفات المتوقعة للمشروع ={" "}
-                <strong className="text-cyan-300">
+                <strong className="text-emerald-300">
                   {expectedProjectExpenseTotal.toLocaleString("ar-SA")} ريال
                 </strong>
               </span>
@@ -3294,8 +3555,8 @@ function AllCostItemsModal({
                       <span
                         className="
                           flex h-9 w-9 items-center justify-center rounded-xl
-                          border border-blue-400/20 bg-blue-400/10
-                          text-sm font-extrabold text-blue-300
+                          border border-emerald-400/20 bg-emerald-400/10
+                          text-sm font-extrabold text-emerald-300
                         "
                       >
                         {index + 1}
@@ -3325,7 +3586,7 @@ function AllCostItemsModal({
                     </div>
 
                     <div className="text-center">
-                      <span className="inline-flex rounded-full border border-blue-400/20 bg-blue-400/10 px-3 py-1 text-sm font-extrabold text-blue-300">
+                      <span className="inline-flex rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-sm font-extrabold text-emerald-300">
                         {percentage.toFixed(1)}%
                       </span>
                     </div>
@@ -3356,7 +3617,7 @@ function AllCostItemsModal({
                   {total.toLocaleString("ar-SA")} ريال
                 </div>
                 <div className="text-center">
-                  <span className="inline-flex rounded-full border border-blue-400/20 bg-blue-400/10 px-3 py-1 text-sm font-extrabold text-blue-300">
+                  <span className="inline-flex rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-sm font-extrabold text-emerald-300">
                     100%
                   </span>
                 </div>
@@ -3391,7 +3652,7 @@ function AllCostItemsModal({
             className="
               flex items-center justify-center gap-2 rounded-2xl
               border border-emerald-400/20 bg-emerald-400/10 px-5 py-3
-              font-bold text-emerald-300 transition hover:bg-emerald-400 hover:text-[#081B33]
+              font-bold text-emerald-300 transition hover:bg-emerald-400 hover:text-[#062E26]
             "
           >
             <FileSpreadsheet size={19} />
@@ -3403,8 +3664,8 @@ function AllCostItemsModal({
             onClick={onPrint}
             className="
               flex items-center justify-center gap-2 rounded-2xl
-              border border-blue-400/20 bg-blue-400/10 px-5 py-3
-              font-bold text-blue-300 transition hover:bg-blue-400 hover:text-white
+              border border-emerald-400/20 bg-emerald-400/10 px-5 py-3
+              font-bold text-emerald-300 transition hover:bg-emerald-400 hover:text-white
             "
           >
             <Printer size={19} />
@@ -3817,6 +4078,73 @@ function VillaDetailsModal({ villa, expenseTotal, onClose, onEdit }: { villa: Pr
           <button type="button" onClick={onClose} className="rounded-xl border border-white/10 px-5 py-3 font-bold text-white hover:bg-white/5">إغلاق</button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// قائمة متعددة الاختيار شبيهة بفلتر Excel، مع البحث وتحديد/إلغاء الكل.
+function ExpenseMultiFilter({ field, options, selected, onChange }: {
+  field: string;
+  options: string[];
+  selected: string[];
+  onChange: (values: string[]) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [position, setPosition] = useState({ top: 0, right: 0 });
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const visible = options.filter((value) => value.toLocaleLowerCase().includes(search.toLocaleLowerCase()));
+  const toggle = (value: string) => onChange(selected.includes(value) ? selected.filter((v) => v !== value) : [...selected, value]);
+
+  const openDropdown = () => {
+    if (open) { setOpen(false); return; }
+    const rect = buttonRef.current?.getBoundingClientRect();
+    if (rect) {
+      const width = Math.min(300, window.innerWidth - 24);
+      setPosition({
+        top: Math.min(rect.bottom + 6, Math.max(12, window.innerHeight - 370)),
+        right: Math.max(12, Math.min(window.innerWidth - rect.right, window.innerWidth - width - 12)),
+      });
+    }
+    setOpen(true);
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    const close = () => setOpen(false);
+    window.addEventListener("resize", close);
+    return () => {
+      window.removeEventListener("resize", close);
+    };
+  }, [open]);
+
+  return (
+    <div className="w-full min-w-[155px]">
+      <button ref={buttonRef} type="button" aria-label={`فلتر ${field}`} onClick={openDropdown}
+        className={`flex h-10 w-full items-center justify-between gap-2 rounded-lg border px-3 text-sm font-semibold transition hover:border-yellow-400/60 ${selected.length ? "border-yellow-400 bg-[#165b46] text-yellow-300" : "border-emerald-400/30 bg-[#0B493C] text-white"}`}>
+        <span className="truncate">{selected.length ? `${selected.length} محدد` : "كل القيم"}</span>
+        <ChevronDown size={16} className="shrink-0" />
+      </button>
+      {open && createPortal(<>
+        <button type="button" aria-label="إغلاق الفلتر" className="fixed inset-0 z-[9998] cursor-default bg-transparent" onClick={() => setOpen(false)} />
+        <div dir="rtl" style={{ position: "fixed", top: position.top, right: position.right, width: "min(300px, calc(100vw - 24px))", zIndex: 9999 }}
+          className="rounded-xl border border-emerald-400/50 bg-[#07382F] p-3 text-right shadow-2xl shadow-black/50">
+          <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="ابحث عن بند أو قيمة..."
+            className="mb-3 w-full rounded-lg border border-emerald-400/30 bg-[#0B493C] px-3 py-2.5 text-sm text-white outline-none focus:border-yellow-400" />
+          <div className="mb-3 flex gap-2">
+            <button type="button" onClick={() => onChange([])} className="flex-1 rounded-lg bg-emerald-500/20 px-2 py-2 text-xs font-bold text-emerald-200">عرض الكل</button>
+            <button type="button" onClick={() => onChange(Array.from(new Set([...selected, ...visible])))} className="flex-1 rounded-lg bg-yellow-400/20 px-2 py-2 text-xs font-bold text-yellow-200">تحديد الظاهر</button>
+          </div>
+          <div className="max-h-52 space-y-1 overflow-y-auto rounded-lg border border-white/10 p-1">
+            {visible.map((value) => <label key={value} className="flex cursor-pointer items-center gap-3 rounded-lg px-2 py-2 text-sm text-white hover:bg-white/10">
+              <input type="checkbox" checked={selected.includes(value)} onChange={() => toggle(value)} className="h-4 w-4 shrink-0 accent-yellow-400" />
+              <span className="break-words text-right">{value}</span>
+            </label>)}
+            {visible.length === 0 && <p className="p-2 text-sm text-gray-400">لا توجد نتائج</p>}
+          </div>
+          <button type="button" onClick={() => setOpen(false)} className="mt-3 w-full rounded-lg bg-yellow-400 px-3 py-2.5 text-sm font-bold text-[#07382F] hover:bg-yellow-300">تطبيق وإغلاق</button>
+        </div>
+      </>, document.body)}
     </div>
   );
 }

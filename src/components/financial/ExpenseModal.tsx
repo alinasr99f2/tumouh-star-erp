@@ -65,6 +65,13 @@ const [stageId, setStageId] = useState("");
 
 const [categoryId, setCategoryId] = useState("");
 const [itemId, setItemId] = useState("");
+const [unitId, setUnitId] = useState("");
+ const [quantity, setQuantity] = useState("");
+const [specification, setSpecification] = useState("");
+const [units, setUnits] = useState<{ id: number; name: string }[]>([]);
+const [showAddUnit, setShowAddUnit] = useState(false);
+const [newUnitName, setNewUnitName] = useState("");
+const [savingUnit, setSavingUnit] = useState(false);
 
 const [showAddCategory, setShowAddCategory] = useState(false);
 const [showAddItem, setShowAddItem] = useState(false);
@@ -106,7 +113,7 @@ const [draftStorageKey, setDraftStorageKey] = useState<string | null>(null);
 const [draftReady, setDraftReady] = useState(false);
 const expenseDraft = {
   entryDate, expenseDate, supplier, projectId, villaId, accountId,
-  stageId, categoryId, itemId, voucherNo, amount, paymentMethod, description,
+  stageId, categoryId, itemId, unitId, quantity, specification, voucherNo, amount, paymentMethod, description,
 };
 
 useEffect(() => {
@@ -131,6 +138,9 @@ useEffect(() => {
         if (typeof d.stageId === "string") setStageId(d.stageId);
         if (typeof d.categoryId === "string") setCategoryId(d.categoryId);
         if (typeof d.itemId === "string") setItemId(d.itemId);
+        if (typeof d.unitId === "string") setUnitId(d.unitId);
+        if (typeof d.quantity === "string") setQuantity(d.quantity);
+        if (typeof d.specification === "string") setSpecification(d.specification);
         if (typeof d.voucherNo === "string") setVoucherNo(d.voucherNo);
         if (typeof d.amount === "string") setAmount(d.amount);
         if (typeof d.paymentMethod === "string") setPaymentMethod(d.paymentMethod);
@@ -147,7 +157,7 @@ useEffect(() => {
   if (!draftReady || !draftStorageKey || !open || isEditing) return;
   try { sessionStorage.setItem(draftStorageKey, JSON.stringify(expenseDraft)); }
   catch (error) { console.warn("Unable to save expense draft", error); }
-}, [draftReady, draftStorageKey, open, isEditing, entryDate, expenseDate, supplier, projectId, villaId, accountId, stageId, categoryId, itemId, voucherNo, amount, paymentMethod, description]);
+}, [draftReady, draftStorageKey, open, isEditing, entryDate, expenseDate, supplier, projectId, villaId, accountId, stageId, categoryId, itemId, unitId, quantity, specification, voucherNo, amount, paymentMethod, description]);
 
 
 useEffect(() => {
@@ -174,6 +184,12 @@ console.log(villas);
 }, [projectId]);
 useEffect(() => {
   const loadCategoriesAndItems = async () => {
+      const { data: unitsData, error: unitsError } = await supabase
+        .from("expense_units")
+        .select("id, name")
+        .order("name", { ascending: true });
+      if (unitsError) console.error("خطأ في تحميل الوحدات:", unitsError);
+      else setUnits(unitsData ?? []);
     const [
       { data: categoriesData, error: categoriesError },
       { data: itemsData, error: itemsError },
@@ -284,6 +300,9 @@ useEffect(() => {
     setStageId(String(initialExpense.stageId ?? initialExpense.stage_id ?? ""));
     setCategoryId(String(initialExpense.categoryId ?? initialExpense.category_id ?? ""));
     setItemId(String(initialExpense.itemId ?? initialExpense.item_id ?? ""));
+    setUnitId(String(initialExpense.unitId ?? initialExpense.unit_id ?? ""));
+    setQuantity(initialExpense.quantity == null ? "" : String(initialExpense.quantity));
+    setSpecification(String(initialExpense.specification ?? ""));
     setVoucherNo(String(initialExpense.voucherNo ?? initialExpense.voucher_no ?? ""));
     setAmount(String(initialExpense.total ?? initialExpense.amount ?? 0));
     setTaxPercent(
@@ -479,6 +498,46 @@ const handleAddItem = async () => {
   setShowAddItem(false);
 };
 
+const handleAddUnit = async () => {
+  const name = newUnitName.trim().replace(/\s+/g, " ");
+  if (!name) { alert("من فضلك أدخل اسم الوحدة"); return; }
+  const existing = units.find((unit) => unit.name.trim().toLocaleLowerCase() === name.toLocaleLowerCase());
+  if (existing) {
+    setUnitId(String(existing.id));
+    setShowAddUnit(false);
+    setNewUnitName("");
+    return;
+  }
+  if (savingUnit) return;
+  setSavingUnit(true);
+  try {
+    const { data, error } = await supabase.from("expense_units")
+      .insert({ name }).select("id, name").single();
+    if (error) {
+      // A simultaneous addition may have created the same unit.
+      if (error.code === "23505") {
+        const { data: matching } = await supabase.from("expense_units")
+          .select("id, name").ilike("name", name).limit(1).maybeSingle();
+        if (matching) {
+          setUnits((current) => current.some((u) => u.id === matching.id) ? current : [...current, matching]);
+          setUnitId(String(matching.id));
+          setShowAddUnit(false);
+          setNewUnitName("");
+          return;
+        }
+      }
+      alert(`تعذر إضافة الوحدة: ${error.message}`);
+      return;
+    }
+    if (data) {
+      setUnits((current) => [...current, data].sort((a, b) => a.name.localeCompare(b.name, "ar")));
+      setUnitId(String(data.id));
+    }
+    setShowAddUnit(false);
+    setNewUnitName("");
+  } finally { setSavingUnit(false); }
+};
+
 const handleAddAccount = async () => {
   const name = newAccountName.trim();
 
@@ -577,6 +636,9 @@ const resetForm = () => {
   setAccountId("");
   setCategoryId("");
   setItemId("");
+  setUnitId("");
+  setQuantity("");
+  setSpecification("");
   setStageId("");
   setVoucherNo("");
   setAmount("");
@@ -620,6 +682,11 @@ const handleSave = async (addAnother = false) => {
     return;
   }
 
+  if (quantity.trim() && (!Number.isFinite(Number(quantity)) || Number(quantity) <= 0)) {
+    alert("من فضلك أدخل كمية صحيحة أكبر من صفر");
+    return;
+  }
+
   const savedVillaId =
     villaId === "general" ? null : villaId;
 
@@ -636,6 +703,9 @@ const handleSave = async (addAnother = false) => {
     stageId: stageId ? Number(stageId) : null,
     stageName: stages.find((stage) => String(stage.id) === String(stageId))?.name ?? null,
 itemId: itemId ? Number(itemId) : null,
+ unitId: unitId ? Number(unitId) : null,
+ quantity: quantity.trim() ? Number(quantity) : null,
+ specification: specification.trim() || null,
 voucherNo,
 amount: Number(amount),
     tax,
@@ -676,7 +746,7 @@ if (!open) return null;
 return (
   <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4">
 
-    <div className="w-full max-w-5xl max-h-[90vh] overflow-y-auto rounded-3xl border border-white/10 bg-[#081B33] p-8 shadow-2xl">
+    <div className="w-full max-w-5xl max-h-[90vh] overflow-y-auto rounded-3xl border border-white/10 bg-[#062D26] p-8 shadow-2xl">
 
       {/* Header */}
       <div className="mb-8 flex items-center justify-between">
@@ -719,9 +789,9 @@ return (
           <div>
             <div className="mb-2 flex items-center justify-between">
               <label className="text-sm text-gray-300">المورد</label>
-              <button type="button" onClick={() => { setNewSupplierName(""); setShowAddSupplier(true); }} className="flex h-7 w-7 items-center justify-center rounded-lg bg-yellow-400 font-bold text-[#081B33]">+</button>
+              <button type="button" onClick={() => { setNewSupplierName(""); setShowAddSupplier(true); }} className="flex h-7 w-7 items-center justify-center rounded-lg bg-yellow-400 font-bold text-[#062D26]">+</button>
             </div>
-            <select value={supplier} onChange={(e) => setSupplier(e.target.value)} className="h-12 w-full rounded-xl border border-white/10 bg-[#102947] px-4 text-white outline-none focus:border-yellow-400">
+            <select value={supplier} onChange={(e) => setSupplier(e.target.value)} className="h-12 w-full rounded-xl border border-white/10 bg-[#10473D] px-4 text-white outline-none focus:border-yellow-400">
               <option value="">اختر المورد...</option>
               {suppliers.map((item) => <option key={item.id} value={item.name}>{item.name}</option>)}
             </select>
@@ -767,7 +837,7 @@ return (
                 setNewAccountName("");
                 setShowAddAccount(true);
               }}
-              className="flex h-7 w-7 items-center justify-center rounded-lg bg-yellow-400 font-bold text-[#081B33] transition hover:bg-yellow-300"
+              className="flex h-7 w-7 items-center justify-center rounded-lg bg-yellow-400 font-bold text-[#062D26] transition hover:bg-yellow-300"
               title="إضافة عهدة"
             >
               +
@@ -776,7 +846,7 @@ return (
           <select
             value={accountId}
             onChange={(e) => setAccountId(e.target.value)}
-            className="h-12 w-full rounded-xl border border-white/10 bg-[#102947] px-4 text-white outline-none focus:border-yellow-400"
+            className="h-12 w-full rounded-xl border border-white/10 bg-[#10473D] px-4 text-white outline-none focus:border-yellow-400"
           >
             <option value="">اختر العهدة...</option>
             {localAccounts.map((account) => (
@@ -799,7 +869,7 @@ return (
                 setNewStageName("");
                 setShowAddStage(true);
               }}
-              className="flex h-7 w-7 items-center justify-center rounded-lg bg-yellow-400 font-bold text-[#081B33] transition hover:bg-yellow-300"
+              className="flex h-7 w-7 items-center justify-center rounded-lg bg-yellow-400 font-bold text-[#062D26] transition hover:bg-yellow-300"
               title="إضافة مرحلة"
             >
               +
@@ -814,7 +884,7 @@ return (
               setCategoryId("");
               setItemId("");
             }}
-            className="h-12 w-full rounded-xl border border-white/10 bg-[#102947] px-4 text-white outline-none focus:border-yellow-400"
+            className="h-12 w-full rounded-xl border border-white/10 bg-[#10473D] px-4 text-white outline-none focus:border-yellow-400"
           >
             <option value="">اختر المرحلة...</option>
             {stages.map((stage) => (
@@ -841,7 +911,7 @@ return (
                 rounded-lg
                 bg-yellow-400
                 font-bold
-                text-[#081B33]
+                text-[#062D26]
                 transition
                 hover:bg-yellow-300
               "
@@ -861,7 +931,7 @@ return (
               h-12 w-full
               rounded-xl
               border border-white/10
-              bg-[#102947]
+              bg-[#10473D]
               px-4
               text-white
               outline-none
@@ -903,7 +973,7 @@ return (
                 rounded-lg
                 bg-yellow-400
                 font-bold
-                text-[#081B33]
+                text-[#062D26]
                 transition
                 hover:bg-yellow-300
                 disabled:cursor-not-allowed
@@ -922,7 +992,7 @@ return (
               h-12 w-full
               rounded-xl
               border border-white/10
-              bg-[#102947]
+              bg-[#10473D]
               px-4
               text-white
               outline-none
@@ -954,6 +1024,37 @@ return (
           </select>
         </div>
 
+        {/* الوحدة */}
+        <div>
+          <div className="mb-2 flex items-center justify-between">
+            <label className="text-sm text-gray-300">الوحدة</label>
+            <button type="button" onClick={() => { setNewUnitName(""); setShowAddUnit(true); }}
+              className="flex h-7 w-7 items-center justify-center rounded-lg bg-yellow-400 font-bold text-[#062D26] transition hover:bg-yellow-300"
+              title="إضافة وحدة جديدة">+</button>
+          </div>
+          <select value={unitId} onChange={(e) => setUnitId(e.target.value)}
+            className="h-12 w-full rounded-xl border border-white/10 bg-[#10473D] px-4 text-white outline-none focus:border-yellow-400">
+            <option value="">اختر الوحدة...</option>
+            {units.map((unit) => <option key={unit.id} value={unit.id}>{unit.name}</option>)}
+          </select>
+        </div>
+
+        {/* الكمية - تقبل الكسور العشرية */}
+        <div>
+          <label className="mb-2 block text-sm text-gray-300">الكمية</label>
+          <input type="number" min="0" step="any" inputMode="decimal"
+            value={quantity} onChange={(e) => setQuantity(e.target.value)}
+            placeholder="أدخل الكمية..."
+            className="h-12 w-full rounded-xl border border-white/10 bg-[#10473D] px-4 text-white outline-none focus:border-yellow-400" />
+        </div>
+
+        {/* المواصفة اختيارية ومستقلة عن الوحدة والكمية */}
+        <div>
+          <label className="mb-2 block text-sm text-gray-300">المواصفة (اختياري)</label>
+          <input type="text" value={specification} onChange={(e) => setSpecification(e.target.value)}
+            placeholder="مثال: 5 BAG" className="h-12 w-full rounded-xl border border-white/10 bg-[#10473D] px-4 text-white outline-none focus:border-yellow-400" />
+        </div>
+
         {/* رقم الفاتورة */}
         <Input
           label="رقم الفاتورة"
@@ -980,13 +1081,14 @@ return (
 
         <textarea
           rows={4}
+          placeholder="أدخل وصفًا إضافيًا للمصروف (اختياري)..."
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           className="
             w-full
             rounded-xl
             border border-white/10
-            bg-[#102947]
+            bg-[#10473D]
             p-4
             text-white
             outline-none
@@ -1009,7 +1111,7 @@ return (
             block w-full
             rounded-xl
             border border-white/10
-            bg-[#102947]
+            bg-[#10473D]
             p-3
             text-white
           "
@@ -1017,10 +1119,36 @@ return (
 
       </div>
 
+      {/* ================= إضافة وحدة جديدة ================= */}
+      {showAddUnit && (
+        <div className="fixed inset-0 z-[220] flex items-center justify-center bg-black/70 p-4">
+          <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#062D26] p-7 shadow-2xl">
+            <div className="mb-6 flex items-center justify-between">
+              <h3 className="text-2xl font-bold text-white">إضافة وحدة جديدة</h3>
+              <button type="button" onClick={() => { setShowAddUnit(false); setNewUnitName(""); }}
+                className="text-2xl text-gray-400 hover:text-red-400">✕</button>
+            </div>
+            <label className="mb-2 block text-sm text-gray-300">اسم الوحدة</label>
+            <input type="text" value={newUnitName} onChange={(e) => setNewUnitName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") void handleAddUnit(); }} autoFocus
+              placeholder="مثال: طن، كيلوجرام، متر، قطعة"
+              className="h-12 w-full rounded-xl border border-white/10 bg-[#10473D] px-4 text-white outline-none focus:border-yellow-400" />
+            <div className="mt-6 grid grid-cols-2 gap-3">
+              <button type="button" onClick={() => { setShowAddUnit(false); setNewUnitName(""); }}
+                className="rounded-xl border border-white/10 px-6 py-3 font-bold text-white hover:bg-white/5">إلغاء</button>
+              <button type="button" disabled={savingUnit} onClick={() => void handleAddUnit()}
+                className="rounded-xl bg-yellow-400 px-6 py-3 font-bold text-[#062D26] hover:bg-yellow-300 disabled:opacity-50">
+                {savingUnit ? "جارٍ الحفظ..." : "+ إضافة الوحدة"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ================= إضافة مورد جديد ================= */}
       {showAddSupplier && (
         <div className="fixed inset-0 z-[220] flex items-center justify-center bg-black/70 p-4">
-          <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#081B33] p-7 shadow-2xl">
+          <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#062D26] p-7 shadow-2xl">
             <div className="mb-6 flex items-center justify-between">
               <h3 className="text-2xl font-bold text-white">إضافة مورد جديد</h3>
               <button
@@ -1043,7 +1171,7 @@ return (
               onKeyDown={(e) => e.key === "Enter" && handleAddSupplier()}
               autoFocus
               placeholder="أدخل اسم المورد"
-              className="h-12 w-full rounded-xl border border-white/10 bg-[#102947] px-4 text-white outline-none focus:border-yellow-400"
+              className="h-12 w-full rounded-xl border border-white/10 bg-[#10473D] px-4 text-white outline-none focus:border-yellow-400"
             />
 
             <div className="mt-6 grid grid-cols-2 gap-3">
@@ -1060,7 +1188,7 @@ return (
               <button
                 type="button"
                 onClick={handleAddSupplier}
-                className="rounded-xl bg-yellow-400 px-6 py-3 font-bold text-[#081B33] hover:bg-yellow-300"
+                className="rounded-xl bg-yellow-400 px-6 py-3 font-bold text-[#062D26] hover:bg-yellow-300"
               >
                 + إضافة المورد
               </button>
@@ -1072,7 +1200,7 @@ return (
       {/* ================= إضافة عهدة جديدة ================= */}
       {showAddAccount && (
         <div className="fixed inset-0 z-[220] flex items-center justify-center bg-black/70 p-4">
-          <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#081B33] p-7 shadow-2xl">
+          <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#062D26] p-7 shadow-2xl">
             <div className="mb-6 flex items-center justify-between">
               <h3 className="text-2xl font-bold text-white">إضافة عهدة جديدة</h3>
               <button type="button" onClick={() => setShowAddAccount(false)} className="text-2xl text-gray-400 hover:text-red-400">✕</button>
@@ -1085,11 +1213,11 @@ return (
               onKeyDown={(e) => e.key === "Enter" && handleAddAccount()}
               autoFocus
               placeholder="أدخل اسم العهدة"
-              className="h-12 w-full rounded-xl border border-white/10 bg-[#102947] px-4 text-white outline-none focus:border-yellow-400"
+              className="h-12 w-full rounded-xl border border-white/10 bg-[#10473D] px-4 text-white outline-none focus:border-yellow-400"
             />
             <div className="mt-6 grid grid-cols-2 gap-3">
               <button type="button" onClick={() => setShowAddAccount(false)} className="rounded-xl border border-white/10 px-6 py-3 font-bold text-white hover:bg-white/5">إلغاء</button>
-              <button type="button" onClick={handleAddAccount} className="rounded-xl bg-yellow-400 px-6 py-3 font-bold text-[#081B33] hover:bg-yellow-300">+ إضافة العهدة</button>
+              <button type="button" onClick={handleAddAccount} className="rounded-xl bg-yellow-400 px-6 py-3 font-bold text-[#062D26] hover:bg-yellow-300">+ إضافة العهدة</button>
             </div>
           </div>
         </div>
@@ -1098,7 +1226,7 @@ return (
       {/* ================= إضافة مرحلة جديدة ================= */}
       {showAddStage && (
         <div className="fixed inset-0 z-[220] flex items-center justify-center bg-black/70 p-4">
-          <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#081B33] p-7 shadow-2xl">
+          <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#062D26] p-7 shadow-2xl">
             <div className="mb-6 flex items-center justify-between">
               <h3 className="text-2xl font-bold text-white">إضافة مرحلة جديدة</h3>
               <button type="button" onClick={() => setShowAddStage(false)} className="text-2xl text-gray-400 hover:text-red-400">✕</button>
@@ -1111,11 +1239,11 @@ return (
               onKeyDown={(e) => e.key === "Enter" && handleAddStage()}
               autoFocus
               placeholder="أدخل اسم المرحلة"
-              className="h-12 w-full rounded-xl border border-white/10 bg-[#102947] px-4 text-white outline-none focus:border-yellow-400"
+              className="h-12 w-full rounded-xl border border-white/10 bg-[#10473D] px-4 text-white outline-none focus:border-yellow-400"
             />
             <div className="mt-6 grid grid-cols-2 gap-3">
               <button type="button" onClick={() => setShowAddStage(false)} className="rounded-xl border border-white/10 px-6 py-3 font-bold text-white hover:bg-white/5">إلغاء</button>
-              <button type="button" onClick={handleAddStage} className="rounded-xl bg-yellow-400 px-6 py-3 font-bold text-[#081B33] hover:bg-yellow-300">+ إضافة المرحلة</button>
+              <button type="button" onClick={handleAddStage} className="rounded-xl bg-yellow-400 px-6 py-3 font-bold text-[#062D26] hover:bg-yellow-300">+ إضافة المرحلة</button>
             </div>
           </div>
         </div>
@@ -1123,12 +1251,12 @@ return (
 
       {showStageCategoryManager && stageId && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 p-4">
-          <div className="w-full max-w-2xl rounded-3xl border border-white/10 bg-[#081B33] p-7 shadow-2xl">
+          <div className="w-full max-w-2xl rounded-3xl border border-white/10 bg-[#062D26] p-7 shadow-2xl">
             <div className="mb-5 flex items-center justify-between"><div><h3 className="text-2xl font-bold text-white">ربط التصنيفات بالمرحلة</h3><p className="mt-1 text-sm text-gray-400">المرحلة: {stages.find((stage) => String(stage.id) === String(stageId))?.name || "-"}</p></div><button type="button" onClick={() => setShowStageCategoryManager(false)} className="text-2xl text-gray-400">✕</button></div>
             <div className="max-h-[50vh] space-y-2 overflow-y-auto">
-              {categories.map((category) => { const checked = linkedCategoryIds.includes(Number(category.id)); return <label key={category.id} className="flex cursor-pointer items-center justify-between rounded-xl border border-white/10 bg-[#102947] px-4 py-3 text-white"><span>{category.name}</span><input type="checkbox" checked={checked} onChange={() => { const next = checked ? linkedCategoryIds.filter((id) => id !== Number(category.id)) : [...linkedCategoryIds, Number(category.id)]; setStageCategoryMap((current) => ({ ...current, [String(stageId)]: next })); }} className="h-5 w-5 accent-yellow-400" /></label>; })}
+              {categories.map((category) => { const checked = linkedCategoryIds.includes(Number(category.id)); return <label key={category.id} className="flex cursor-pointer items-center justify-between rounded-xl border border-white/10 bg-[#10473D] px-4 py-3 text-white"><span>{category.name}</span><input type="checkbox" checked={checked} onChange={() => { const next = checked ? linkedCategoryIds.filter((id) => id !== Number(category.id)) : [...linkedCategoryIds, Number(category.id)]; setStageCategoryMap((current) => ({ ...current, [String(stageId)]: next })); }} className="h-5 w-5 accent-yellow-400" /></label>; })}
             </div>
-            <div className="mt-6 flex justify-end gap-3"><button type="button" onClick={() => setShowStageCategoryManager(false)} className="rounded-xl border border-white/10 px-6 py-3 font-bold text-white">إغلاق</button><button type="button" onClick={() => saveStageCategoryLinks(stageCategoryMap[String(stageId)] ?? [])} className="rounded-xl bg-yellow-400 px-6 py-3 font-bold text-[#081B33]">حفظ الربط</button></div>
+            <div className="mt-6 flex justify-end gap-3"><button type="button" onClick={() => setShowStageCategoryManager(false)} className="rounded-xl border border-white/10 px-6 py-3 font-bold text-white">إغلاق</button><button type="button" onClick={() => saveStageCategoryLinks(stageCategoryMap[String(stageId)] ?? [])} className="rounded-xl bg-yellow-400 px-6 py-3 font-bold text-[#062D26]">حفظ الربط</button></div>
           </div>
         </div>
       )}
@@ -1136,7 +1264,7 @@ return (
       {/* ================= إضافة تصنيف جديد ================= */}
       {showAddCategory && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 p-4">
-          <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#081B33] p-7 shadow-2xl">
+          <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#062D26] p-7 shadow-2xl">
             <div className="mb-6 flex items-center justify-between">
               <h3 className="text-2xl font-bold text-white">
                 إضافة تصنيف جديد
@@ -1173,7 +1301,7 @@ return (
                 h-12 w-full
                 rounded-xl
                 border border-white/10
-                bg-[#102947]
+                bg-[#10473D]
                 px-4
                 text-white
                 outline-none
@@ -1210,7 +1338,7 @@ return (
                   bg-yellow-400
                   px-6 py-3
                   font-bold
-                  text-[#081B33]
+                  text-[#062D26]
                   transition
                   hover:bg-yellow-300
                 "
@@ -1225,7 +1353,7 @@ return (
       {/* ================= إضافة بند جديد ================= */}
       {showAddItem && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 p-4">
-          <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#081B33] p-7 shadow-2xl">
+          <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#062D26] p-7 shadow-2xl">
             <div className="mb-6 flex items-center justify-between">
               <div>
                 <h3 className="text-2xl font-bold text-white">
@@ -1272,7 +1400,7 @@ return (
                 h-12 w-full
                 rounded-xl
                 border border-white/10
-                bg-[#102947]
+                bg-[#10473D]
                 px-4
                 text-white
                 outline-none
@@ -1309,7 +1437,7 @@ return (
                   bg-yellow-400
                   px-6 py-3
                   font-bold
-                  text-[#081B33]
+                  text-[#062D26]
                   transition
                   hover:bg-yellow-300
                 "
@@ -1371,7 +1499,7 @@ return (
             bg-yellow-400
             px-8 py-3
             font-bold
-            text-[#081B33]
+            text-[#062D26]
             transition
             hover:bg-yellow-300
           "
@@ -1419,7 +1547,7 @@ function Input({
           rounded-xl
           border
           border-white/10
-          bg-[#102947]
+          bg-[#10473D]
           px-4
           text-white
           outline-none
@@ -1466,7 +1594,7 @@ function Select({
           rounded-xl
           border
           border-white/10
-          bg-[#102947]
+          bg-[#10473D]
           px-4
           text-white
           outline-none
