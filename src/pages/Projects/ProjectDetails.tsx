@@ -102,11 +102,12 @@ export default function ProjectDetails() {
   const [projectVillas, setProjectVillas] = useState<ProjectVilla[]>([]);
   const [topCostItems, setTopCostItems] = useState<any[]>([]);
   const [showAllCostItems, setShowAllCostItems] = useState(false);
-  // الاحتفاظ بصفحة تفاصيل المصروفات عند تحديث المتصفح داخل نفس التبويب.
-  const expenseOverviewStorageKey = `aqary_project_expense_overview_${id ?? "unknown"}`;
+  // حالة العرض مرتبطة بإدخال الصفحة في سجل المتصفح، وليس بالمشروع كله.
+  // بالتالي: تحديث صفحة المصروفات يحتفظ بها، والدخول من قائمة المشاريع يبدأ من الصفحة الرئيسية.
+  const expenseOverviewHistoryKey = "aqaryProjectExpenseOverview";
   const [showProjectExpenseOverview, setShowProjectExpenseOverview] = useState<boolean>(() => {
     try {
-      return window.sessionStorage.getItem(expenseOverviewStorageKey) === "true";
+      return window.history.state?.[expenseOverviewHistoryKey] === true;
     } catch {
       return false;
     }
@@ -114,11 +115,15 @@ export default function ProjectDetails() {
 
   useEffect(() => {
     try {
-      window.sessionStorage.setItem(expenseOverviewStorageKey, String(showProjectExpenseOverview));
+      window.history.replaceState(
+        { ...window.history.state, [expenseOverviewHistoryKey]: showProjectExpenseOverview },
+        "",
+        window.location.href
+      );
     } catch {
-      // استمرار عمل الصفحة حتى لو المتصفح يمنع التخزين المؤقت.
+      // استمرار عمل الصفحة إذا تعذر تحديث حالة سجل المتصفح.
     }
-  }, [expenseOverviewStorageKey, showProjectExpenseOverview]);
+  }, [showProjectExpenseOverview]);
   const [showVillasOverview, setShowVillasOverview] = useState(false);
   const [editingVilla, setEditingVilla] = useState<ProjectVilla | null>(null);
   const [selectedVilla, setSelectedVilla] = useState<ProjectVilla | null>(null);
