@@ -127,9 +127,6 @@ export type PermissionKey =
   // =======================================================
   // Settings
   // =======================================================
-  | "dashboard_add"
-  | "dashboard_edit"
-  | "dashboard_delete"
   | "building_apartment_add"
   | "building_apartment_edit"
   | "building_apartment_delete"
@@ -240,9 +237,6 @@ const ALL_PERMISSIONS: PermissionKey[] = [
   "users_delete",
 
   // Additional permissions exposed in UsersPermissions
-  "dashboard_add",
-  "dashboard_edit",
-  "dashboard_delete",
   "building_apartment_add",
   "building_apartment_edit",
   "building_apartment_delete",
@@ -495,6 +489,11 @@ export function PermissionsProvider({
   React.useEffect(() => {
     void loadPermissions();
 
+    // Sync permissions changed by another administrator while this session is open.
+    const permissionSync = window.setInterval(() => { void loadPermissions(); }, 15000);
+    const syncOnFocus = () => { if (document.visibilityState === "visible") void loadPermissions(); };
+    window.addEventListener("focus", syncOnFocus);
+
 
     const {
       data: { subscription },
@@ -520,6 +519,8 @@ export function PermissionsProvider({
 
     return () => {
       subscription.unsubscribe();
+      window.clearInterval(permissionSync);
+      window.removeEventListener("focus", syncOnFocus);
     };
   }, []);
 

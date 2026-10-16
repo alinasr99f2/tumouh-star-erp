@@ -87,12 +87,6 @@ type PermissionKey =
 
   | "dashboard_view"
 
-  | "dashboard_add"
-
-  | "dashboard_edit"
-
-  | "dashboard_delete"
-
   | "projects_view"
 
   | "projects_add"
@@ -295,6 +289,8 @@ type PermissionGroup = {
   sections?: PermissionSection[];
 };
 
+const isSingleViewGroup = (key: string) => key === "activity_logs" || key === "dashboard";
+
 const permissionGroups: PermissionGroup[] = [
   {
     key: "dashboard",
@@ -302,9 +298,6 @@ const permissionGroups: PermissionGroup[] = [
     icon: LayoutDashboard,
     children: [
       { key: "dashboard_view", title: "عرض" },
-      { key: "dashboard_add", title: "إضافة" },
-      { key: "dashboard_edit", title: "تعديل" },
-      { key: "dashboard_delete", title: "حذف" },
     ],
   },
   {
@@ -452,12 +445,6 @@ const permissionGroups: PermissionGroup[] = [
 const defaultPermissions: Record<PermissionKey, boolean> = {
 
   dashboard_view: true,
-
-  dashboard_add: false,
-
-  dashboard_edit: false,
-  dashboard_delete: false,
-
   projects_view: true,
 
   projects_add: false,
@@ -2650,10 +2637,10 @@ const editAvatarInputRef = useRef<HTMLInputElement | null>(null);
 
                       key={group.key}
 
-                      colSpan={group.key === "activity_logs" ? 1 : 4}
+                      colSpan={isSingleViewGroup(group.key) ? 1 : 4}
 
                       className="border border-white/10 px-2 py-2 text-center text-amber-100"
-                      style={group.key === "activity_logs" ? { minWidth: 150 } : undefined}
+                      style={isSingleViewGroup(group.key) ? { minWidth: 150 } : undefined}
 
                     >
 
@@ -2671,13 +2658,13 @@ const editAvatarInputRef = useRef<HTMLInputElement | null>(null);
                           <span className="flex h-6 w-6 items-center justify-center rounded-lg border border-sky-300/20 bg-sky-400/5 text-sky-200" title="عرض">
                             <Eye size={12} />
                           </span>
-                          {group.key !== "activity_logs" && <span className="flex h-6 w-6 items-center justify-center rounded-lg border border-violet-300/20 bg-violet-400/5 text-violet-200" title="تعديل">
+                          {!isSingleViewGroup(group.key) && <span className="flex h-6 w-6 items-center justify-center rounded-lg border border-violet-300/20 bg-violet-400/5 text-violet-200" title="تعديل">
                             <Pencil size={12} />
                           </span>}
-                          {group.key !== "activity_logs" && <span className="flex h-6 w-6 items-center justify-center rounded-lg border border-emerald-300/20 bg-emerald-400/5 text-emerald-200" title="إضافة">
+                          {!isSingleViewGroup(group.key) && <span className="flex h-6 w-6 items-center justify-center rounded-lg border border-emerald-300/20 bg-emerald-400/5 text-emerald-200" title="إضافة">
                             <Plus size={12} />
                           </span>}
-                          {group.key !== "activity_logs" && <span className="flex h-6 w-6 items-center justify-center rounded-lg border border-red-300/20 bg-red-400/5 text-red-200" title="حذف">
+                          {!isSingleViewGroup(group.key) && <span className="flex h-6 w-6 items-center justify-center rounded-lg border border-red-300/20 bg-red-400/5 text-red-200" title="حذف">
                             <Trash2 size={12} />
                           </span>}
                         </div>
@@ -2708,7 +2695,7 @@ const editAvatarInputRef = useRef<HTMLInputElement | null>(null);
                 <tr className="bg-black/10 text-[11px] text-slate-400">
 
                   {permissionGroups.flatMap((group) =>
-                    (group.key === "activity_logs"
+                    (isSingleViewGroup(group.key)
                       ? [{ suffix: "_view", title: "عرض" }]
                       : [
                           { suffix: "_view", title: "عرض" },
@@ -2717,7 +2704,7 @@ const editAvatarInputRef = useRef<HTMLInputElement | null>(null);
                           { suffix: "_delete", title: "حذف" },
                         ]
                     ).map((action) => (
-                      <th key={`${group.key}-${action.suffix}`} className="border border-white/10 px-2 py-2 text-center" style={group.key === "activity_logs" ? { minWidth: 150 } : undefined}>
+                      <th key={`${group.key}-${action.suffix}`} className="border border-white/10 px-2 py-2 text-center" style={isSingleViewGroup(group.key) ? { minWidth: 150 } : undefined}>
                         {action.title}
                       </th>
                     ))
@@ -2851,7 +2838,7 @@ const editAvatarInputRef = useRef<HTMLInputElement | null>(null);
 
                       {permissionGroups.flatMap((group) =>
 
-                        (group.key === "activity_logs" ? ["_view"] : ["_view", "_edit", "_add", "_delete"]).map((suffix) => {
+                        (isSingleViewGroup(group.key) ? ["_view"] : ["_view", "_edit", "_add", "_delete"]).map((suffix) => {
                           const child = group.children.find((permission) => permission.key === `${group.key}${suffix}`);
 
                           return (
@@ -2860,12 +2847,12 @@ const editAvatarInputRef = useRef<HTMLInputElement | null>(null);
                               key={`${user.id}-${group.key}-${suffix}`}
 
                               className="border border-white/[0.07] px-2 py-3 text-center"
-                              style={group.key === "activity_logs" ? { minWidth: 150 } : undefined}
+                              style={isSingleViewGroup(group.key) ? { minWidth: 150 } : undefined}
 
                             >
 
                               {child ? (
-                                <div className={group.key === "activity_logs" ? "flex w-full items-center justify-center" : ""}>
+                                <div className={isSingleViewGroup(group.key) ? "flex w-full items-center justify-center" : ""}>
                                 <PermissionBox
 
                                   checked={user.permissions[child.key]}
