@@ -102,7 +102,23 @@ export default function ProjectDetails() {
   const [projectVillas, setProjectVillas] = useState<ProjectVilla[]>([]);
   const [topCostItems, setTopCostItems] = useState<any[]>([]);
   const [showAllCostItems, setShowAllCostItems] = useState(false);
-  const [showProjectExpenseOverview, setShowProjectExpenseOverview] = useState(false);
+  // الاحتفاظ بصفحة تفاصيل المصروفات عند تحديث المتصفح داخل نفس التبويب.
+  const expenseOverviewStorageKey = `aqary_project_expense_overview_${id ?? "unknown"}`;
+  const [showProjectExpenseOverview, setShowProjectExpenseOverview] = useState<boolean>(() => {
+    try {
+      return window.sessionStorage.getItem(expenseOverviewStorageKey) === "true";
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      window.sessionStorage.setItem(expenseOverviewStorageKey, String(showProjectExpenseOverview));
+    } catch {
+      // استمرار عمل الصفحة حتى لو المتصفح يمنع التخزين المؤقت.
+    }
+  }, [expenseOverviewStorageKey, showProjectExpenseOverview]);
   const [showVillasOverview, setShowVillasOverview] = useState(false);
   const [editingVilla, setEditingVilla] = useState<ProjectVilla | null>(null);
   const [selectedVilla, setSelectedVilla] = useState<ProjectVilla | null>(null);
@@ -1618,31 +1634,32 @@ ${error?.message ?? ""}`);
     return (
       <div className="min-h-[70vh] space-y-6 pb-10" dir="rtl">
 
-            <div className="flex shrink-0 items-center justify-between border-b border-white/10 bg-[#0A4537] px-7 py-5">
-              <div className="text-right">
-                <h2 className="text-2xl font-extrabold text-white">تفاصيل إجمالي مصروفات المشروع</h2>
-                <p className="mt-1 text-sm text-gray-400">كل ملخصات المصروفات والتفاصيل وبنود التكلفة الخاصة بـ {project.name}</p>
-              </div>
+            <div className="relative flex min-h-[112px] flex-col items-center justify-center gap-4 rounded-2xl border border-emerald-400/20 bg-[#0A4537] px-5 py-6 text-center sm:px-48">
               <button
                 type="button"
                 onClick={() => setShowProjectExpenseOverview(false)}
-                className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-gray-300 hover:bg-red-500/20 hover:text-red-300"
-                aria-label="إغلاق تفاصيل المصروفات"
+                className="inline-flex items-center justify-center gap-2 self-start rounded-xl border border-amber-400/40 bg-amber-400/10 px-4 py-2.5 text-sm font-bold text-amber-200 transition hover:border-amber-300 hover:bg-amber-400/20 sm:absolute sm:right-5 sm:top-1/2 sm:-translate-y-1/2"
+                aria-label="الرجوع إلى صفحة المشروع"
               >
-                <X size={22} />
+                <ArrowLeft size={18} />
+                الرجوع إلى صفحة المشروع
               </button>
+              <div className="w-full text-center">
+                <h2 className="text-2xl font-extrabold text-white">تفاصيل إجمالي مصروفات المشروع</h2>
+                <p className="mt-2 text-sm text-gray-300">كل ملخصات المصروفات والتفاصيل وبنود التكلفة الخاصة بـ {project.name}</p>
+              </div>
             </div>
 
       {/* =====================================================
           EXPENSE SUMMARY - 4 CARDS
       ===================================================== */}
       <section className="space-y-5">
-        <div className="flex flex-col gap-4 rounded-3xl border border-white/10 bg-[#062E26] p-5 md:flex-row md:items-center md:justify-between">
-          <div className="text-right">
+        <div className="relative flex flex-col items-center justify-center gap-4 rounded-3xl border border-white/10 bg-[#062E26] p-5 text-center md:min-h-[108px] md:px-40">
+          <div className="w-full text-center">
             <h2 className="text-2xl font-extrabold text-white">
               ملخص مصروفات المشروع
             </h2>
-            <p className="mt-1 text-sm text-gray-400">
+            <p className="mt-2 text-sm text-gray-300">
               اليوم والأسبوع والشهر والإجمالي الكلي
             </p>
           </div>
@@ -1650,7 +1667,7 @@ ${error?.message ?? ""}`);
           <button
             type="button"
             onClick={refreshProjectExpenses}
-            className="flex items-center justify-center gap-2 rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-5 py-3 font-bold text-emerald-300 transition hover:bg-emerald-400/20"
+            className="flex items-center justify-center gap-2 self-end rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-5 py-3 font-bold text-emerald-300 transition hover:bg-emerald-400/20 md:absolute md:left-5 md:top-1/2 md:-translate-y-1/2"
           >
             <RefreshCw size={18} />
             تحديث
@@ -2157,7 +2174,16 @@ ${error?.message ?? ""}`);
   }
 
   return (
-    <div className="space-y-8 pb-10">
+    <div
+      className="relative space-y-8 overflow-hidden rounded-3xl px-3 pb-10 pt-3 sm:px-5"
+      style={{
+        backgroundColor: "#062E26",
+        backgroundImage: 'linear-gradient(135deg, rgba(3, 35, 29, .94), rgba(7, 67, 51, .92) 50%, rgba(3, 35, 29, .96)), url("/aqary-smart-logo.png")',
+        backgroundPosition: "center, center 360px",
+        backgroundRepeat: "no-repeat, no-repeat",
+        backgroundSize: "cover, min(55vw, 580px) auto",
+      }}
+    >
 
       {/* =====================================================
           PROJECT HEADER
@@ -2170,11 +2196,11 @@ ${error?.message ?? ""}`);
           overflow-hidden
           rounded-3xl
           border
-          border-white/10
+          border-amber-400/25
           bg-gradient-to-br
-          from-[#173C63]
-          via-[#0D2948]
-          to-[#101C2D]
+          from-[#0B4939]
+          via-[#073B30]
+          to-[#05291F]
           px-8
           py-8
           shadow-xl
@@ -2205,7 +2231,7 @@ ${error?.message ?? ""}`);
             h-64
             w-64
             rounded-full
-            bg-blue-500/10
+            bg-emerald-400/10
             blur-3xl
           "
         />
@@ -2223,8 +2249,8 @@ ${error?.message ?? ""}`);
             gap-2
             rounded-xl
             border
-            border-white/10
-            bg-black/10
+            border-amber-300/20
+            bg-emerald-950/40
             px-4
             py-2
             text-sm
@@ -2232,7 +2258,7 @@ ${error?.message ?? ""}`);
             text-gray-300
             backdrop-blur-sm
             transition
-            hover:bg-white/10
+            hover:bg-emerald-700/40
             hover:text-white
           "
         >
@@ -2288,7 +2314,7 @@ ${error?.message ?? ""}`);
               {project.name}
             </h1>
 
-            <p className="mt-3 text-base text-gray-400">
+            <p className="mt-3 text-base text-emerald-100/75">
               إدارة ومتابعة بيانات المشروع
             </p>
           </div>
@@ -2325,7 +2351,7 @@ ${error?.message ?? ""}`);
               </div>
 
               <div>
-                <p className="text-sm text-gray-400">
+                <p className="text-sm text-emerald-100/75">
                   الحالة
                 </p>
 
@@ -2355,8 +2381,11 @@ ${error?.message ?? ""}`);
               min-w-[420px]
               rounded-2xl
               border
-              border-cyan-300/20
-              bg-[#102A43]
+              border-amber-400/30
+              bg-gradient-to-l
+              from-[#0B4D3A]
+              via-[#0A4033]
+              to-[#063126]
               px-10
               py-4
               text-center
@@ -2364,11 +2393,11 @@ ${error?.message ?? ""}`);
               shadow-black/20
             "
           >
-            <h2 className="text-2xl font-extrabold text-white">
+            <h2 className="text-2xl font-extrabold text-amber-300">
               مؤشرات المشروع
             </h2>
 
-            <p className="mt-1 text-sm text-gray-300">
+            <p className="mt-1 text-sm text-emerald-100/85">
   ملخص سريع لأهم بيانات {project.name}
 </p>
           </div>
@@ -3897,7 +3926,7 @@ function VillaCard({
   onEdit,
 }: VillaCardProps) {
   return (
-    <div className="group flex min-h-[410px] flex-col overflow-hidden rounded-3xl border border-blue-400/15 bg-gradient-to-br from-[#12365D] via-[#0D2948] to-[#091C31] shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-yellow-400/30 hover:shadow-2xl">
+    <div className="group flex min-h-[410px] flex-col overflow-hidden rounded-3xl border border-emerald-400/30 bg-gradient-to-br from-[#125443] via-[#0B3F34] to-[#052C25] shadow-[0_16px_38px_rgba(0,0,0,0.28)] transition-all duration-300 hover:-translate-y-1 hover:border-amber-300/65 hover:shadow-[0_22px_48px_rgba(0,0,0,0.38)]">
       <div className="flex items-start justify-between border-b border-white/10 p-7">
         <div className="flex items-center gap-4">
           <div className="flex h-20 w-20 items-center justify-center rounded-2xl border border-yellow-400/20 bg-yellow-400/10 text-yellow-400 shadow-lg transition duration-300 group-hover:scale-105">
@@ -3919,7 +3948,7 @@ function VillaCard({
           <VillaStatBox label="المساحة" value={`${Number(area ?? 0).toLocaleString("ar-SA")} م²`} />
           <VillaStatBox label="التصنيف" value={classification || "غير محدد"} />
         </div>
-        <div className="mt-4 rounded-2xl border border-yellow-400/20 bg-yellow-400/10 px-5 py-4 text-center">
+        <div className="mt-4 rounded-2xl border border-amber-300/35 bg-[#1C5945]/80 px-5 py-4 text-center">
           <p className="text-sm font-semibold text-gray-400">نصيب الفيلا من إجمالي مصاريف المشروع</p>
           <p className="mt-1 text-3xl font-extrabold text-yellow-400">{expenseTotal.toLocaleString("ar-SA", { maximumFractionDigits: 2 })} ريال</p>
           <p className="mt-1 text-xs text-gray-500">سعر المتر الحالي × مساحة الفيلا</p>
@@ -3927,8 +3956,8 @@ function VillaCard({
       </div>
 
       <div className="mt-auto grid grid-cols-2 gap-3 border-t border-white/10 p-5">
-        <button onClick={onView} className="flex items-center justify-center gap-2 rounded-xl border border-blue-400/20 bg-blue-500/10 py-3 font-bold text-blue-300 transition hover:bg-blue-500 hover:text-white">عرض <Eye size={18} /></button>
-        <button onClick={onEdit} className="flex items-center justify-center gap-2 rounded-xl border border-yellow-400/20 bg-yellow-400/10 py-3 font-bold text-yellow-400 transition hover:bg-yellow-400 hover:text-[#081B33]">تعديل <Pencil size={18} /></button>
+        <button onClick={onView} className="flex items-center justify-center gap-2 rounded-xl border border-emerald-300/35 bg-emerald-400/15 py-3 font-bold text-emerald-100 transition hover:bg-emerald-500/35 hover:text-white">عرض <Eye size={18} /></button>
+        <button onClick={onEdit} className="flex items-center justify-center gap-2 rounded-xl border border-amber-300/40 bg-amber-300/15 py-3 font-bold text-amber-200 transition hover:bg-amber-300 hover:text-[#06382D]">تعديل <Pencil size={18} /></button>
       </div>
     </div>
   );
@@ -3936,7 +3965,7 @@ function VillaCard({
 
 function VillaStatBox({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-center">
+    <div className="rounded-2xl border border-emerald-300/25 bg-[#165543]/75 p-4 text-center">
       <p className="text-sm font-semibold text-gray-400">{label}</p>
       <p className="mt-2 text-lg font-extrabold text-white">{value}</p>
     </div>
