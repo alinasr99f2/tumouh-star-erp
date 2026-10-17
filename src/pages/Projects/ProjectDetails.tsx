@@ -1728,6 +1728,10 @@ ${error?.message ?? ""}`);
           .project-responsive .expense-table-scroll .expense-compact-table { min-width: 1040px; font-size: 12px; }
           .project-responsive input[type=date] { min-width: 0; width: 100%; }
           .project-responsive .project-cost-row { padding-inline: 12px; }
+          .project-responsive .project-kpi-grid > * { min-height: 180px; }
+          .project-responsive .project-villa-grid > * { min-height: 0; }
+          .project-responsive .project-header-inner { padding-top: 48px; }
+          .project-responsive .blur-3xl, .project-responsive .backdrop-blur-sm { filter: none !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
         }
       `}</style>
       {/* =====================================================
@@ -2321,6 +2325,10 @@ ${error?.message ?? ""}`);
           .project-responsive .expense-table-scroll .expense-compact-table { min-width: 1040px; font-size: 12px; }
           .project-responsive input[type=date] { min-width: 0; width: 100%; }
           .project-responsive .project-cost-row { padding-inline: 12px; }
+          .project-responsive .project-kpi-grid > * { min-height: 180px; }
+          .project-responsive .project-villa-grid > * { min-height: 0; }
+          .project-responsive .project-header-inner { padding-top: 48px; }
+          .project-responsive .blur-3xl, .project-responsive .backdrop-blur-sm { filter: none !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
         }
       `}</style>
       {/* =====================================================
@@ -2358,6 +2366,7 @@ ${error?.message ?? ""}`);
             w-72
             rounded-full
             bg-yellow-400/10
+            hidden sm:block
             blur-3xl
           "
         />
@@ -2372,6 +2381,7 @@ ${error?.message ?? ""}`);
             w-64
             rounded-full
             bg-emerald-400/10
+            hidden sm:block
             blur-3xl
           "
         />
@@ -4078,7 +4088,7 @@ function VillaCard({
   onEdit,
 }: VillaCardProps) {
   return (
-    <div className="group flex min-w-0 min-h-[350px] flex-col overflow-hidden rounded-3xl border border-emerald-400/30 bg-gradient-to-br from-[#125443] via-[#0B3F34] to-[#052C25] shadow-[0_16px_38px_rgba(0,0,0,0.28)] transition-all duration-300 hover:-translate-y-1 hover:border-amber-300/65 hover:shadow-[0_22px_48px_rgba(0,0,0,0.38)]">
+    <div className="group flex min-w-0 min-h-[260px] sm:min-h-[350px] flex-col overflow-hidden rounded-3xl border border-emerald-400/30 bg-gradient-to-br from-[#125443] via-[#0B3F34] to-[#052C25] shadow-[0_16px_38px_rgba(0,0,0,0.28)] transition-all duration-300 hover:-translate-y-1 hover:border-amber-300/65 hover:shadow-[0_22px_48px_rgba(0,0,0,0.38)]">
       <div className="villa-card-heading flex min-w-0 flex-wrap items-start justify-between gap-3 border-b border-white/10 p-4 sm:p-7">
         <div className="flex items-center gap-4">
           <div className="flex h-20 w-20 items-center justify-center rounded-2xl border border-yellow-400/20 bg-yellow-400/10 text-yellow-400 shadow-lg transition duration-300 group-hover:scale-105">

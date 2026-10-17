@@ -743,22 +743,22 @@ if (!addAnother) {
 
 if (!open) return null;
 
-return (
-  <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4">
+return createPortal(
+  <div dir="rtl" className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto overscroll-contain bg-black/75 p-2 pt-[max(0.5rem,env(safe-area-inset-top))] pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:items-center sm:p-4">
 
-    <div className="w-full max-w-5xl max-h-[90vh] overflow-y-auto rounded-3xl border border-white/10 bg-[#062D26] p-8 shadow-2xl">
+    <div className="w-full min-w-0 max-w-5xl max-h-[calc(100dvh-1rem)] overflow-x-hidden overflow-y-auto overscroll-contain rounded-2xl border border-white/10 bg-[#062D26] p-3 shadow-2xl [-webkit-overflow-scrolling:touch] sm:max-h-[90dvh] sm:rounded-3xl sm:p-8">
 
       {/* Header */}
-      <div className="mb-8 flex items-center justify-between">
+      <div className="mb-5 flex min-w-0 items-center justify-between gap-3 sm:mb-8">
 
-        <h2 className="text-3xl font-bold text-white">
+        <h2 className="min-w-0 text-xl font-bold text-white sm:text-3xl">
           {isEditing ? "تعديل المصروف" : "إضافة مصروف جديد"}
         </h2>
 
         <button
           type="button"
           onClick={cancelExpense}
-          className="text-2xl text-gray-400 transition hover:text-red-400"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 text-2xl text-gray-300 transition hover:text-red-400"
         >
           ✕
         </button>
@@ -766,7 +766,7 @@ return (
       </div>
 
       {/* Form */}
-      <div className="grid grid-cols-2 gap-5">
+      <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5">
 
         {/* تاريخ الإدخال */}
         <Input
@@ -791,7 +791,7 @@ return (
               <label className="text-sm text-gray-300">المورد</label>
               <button type="button" onClick={() => { setNewSupplierName(""); setShowAddSupplier(true); }} className="flex h-7 w-7 items-center justify-center rounded-lg bg-yellow-400 font-bold text-[#062D26]">+</button>
             </div>
-            <select value={supplier} onChange={(e) => setSupplier(e.target.value)} className="h-12 w-full rounded-xl border border-white/10 bg-[#10473D] px-4 text-white outline-none focus:border-yellow-400">
+            <select value={supplier} onChange={(e) => setSupplier(e.target.value)} className="h-12 w-full min-w-0 rounded-xl border border-white/10 bg-[#10473D] px-3 text-base text-white outline-none focus:border-yellow-400 sm:px-4">
               <option value="">اختر المورد...</option>
               {suppliers.map((item) => <option key={item.id} value={item.name}>{item.name}</option>)}
             </select>
@@ -846,7 +846,7 @@ return (
           <select
             value={accountId}
             onChange={(e) => setAccountId(e.target.value)}
-            className="h-12 w-full rounded-xl border border-white/10 bg-[#10473D] px-4 text-white outline-none focus:border-yellow-400"
+            className="h-12 w-full min-w-0 rounded-xl border border-white/10 bg-[#10473D] px-3 text-base text-white outline-none focus:border-yellow-400 sm:px-4"
           >
             <option value="">اختر العهدة...</option>
             {localAccounts.map((account) => (
@@ -884,7 +884,7 @@ return (
               setCategoryId("");
               setItemId("");
             }}
-            className="h-12 w-full rounded-xl border border-white/10 bg-[#10473D] px-4 text-white outline-none focus:border-yellow-400"
+            className="h-12 w-full min-w-0 rounded-xl border border-white/10 bg-[#10473D] px-3 text-base text-white outline-none focus:border-yellow-400 sm:px-4"
           >
             <option value="">اختر المرحلة...</option>
             {stages.map((stage) => (
@@ -1033,7 +1033,7 @@ return (
               title="إضافة وحدة جديدة">+</button>
           </div>
           <select value={unitId} onChange={(e) => setUnitId(e.target.value)}
-            className="h-12 w-full rounded-xl border border-white/10 bg-[#10473D] px-4 text-white outline-none focus:border-yellow-400">
+            className="h-12 w-full min-w-0 rounded-xl border border-white/10 bg-[#10473D] px-3 text-base text-white outline-none focus:border-yellow-400 sm:px-4">
             <option value="">اختر الوحدة...</option>
             {units.map((unit) => <option key={unit.id} value={unit.id}>{unit.name}</option>)}
           </select>
@@ -1045,14 +1045,14 @@ return (
           <input type="number" min="0" step="any" inputMode="decimal"
             value={quantity} onChange={(e) => setQuantity(e.target.value)}
             placeholder="أدخل الكمية..."
-            className="h-12 w-full rounded-xl border border-white/10 bg-[#10473D] px-4 text-white outline-none focus:border-yellow-400" />
+            className="h-12 w-full min-w-0 rounded-xl border border-white/10 bg-[#10473D] px-3 text-base text-white outline-none focus:border-yellow-400 sm:px-4" />
         </div>
 
         {/* المواصفة اختيارية ومستقلة عن الوحدة والكمية */}
         <div>
           <label className="mb-2 block text-sm text-gray-300">المواصفة (اختياري)</label>
           <input type="text" value={specification} onChange={(e) => setSpecification(e.target.value)}
-            placeholder="مثال: 5 BAG" className="h-12 w-full rounded-xl border border-white/10 bg-[#10473D] px-4 text-white outline-none focus:border-yellow-400" />
+            placeholder="مثال: 5 BAG" className="h-12 w-full min-w-0 rounded-xl border border-white/10 bg-[#10473D] px-3 text-base text-white outline-none focus:border-yellow-400 sm:px-4" />
         </div>
 
         {/* رقم الفاتورة */}
@@ -1132,8 +1132,8 @@ return (
             <input type="text" value={newUnitName} onChange={(e) => setNewUnitName(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") void handleAddUnit(); }} autoFocus
               placeholder="مثال: طن، كيلوجرام، متر، قطعة"
-              className="h-12 w-full rounded-xl border border-white/10 bg-[#10473D] px-4 text-white outline-none focus:border-yellow-400" />
-            <div className="mt-6 grid grid-cols-2 gap-3">
+              className="h-12 w-full min-w-0 rounded-xl border border-white/10 bg-[#10473D] px-3 text-base text-white outline-none focus:border-yellow-400 sm:px-4" />
+            <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
               <button type="button" onClick={() => { setShowAddUnit(false); setNewUnitName(""); }}
                 className="rounded-xl border border-white/10 px-6 py-3 font-bold text-white hover:bg-white/5">إلغاء</button>
               <button type="button" disabled={savingUnit} onClick={() => void handleAddUnit()}
@@ -1171,10 +1171,10 @@ return (
               onKeyDown={(e) => e.key === "Enter" && handleAddSupplier()}
               autoFocus
               placeholder="أدخل اسم المورد"
-              className="h-12 w-full rounded-xl border border-white/10 bg-[#10473D] px-4 text-white outline-none focus:border-yellow-400"
+              className="h-12 w-full min-w-0 rounded-xl border border-white/10 bg-[#10473D] px-3 text-base text-white outline-none focus:border-yellow-400 sm:px-4"
             />
 
-            <div className="mt-6 grid grid-cols-2 gap-3">
+            <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
               <button
                 type="button"
                 onClick={() => {
@@ -1213,9 +1213,9 @@ return (
               onKeyDown={(e) => e.key === "Enter" && handleAddAccount()}
               autoFocus
               placeholder="أدخل اسم العهدة"
-              className="h-12 w-full rounded-xl border border-white/10 bg-[#10473D] px-4 text-white outline-none focus:border-yellow-400"
+              className="h-12 w-full min-w-0 rounded-xl border border-white/10 bg-[#10473D] px-3 text-base text-white outline-none focus:border-yellow-400 sm:px-4"
             />
-            <div className="mt-6 grid grid-cols-2 gap-3">
+            <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
               <button type="button" onClick={() => setShowAddAccount(false)} className="rounded-xl border border-white/10 px-6 py-3 font-bold text-white hover:bg-white/5">إلغاء</button>
               <button type="button" onClick={handleAddAccount} className="rounded-xl bg-yellow-400 px-6 py-3 font-bold text-[#062D26] hover:bg-yellow-300">+ إضافة العهدة</button>
             </div>
@@ -1239,9 +1239,9 @@ return (
               onKeyDown={(e) => e.key === "Enter" && handleAddStage()}
               autoFocus
               placeholder="أدخل اسم المرحلة"
-              className="h-12 w-full rounded-xl border border-white/10 bg-[#10473D] px-4 text-white outline-none focus:border-yellow-400"
+              className="h-12 w-full min-w-0 rounded-xl border border-white/10 bg-[#10473D] px-3 text-base text-white outline-none focus:border-yellow-400 sm:px-4"
             />
-            <div className="mt-6 grid grid-cols-2 gap-3">
+            <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
               <button type="button" onClick={() => setShowAddStage(false)} className="rounded-xl border border-white/10 px-6 py-3 font-bold text-white hover:bg-white/5">إلغاء</button>
               <button type="button" onClick={handleAddStage} className="rounded-xl bg-yellow-400 px-6 py-3 font-bold text-[#062D26] hover:bg-yellow-300">+ إضافة المرحلة</button>
             </div>
@@ -1511,7 +1511,7 @@ return (
 
     </div>
   </div>
-);
+, document.body);
 
 }
 
@@ -1544,11 +1544,14 @@ function Input({
         className="
           h-12
           w-full
+          min-w-0
           rounded-xl
           border
           border-white/10
           bg-[#10473D]
-          px-4
+          px-3
+          text-base
+          sm:px-4
           text-white
           outline-none
           focus:border-yellow-400
@@ -1591,11 +1594,14 @@ function Select({
         className="
           h-12
           w-full
+          min-w-0
           rounded-xl
           border
           border-white/10
           bg-[#10473D]
-          px-4
+          px-3
+          text-base
+          sm:px-4
           text-white
           outline-none
           focus:border-yellow-400

@@ -180,6 +180,7 @@ function MainLayout() {
 
             <div
               className="
+                hidden sm:block
                 absolute
                 -right-40
                 -top-40
@@ -195,6 +196,7 @@ function MainLayout() {
 
             <div
               className="
+                hidden sm:block
                 absolute
                 -bottom-40
                 -left-40
