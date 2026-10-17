@@ -35,10 +35,19 @@ const loginBenefits = [
 
 export default function Login() {
   const navigate = useNavigate();
+  const [language, setLanguage] = useState<"ar" | "en">(() =>
+    typeof window !== "undefined" && window.localStorage.getItem("aqary-login-language") === "en" ? "en" : "ar"
+  );
+  const translate = (arabic: string, english: string) => language === "ar" ? arabic : english;
+  const chooseLanguage = (next: "ar" | "en") => {
+    setLanguage(next);
+    window.localStorage.setItem("aqary-login-language", next);
+  };
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [languageOpen, setLanguageOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -286,54 +295,55 @@ export default function Login() {
   };
 
   return (
-    <div className="login-page" dir="rtl">
-      {/* الخلفية العامة */}
+    <div className="login-page aqary-login-redesign" dir={language === "ar" ? "rtl" : "ltr"}>
+      <style>{`
+        .aqary-login-redesign { min-height: 100vh; overflow-x: hidden; position: relative; background: #07392e url('/aqary-smart-background.png') center center / 100% 100% no-repeat fixed; }
+        .aqary-login-redesign .aqary-full-background { position: fixed; inset: 0; background: rgba(3, 41, 31, .65); pointer-events:none; z-index: 0; }
+        .aqary-login-redesign .login-main { position:relative; z-index:1; width:100%; max-width: none; min-height:100vh; display:flex; align-items:center; justify-content:center; padding: 76px 20px 35px; box-sizing:border-box; }
+        .aqary-login-redesign .aqary-single-panel { position:relative; isolation:isolate; width:min(100%,930px); min-height:640px; border:1px solid rgba(224,186,65,.55); border-radius:28px; overflow:hidden; box-shadow:0 25px 70px rgba(0,0,0,.3); display:flex; flex-direction:column; align-items:center; justify-content:space-between; padding:38px 35px 22px; box-sizing:border-box; background:linear-gradient(155deg,rgba(0,47,35,.8),rgba(0,28,22,.9)); }
+        .aqary-login-redesign .aqary-panel-logo { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; opacity:.13; pointer-events:none; z-index:-1; padding:70px 50px 105px; box-sizing:border-box; }
+        .aqary-login-redesign .aqary-form-area { width:min(100%,430px); margin:auto; padding:8px 0 24px; }
+        .aqary-login-redesign .login-card-header { text-align:center; margin-bottom:24px; }
+        .aqary-login-redesign .login-welcome-title { color:#f9d36a !important; font-size:clamp(26px,3vw,36px); margin:0 0 8px; }
+        .aqary-login-redesign .login-welcome-description { color:#d3f4e9 !important; }
+        .aqary-login-redesign .login-field-label { color:#f2f9f4 !important; }
+        .aqary-login-redesign .login-options, .aqary-login-redesign .remember-option { color:#e2f6ed !important; }
+        .aqary-login-redesign .forgot-password-button { color:#f9d36a !important; }
+        .aqary-login-redesign .login-form { width:100%; }
+        .aqary-login-redesign .hero-features { position:relative; z-index:2; width:100%; display:grid !important; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin:0 !important; }
+        .aqary-login-redesign .hero-feature-card { min-width:0; background:rgba(0,39,30,.85); border:1px solid rgba(239,194,71,.48); border-radius:16px; }
+        .aqary-login-redesign .language-switcher { z-index:5; }
+        .aqary-login-redesign .aqary-language-menu { position:absolute; top:calc(100% + 8px); inset-inline-start:0; width:150px; padding:6px; border-radius:13px; background:#063b30; border:1px solid rgba(239,194,71,.55); box-shadow:0 12px 24px rgba(0,0,0,.3); }
+        .aqary-login-redesign .aqary-language-choice { width:100%; padding:9px 12px; text-align:start; border:0; border-radius:8px; background:transparent; color:#fff; cursor:pointer; font-weight:700; }
+        .aqary-login-redesign .aqary-language-choice:hover, .aqary-login-redesign .aqary-language-choice[aria-selected="true"] { background:rgba(239,194,71,.2); color:#f9d36a; }
+         .aqary-login-redesign .login-background { display:none !important; }
+        @media(max-width:650px) { .aqary-login-redesign .login-main { padding:72px 12px 18px; } .aqary-login-redesign .aqary-single-panel { min-height:650px; padding:28px 15px 16px; border-radius:20px; } .aqary-login-redesign .hero-features { grid-template-columns:repeat(2,minmax(0,1fr)); gap:9px; } .aqary-login-redesign .aqary-form-area { padding:15px 4px 25px; } }
+      `}</style>
       <div className="login-background" aria-hidden="true">
         <div className="login-glow login-glow-top" />
         <div className="login-glow login-glow-bottom" />
         <div className="login-grid-pattern" />
-        <div className="login-corner login-corner-top" />
-        <div className="login-corner login-corner-bottom" />
       </div>
-
-      {/* زر اللغة */}
+      <div className="aqary-full-background" aria-hidden="true" />
       <div className="language-switcher">
-        <button type="button" className="language-button">
-          <Globe size={18} />
-          <span>العربية</span>
-          <span className="language-arrow">⌄</span>
+        <button type="button" className="language-button" aria-expanded={languageOpen} aria-haspopup="listbox" onClick={() => setLanguageOpen((open) => !open)}>
+          <Globe size={18} /><span>{language === "ar" ? "العربية" : "English"}</span><span className="language-arrow">⌄</span>
         </button>
+        {languageOpen && (
+          <div className="aqary-language-menu" role="listbox" aria-label="Language">
+            <button type="button" role="option" aria-selected={language === "ar"} className="aqary-language-choice" onClick={() => { chooseLanguage("ar"); setLanguageOpen(false); }}>العربية</button>
+            <button type="button" role="option" aria-selected={language === "en"} className="aqary-language-choice" onClick={() => { chooseLanguage("en"); setLanguageOpen(false); }}>English</button>
+          </div>
+        )}
       </div>
-
-      {/* الهيكل الرئيسي */}
-      <main className="login-main" dir="ltr">
-        <div className="login-layout" style={{ alignItems: "stretch" }}>
-          {/* =====================================
-              كارت تسجيل الدخول - الشمال
-          ===================================== */}
-          <section className="login-section" dir="rtl" style={{ alignSelf: "stretch", display: "flex" }}>
-            <div className="login-card" style={{ boxSizing: "border-box" }}>
-              <div className="login-card-top-line" />
-
-              {/* رأس الكارت */}
-              <div className="login-card-header">
-                <div className="login-logo-wrapper">
-                  <img
-                    src="/aqary-smart-logo.png"
-                    alt="عقاري سمارت"
-                    className="login-logo"
-                  />
-                </div>
-
-                <h2 className="login-welcome-title">
-                  مرحبًا بك مرة أخرى
-                </h2>
-
-                <p className="login-welcome-description">
-                  سجل الدخول إلى حسابك للمتابعة
-                </p>
-              </div>
-
+      <main className="login-main">
+        <section className="aqary-single-panel" aria-label="تسجيل الدخول إلى عقاري سمارت">
+          <img src="/aqary-smart-logo.png" className="aqary-panel-logo" alt="" aria-hidden="true" />
+          <div className="aqary-form-area">
+            <div className="login-card-header">
+              <h2 className="login-welcome-title">{translate("مرحبًا بك مرة أخرى", "Welcome Back")}</h2>
+              <p className="login-welcome-description">{translate("سجل الدخول إلى حسابك للمتابعة", "Sign in to your account to continue")}</p>
+            </div>
               {/* نموذج الدخول */}
               <form
                 onSubmit={handleLogin}
@@ -344,9 +354,7 @@ export default function Login() {
               >
                 {/* اسم المستخدم */}
                 <div className="login-field">
-                  <label htmlFor="email" className="login-field-label">
-                    اسم المستخدم
-                  </label>
+                  <label htmlFor="email" className="login-field-label">{translate("اسم المستخدم", "Username")}</label>
 
                   <div className="login-input-wrapper">
                     <Mail className="login-input-icon" size={21} />
@@ -356,7 +364,7 @@ export default function Login() {
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="أدخل اسم المستخدم"
+                      placeholder={translate("أدخل اسم المستخدم", "Enter your email")}
                       autoComplete="username"
                       disabled={loading}
                       className="login-input"
@@ -366,9 +374,7 @@ export default function Login() {
 
                 {/* كلمة المرور */}
                 <div className="login-field">
-                  <label htmlFor="password" className="login-field-label">
-                    كلمة المرور
-                  </label>
+                  <label htmlFor="password" className="login-field-label">{translate("كلمة المرور", "Password")}</label>
 
                   <div className="login-input-wrapper">
                     <LockKeyhole
@@ -381,7 +387,7 @@ export default function Login() {
                       type={showPassword ? "text" : "password"}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      placeholder="أدخل كلمة المرور"
+                      placeholder={translate("أدخل كلمة المرور", "Enter your password")}
                       autoComplete="current-password"
                       disabled={loading}
                       className="login-input login-password-input"
@@ -395,8 +401,8 @@ export default function Login() {
                       disabled={loading}
                       aria-label={
                         showPassword
-                          ? "إخفاء كلمة المرور"
-                          : "إظهار كلمة المرور"
+                          ? translate("إخفاء كلمة المرور", "Hide password")
+                          : translate("إظهار كلمة المرور", "Show password")
                       }
                       className="password-toggle-button"
                     >
@@ -416,7 +422,7 @@ export default function Login() {
                       type="checkbox"
                       className="remember-checkbox"
                     />
-                    <span>تذكرني</span>
+                    <span>{translate("تذكرني", "Remember me")}</span>
                   </label>
 
                   <button
@@ -424,15 +430,13 @@ export default function Login() {
                       className="forgot-password-button"
                       onClick={handleForgotPassword}
                       disabled={loading}
-                    >
-                      نسيت كلمة المرور؟
-                    </button>
+                    >{translate("نسيت كلمة المرور؟", "Forgot password?")}</button>
                 </div>
 
                 {/* رسالة الخطأ */}
                 {error && (
                   <div className="login-error-message">
-                    {error}
+                    {language === "ar" ? error : "Please check your details and try again."}
                   </div>
                 )}
 
@@ -444,13 +448,9 @@ export default function Login() {
                 >
                   {loading ? (
                     <>
-                      <span className="login-spinner" />
-                      جاري تسجيل الدخول...
-                    </>
+                      <span className="login-spinner" />{translate("جاري تسجيل الدخول...", "Signing in...")}</>
                   ) : (
-                    <>
-                      تسجيل الدخول
-                      <LogIn size={22} />
+                    <>{translate("تسجيل الدخول", "Sign In")}<LogIn size={22} />
                     </>
                   )}
                 </button>
@@ -465,9 +465,7 @@ export default function Login() {
                         color: "#064f3f",
                         fontWeight: 800,
                       }}
-                    >
-                      تغيير كلمة المرور
-                    </h3>
+                    >{translate("تغيير كلمة المرور", "Change Password")}</h3>
                     <p
                       style={{
                         margin: "8px 0 0",
@@ -475,15 +473,11 @@ export default function Login() {
                         fontSize: "14px",
                         lineHeight: 1.7,
                       }}
-                    >
-                      أدخل كلمة المرور الجديدة لحسابك
-                    </p>
+                    >{translate("أدخل كلمة المرور الجديدة لحسابك", "Enter your new account password")}</p>
                   </div>
 
                   <div className="login-field">
-                    <label htmlFor="new-password" className="login-field-label">
-                      كلمة المرور الجديدة
-                    </label>
+                    <label htmlFor="new-password" className="login-field-label">{translate("كلمة المرور الجديدة", "New Password")}</label>
                     <div className="login-input-wrapper">
                       <LockKeyhole className="login-input-icon" size={21} />
                       <input
@@ -491,7 +485,7 @@ export default function Login() {
                         type={showPassword ? "text" : "password"}
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
-                        placeholder="أدخل كلمة المرور الجديدة"
+                        placeholder={translate("أدخل كلمة المرور الجديدة", "Enter new password")}
                         autoComplete="new-password"
                         disabled={loading}
                         className="login-input login-password-input"
@@ -504,8 +498,8 @@ export default function Login() {
                         disabled={loading}
                         aria-label={
                           showPassword
-                            ? "إخفاء كلمة المرور"
-                            : "إظهار كلمة المرور"
+                            ? translate("إخفاء كلمة المرور", "Hide password")
+                            : translate("إظهار كلمة المرور", "Show password")
                         }
                         className="password-toggle-button"
                       >
@@ -522,9 +516,7 @@ export default function Login() {
                     <label
                       htmlFor="confirm-new-password"
                       className="login-field-label"
-                    >
-                      تأكيد كلمة المرور
-                    </label>
+                    >{translate("تأكيد كلمة المرور", "Confirm Password")}</label>
                     <div className="login-input-wrapper">
                       <LockKeyhole className="login-input-icon" size={21} />
                       <input
@@ -534,7 +526,7 @@ export default function Login() {
                         onChange={(e) =>
                           setConfirmNewPassword(e.target.value)
                         }
-                        placeholder="أعد إدخال كلمة المرور"
+                        placeholder={translate("أعد إدخال كلمة المرور", "Confirm new password")}
                         autoComplete="new-password"
                         disabled={loading}
                         className="login-input login-password-input"
@@ -543,7 +535,7 @@ export default function Login() {
                   </div>
 
                   {error && (
-                    <div className="login-error-message">{error}</div>
+                    <div className="login-error-message">{language === "ar" ? error : "Please check your details and try again."}</div>
                   )}
 
                   <button
@@ -553,13 +545,9 @@ export default function Login() {
                   >
                     {loading ? (
                       <>
-                        <span className="login-spinner" />
-                        جاري تغيير كلمة المرور...
-                      </>
+                        <span className="login-spinner" />{translate("جاري تغيير كلمة المرور...", "Updating password...")}</>
                     ) : (
-                      <>
-                        حفظ كلمة المرور
-                        <LogIn size={22} />
+                      <>{translate("حفظ كلمة المرور", "Save Password")}<LogIn size={22} />
                       </>
                     )}
                   </button>
@@ -584,9 +572,7 @@ export default function Login() {
                       fontWeight: 700,
                       padding: "8px",
                     }}
-                  >
-                    العودة لتسجيل الدخول
-                  </button>
+                  >{translate("العودة لتسجيل الدخول", "Back to Sign In")}</button>
                 </form>
               ) : resetMode ? (
                 <form onSubmit={handleSendResetEmail} className="login-form">
@@ -598,9 +584,7 @@ export default function Login() {
                         color: "#064f3f",
                         fontWeight: 800,
                       }}
-                    >
-                      استعادة كلمة المرور
-                    </h3>
+                    >{translate("استعادة كلمة المرور", "Reset Password")}</h3>
                     <p
                       style={{
                         margin: "8px 0 0",
@@ -609,15 +593,12 @@ export default function Login() {
                         lineHeight: 1.7,
                       }}
                     >
-                      أدخل بريدك الإلكتروني وسنرسل لك رابطًا آمنًا لتغيير كلمة
-                      المرور.
+                      {translate("أدخل بريدك الإلكتروني وسنرسل لك رابطًا آمنًا لتغيير كلمة المرور.", "Enter your email and we will send you a secure password reset link.")}
                     </p>
                   </div>
 
                   <div className="login-field">
-                    <label htmlFor="reset-email" className="login-field-label">
-                      البريد الإلكتروني
-                    </label>
+                    <label htmlFor="reset-email" className="login-field-label">{translate("البريد الإلكتروني", "Email Address")}</label>
                     <div className="login-input-wrapper">
                       <Mail className="login-input-icon" size={21} />
                       <input
@@ -625,7 +606,7 @@ export default function Login() {
                         type="email"
                         value={resetEmail}
                         onChange={(e) => setResetEmail(e.target.value)}
-                        placeholder="أدخل بريدك الإلكتروني"
+                        placeholder={translate("أدخل بريدك الإلكتروني", "Enter your email")}
                         autoComplete="email"
                         disabled={loading || resetSent}
                         className="login-input"
@@ -653,7 +634,7 @@ export default function Login() {
                   )}
 
                   {error && (
-                    <div className="login-error-message">{error}</div>
+                    <div className="login-error-message">{language === "ar" ? error : "Please check your details and try again."}</div>
                   )}
 
                   {!resetSent && (
@@ -664,13 +645,9 @@ export default function Login() {
                     >
                       {loading ? (
                         <>
-                          <span className="login-spinner" />
-                          جاري إرسال الرابط...
-                        </>
+                          <span className="login-spinner" />{translate("جاري إرسال الرابط...", "Sending link...")}</>
                       ) : (
-                        <>
-                          إرسال رابط الاستعادة
-                          <Mail size={22} />
+                        <>{translate("إرسال رابط الاستعادة", "Send Reset Link")}<Mail size={22} />
                         </>
                       )}
                     </button>
@@ -695,96 +672,13 @@ export default function Login() {
                       fontWeight: 700,
                       padding: "8px",
                     }}
-                  >
-                    العودة لتسجيل الدخول
-                  </button>
+                  >{translate("العودة لتسجيل الدخول", "Back to Sign In")}</button>
                 </form>
               ) : null}
 
-              {/* المزايا */}
-              <div className="login-benefits">
-                {loginBenefits.map((benefit) => {
-                  const Icon = benefit.icon;
-
-                  return (
-                    <div
-                      key={benefit.title}
-                      className="login-benefit-item"
-                    >
-                      <Icon size={23} />
-                      <span>{benefit.title}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="login-footer">
-              <p>© عقاري سمارت. جميع الحقوق محفوظة.</p>
-              <span>Aqary Smart Real Estate Management System</span>
-            </div>
-          </section>
-
-          {/* =====================================
-              الكارت التعريفي الزجاجي - اليمين
-          ===================================== */}
-          <section className="hero-section" dir="rtl" style={{ alignSelf: "stretch", display: "flex" }}>
-            <div className="hero-panel" style={{ boxSizing: "border-box", width: "100%" }}>
-              {/* صورة الخلفية */}
-              <div className="hero-background-image" />
-
-              {/* طبقات التدرج */}
-              <div className="hero-overlay" />
-
-              {/* العلامة المائية الكبيرة */}
-              <img
-                src="/aqary-smart-logo.png"
-                alt=""
-                aria-hidden="true"
-                className="hero-watermark"
-              />
-
-              {/* الخطوط والزخارف */}
-              <div className="hero-decoration hero-decoration-one" />
-              <div className="hero-decoration hero-decoration-two" />
-
-              {/* محتوى الكارت */}
-              <div className="hero-content" style={{ paddingBottom: "22px" }}>
-                {/* اللوجو */}
-                <div className="hero-logo-wrapper">
-                  <img
-                    src="/aqary-smart-logo.png"
-                    alt="عقاري سمارت"
-                    className="hero-logo"
-                  />
-                </div>
-
-                <h2 className="hero-title">عقاري سمارت</h2>
-
-                <p className="hero-english-title">AQARY SMART</p>
-
-                <p className="hero-subtitle">
-                  نظام سمارت لإدارة العقارات
-                </p>
-
-                <p className="hero-management-title">
-                  SMART REAL ESTATE MANAGEMENT
-                </p>
-
-                <h1 className="hero-main-title">
-                  إدارة أذكى...
-                  <br />
-                  <span>لعقارات أكثر نجاحًا</span>
-                </h1>
-
-                <p className="hero-description">
-                  كل ما تحتاجه لإدارة عقاراتك ومتابعة مستأجريك
-                  <br />
-                  ومصروفاتك وتقاريرك من مكان واحد.
-                </p>
-
+          </div>
                 {/* المزايا */}
-                <div className="hero-features">
+                <div className="hero-features" style={{ marginTop: "auto", width: "100%" }}>
                   {features.map((feature) => {
                     const Icon = feature.icon;
 
@@ -797,15 +691,12 @@ export default function Login() {
                           <Icon size={34} />
                         </div>
 
-                        <span>{feature.title}</span>
+                        <span>{language === "ar" ? feature.title : ({"تقارير دقيقة":"Accurate Reports","إدارة المستأجرين":"Tenant Management","إدارة العقارات":"Property Management","تشغيل متكامل":"Integrated Operations"} as Record<string,string>)[feature.title]}</span>
                       </div>
                     );
                   })}
                 </div>
-              </div>
-            </div>
-          </section>
-        </div>
+        </section>
       </main>
     </div>
   );
