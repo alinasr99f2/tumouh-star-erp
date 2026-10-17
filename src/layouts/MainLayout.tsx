@@ -142,9 +142,10 @@ function MainLayout() {
             overflow-x-hidden
             overflow-y-auto
             bg-[#031F1B]
-            p-3
-            sm:p-4
-            md:p-6
+            p-2
+            sm:p-3
+            lg:p-4
+            2xl:p-5
           "
         >
 
@@ -267,7 +268,7 @@ function MainLayout() {
               min-h-full
               w-full
               min-w-0
-              max-w-[1700px]
+              max-w-none
             "
           >
 

@@ -99,6 +99,7 @@ export default function ProjectDetails() {
   );
 
   const [projectExpenses, setProjectExpenses] = useState<any[]>([]);
+  const [expenseRecorderNames, setExpenseRecorderNames] = useState<Record<string, string>>({});
   const [projectVillas, setProjectVillas] = useState<ProjectVilla[]>([]);
   const [topCostItems, setTopCostItems] = useState<any[]>([]);
   const [showAllCostItems, setShowAllCostItems] = useState(false);
@@ -273,8 +274,31 @@ export default function ProjectDetails() {
     return unitId != null && unitId !== "" ? unitNameMap.get(Number(unitId)) ?? "-" : "-";
   };
 
+  // تمييز قيود تسوية العهدة بصريًا اعتمادًا على تصنيفها المسجل.
+  const isAccountSettlementExpense = (expense: any): boolean => {
+    const categoryName = String(categoryNameMap.get(Number(expense.categoryId ?? expense.category_id)) ?? "");
+    return /تسوي(?:ة|ات)\s*ال?عهد/.test(categoryName);
+  };
+
+  // بيانات التسجيل محفوظة مع المصروف نفسه، وليست بيانات المستخدم الذي يعرض الصفحة الآن.
+  const getExpenseRecorderName = (expense: any): string => {
+    const userId = String(expense.created_by ?? "");
+    return String(expense.created_by_name ?? "").trim() || (userId && expenseRecorderNames[userId]) || "غير معروف";
+  };
+
+  const getExpenseRecordedAt = (expense: any): string => {
+    if (!expense.created_at) return "غير متوفر";
+    const date = new Date(String(expense.created_at));
+    if (Number.isNaN(date.getTime())) return "غير متوفر";
+    return date.toLocaleString("en-GB", {
+      timeZone: "Asia/Riyadh", day: "2-digit", month: "2-digit", year: "numeric",
+      hour: "2-digit", minute: "2-digit", hour12: true,
+    });
+  };
+
   const getExpenseTableValue = (expense: any, field: string): string => {
     switch (field) {
+      case "registration": return getExpenseRecorderName(expense);
       case "date": return getExpenseDateValue(expense) || "-";
       case "invoice": return String(expense.voucherNo ?? expense.invoice_number ?? "-").trim() || "-";
       case "villa": return "مصروف عام على المشروع";
@@ -290,7 +314,7 @@ export default function ProjectDetails() {
     }
   };
 
-  const expenseTableFields = ["date", "invoice", "villa", "stage", "account", "category", "item", "unit", "quantity", "specification", "attachment"];
+  const expenseTableFields = ["registration", "date", "invoice", "villa", "stage", "account", "category", "item", "unit", "quantity", "specification", "attachment"];
   const expenseTableOptions = useMemo(() => {
     const result: Record<string, string[]> = {};
     for (const field of expenseTableFields) {
@@ -349,9 +373,9 @@ export default function ProjectDetails() {
 
   // تصدير النتائج الظاهرة فقط بعد تطبيق جميع الفلاتر، دون تعديل البيانات الأصلية.
   const exportFilteredExpenses = (type: "excel" | "print") => {
-    const headings = ["التاريخ", "رقم الفاتورة", "الفيلا", "المرحلة", "العهدة", "التصنيف", "البند", "الوحدة", "الكمية", "المواصفة", "الإجمالي", "المرفقات"];
-    const fields = ["date", "invoice", "villa", "stage", "account", "category", "item", "unit", "quantity", "specification"];
-    const body = filteredExpenseRows.map((expense) => `<tr>${fields.map((field) => `<td>${escapeHtml(getExpenseTableValue(expense, field))}</td>`).join("")}<td>${getExpenseTotal(expense).toFixed(2)}</td><td>${escapeHtml(getExpenseTableValue(expense, "attachment"))}</td></tr>`).join("");
+    const headings = ["التسجيل", "التاريخ", "رقم الفاتورة", "الفيلا", "المرحلة", "العهدة", "التصنيف", "البند", "الوحدة", "الكمية", "المواصفة", "الإجمالي", "المرفقات"];
+    const fields = ["registration", "date", "invoice", "villa", "stage", "account", "category", "item", "unit", "quantity", "specification"];
+    const body = filteredExpenseRows.map((expense) => `<tr>${fields.map((field) => `<td>${escapeHtml(field === "registration" ? `${getExpenseRecorderName(expense)} - ${getExpenseRecordedAt(expense)}` : getExpenseTableValue(expense, field))}</td>`).join("")}<td>${getExpenseTotal(expense).toFixed(2)}</td><td>${escapeHtml(getExpenseTableValue(expense, "attachment"))}</td></tr>`).join("");
     const html = `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"/><title>تقرير المصروفات المفلترة - ${escapeHtml(project?.name ?? "المشروع")}</title><style>
       *{box-sizing:border-box}body{font-family:Arial,Tahoma,sans-serif;padding:20px;color:#172b26;background:#fff}
       .report-header{display:flex;direction:ltr;align-items:flex-start;justify-content:space-between;gap:20px;border-bottom:2px solid #0a4537;padding-bottom:14px;margin-bottom:18px}
@@ -361,7 +385,7 @@ export default function ProjectDetails() {
       @page{size:A4 landscape;margin:12mm}@media print{body{padding:0}.report-header{break-inside:avoid}thead{display:table-header-group}tr{break-inside:avoid}}
       </style></head><body>
       <header class="report-header"><div class="brand"><img src="${window.location.origin}/aqary-smart-logo.png" alt="شعار عقاري سمارت"/><div class="brand-name">م/ علي نصر</div><div class="brand-phone">0570026229</div></div><div class="report-heading"><h2>تقرير مصروفات ${escapeHtml(project?.name ?? "المشروع")} — نتائج الفلترة</h2><p>عدد المصروفات: ${filteredExpenseRows.length} | إجمالي المصروفات: ${filteredExpenseTotal.toLocaleString("ar-SA", { maximumFractionDigits: 2 })} ريال</p></div></header>
-      <table><thead><tr>${headings.map((heading) => `<th>${heading}</th>`).join("")}</tr></thead><tbody>${body}</tbody><tfoot><tr><td colspan="10">الإجمالي (${filteredExpenseRows.length} مصروف)</td><td>${filteredExpenseTotal.toFixed(2)}</td><td></td></tr></tfoot></table></body></html>`;
+      <table><thead><tr>${headings.map((heading) => `<th>${heading}</th>`).join("")}</tr></thead><tbody>${body}</tbody><tfoot><tr><td colspan="11">الإجمالي (${filteredExpenseRows.length} مصروف)</td><td>${filteredExpenseTotal.toFixed(2)}</td><td></td></tr></tfoot></table></body></html>`;
     if (type === "excel") {
       const blob = new Blob(["\ufeff", html], { type: "application/vnd.ms-excel;charset=utf-8" });
       const url = URL.createObjectURL(blob);
@@ -613,6 +637,26 @@ export default function ProjectDetails() {
       description: row.description ?? "",
     }));
 
+    // ربط UUID الخاص بمُسجِّل المصروف باسمه من جدول المستخدمين عبر البريد المسجل.
+    // لا نستخدم اسم المستخدم الحالي حتى لا تتغير هوية المسجل عند فتح مستخدم آخر للصفحة.
+    const recorderIds = Array.from(new Set(normalizedExpenses.map((row: any) => String(row.created_by ?? "")).filter(Boolean)));
+    if (recorderIds.length) {
+      const { data: authUsers, error: authError } = await supabase.auth.getUser();
+      const currentEmail = authError ? "" : String(authUsers.user?.email ?? "").toLowerCase();
+      const { data: usersData, error: usersError } = await supabase.from("users").select("name, email");
+      if (usersError) console.warn("تعذر تحميل أسماء مسجلي المصروفات:", usersError);
+      const names: Record<string, string> = {};
+      // لا نفترض أن users.id يساوي UUID الخاص بـ Supabase Auth.
+      // تُعرض الأسماء عند وجود بريد موثوق مطابق للمستخدم الحالي فقط.
+      const currentId = authUsers.user?.id;
+      if (currentId && currentEmail) {
+        const matching = (usersData ?? []).find((u: any) => String(u.email ?? "").toLowerCase() === currentEmail);
+        if (matching?.name) names[currentId] = String(matching.name);
+      }
+      setExpenseRecorderNames(names);
+    } else {
+      setExpenseRecorderNames({});
+    }
     setProjectExpenses(normalizedExpenses);
     setProjectVillas((villasResult.data ?? []) as ProjectVilla[]);
     setLoadingProjectData(false);
@@ -1318,7 +1362,16 @@ export default function ProjectDetails() {
           return false;
         }
 
+        const { data: signedIn } = await supabase.auth.getUser();
+        const currentUser = signedIn.user;
+        const { data: appUser } = currentUser?.email
+          ? await supabase.from("users").select("name").ilike("email", currentUser.email).limit(1).maybeSingle()
+          : { data: null };
+        const recorderName = String(appUser?.name ?? currentUser?.user_metadata?.full_name ?? currentUser?.email ?? "").trim();
+
         const payload: any = {
+          ...(currentUser?.id ? { created_by: currentUser.id } : {}),
+          ...(recorderName ? { created_by_name: recorderName } : {}),
           date: expenseDate,
           project_id: project.id,
           villa_id: villaId,
@@ -1637,13 +1690,13 @@ ${error?.message ?? ""}`);
   }
   if (showProjectExpenseOverview) {
     return (
-      <div className="min-h-[70vh] space-y-6 pb-10" dir="rtl">
+      <div className="project-responsive min-h-[70vh] min-w-0 space-y-4 overflow-x-hidden pb-10 sm:space-y-6" dir="rtl">
 
-            <div className="relative flex min-h-[112px] flex-col items-center justify-center gap-4 rounded-2xl border border-emerald-400/20 bg-[#0A4537] px-5 py-6 text-center sm:px-48">
+            <div className="relative flex min-h-[112px] flex-col items-center justify-center gap-4 rounded-2xl border border-emerald-400/20 bg-[#0A4537] px-5 py-6 text-center lg:px-48">
               <button
                 type="button"
                 onClick={() => setShowProjectExpenseOverview(false)}
-                className="inline-flex items-center justify-center gap-2 self-start rounded-xl border border-amber-400/40 bg-amber-400/10 px-4 py-2.5 text-sm font-bold text-amber-200 transition hover:border-amber-300 hover:bg-amber-400/20 sm:absolute sm:right-5 sm:top-1/2 sm:-translate-y-1/2"
+                className="inline-flex items-center justify-center gap-2 self-start rounded-xl border border-amber-400/40 bg-amber-400/10 px-4 py-2.5 text-sm font-bold text-amber-200 transition hover:border-amber-300 hover:bg-amber-400/20 lg:absolute lg:right-5 lg:top-1/2 lg:-translate-y-1/2"
                 aria-label="الرجوع إلى صفحة المشروع"
               >
                 <ArrowLeft size={18} />
@@ -1655,11 +1708,33 @@ ${error?.message ?? ""}`);
               </div>
             </div>
 
+      <style>{`
+        .project-responsive { width: 100%; max-width: 100%; container-type: inline-size; }
+        .project-responsive, .project-responsive * { box-sizing: border-box; }
+        .project-responsive > section, .project-responsive > div { min-width: 0; max-width: 100%; }
+        .project-responsive h1, .project-responsive h2, .project-responsive h3 { overflow-wrap: anywhere; }
+        .project-responsive button { max-width: 100%; }
+        .project-responsive input, .project-responsive select { max-width: 100%; }
+        .project-responsive .expense-table-scroll { width: 100%; -webkit-overflow-scrolling: touch; }
+        .project-responsive .expense-summary-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 290px), 1fr)); }
+        .project-responsive .expense-summary-grid > * { min-width: 0; }
+        @container (max-width: 800px) {
+          .project-responsive .project-cost-row { grid-template-columns: 36px minmax(0,1fr) !important; }
+          .project-responsive .project-cost-row > :nth-child(n+3) { grid-column: 2; }
+        }
+        @media (max-width: 640px) {
+          .project-responsive { border-radius: 12px; }
+          .project-responsive h2 { font-size: clamp(1.1rem, 4.5vw, 1.5rem); line-height: 1.4; }
+          .project-responsive .expense-table-scroll .expense-compact-table { min-width: 1040px; font-size: 12px; }
+          .project-responsive input[type=date] { min-width: 0; width: 100%; }
+          .project-responsive .project-cost-row { padding-inline: 12px; }
+        }
+      `}</style>
       {/* =====================================================
           EXPENSE SUMMARY - 4 CARDS
       ===================================================== */}
       <section className="space-y-5">
-        <div className="relative flex flex-col items-center justify-center gap-4 rounded-3xl border border-white/10 bg-[#062E26] p-5 text-center md:min-h-[108px] md:px-40">
+        <div className="relative flex flex-col items-center justify-center gap-4 rounded-3xl border border-white/10 bg-[#062E26] p-5 text-center md:min-h-[108px] lg:px-40">
           <div className="w-full text-center">
             <h2 className="text-2xl font-extrabold text-white">
               ملخص مصروفات المشروع
@@ -1672,14 +1747,14 @@ ${error?.message ?? ""}`);
           <button
             type="button"
             onClick={refreshProjectExpenses}
-            className="flex items-center justify-center gap-2 self-end rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-5 py-3 font-bold text-emerald-300 transition hover:bg-emerald-400/20 md:absolute md:left-5 md:top-1/2 md:-translate-y-1/2"
+            className="flex items-center justify-center gap-2 self-end rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-5 py-3 font-bold text-emerald-300 transition hover:bg-emerald-400/20 lg:absolute lg:left-5 lg:top-1/2 lg:-translate-y-1/2"
           >
             <RefreshCw size={18} />
             تحديث
           </button>
         </div>
 
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
+        <div className="expense-summary-grid grid min-w-0 gap-3 sm:gap-4">
           <ExpensePeriodCard
             title="إجمالي مصاريف اليوم المحدد"
             value={expensePeriodTotals.day}
@@ -1758,7 +1833,7 @@ ${error?.message ?? ""}`);
 
         <div className="divide-y divide-white/10">
           {highestCostItems.length > 0 ? highestCostItems.map((item: any, index: number) => (
-            <div key={`${item.name}-${index}`} className="grid grid-cols-[48px_1fr_150px_190px] items-center gap-4 px-6 py-4 transition hover:bg-white/[0.03]">
+            <div key={`${item.name}-${index}`} className="project-cost-row grid grid-cols-[36px_minmax(0,1fr)] items-center gap-3 px-3 py-4 sm:grid-cols-[40px_minmax(0,1fr)_110px] lg:grid-cols-[48px_minmax(0,1fr)_150px_190px] lg:gap-4 lg:px-6 transition hover:bg-white/[0.03]">
               {(() => {
                 const expectedPercentage = Math.max(0, Number(item.expectedPercentage) || 0);
                 const expectedColor =
@@ -1916,7 +1991,7 @@ ${error?.message ?? ""}`);
           <div className="space-y-3 border-b border-emerald-400/15 bg-[#07392F] px-4 py-4" dir="rtl">
             <div className="flex flex-wrap items-center gap-3">
               <span className="inline-flex items-center gap-2 text-sm font-extrabold text-emerald-200"><Filter size={17} /> فلترة المصروفات</span>
-              <div className="relative min-w-[200px] flex-1">
+              <div className="relative min-w-0 basis-full flex-1 sm:min-w-[200px] sm:basis-auto">
                 <Search size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-emerald-300" />
                 <input type="search" value={expenseTableSearch} onChange={(e) => setExpenseTableSearch(e.target.value)} placeholder="بحث في كل بيانات المصروفات..." className="w-full rounded-xl border border-emerald-400/20 bg-[#0B493C] py-2.5 pl-3 pr-9 text-sm text-white outline-none placeholder:text-gray-400 focus:border-yellow-400" />
               </div>
@@ -1944,11 +2019,12 @@ ${error?.message ?? ""}`);
             <p className="text-xs text-emerald-200/70">يمكنك تحديد أكثر من قيمة داخل كل فلتر مثل Excel، والجمع بين عدة فلاتر في نفس الوقت. ثم تصدير النتائج الظاهرة فقط من قائمة تصدير. إجماليات المشروع الأساسية لا تتغير.</p>
           </div>
 
-          <div className="expense-table-scroll overflow-x-auto pb-2" style={{ scrollbarWidth: "auto", scrollbarColor: "#eab308 #064638" }}>
-            <style>{`.expense-table-scroll::-webkit-scrollbar{height:15px}.expense-table-scroll::-webkit-scrollbar-track{background:#064638;border:2px solid #0e6854;border-radius:14px}.expense-table-scroll::-webkit-scrollbar-thumb{background:linear-gradient(90deg,#facc15,#f59e0b);border:2px solid #064638;border-radius:14px;min-width:90px}.expense-table-scroll::-webkit-scrollbar-thumb:hover{background:#fde047}`}</style>
-            <table className="min-w-[2600px] w-full text-[14px] leading-6 text-white">
+          <div className="expense-table-scroll max-h-[min(65vh,620px)] min-w-0 max-w-full overflow-auto overscroll-contain" style={{ direction: "ltr", scrollbarWidth: "auto", scrollbarColor: "#d4af37 #064638" }}>
+            <style>{`.expense-table-scroll .expense-compact-table{direction:rtl;width:max-content;min-width:100%;table-layout:auto;border-collapse:collapse}.expense-table-scroll .expense-compact-table th,.expense-table-scroll .expense-compact-table td{border:1px solid rgba(212,175,55,.38);padding:7px 9px;vertical-align:middle}.expense-table-scroll .expense-compact-table thead th{border-color:rgba(234,179,8,.5)}.expense-table-scroll .expense-compact-table tbody tr:hover td{border-color:rgba(250,204,21,.55)}.expense-table-scroll .expense-compact-table tbody tr.settlement-expense-row td{background:rgba(76,29,112,.48);border-top-color:rgba(216,180,254,.62);border-bottom-color:rgba(216,180,254,.62)}.expense-table-scroll .expense-compact-table tbody tr.settlement-expense-row td:first-child{box-shadow:inset -4px 0 0 #facc15}.expense-table-scroll .expense-compact-table tbody tr.settlement-expense-row:hover td{background:rgba(91,33,145,.63)}.expense-table-scroll .expense-compact-table .expense-filter-cell{padding:4px 5px}.expense-table-scroll .expense-compact-table .expense-filter-cell>div{min-width:92px}.expense-table-scroll .expense-compact-table .expense-filter-cell button{height:32px;padding-inline:7px;font-size:12px}.expense-table-scroll::-webkit-scrollbar{width:13px;height:13px}.expense-table-scroll::-webkit-scrollbar-corner{background:#064638}.expense-table-scroll::-webkit-scrollbar-track{background:#064638;border:2px solid #0e6854;border-radius:14px}.expense-table-scroll::-webkit-scrollbar-thumb{background:linear-gradient(90deg,#facc15,#f59e0b);border:2px solid #064638;border-radius:14px;min-width:90px}.expense-table-scroll::-webkit-scrollbar-thumb:hover{background:#fde047}`}</style>
+            <table className="expense-compact-table text-[13px] leading-5 text-white">
               <thead className="bg-[#0A4537] text-gray-300">
                 <tr>
+                  <th className="p-3 text-center">التسجيل</th>
                   <th className="p-3 text-center">التاريخ</th>
                   <th className="p-3 text-center">رقم الفاتورة</th>
                   <th className="p-3 text-center">الفيلا</th>
@@ -1964,8 +2040,8 @@ ${error?.message ?? ""}`);
                   <th className="p-3 text-center">الإجراءات</th>
                 </tr>
                 <tr className="bg-[#083B31]">
-                  {(["date", "invoice", "villa", "stage", "account", "category", "item", "unit", "quantity", "specification"] as const).map((field) => (
-                    <th key={field} className="px-2 pb-3 pt-1">
+                  {(["registration", "date", "invoice", "villa", "stage", "account", "category", "item", "unit", "quantity", "specification"] as const).map((field) => (
+                    <th key={field} className="expense-filter-cell">
                       <ExpenseMultiFilter
                         field={field}
                         options={expenseTableOptions[field] ?? []}
@@ -1974,24 +2050,24 @@ ${error?.message ?? ""}`);
                       />
                     </th>
                   ))}
-                  <th className="px-2 pb-3 pt-1 text-xs text-emerald-200">حسب المبلغ أعلاه</th>
-                  <th className="px-2 pb-3 pt-1">
+                  <th className="expense-filter-cell text-xs text-emerald-200">حسب المبلغ أعلاه</th>
+                  <th className="expense-filter-cell">
                     <ExpenseMultiFilter field="attachment" options={["يوجد مرفق", "لا يوجد"]} selected={expenseTableFilters.attachment ?? []} onChange={(next) => setExpenseTableFilters((current) => ({ ...current, attachment: next }))} />
                   </th>
-                  <th className="px-2 pb-3 pt-1" />
+                  <th className="expense-filter-cell" />
                 </tr>
               </thead>
 
               <tbody className="divide-y divide-white/10">
                 {loadingProjectData ? (
                   <tr>
-                    <td colSpan={13} className="p-10 text-center text-gray-400">
+                    <td colSpan={14} className="p-10 text-center text-gray-400">
                       جاري تحميل المصروفات...
                     </td>
                   </tr>
                 ) : filteredExpenseRows.length === 0 ? (
                   <tr>
-                    <td colSpan={13} className="p-10 text-center text-gray-400">
+                    <td colSpan={14} className="p-10 text-center text-gray-400">
                       {expenseRows.length === 0 ? "لا توجد مصروفات لهذا المشروع حتى الآن." : "لا توجد مصروفات مطابقة للفلاتر المحددة."}
                     </td>
                   </tr>
@@ -1999,8 +2075,14 @@ ${error?.message ?? ""}`);
                   filteredExpenseRows.map((expense: any) => (
                     <tr
                       key={String(expense.id)}
-                      className="transition hover:bg-white/[0.03]"
+                      className={`transition hover:bg-white/[0.03] ${isAccountSettlementExpense(expense) ? "settlement-expense-row" : ""}`}
                     >
+                      <td className="p-2 text-center whitespace-nowrap">
+                        <div className="flex flex-col items-center gap-0.5">
+                          <span className="font-bold text-amber-200">{getExpenseRecorderName(expense)}</span>
+                          <span className="text-[11px] text-emerald-200/75" dir="ltr">{getExpenseRecordedAt(expense)}</span>
+                        </div>
+                      </td>
                       <td className="p-3 text-center text-gray-300">
                         {expense.expenseDate || "-"}
                       </td>
@@ -2017,7 +2099,13 @@ ${error?.message ?? ""}`);
                         {accountNameMap.get(Number(expense.accountId)) ?? "-"}
                       </td>
                       <td className="p-3 text-center">
-                        {categoryNameMap.get(Number(expense.categoryId)) ?? "-"}
+                        {isAccountSettlementExpense(expense) ? (
+                          <span className="inline-flex items-center justify-center gap-1 rounded-md border border-amber-300/60 bg-amber-300/15 px-2 py-1 font-bold text-amber-200 whitespace-nowrap">
+                            <WalletCards size={13} /> تسوية عهدة
+                          </span>
+                        ) : (
+                          categoryNameMap.get(Number(expense.categoryId)) ?? "-"
+                        )}
                       </td>
                       <td className="p-3 text-center whitespace-nowrap">
                         {itemNameMap.get(Number(expense.itemId)) ?? "-"}
@@ -2180,7 +2268,7 @@ ${error?.message ?? ""}`);
 
   return (
     <div
-      className="relative space-y-8 overflow-hidden rounded-3xl px-3 pb-10 pt-3 sm:px-5"
+      className="project-responsive relative min-w-0 space-y-5 overflow-x-hidden rounded-3xl px-2 pb-10 pt-3 sm:space-y-8 sm:px-5"
       style={{
         backgroundColor: "#062E26",
         backgroundImage: 'linear-gradient(135deg, rgba(3, 35, 29, .94), rgba(7, 67, 51, .92) 50%, rgba(3, 35, 29, .96)), url("/aqary-smart-logo.png")',
@@ -2190,6 +2278,51 @@ ${error?.message ?? ""}`);
       }}
     >
 
+      <style>{`
+        .project-responsive { width: 100%; max-width: 100%; container-type: inline-size; }
+        .project-responsive, .project-responsive * { box-sizing: border-box; }
+        .project-responsive > section, .project-responsive > div { min-width: 0; max-width: 100%; }
+        .project-responsive h1, .project-responsive h2, .project-responsive h3 { overflow-wrap: anywhere; }
+        .project-responsive button { max-width: 100%; }
+        .project-responsive input, .project-responsive select { max-width: 100%; }
+        .project-responsive .expense-table-scroll { width: 100%; -webkit-overflow-scrolling: touch; }
+        /* Breakpoints depend on the actual page area after the sidebar, not the browser width. */
+        .project-responsive .project-kpi-grid { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); }
+        .project-responsive .project-villa-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); }
+        .project-responsive .project-kpi-grid > *, .project-responsive .project-villa-grid > * { min-width:0; }
+        @container (max-width: 1250px) {
+          .project-responsive .project-kpi-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
+          .project-responsive .project-villa-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+        }
+        @container (max-width: 850px) {
+          .project-responsive .project-kpi-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+          .project-responsive .project-villa-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+          .project-responsive .project-header-inner { flex-wrap:wrap; gap:16px; }
+          .project-responsive .project-header-icon, .project-responsive .project-header-status { width:auto; flex:1 1 150px; }
+          .project-responsive .project-header-title { flex:1 1 100%; order:-1; }
+          .project-responsive .project-header-title h1 { font-size:clamp(1.5rem,4cqw,2.25rem); }
+        }
+        @container (max-width: 560px) {
+          .project-responsive .project-kpi-grid, .project-responsive .project-villa-grid { grid-template-columns:minmax(0,1fr); }
+          .project-responsive .project-header-icon > div { width:64px; height:64px; }
+          .project-responsive .project-header-icon svg { width:34px; height:34px; }
+          .project-responsive .project-header-status { justify-content:flex-end; }
+          .project-responsive .project-villas-heading { flex-wrap:wrap; gap:12px; }
+          .project-responsive .project-villas-heading > * { width:100%; justify-content:center; }
+          .project-responsive .project-villa-grid .villa-card-heading { padding:16px; }
+        }
+        @container (max-width: 800px) {
+          .project-responsive .project-cost-row { grid-template-columns: 36px minmax(0,1fr) !important; }
+          .project-responsive .project-cost-row > :nth-child(n+3) { grid-column: 2; }
+        }
+        @media (max-width: 640px) {
+          .project-responsive { border-radius: 12px; }
+          .project-responsive h2 { font-size: clamp(1.1rem, 4.5vw, 1.5rem); line-height: 1.4; }
+          .project-responsive .expense-table-scroll .expense-compact-table { min-width: 1040px; font-size: 12px; }
+          .project-responsive input[type=date] { min-width: 0; width: 100%; }
+          .project-responsive .project-cost-row { padding-inline: 12px; }
+        }
+      `}</style>
       {/* =====================================================
           PROJECT HEADER
       ===================================================== */}
@@ -2206,8 +2339,10 @@ ${error?.message ?? ""}`);
           from-[#0B4939]
           via-[#073B30]
           to-[#05291F]
-          px-8
-          py-8
+          px-3
+          py-5
+          sm:px-8
+          sm:py-8
           shadow-xl
         "
       >
@@ -2276,6 +2411,7 @@ ${error?.message ?? ""}`);
             relative
             z-10
             flex
+            project-header-inner
             min-h-[150px]
             items-center
             justify-between
@@ -2284,7 +2420,7 @@ ${error?.message ?? ""}`);
         >
 
           {/* RIGHT - PROJECT ICON */}
-          <div className="flex w-[220px] shrink-0 items-center">
+          <div className="project-header-icon flex w-[220px] shrink-0 items-center">
             <div
               className="
                 flex
@@ -2306,7 +2442,7 @@ ${error?.message ?? ""}`);
           </div>
 
           {/* CENTER - PROJECT NAME */}
-          <div className="flex-1 text-center">
+          <div className="project-header-title min-w-0 flex-1 text-center">
             <h1
               className="
                 text-4xl
@@ -2329,6 +2465,7 @@ ${error?.message ?? ""}`);
           <div
             className="
               flex
+              project-header-status
               w-[270px]
               shrink-0
               flex-col
@@ -2383,7 +2520,11 @@ ${error?.message ?? ""}`);
           <div
             className="
               w-fit
-              min-w-[420px]
+              max-w-full
+              min-w-0
+              w-full
+              sm:w-fit
+              sm:min-w-[420px]
               rounded-2xl
               border
               border-amber-400/30
@@ -2391,7 +2532,8 @@ ${error?.message ?? ""}`);
               from-[#0B4D3A]
               via-[#0A4033]
               to-[#063126]
-              px-10
+              px-4
+              sm:px-10
               py-4
               text-center
               shadow-xl
@@ -2409,7 +2551,7 @@ ${error?.message ?? ""}`);
         </div>
 
 
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-5">
+        <div className="project-kpi-grid gap-3 sm:gap-5">
 
           {/* 1 - CURRENT PRICE */}
           <ProjectKpi
@@ -2700,18 +2842,23 @@ ${error?.message ?? ""}`);
           <div
             className="
               w-fit
-              min-w-[560px]
+              max-w-full
+              min-w-0
+              w-full
+              sm:w-fit
+              sm:min-w-[560px]
               rounded-2xl
               border
               border-yellow-400/25
-              bg-[#171F2E]
-              px-8
+              bg-gradient-to-l from-[#0B4D3A] via-[#0A4033] to-[#063126]
+              px-3
+              sm:px-8
               py-4
               shadow-xl
               shadow-black/20
             "
           >
-            <div className="flex items-center justify-center gap-8">
+            <div className="project-villas-heading flex items-center justify-center gap-4 sm:gap-8">
 
               {/* عنوان الفلل */}
               <div className="text-center">
@@ -2757,7 +2904,7 @@ ${error?.message ?? ""}`);
 
 
         {/* 3 VILLAS PER ROW */}
-        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+        <div className="project-villa-grid gap-3 sm:gap-6">
 
           {loadingProjectData ? (
             <div className="col-span-full rounded-3xl border border-white/10 bg-white/5 px-6 py-10 text-center text-gray-300">
@@ -3931,8 +4078,8 @@ function VillaCard({
   onEdit,
 }: VillaCardProps) {
   return (
-    <div className="group flex min-h-[410px] flex-col overflow-hidden rounded-3xl border border-emerald-400/30 bg-gradient-to-br from-[#125443] via-[#0B3F34] to-[#052C25] shadow-[0_16px_38px_rgba(0,0,0,0.28)] transition-all duration-300 hover:-translate-y-1 hover:border-amber-300/65 hover:shadow-[0_22px_48px_rgba(0,0,0,0.38)]">
-      <div className="flex items-start justify-between border-b border-white/10 p-7">
+    <div className="group flex min-w-0 min-h-[350px] flex-col overflow-hidden rounded-3xl border border-emerald-400/30 bg-gradient-to-br from-[#125443] via-[#0B3F34] to-[#052C25] shadow-[0_16px_38px_rgba(0,0,0,0.28)] transition-all duration-300 hover:-translate-y-1 hover:border-amber-300/65 hover:shadow-[0_22px_48px_rgba(0,0,0,0.38)]">
+      <div className="villa-card-heading flex min-w-0 flex-wrap items-start justify-between gap-3 border-b border-white/10 p-4 sm:p-7">
         <div className="flex items-center gap-4">
           <div className="flex h-20 w-20 items-center justify-center rounded-2xl border border-yellow-400/20 bg-yellow-400/10 text-yellow-400 shadow-lg transition duration-300 group-hover:scale-105">
             <Home size={40} />
@@ -3948,7 +4095,7 @@ function VillaCard({
         </div>
       </div>
 
-      <div className="flex-1 px-7 py-7">
+      <div className="min-w-0 flex-1 px-4 py-5 sm:px-7 sm:py-7">
         <div className="grid grid-cols-2 gap-4">
           <VillaStatBox label="المساحة" value={`${Number(area ?? 0).toLocaleString("ar-SA")} م²`} />
           <VillaStatBox label="التصنيف" value={classification || "غير محدد"} />
