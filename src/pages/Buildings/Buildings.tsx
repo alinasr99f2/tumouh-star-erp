@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "../../utils/supabase";
 import { usePermissions } from "../../utils/permissions";
 import PermissionDeniedModal from "../../components/PermissionDeniedModal";
+import BuildingExcelImport from "./BuildingExcelImport";
 
 
 
@@ -45,6 +46,7 @@ import {
   Archive,
 
   RotateCcw,
+  FileSpreadsheet,
 
 } from "lucide-react";
 
@@ -160,6 +162,7 @@ const [showArchived, setShowArchived] = useState(false);
 
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
 
   const [newBuildingName, setNewBuildingName] = useState("");
 
@@ -1295,6 +1298,12 @@ console.log("BUILDING CREATED:", building);
             )}
 
 
+
+            {(canAddBuildings || canEditBuildings) && (
+              <button type="button" onClick={() => setIsImportOpen(true)} className="flex items-center gap-2 rounded-2xl border border-amber-400/60 bg-[#0A4737] px-6 py-3 font-bold text-amber-200 transition hover:bg-[#125A46]">
+                <FileSpreadsheet size={19} /> استيراد Excel
+              </button>
+            )}
 
             <button
 
@@ -3428,6 +3437,7 @@ console.log("BUILDING CREATED:", building);
 
       )}
 
+      {isImportOpen && <BuildingExcelImport buildings={buildings.map(b => ({id:b.id,name:b.name,units:b.units}))} onClose={() => setIsImportOpen(false)} onComplete={(id: number) => { setIsImportOpen(false); navigate(`/buildings/${id}`); }} />}
       <PermissionDeniedModal
         open={permissionMessage !== null}
         message={permissionMessage ?? "عذرًا، غير مسموح للمستخدم الحالي بهذا الإجراء."}

@@ -51,6 +51,8 @@ type Apartment = {
 };
 
 type ApartmentExtraInfo = {
+  propertyType?: string;
+  propertyTypeOptions?: string[];
   floor: string;
   parking: "متوفر" | "لا يوجد" | "غير محدد";
   electricityMeter: "مشترك" | "فردي";
@@ -455,6 +457,7 @@ export default function ApartmentMap() {
 
   // مزامنة بيانات العمارة مع Supabase حتى تظهر نفس البيانات على أي جهاز.
   const remoteStateHydratedRef = useRef(false);
+  const skipHydrationAutosaveRef = useRef(true);
   const [chargeSyncVersion, setChargeSyncVersion] = useState(0);
   const [buildingRefreshVersion, setBuildingRefreshVersion] = useState(0);
   const [isRefreshingMap, setIsRefreshingMap] = useState(false);
@@ -567,6 +570,7 @@ export default function ApartmentMap() {
   useEffect(() => {
     let cancelled = false;
     remoteStateHydratedRef.current = false;
+    skipHydrationAutosaveRef.current = true;
 
     const loadBuildingStateFromSupabase = async () => {
       const buildingId = getCurrentBuildingId();
@@ -806,6 +810,11 @@ export default function ApartmentMap() {
     if (!remoteStateHydratedRef.current) {
       return;
     }
+    // Loading server data is not a user edit: never overwrite imported records on page entry.
+    if (skipHydrationAutosaveRef.current) {
+      skipHydrationAutosaveRef.current = false;
+      return;
+    }
 
     const timeoutId = window.setTimeout(() => {
       void saveBuildingStateToSupabase().catch((error) => {
@@ -828,7 +837,6 @@ export default function ApartmentMap() {
     apartmentExtraInfo,
     apartmentTenantInfo,
     apartmentContractInfo,
-    chargeSyncVersion,
     canEditApartments,
   ]);
 
@@ -1054,6 +1062,37 @@ export default function ApartmentMap() {
       apartmentExtraInfo[apartmentNumber] ??
       DEFAULT_APARTMENT_EXTRA_INFO
     );
+  };
+
+  // الأنواع محفوظة ضمن apartment_extra_info في building_state؛ لا يلزم تعديل SQL.
+  const availablePropertyTypes = Array.from(new Set([
+    "عوائل",
+    "أفراد - عزاب",
+    ...(apartmentExtraInfo.__property_type_settings__?.propertyTypeOptions ?? []),
+    ...Object.entries(apartmentExtraInfo)
+      .filter(([key]) => key !== "__property_type_settings__")
+      .map(([, info]) => info.propertyType ?? "")
+      .filter(Boolean),
+  ]));
+
+  const addPropertyType = (apartmentNumber: string) => {
+    if (!canEditApartments) { showPermissionDenied(); return; }
+    const newType = window.prompt("اكتب نوع العقار الجديد:")?.trim();
+    if (!newType) return;
+    setApartmentExtraInfo((current) => {
+      const options = current.__property_type_settings__?.propertyTypeOptions ?? [];
+      return {
+        ...current,
+        __property_type_settings__: {
+          ...DEFAULT_APARTMENT_EXTRA_INFO,
+          propertyTypeOptions: Array.from(new Set([...options, newType])),
+        },
+        [apartmentNumber]: {
+          ...(current[apartmentNumber] ?? DEFAULT_APARTMENT_EXTRA_INFO),
+          propertyType: newType,
+        },
+      };
+    });
   };
 
   const getApartmentTenantInfo = (
@@ -5886,6 +5925,37 @@ export default function ApartmentMap() {
                             className="hidden"
                           >
                             حفظ
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* نوع العقار: مستقل عن نوع الشقة (عدد الغرف) */}
+                      <div className="flex min-h-[68px] items-center justify-between gap-5 rounded-2xl border border-white/5 bg-[#061a2d] px-5 py-4">
+                        <span className="flex shrink-0 items-center gap-2 text-lg font-bold text-gray-200">
+                          <Users size={16} />
+                          نوع العقار
+                        </span>
+                        <div className="flex min-w-0 items-center gap-2">
+                          <select
+                            value={getApartmentExtraInfo(selectedApartment.number).propertyType ?? ""}
+                            onChange={(event) => updateApartmentExtraInfo(selectedApartment.number, "propertyType", event.target.value)}
+                            disabled={!canEditApartments}
+                            className="min-w-[150px] max-w-[200px] rounded-xl border border-white/10 bg-[#0b2039] px-3 py-2.5 text-base font-bold text-white outline-none transition focus:border-[#f0ad18]/60"
+                          >
+                            <option value="">غير محدد</option>
+                            {availablePropertyTypes.map((type) => (
+                              <option key={type} value={type}>{type}</option>
+                            ))}
+                          </select>
+                          <button
+                            type="button"
+                            title="إضافة نوع عقار جديد"
+                            aria-label="إضافة نوع عقار جديد"
+                            disabled={!canEditApartments}
+                            onClick={() => addPropertyType(selectedApartment.number)}
+                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-amber-400/40 bg-amber-400/10 text-amber-300 transition hover:bg-amber-400/20 disabled:opacity-40"
+                          >
+                            <Plus size={19} />
                           </button>
                         </div>
                       </div>
