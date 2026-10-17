@@ -8,6 +8,11 @@ import {
   ChevronLeft,
   Building2,
   WalletCards,
+  LayoutGrid,
+  BedDouble,
+  House,
+  Store,
+  MapPin,
 } from "lucide-react";
 
 import { sidebarMenu } from "../../data/menu";
@@ -41,6 +46,15 @@ function Sidebar({ onLogout }: SidebarProps) {
       location.pathname.startsWith("/buildings/")
     );
   });
+
+  const isUnitsRoute = (path: string) =>
+    path === "/apartments-hub" || path === "/apartments" ||
+    path.startsWith("/apartments/") ||
+    ["/rooms", "/houses", "/commercial-shops", "/real-estate-lands"].some(
+      (route) => path === route || path.startsWith(`${route}/`)
+    );
+
+  const [unitsOpen, setUnitsOpen] = useState(() => isUnitsRoute(location.pathname));
 
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -156,6 +170,18 @@ function Sidebar({ onLogout }: SidebarProps) {
     }
   }, [location.pathname]);
 
+  useEffect(() => {
+    if (isUnitsRoute(location.pathname)) setUnitsOpen(true);
+  }, [location.pathname]);
+
+  const unitSections = [
+    { title: "الشقق المتاحة / المؤجرة", path: "/apartments", icon: LayoutGrid, available: true },
+    { title: "الغرف", path: "/rooms", icon: BedDouble, available: false },
+    { title: "المنازل", path: "/houses", icon: House, available: false },
+    { title: "المحلات التجارية", path: "/commercial-shops", icon: Store, available: false },
+    { title: "الأراضي العقارية", path: "/real-estate-lands", icon: MapPin, available: false },
+  ];
+
   const handleMobileNavigate = () => {
     setMobileOpen(false);
   };
@@ -239,7 +265,7 @@ function Sidebar({ onLogout }: SidebarProps) {
           shrink-0
           flex-col
           overflow-hidden
-          bg-[#668C7A]
+          bg-[#356B57]
           text-white
           border-l
           border-[#C49A3A]/35
@@ -300,7 +326,7 @@ function Sidebar({ onLogout }: SidebarProps) {
             lg:pt-3
             border-b
             border-[#C49A3A]/40
-            bg-[#668C7A]
+            bg-[#356B57]
             shadow-[0_4px_18px_rgba(0,0,0,0.15)]
           "
         >
@@ -445,10 +471,15 @@ function Sidebar({ onLogout }: SidebarProps) {
               .map((item) => {
               const isProjects = item.title === "المشاريع";
               const isBuildings = item.title === "العمائر";
+              const isUnits = item.path === "/apartments-hub" ||
+                item.title === "الشقق المؤجرة / الفارغة" ||
+                item.title === "الشقق المتاحة / المؤجرة" ||
+                item.title === "إدارة الوحدات العقارية";
+              const menuPath = isUnits ? "/apartments-hub" : item.path;
 
               return (
                 <div
-                  key={item.title}
+                  key={isUnits ? "إدارة الوحدات العقارية" : item.title}
                   className="space-y-2"
                 >
                   {/* ================================================= */}
@@ -457,9 +488,9 @@ function Sidebar({ onLogout }: SidebarProps) {
 
                   <div className="relative">
                     <NavLink
-                      to={item.path}
+                      to={menuPath}
                       onClick={handleMobileNavigate}
-                      end={item.path === "/"}
+                      end={menuPath === "/"}
                       className={({ isActive }) =>
                         `
                         group
@@ -507,7 +538,7 @@ function Sidebar({ onLogout }: SidebarProps) {
                               hover:shadow-black/10
                             `
                         }
-                        ${isProjects || isBuildings ? "pl-14" : ""}
+                        ${isProjects || isBuildings || isUnits ? "pl-14" : ""}
                       `
                       }
                     >
@@ -524,7 +555,7 @@ function Sidebar({ onLogout }: SidebarProps) {
                       />
 
                       <span className="flex-1 text-[16px] leading-6">
-                        {item.title}
+                        {isUnits ? "إدارة الوحدات العقارية" : item.title}
                       </span>
                     </NavLink>
 
@@ -532,7 +563,7 @@ function Sidebar({ onLogout }: SidebarProps) {
                     {/* Section Arrow */}
                     {/* ================================================= */}
 
-                    {(isProjects || isBuildings) && (
+                    {(isProjects || isBuildings || isUnits) && (
                       <button
                         type="button"
                         onClick={(event) => {
@@ -540,20 +571,20 @@ function Sidebar({ onLogout }: SidebarProps) {
                           event.stopPropagation();
                           if (isProjects) {
                             toggleProjects();
-                          } else {
+                          } else if (isBuildings) {
                             toggleBuildings();
+                          } else if (isUnits) {
+                            setUnitsOpen((previous) => !previous);
                           }
                         }}
                         aria-label={
                           isProjects
-                            ? projectsOpen
-                              ? "إخفاء المشاريع"
-                              : "إظهار المشاريع"
-                            : buildingsOpen
-                            ? "إخفاء العمائر"
-                            : "إظهار العمائر"
+                            ? projectsOpen ? "إخفاء المشاريع" : "إظهار المشاريع"
+                            : isBuildings
+                            ? buildingsOpen ? "إخفاء العمائر" : "إظهار العمائر"
+                            : unitsOpen ? "إخفاء أقسام الوحدات العقارية" : "إظهار أقسام الوحدات العقارية"
                         }
-                        aria-expanded={isProjects ? projectsOpen : buildingsOpen}
+                        aria-expanded={isProjects ? projectsOpen : isBuildings ? buildingsOpen : unitsOpen}
                         className="
                           absolute
                           left-2
@@ -577,7 +608,7 @@ function Sidebar({ onLogout }: SidebarProps) {
                           cursor-pointer
                         "
                       >
-                        {(isProjects ? projectsOpen : buildingsOpen) ? (
+                        {(isProjects ? projectsOpen : isBuildings ? buildingsOpen : unitsOpen) ? (
                           <ChevronDown
                             size={20}
                             strokeWidth={2.2}
@@ -595,6 +626,34 @@ function Sidebar({ onLogout }: SidebarProps) {
                   {/* ================================================= */}
                   {/* Projects Submenu */}
                   {/* ================================================= */}
+
+                   {/* ================================================= */}
+                   {/* Real estate units submenu */}
+                   {/* ================================================= */}
+                   {isUnits && unitsOpen && (
+                     <div className="mr-5 ml-2 space-y-2 border-r border-white/25 pr-3">
+                       {unitSections.map((section) => {
+                         const Icon = section.icon;
+                         return section.available ? (
+                           <NavLink
+                             key={section.path}
+                             to={section.path}
+                             onClick={handleMobileNavigate}
+                             className={({ isActive }) => `group flex min-h-[48px] items-center gap-3 rounded-xl border px-4 py-3 text-sm transition-all duration-300 ${isActive ? "border-[#D4AD4D] bg-gradient-to-r from-[#145B46] to-[#073529] font-bold text-[#F6D878] shadow-md" : "border-transparent text-white/90 hover:border-[#C49A3A]/35 hover:bg-black/[0.10] hover:text-white"}`}
+                           >
+                             <Icon size={19} className="shrink-0" />
+                             <span>{section.title}</span>
+                           </NavLink>
+                         ) : (
+                           <div key={section.path} className="flex min-h-[48px] items-center gap-3 rounded-xl border border-transparent px-4 py-3 text-sm text-white/75" title="سيتم تفعيل الصفحة عند تجهيزها">
+                             <Icon size={19} className="shrink-0" />
+                             <span>{section.title}</span>
+                             <span className="mr-auto whitespace-nowrap text-[10px] text-[#F6D878]">قريبًا</span>
+                           </div>
+                         );
+                       })}
+                     </div>
+                   )}
 
                   {isProjects && projectsOpen && (
                     <div

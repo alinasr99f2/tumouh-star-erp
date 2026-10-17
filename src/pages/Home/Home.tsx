@@ -130,11 +130,11 @@ export default function Home() {
     },
     
     {
-      title: "الشقق المتاحة / المؤجرة",
+      title: "إدارة الوحدات العقارية",
       description:
-        "إدارة الشقق المستقلة ومتابعة الشقق المتاحة والمؤجرة وتفاصيلها",
+        "المؤجرة / الفارغة",
       icon: LayoutGrid,
-      path: "/apartments",
+      path: "/apartments-hub",
       color: "green",
     },
     {

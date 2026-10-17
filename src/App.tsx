@@ -32,6 +32,7 @@ import FinancialCenter from "./pages/FinancialCenter/FinancialCenter";
 
 import ContactUs from "./pages/Contact/ContactUs";
 import Apartments from "./pages/Apartments/Apartments";
+import ApartmentsHub from "./pages/Apartments/ApartmentsHub";
 import ActivityLog from "./pages/ActivityLog/ActivityLog";
 function ProtectedRoute() {
   const DEV_MODE = import.meta.env.DEV && import.meta.env.VITE_DEV_MODE === "true";
@@ -255,6 +256,7 @@ function App() {
                 الشقق المتاحة / المؤجرة
             ========================================= */}
             <Route element={<PermissionRoute permission="apartments_view" />}>
+              <Route path="/apartments-hub" element={<ApartmentsHub />} />
               <Route path="/apartments" element={<Apartments />} />
             </Route>
 
