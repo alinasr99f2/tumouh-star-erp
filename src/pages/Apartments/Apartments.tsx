@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../utils/supabase";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   Building2,
   Home,
+  Map,
+  UserRoundCheck,
   Plus,
   Search,
   SlidersHorizontal,
@@ -80,6 +83,8 @@ type Apartment = {
   status: ApartmentStatus;
   tenant?: string;
   notes?: string;
+  ownerId?: string | null;
+  archivedAt?: string | null;
 };
 
 const RESIDENTIAL_COMPANY_ID = "61bed49c-bc21-476a-865b-1d28db791ad2";
@@ -90,7 +95,7 @@ type ResidentialRow = {
   area_sqm: number | null; apartment_type: string | null;
   apartment_status: string; region: string | null; city: string | null;
   district_street: string | null; nearest_landmark: string | null;
-  notes: string | null;
+  notes: string | null; owner_id: string | null; archived_at: string | null;
 };
 
 function fromResidentialRow(row: ResidentialRow): Apartment {
@@ -106,7 +111,7 @@ function fromResidentialRow(row: ResidentialRow): Apartment {
     type: row.apartment_type ?? "غير محدد", status: row.apartment_status,
     region, city, district, landmark: row.nearest_landmark ?? "",
     location: [region, city, district].filter(Boolean).join(" - ") || "غير محدد",
-    notes: row.notes ?? "",
+    notes: row.notes ?? "", ownerId: row.owner_id, archivedAt: row.archived_at,
   };
 }
 
@@ -145,11 +150,15 @@ function CardIllustration({ kind }: { kind: ArtKind }) {
 }
 
 export default function Apartments() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [apartments, setApartments] = useState<Apartment[]>(initialApartments);
   const [loadingApartments, setLoadingApartments] = useState(true);
   const [savingApartment, setSavingApartment] = useState(false);
   const [canWrite, setCanWrite] = useState(false);
   const [loadError, setLoadError] = useState("");
+  const [refreshingData, setRefreshingData] = useState(false);
+  const [refreshNotice, setRefreshNotice] = useState("");
 
   const loadResidentialApartments = async () => {
     setLoadingApartments(true);
@@ -158,7 +167,7 @@ export default function Apartments() {
     if (authError || !auth.user) {
       setApartments([]); setCanWrite(false);
       setLoadError("يجب تسجيل الدخول بحساب مصرح له لعرض الشقق السكنية.");
-      setLoadingApartments(false); return;
+      setLoadingApartments(false); return false;
     }
     const { data: membership, error: membershipError } = await supabase
       .from("residential_company_users").select("role")
@@ -166,15 +175,16 @@ export default function Apartments() {
     if (membershipError || !membership) {
       setApartments([]); setCanWrite(false);
       setLoadError(membershipError?.message ?? "حسابك غير مرتبط بشركة طموح ستار في نظام الشقق السكنية.");
-      setLoadingApartments(false); return;
+      setLoadingApartments(false); return false;
     }
     setCanWrite(membership.role === "owner");
     const { data, error } = await supabase.from("residential_apartments")
-      .select("id,apartment_number,building_name,rooms_count,rent_amount,rent_period,area_sqm,apartment_type,apartment_status,region,city,district_street,nearest_landmark,notes")
+      .select("id,apartment_number,building_name,rooms_count,rent_amount,rent_period,area_sqm,apartment_type,apartment_status,region,city,district_street,nearest_landmark,notes,owner_id,archived_at")
       .eq("company_id", RESIDENTIAL_COMPANY_ID).order("created_at", { ascending: false });
-    if (error) { setApartments([]); setLoadError(`تعذر تحميل الشقق: ${error.message}`); }
+    if (error) { setLoadError(`تعذر تحميل الشقق: ${error.message}`); }
     else setApartments(((data ?? []) as ResidentialRow[]).map(fromResidentialRow));
     setLoadingApartments(false);
+    return !error;
   };
 
   useEffect(() => { void loadResidentialApartments(); }, []);
@@ -215,6 +225,33 @@ export default function Apartments() {
   type ResidentialTenant = { id: string; full_name: string; phone: string | null; identity_number: string | null; nationality: string | null; email: string | null; notes: string | null };
   const [tenants, setTenants] = useState<ResidentialTenant[]>([]);
   const [tenantModal, setTenantModal] = useState(false);
+  const [bookingModal, setBookingModal] = useState(false);
+  const [bookingBusy, setBookingBusy] = useState(false);
+  const [bookingError, setBookingError] = useState("");
+  const [bookingTenantAfterCreate, setBookingTenantAfterCreate] = useState(false);
+  const [bookingForm, setBookingForm] = useState({ apartment_id: "", tenant_id: "", start_date: "", end_date: "", total_amount: "", paid_amount: "0", payment_method: "نقدي", booking_status: "confirmed", notes: "" });
+  const openBooking = () => { setBookingError(""); setBookingForm({apartment_id:"",tenant_id:"",start_date:"",end_date:"",total_amount:"",paid_amount:"0",payment_method:"نقدي",booking_status:"confirmed",notes:""});setBookingModal(true);void loadResidentialTenants(); };
+  const saveBooking = async () => {
+    if (bookingBusy) return;
+    if (!canWrite) { setBookingError("ليس لديك صلاحية إنشاء الحجوزات."); return; }
+    if (!bookingForm.apartment_id || !bookingForm.tenant_id || !bookingForm.start_date || !bookingForm.end_date) { setBookingError("اختر الشقة والمستأجر وتاريخ البداية والنهاية."); return; }
+    if (bookingForm.end_date <= bookingForm.start_date) { setBookingError("تاريخ النهاية يجب أن يكون بعد تاريخ البداية."); return; }
+    const total = Number(bookingForm.total_amount), paid = Number(bookingForm.paid_amount);
+    if (!Number.isFinite(total) || total <= 0 || !Number.isFinite(paid) || paid < 0 || paid > total) { setBookingError("تحقق من قيمة الإيجار والمدفوع؛ يجب ألا يتجاوز المدفوع الإجمالي."); return; }
+    setBookingBusy(true);setBookingError("");
+    const {data,error} = await supabase.rpc("create_residential_booking", {
+      p_company_id: RESIDENTIAL_COMPANY_ID, p_apartment_id: bookingForm.apartment_id,
+      p_tenant_id: bookingForm.tenant_id, p_start_date: bookingForm.start_date,
+      p_end_date: bookingForm.end_date, p_total_amount: total, p_paid_amount: paid,
+      p_payment_method: bookingForm.payment_method, p_booking_status: bookingForm.booking_status,
+      p_notes: bookingForm.notes.trim() || null,
+    });
+    setBookingBusy(false);
+    if (error) { setBookingError(`تعذر حفظ الحجز: ${error.message}`); return; }
+    setBookingModal(false);
+    await loadResidentialApartments();
+    setActionNotice(`تم حفظ الحجز بنجاح. رقم الحجز: ${String(data ?? "")} — المدفوع ${paid.toLocaleString("ar-SA")} ر.س، والمتبقي ${(total-paid).toLocaleString("ar-SA")} ر.س`);
+  };
   const [nationalities, setNationalities] = useState<string[]>(["سعودي", "مصري", "يمني", "سوداني", "سوري", "أردني", "باكستاني", "هندي", "فلبيني"]);
   const [nationalityEditor, setNationalityEditor] = useState(false);
   const [newNationality, setNewNationality] = useState("");
@@ -263,26 +300,66 @@ export default function Apartments() {
       setTenantError("البريد الإلكتروني غير صحيح."); return;
     }
     setSavingTenant(true); setTenantError("");
-    const { error } = await supabase.from("residential_tenants").insert({
+    const { data: createdTenant, error } = await supabase.from("residential_tenants").insert({
       company_id: RESIDENTIAL_COMPANY_ID, full_name,
       phone: tenantForm.phone.trim() || null,
       identity_number: tenantForm.identity_number.trim() || null,
       nationality: tenantForm.nationality.trim() || null,
       email: tenantForm.email.trim() || null,
       notes: tenantForm.notes.trim() || null,
-    });
+    }).select("id").single();
     setSavingTenant(false);
     if (error) { setTenantError(`تعذر حفظ العميل: ${error.message}`); return; }
     setTenantModal(false);
+    if (bookingTenantAfterCreate && createdTenant?.id) { setBookingForm(prev=>({...prev,tenant_id:createdTenant.id}));setBookingTenantAfterCreate(false); }
     setTenantForm({ full_name: "", phone: "", identity_number: "", nationality: "", email: "", notes: "" });
     await loadResidentialTenants();
     setActionNotice("تم تسجيل العميل الجديد بنجاح.");
   };
 
+  type PropertyOwner = { id: string; full_name: string; mobile: string | null; phone: string | null; email: string | null; nationality: string | null; identity_number: string | null };
+  const emptyOwnerForm = { full_name: "", mobile: "", phone: "", email: "", nationality: "", identity_number: "" };
+  const [owners, setOwners] = useState<PropertyOwner[]>([]);
+  const [ownerId, setOwnerId] = useState("");
+  const [ownerMode, setOwnerMode] = useState<"existing" | "new">("new");
+  const [ownerForm, setOwnerForm] = useState(emptyOwnerForm);
+  const [apartmentTab, setApartmentTab] = useState<"apartment" | "owner">("apartment");
+  const [ownersError, setOwnersError] = useState("");
+  const loadOwners = async () => {
+    const { data, error } = await supabase.from("property_owners")
+      .select("id,full_name,mobile,phone,email,nationality,identity_number")
+      .eq("company_id", RESIDENTIAL_COMPANY_ID).order("full_name");
+    if (error) { setOwnersError(`تعذر تحميل الملاك: ${error.message}. نفّذ ملف SQL المرفق أولًا.`); return; }
+    setOwners((data ?? []) as PropertyOwner[]); setOwnersError("");
+  };
+  useEffect(() => { void loadOwners(); }, []);
+
+  const refreshPageData = async () => {
+    if (refreshingData) return;
+    setRefreshingData(true);
+    setRefreshNotice("");
+    try {
+      // Fetch fresh records from Supabase; preserve current search and filters.
+      const succeeded = await loadResidentialApartments();
+      if (!succeeded) return;
+      await Promise.all([loadResidentialTenants(), loadOwners(), loadNationalities()]);
+      setRefreshNotice("تم تحديث بيانات الشقق بنجاح");
+    } catch (error) {
+      setLoadError(`تعذر تحديث البيانات: ${error instanceof Error ? error.message : "خطأ غير متوقع"}`);
+    } finally {
+      setRefreshingData(false);
+    }
+  };
+  useEffect(() => {
+    if (!refreshNotice) return;
+    const timeout = window.setTimeout(() => setRefreshNotice(""), 5000);
+    return () => window.clearTimeout(timeout);
+  }, [refreshNotice]);
+
   const [search, setSearch] = useState("");
   const [detailCategory, setDetailCategory] = useState<string | null>(null);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
-  const isSaveSuccess = actionNotice?.startsWith("تم حفظ بيانات الشقة في Supabase بنجاح") || actionNotice === "تم تسجيل العميل الجديد بنجاح.";
+  const isSaveSuccess = actionNotice?.startsWith("تم حفظ بيانات الشقة في Supabase بنجاح") || actionNotice === "تم تسجيل العميل الجديد بنجاح." || actionNotice?.startsWith("تمت أرشفة") || actionNotice?.startsWith("تم استرجاع");
   useEffect(() => {
     if (!isSaveSuccess) return;
     const timeout = window.setTimeout(() => setActionNotice(null), 5000);
@@ -300,8 +377,53 @@ export default function Apartments() {
     setOperationType("كهرباء"); setOperationAmount(""); setOperationNotes("");
     setOperationApartments([]); setOperationSearch(""); setOperationModal(kind);
   };
+  useEffect(() => {
+    const request = (location.state as { residentialFinancialAction?: { kind?: string; apartmentId?: string; apartmentNumber?: string } } | null)?.residentialFinancialAction;
+    if (!request || loadingApartments) return;
+    const selected = apartments.find(a => a.id === request.apartmentId && !a.archivedAt);
+    if (selected && (request.kind === "charge" || request.kind === "collectCharge")) {
+      setOperationType("كهرباء"); setOperationAmount(""); setOperationNotes("");
+      setOperationApartments([selected.number]); setOperationSearch(selected.number);
+      setOperationModal(request.kind);
+    } else {
+      setActionNotice("تعذر تحديد الشقة المطلوبة للعملية؛ تأكد من وجود الشقة وصلاحية الوصول إليها.");
+    }
+    navigate(location.pathname, { replace: true, state: null });
+  }, [location.state, location.pathname, loadingApartments, apartments, navigate]);
   const [archivePicker, setArchivePicker] = useState(false);
-  const [archivedIds, setArchivedIds] = useState<string[]>([]);
+  const [archiveSelection, setArchiveSelection] = useState<string[]>([]);
+  const [archiveSearch, setArchiveSearch] = useState("");
+  const [archiveView, setArchiveView] = useState<"active" | "archived">("active");
+  const [archiveBusy, setArchiveBusy] = useState(false);
+  const [archiveConfirm, setArchiveConfirm] = useState(false);
+  const archiveCandidates = apartments.filter(a => Boolean(a.archivedAt) === (archiveView === "archived") &&
+    [a.number, a.buildingName ?? "", a.type, a.location].some(value => value.toLocaleLowerCase("ar").includes(archiveSearch.trim().toLocaleLowerCase("ar"))));
+  const openArchivePicker = (id?: string) => {
+    setArchiveView("active"); setArchiveSearch(""); setArchiveSelection(id ? [id] : []);
+    setArchiveConfirm(false); setArchivePicker(true);
+  };
+  const switchArchiveView = (view: "active" | "archived") => {
+    setArchiveView(view); setArchiveSelection([]); setArchiveSearch(""); setArchiveConfirm(false);
+  };
+  const applyArchive = async () => {
+    if (archiveBusy || !archiveSelection.length || !canWrite) return;
+    if (archiveView === "active" && !archiveConfirm) { setArchiveConfirm(true); return; }
+    setArchiveBusy(true);
+    const ids = [...archiveSelection];
+    const { data, error } = await supabase.from("residential_apartments")
+      .update({ archived_at: archiveView === "active" ? new Date().toISOString() : null, updated_at: new Date().toISOString() })
+      .eq("company_id", RESIDENTIAL_COMPANY_ID).in("id", ids)
+      .select("id");
+    setArchiveBusy(false);
+    if (error || (data?.length ?? 0) !== ids.length) {
+      setActionNotice(`تعذر ${archiveView === "active" ? "أرشفة" : "استرجاع"} الشقق: ${error?.message ?? "لم يتم تحديث جميع الشقق؛ تحقق من الصلاحيات وحالة البيانات"}`);
+      return;
+    }
+    setArchivePicker(false); setArchiveConfirm(false); setArchiveSelection([]);
+    if (selectedApartment && ids.includes(selectedApartment.id)) setSelectedApartment(null);
+    await loadResidentialApartments();
+    setActionNotice(archiveView === "active" ? `تمت أرشفة ${ids.length} شقة بنجاح.` : `تم استرجاع ${ids.length} شقة بنجاح.`);
+  };
   const [statusFilter, setStatusFilter] = useState<"الكل" | ApartmentStatus>(
     "الكل"
   );
@@ -343,7 +465,7 @@ export default function Apartments() {
     const query = search.trim().toLowerCase();
 
     return apartments.filter((apartment) => {
-      if (archivedIds.includes(apartment.id)) return false;
+      if (apartment.archivedAt) return false;
       const matchesSearch =
         !query ||
         apartment.number.toLowerCase().includes(query) ||
@@ -359,9 +481,9 @@ export default function Apartments() {
 
       return matchesSearch && matchesStatus && matchesType;
     });
-  }, [apartments, archivedIds, search, statusFilter, typeFilter]);
+  }, [apartments, search, statusFilter, typeFilter]);
 
-  const activeApartments = apartments.filter((item) => !archivedIds.includes(item.id));
+  const activeApartments = apartments.filter((item) => !item.archivedAt);
   const availableCount = activeApartments.filter(
     (item) => item.status === "متاحة"
   ).length;
@@ -390,15 +512,19 @@ export default function Apartments() {
       notes: "",
     });
     setEditingApartment(null);
+    setApartmentTab("apartment"); setOwnerMode("new"); setOwnerId(""); setOwnerForm(emptyOwnerForm);
   };
 
   const openAddModal = () => {
     resetForm();
-    setShowModal(true);
+    setShowModal(true); void loadOwners();
   };
 
   const openEditModal = (apartment: Apartment) => {
     setEditingApartment(apartment);
+    setApartmentTab("apartment"); setOwnerId(apartment.ownerId ?? "");
+    setOwnerMode(apartment.ownerId ? "existing" : "new"); setOwnerForm(emptyOwnerForm);
+    void loadOwners();
     setForm({
       number: apartment.number,
       type: apartment.type,
@@ -431,9 +557,36 @@ export default function Apartments() {
         !Number.isInteger(rooms) || rooms < 0) {
       setActionNotice("تأكد من رقم الشقة والمساحة والإيجار وعدد الغرف؛ القيم يجب أن تكون صحيحة."); return;
     }
+    if (ownerMode === "new" && ownerForm.full_name.trim() === "" && Object.values(ownerForm).some(v => v.trim())) {
+      setApartmentTab("owner"); setActionNotice("أدخل اسم المالك لإكمال بياناته."); return;
+    }
+    if (ownerMode === "existing" && ownerId && !owners.some(o => o.id === ownerId)) {
+      setApartmentTab("owner"); setActionNotice("اختر مالكًا مسجلًا صحيحًا."); return;
+    }
+    if (ownerMode === "new" && ownerForm.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ownerForm.email.trim())) {
+      setApartmentTab("owner"); setActionNotice("البريد الإلكتروني للمالك غير صحيح."); return;
+    }
     setSavingApartment(true);
+    let linkedOwnerId: string | null = ownerMode === "existing" ? (ownerId || null) : null;
+    if (ownerMode === "new" && ownerForm.full_name.trim()) {
+      const { data: savedOwner, error: ownerSaveError } = await supabase.from("property_owners")
+        .insert({ company_id: RESIDENTIAL_COMPANY_ID,
+          full_name: ownerForm.full_name.trim(), mobile: ownerForm.mobile.trim() || null,
+          phone: ownerForm.phone.trim() || null, email: ownerForm.email.trim() || null,
+          nationality: ownerForm.nationality.trim() || null,
+          identity_number: ownerForm.identity_number.trim() || null })
+        .select("id").single();
+      if (ownerSaveError || !savedOwner) {
+        setSavingApartment(false); setApartmentTab("owner");
+        setActionNotice(`تعذر حفظ المالك: ${ownerSaveError?.message ?? "خطأ غير معروف"}`); return;
+      }
+      linkedOwnerId = savedOwner.id;
+      setOwnerId(savedOwner.id); setOwnerMode("existing");
+      await loadOwners();
+    }
     const payload = {
       company_id: RESIDENTIAL_COMPANY_ID,
+      owner_id: linkedOwnerId,
       apartment_number: number,
       building_name: form.buildingName.trim() || null,
       rooms_count: rooms,
@@ -464,20 +617,9 @@ export default function Apartments() {
     setActionNotice("تم حفظ بيانات الشقة في Supabase بنجاح. بيانات المستأجر والعقد تُسجل من وحدتها المستقلة لاحقًا.");
   };
 
-  const handleDelete = async (id: string) => {
-    if (!canWrite) { setActionNotice("ليس لديك صلاحية حذف الشقق."); return; }
-    const apartment = apartments.find((item) => item.id === id);
-    if (!apartment || !window.confirm(`هل أنت متأكد من حذف ${apartment.number}؟`)) return;
-    const { data, error } = await supabase.from("residential_apartments")
-      .delete().eq("id", id).eq("company_id", RESIDENTIAL_COMPANY_ID)
-      .select("id").maybeSingle();
-    if (error || !data) {
-      setActionNotice(`تعذر حذف الشقة: ${error?.message ?? "لم يتم تأكيد الحذف، وقد تكون الشقة مرتبطة بعقد"}`); return;
-    }
-    setArchivedIds((current) => current.filter((item) => item !== id));
-    if (selectedApartment?.id === id) setSelectedApartment(null);
-    await loadResidentialApartments();
-    setActionNotice("تم حذف الشقة من قاعدة البيانات.");
+  const handleDelete = (id: string) => {
+    if (!canWrite) { setActionNotice("ليس لديك صلاحية أرشفة الشقق."); return; }
+    openArchivePicker(id);
   };
 
   return (
@@ -493,11 +635,12 @@ export default function Apartments() {
             <div className="mb-3 grid h-16 w-16 place-items-center rounded-[23px] border border-amber-300/60 bg-gradient-to-br from-amber-200/20 via-[#153d31] to-[#08241f] text-amber-300 shadow-[0_0_28px_rgba(244,190,65,.25),inset_0_1px_0_rgba(255,255,255,.24)]"><Building2 size={34} strokeWidth={1.7}/></div>
             <h1 className="text-center text-[clamp(1.55rem,3vw,2.7rem)] font-black leading-tight tracking-wide text-white"><span className="text-amber-300">إدارة</span> الشقق والعقود</h1>
             <p className="mt-2 text-center text-sm font-semibold text-emerald-100/70">الشقق المتاحة والمؤجرة والحجوزات والتحصيلات</p>
-            <div className="mt-6 grid w-full max-w-[1220px] grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_160px_160px_160px]">
+            <div className="mt-6 grid w-full max-w-[1400px] grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_150px_150px_150px_300px]">
               <div className="group relative min-w-0"><Search size={21} className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-emerald-300"/><input value={search} onChange={(event)=>setSearch(event.target.value)} placeholder="ابحث بالاسم أو رقم الهاتف أو رقم العقد أو رقم الشقة..." aria-label="البحث في الشقق" className="h-[66px] w-full rounded-2xl border border-emerald-300/45 bg-[#064138]/60 pr-12 pl-5 text-center text-sm font-semibold text-white shadow-[inset_0_1px_8px_rgba(0,0,0,.25),0_0_20px_rgba(14,192,148,.12)] outline-none backdrop-blur-xl placeholder:text-emerald-100/45 focus:border-amber-300 focus:ring-2 focus:ring-amber-300/15"/></div>
               <button type="button" onClick={()=>setDetailCategory("تقارير الشقق")} className="group flex min-h-[66px] items-center justify-center gap-3 rounded-2xl border border-emerald-300/55 bg-gradient-to-br from-emerald-400/20 to-[#072e28] px-3 font-black text-white shadow-[0_0_22px_rgba(0,210,160,.12)] transition hover:-translate-y-1 hover:border-emerald-200"><FileBarChart2 className="text-emerald-300" size={26}/>تقارير الشقق</button>
               <button type="button" onClick={()=>setDetailCategory("تقارير العملاء")} className="group flex min-h-[66px] items-center justify-center gap-3 rounded-2xl border border-amber-300/60 bg-gradient-to-br from-amber-300/20 to-[#342a16]/60 px-3 font-black text-white shadow-[0_0_22px_rgba(242,182,45,.12)] transition hover:-translate-y-1 hover:border-amber-200"><ContactRound className="text-amber-300" size={26}/>تقارير العملاء</button>
               <button type="button" onClick={()=>setDetailCategory("تقارير الشهر")} className="group flex min-h-[66px] items-center justify-center gap-2 rounded-2xl border border-sky-300/55 bg-gradient-to-br from-sky-400/20 to-[#092b31] px-2 text-sm font-black text-white shadow-[0_0_22px_rgba(56,189,248,.12)] transition hover:-translate-y-1 hover:border-sky-200"><CalendarDays className="shrink-0 text-sky-300" size={24}/>تقارير الشهر</button>
+              <button type="button" onClick={()=>navigate("/apartments/map")} className="group flex min-h-[66px] items-center justify-center gap-2 rounded-2xl border border-amber-300/60 bg-gradient-to-br from-amber-300/20 via-[#113e32] to-[#072e28] px-3 text-sm font-black text-white shadow-[0_0_22px_rgba(242,182,45,.12)] transition hover:-translate-y-1 hover:border-amber-200"><Map className="shrink-0 text-amber-300" size={25}/>خريطة الشقق</button>
             </div>
           </div>
         </div>
@@ -506,10 +649,10 @@ export default function Apartments() {
         <div className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
           {([
             {label:"إضافة شقة",icon:<Plus size={35}/>,click:openAddModal,color:"#10B981",base:"#0C4439"},
-            {label:"حذف / أرشفة شقة",icon:<Trash2 size={34}/>,click:()=>setArchivePicker(true),color:"#FB7185",base:"#452A37"},
-            {label:"تحديث البيانات",icon:<RefreshCw size={34}/>,click:()=>{setSearch("");setStatusFilter("الكل");setTypeFilter("الكل");setActionNotice("تم تحديث العرض المحلي وإلغاء عوامل التصفية. هذه الصفحة غير مرتبطة بقاعدة البيانات بعد.");},color:"#38BDF8",base:"#123E50"},
-            {label:"حجز جديد",icon:<CalendarPlus size={34}/>,click:()=>setActionNotice("الحجوزات الجديدة تحتاج إلى ربط نظام الحجوزات بقاعدة البيانات. لم يتم إنشاء حجز."),color:"#FBBF24",base:"#4A3E1D"},
-            {label:"عميل جديد",icon:<UserRoundPlus size={34}/>,click:()=>{setTenantError("");setTenantModal(true);},color:"#C4B5FD",base:"#373052"},
+            {label:"حذف / أرشفة شقة",icon:<Trash2 size={34}/>,click:()=>openArchivePicker(),color:"#FB7185",base:"#452A37"},
+            {label:refreshingData ? "جارٍ تحديث البيانات..." : "تحديث البيانات",icon:<RefreshCw size={34} className={refreshingData ? "animate-spin" : ""}/>,click:()=>{void refreshPageData();},disabled:refreshingData,color:"#38BDF8",base:"#123E50"},
+            {label:"حجز جديد",icon:<CalendarPlus size={34}/>,click:openBooking,color:"#FBBF24",base:"#4A3E1D"},
+            {label:"عميل جديد",icon:<UserRoundPlus size={34}/>,click:()=>{setBookingTenantAfterCreate(false);setTenantError("");setTenantModal(true);},color:"#C4B5FD",base:"#373052"},
             {label:"استعلام جديد",icon:<SearchCheck size={34}/>,click:()=>setActionNotice("نموذج الاستعلامات سيُربط بوحدة العملاء والاستعلامات لاحقًا. لم يتم حفظ استعلام."),color:"#22D3EE",base:"#10434B"},
           ]).map((a)=><button key={a.label} type="button" onClick={a.click}
             style={{borderColor:`${a.color}95`,background:`linear-gradient(155deg, ${a.base} 0%, #092c29 58%, #051c1a 100%)`,boxShadow:`inset 0 1px 0 ${a.color}35, 0 10px 26px rgba(0,0,0,.24)`}}
@@ -730,18 +873,45 @@ export default function Apartments() {
         )}
       </section>
 
+      {bookingModal && (
+        <div className="fixed inset-0 z-[105] flex items-center justify-center bg-black/85 p-3 backdrop-blur-lg sm:p-5" dir="rtl" onMouseDown={e=>{if(e.target===e.currentTarget&&!bookingBusy)setBookingModal(false);}}>
+          <div role="dialog" aria-modal="true" aria-label="حجز جديد" className="relative flex flex-col overflow-hidden rounded-[22px] border border-amber-300/65 bg-[#052d26] text-white shadow-[0_28px_90px_rgba(0,0,0,.65)]" style={{width:"min(880px, calc(100vw - 32px))",maxWidth:"calc(100vw - 32px)",flex:"0 1 880px",height:"auto",maxHeight:"calc(100dvh - 36px)"}}>
+            <div aria-hidden="true" className="pointer-events-none absolute inset-0" style={{backgroundImage:'url("/booking%20apartment.png")',backgroundSize:"100% 100%",backgroundPosition:"center",backgroundRepeat:"no-repeat"}} />
+            <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[#032820]/52" />
+            <section className="relative z-10 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+            <header className="relative shrink-0 border-b border-amber-300/30 bg-[#073b30]/45 px-5 py-3 text-center"><CalendarPlus className="mx-auto mb-1 text-amber-300" size={25}/><h2 className="text-xl font-black text-amber-200">إضافة حجز جديد</h2><p className="text-[11px] text-emerald-100/70">ربط الشقة بالمستأجر وتسجيل المبلغ المدفوع</p><button type="button" onClick={()=>setBookingModal(false)} disabled={bookingBusy} className="absolute left-3 top-3 rounded-lg border border-white/25 p-1.5"><X size={18}/></button></header>
+            <form onSubmit={e=>{e.preventDefault();void saveBooking();}} className="min-h-0 flex-1 space-y-3 overflow-y-auto bg-transparent p-4 sm:p-5">
+              <div className="grid grid-cols-1 gap-x-3 gap-y-3 sm:grid-cols-2">
+                <label className="text-sm font-bold">الشقة *<select required value={bookingForm.apartment_id} onChange={e=>{const id=e.target.value;const a=apartments.find(x=>x.id===id);setBookingForm(p=>({...p,apartment_id:id,total_amount:a?String(a.price):""}));}} className="mt-1 h-10 w-full rounded-xl border border-emerald-300/40 bg-[#073b30] px-3 text-white"><option value="">اختر شقة متاحة</option>{activeApartments.filter(a=>a.status==="متاحة").map(a=><option key={a.id} value={a.id}>{a.number} — {a.buildingName||a.location} — {formatPrice(a.price)} ر.س</option>)}</select></label>
+                <div className="text-sm font-bold">المستأجر *<div className="mt-2 flex gap-2"><select required value={bookingForm.tenant_id} onChange={e=>setBookingForm(p=>({...p,tenant_id:e.target.value}))} className="h-10 min-w-0 flex-1 rounded-xl border border-emerald-300/40 bg-[#073b30] px-3 text-white"><option value="">اختر عميلًا مسجلًا</option>{tenants.map(t=><option key={t.id} value={t.id}>{t.full_name}{t.phone?` — ${t.phone}`:""}</option>)}</select><button type="button" title="إضافة عميل جديد" onClick={()=>{setBookingTenantAfterCreate(true);setTenantError("");setTenantModal(true);}} className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-amber-300 bg-amber-300/20 text-amber-200"><Plus size={23}/></button></div></div>
+                <label className="text-sm font-bold">بداية الإيجار *<input required type="date" value={bookingForm.start_date} onChange={e=>setBookingForm(p=>({...p,start_date:e.target.value}))} className="mt-1 h-10 w-full rounded-xl border border-emerald-300/40 bg-[#073b30] px-3 text-white"/></label>
+                <label className="text-sm font-bold">نهاية الإيجار *<input required type="date" value={bookingForm.end_date} min={bookingForm.start_date||undefined} onChange={e=>setBookingForm(p=>({...p,end_date:e.target.value}))} className="mt-1 h-10 w-full rounded-xl border border-emerald-300/40 bg-[#073b30] px-3 text-white"/></label>
+                <label className="text-sm font-bold">الإيجار المتفق عليه (ر.س) *<input required min="0.01" step="0.01" type="number" value={bookingForm.total_amount} onChange={e=>setBookingForm(p=>({...p,total_amount:e.target.value}))} className="mt-1 h-10 w-full rounded-xl border border-emerald-300/40 bg-[#073b30] px-3 text-white"/></label>
+                <label className="text-sm font-bold">المدفوع الآن (ر.س)<input min="0" step="0.01" type="number" value={bookingForm.paid_amount} onChange={e=>setBookingForm(p=>({...p,paid_amount:e.target.value}))} className="mt-1 h-10 w-full rounded-xl border border-emerald-300/40 bg-[#073b30] px-3 text-white"/></label>
+                <label className="text-sm font-bold">طريقة الدفع<select value={bookingForm.payment_method} onChange={e=>setBookingForm(p=>({...p,payment_method:e.target.value}))} className="mt-1 h-10 w-full rounded-xl border border-emerald-300/40 bg-[#073b30] px-3 text-white"><option>نقدي</option><option>تحويل بنكي</option><option>شبكة</option></select></label>
+                <label className="text-sm font-bold">حالة الحجز<select value={bookingForm.booking_status} onChange={e=>setBookingForm(p=>({...p,booking_status:e.target.value}))} className="mt-1 h-10 w-full rounded-xl border border-emerald-300/40 bg-[#073b30] px-3 text-white"><option value="confirmed">حجز مؤكد</option><option value="pending">حجز مبدئي</option></select></label>
+              </div>
+              <div className="flex justify-between rounded-xl border border-amber-300/35 bg-black/20 px-3 py-2 text-sm font-bold"><span>المتبقي</span><strong className="text-lg text-amber-200">{formatPrice(Math.max(0,Number(bookingForm.total_amount||0)-Number(bookingForm.paid_amount||0)))} ر.س</strong></div>
+              <label className="block text-sm font-bold">ملاحظات<textarea rows={2} maxLength={500} value={bookingForm.notes} onChange={e=>setBookingForm(p=>({...p,notes:e.target.value}))} className="mt-2 w-full rounded-xl border border-emerald-300/40 bg-[#073b30] p-3 text-white"/></label>
+              {bookingError&&<p role="alert" className="rounded-xl border border-rose-300/50 bg-rose-950/50 p-3 text-sm text-rose-100">{bookingError}</p>}
+              <div className="flex gap-3"><button type="submit" disabled={bookingBusy||!canWrite} className="min-h-10 flex-1 rounded-xl bg-gradient-to-r from-amber-300 to-amber-500 font-black text-emerald-950 disabled:opacity-50">{bookingBusy?"جارٍ حفظ الحجز...":"حفظ الحجز"}</button><button type="button" disabled={bookingBusy} onClick={()=>setBookingModal(false)} className="min-h-10 flex-1 rounded-xl border border-emerald-200/35 font-bold">إلغاء</button></div>
+            </form>
+            </section>
+          </div>
+        </div>
+      )}
       {tenantModal && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/85 p-2 backdrop-blur-lg sm:p-5" dir="rtl"
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/85 p-2 backdrop-blur-lg sm:p-5" dir="rtl"
           onMouseDown={event => { if (event.target === event.currentTarget && !savingTenant) setTenantModal(false); }}>
           <div role="dialog" aria-modal="true" aria-label="إضافة عميل جديد"
-            className="relative w-full max-w-[1180px] overflow-hidden rounded-[30px] border border-amber-300/65 bg-[#052d27] text-white shadow-[0_30px_100px_rgba(0,0,0,.7)]"
-            style={{maxHeight:"calc(100dvh - 24px)"}}>
-            <div className="pointer-events-none absolute inset-0 bg-cover bg-center" style={{backgroundImage:"url('/add-client-bg.png')"}} />
-            <div className="pointer-events-none absolute inset-0 bg-[#04261f]/40 lg:bg-transparent" />
+            className="relative flex flex-col overflow-hidden rounded-[22px] border border-amber-300/65 bg-[#052d27] text-white shadow-[0_28px_90px_rgba(0,0,0,.65)]"
+            style={{width:"min(880px, calc(100vw - 32px))",maxWidth:"calc(100vw - 32px)",flex:"0 1 880px",maxHeight:"calc(100dvh - 36px)"}}>
+            <div className="pointer-events-none absolute inset-0 bg-contain bg-center bg-no-repeat" style={{backgroundImage:"url('/add-client-bg.png')",backgroundSize:"100% 100%"}} />
+            <div className="pointer-events-none absolute inset-0 bg-[#04261f]/35" />
             <button type="button" disabled={savingTenant} onClick={()=>setTenantModal(false)} aria-label="إغلاق النافذة"
               className="absolute left-4 top-4 z-20 grid h-10 w-10 place-items-center rounded-full border border-amber-200/60 bg-[#032b25]/80 text-white hover:bg-emerald-700"><X size={21}/></button>
-            <div className="relative grid max-h-[calc(100dvh-24px)] grid-cols-1 overflow-y-auto lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] lg:overflow-hidden">
-              <div className="min-w-0 p-5 sm:p-8 lg:max-h-[calc(100dvh-24px)] lg:overflow-y-auto lg:p-9">
+            <div className="relative max-h-[calc(100dvh-36px)] overflow-y-auto">
+              <div className="mx-auto w-full max-w-[760px] p-5 sm:p-7">
                 <div className="mb-5 flex items-center gap-3 border-b border-amber-300/25 pb-4">
                   <span className="grid h-14 w-14 place-items-center rounded-2xl border border-amber-300/60 bg-emerald-950/80 text-amber-300"><UserRoundPlus size={31}/></span>
                   <div><h2 className="text-2xl font-black text-white sm:text-3xl">بيانات العميل</h2><p className="mt-1 text-xs text-emerald-100/75 sm:text-sm">الرجاء تعبئة البيانات التالية بدقة</p></div>
@@ -781,13 +951,6 @@ export default function Apartments() {
                     <button type="button" disabled={savingTenant} onClick={()=>setTenantModal(false)} className="min-h-12 flex-1 rounded-xl border border-emerald-200/70 bg-emerald-950/65 px-5 font-black text-white">إلغاء</button>
                   </div>
                 </form>
-              </div>
-              <div className="relative hidden min-h-[620px] flex-col justify-end p-7 text-center lg:flex" dir="rtl">
-                <div className="rounded-2xl border border-amber-200/30 bg-[#032a24]/65 p-4 backdrop-blur-sm">
-                  <h3 className="text-2xl font-black text-amber-200">إضافة عميل جديد</h3>
-                  <p className="mt-2 text-sm leading-7 text-white/85">سجّل بيانات المستأجر واحفظها بأمان لربطها بالعقود والشقق لاحقًا</p>
-                  <p className="mt-2 text-xs text-amber-100/70">العملاء المسجلون: {tenants.length}</p>
-                </div>
               </div>
             </div>
             {nationalityEditor && (
@@ -875,15 +1038,22 @@ export default function Apartments() {
           </div>
         );
       })()}
+      {refreshNotice && (
+        <div dir="rtl" role="status" aria-live="polite" className="fixed bottom-5 left-1/2 z-[125] w-[min(420px,calc(100vw-32px))] -translate-x-1/2 overflow-hidden rounded-2xl border border-emerald-300/60 bg-[#092e28] text-center text-white shadow-[0_16px_45px_rgba(0,0,0,.55)]">
+          <div className="flex items-center justify-center gap-3 px-5 py-4 text-sm font-black text-emerald-100"><span className="grid h-8 w-8 place-items-center rounded-full bg-emerald-400/20 text-emerald-300">✓</span>{refreshNotice}</div>
+          <div className="h-1.5 w-full bg-emerald-950" dir="ltr"><div className="h-full bg-gradient-to-r from-emerald-400 to-amber-300" style={{animation:"residential-refresh-progress 5s linear forwards"}} /></div>
+          <style>{`@keyframes residential-refresh-progress { from { width: 100%; } to { width: 0%; } }`}</style>
+        </div>
+      )}
       {actionNotice && (isSaveSuccess ? (
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm" dir="rtl" role="status" aria-live="polite">
           <style>{`@keyframes residential-save-progress { from { width: 100%; } to { width: 0%; } }`}</style>
           <div className="relative w-full max-w-[580px] overflow-hidden rounded-[28px] border border-emerald-300/50 bg-gradient-to-br from-[#104d3d] via-[#092d27] to-[#061c1a] px-7 pb-9 pt-10 text-center text-white shadow-[0_24px_90px_rgba(0,0,0,.6),0_0_35px_rgba(52,211,153,.15)] sm:px-10">
             <button type="button" onClick={() => setActionNotice(null)} aria-label="إغلاق رسالة النجاح" className="absolute left-4 top-4 rounded-xl border border-white/15 bg-white/5 p-2 text-emerald-100 transition hover:bg-white/15"><X size={20}/></button>
             <div className="mx-auto mb-5 grid h-20 w-20 place-items-center rounded-full border-2 border-emerald-300/60 bg-emerald-400/15 text-4xl font-black text-emerald-200 shadow-[0_0_35px_rgba(52,211,153,.25)]">✓</div>
-            <h2 className="mb-4 text-2xl font-black text-emerald-200 sm:text-3xl">{actionNotice === "تم تسجيل العميل الجديد بنجاح." ? "تم حفظ العميل بنجاح" : "تم حفظ الشقة بنجاح"}</h2>
-            <p className="mx-auto max-w-md text-base font-semibold leading-8 text-emerald-50/90 sm:text-lg">{actionNotice === "تم تسجيل العميل الجديد بنجاح." ? "تم تسجيل بيانات العميل في Supabase بنجاح." : "تم حفظ بيانات الشقة في Supabase بنجاح."}</p>
-            <p className="mx-auto mt-2 max-w-md text-sm leading-7 text-emerald-100/65">{actionNotice === "تم تسجيل العميل الجديد بنجاح." ? "يمكن الآن استخدام بيانات العميل عند إنشاء عقد إيجار." : "بيانات المستأجر والعقد تُسجّل من وحدتها المستقلة لاحقًا."}</p>
+            <h2 className="mb-4 text-2xl font-black text-emerald-200 sm:text-3xl">{actionNotice?.startsWith("تمت أرشفة") ? "تمت الأرشفة بنجاح" : actionNotice?.startsWith("تم استرجاع") ? "تم الاسترجاع بنجاح" : actionNotice === "تم تسجيل العميل الجديد بنجاح." ? "تم حفظ العميل بنجاح" : "تم حفظ الشقة بنجاح"}</h2>
+            <p className="mx-auto max-w-md text-base font-semibold leading-8 text-emerald-50/90 sm:text-lg">{actionNotice?.startsWith("تمت أرشفة") || actionNotice?.startsWith("تم استرجاع") ? actionNotice : actionNotice === "تم تسجيل العميل الجديد بنجاح." ? "تم تسجيل بيانات العميل في Supabase بنجاح." : "تم حفظ بيانات الشقة في Supabase بنجاح."}</p>
+            <p className="mx-auto mt-2 max-w-md text-sm leading-7 text-emerald-100/65">{actionNotice?.startsWith("تمت أرشفة") || actionNotice?.startsWith("تم استرجاع") ? "البيانات المرتبطة بالشقة لم تُحذف، ويمكن استرجاع الشقق المؤرشفة من نفس النافذة." : actionNotice === "تم تسجيل العميل الجديد بنجاح." ? "يمكن الآن استخدام بيانات العميل عند إنشاء عقد إيجار." : "بيانات المستأجر والعقد تُسجّل من وحدتها المستقلة لاحقًا."}</p>
             <div className="mt-7 text-sm font-bold text-emerald-200/85">تُغلق الرسالة تلقائيًا بعد 5 ثوانٍ</div>
             <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-black/35" dir="ltr">
               <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 via-teal-300 to-amber-300 shadow-[0_0_14px_rgba(110,231,183,.7)]" style={{ width: "100%", animation: "residential-save-progress 5s linear forwards" }} />
@@ -894,7 +1064,40 @@ export default function Apartments() {
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 p-4" onMouseDown={(e)=>{if(e.target===e.currentTarget)setActionNotice(null)}}><div dir="rtl" className="w-full max-w-md rounded-2xl border border-amber-400/35 bg-[#09271f] p-6 text-white"><h2 className="mb-3 text-lg font-black text-amber-300">تنبيه</h2><p className="text-sm leading-7">{actionNotice}</p><button type="button" onClick={()=>setActionNotice(null)} className="mt-5 rounded-xl bg-amber-400/20 px-5 py-2 font-bold">إغلاق</button></div></div>
       ))}
       {detailCategory && <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 p-4" onMouseDown={(e)=>{if(e.target===e.currentTarget)setDetailCategory(null)}}><div dir="rtl" className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-amber-400/35 bg-[#09271f] p-6 text-white"><div className="mb-4 flex items-center justify-between"><h2 className="text-xl font-black text-amber-300">{detailCategory}</h2><button type="button" onClick={()=>setDetailCategory(null)}><X/></button></div>{["إجمالي الشقق","إجمالي المؤجرة","إجمالي الفارغة","إجمالي المحجوزة"].includes(detailCategory) ? <div className="space-y-2">{activeApartments.filter((a)=>detailCategory==="إجمالي الشقق" || (detailCategory==="إجمالي المؤجرة" ? a.status==="مؤجرة" : detailCategory==="إجمالي المحجوزة" ? a.status==="محجوزة" : a.status==="متاحة")).map((a)=><div key={a.id} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 p-3"><strong>{a.number}</strong><span className="text-sm text-emerald-100/70">{a.type} • {a.status}</span></div>)}</div> : <p className="leading-7 text-emerald-100/75">لم تُربط بيانات {detailCategory} بعد. لا توجد تفاصيل موثوقة يمكن عرضها حاليًا.</p>}<p className="mt-4 text-xs text-amber-200/70">هذه الصفحة مستقلة عن بيانات العمائر. بيانات التقارير والعقود لم تُربط بعد.</p></div></div>}
-      {archivePicker && <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 p-4" onMouseDown={(e)=>{if(e.target===e.currentTarget)setArchivePicker(false)}}><div dir="rtl" className="max-h-[85vh] w-full max-w-xl overflow-y-auto rounded-2xl border border-amber-400/35 bg-[#09271f] p-6 text-white"><div className="mb-4 flex items-center justify-between"><h2 className="text-lg font-black text-amber-300">أرشفة الشقق المحلية</h2><button type="button" onClick={()=>setArchivePicker(false)}><X/></button></div><p className="mb-4 text-xs text-emerald-100/60">الأرشفة هنا مؤقتة داخل الصفحة ولا تعدّل بيانات Supabase.</p>{apartments.map((a)=><div key={a.id} className="mb-2 flex items-center justify-between gap-2 rounded-xl border border-white/10 p-3"><span>{a.number}</span><button type="button" onClick={()=>setArchivedIds((current)=>current.includes(a.id)?current.filter((id)=>id!==a.id):[...current,a.id])} className="rounded-lg border border-amber-300/30 px-3 py-1 text-sm text-amber-200">{archivedIds.includes(a.id)?"استعادة":"أرشفة"}</button></div>)}</div></div>}
+      {archivePicker && (
+        <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/80 p-3 backdrop-blur-md sm:p-5" dir="rtl" onMouseDown={e => { if (e.target === e.currentTarget && !archiveBusy) setArchivePicker(false); }}>
+          <div role="dialog" aria-modal="true" aria-label="إدارة أرشيف الشقق" style={{ width: "min(680px, calc(100vw - 32px))", maxWidth: "680px", maxHeight: "min(520px, 88dvh)", margin: "auto", boxSizing: "border-box" }} className="flex flex-col overflow-hidden rounded-[23px] border border-[#4c4564] bg-[#0b1829] text-white shadow-[0_30px_100px_rgba(0,0,0,.7)]">
+            <header className="shrink-0 border-b border-[#35425a] bg-[#0d2035] px-4 py-3 sm:px-5">
+              <div className="flex items-start justify-between gap-3">
+                <div><div className="flex items-center gap-3 text-lg font-black text-white sm:text-xl"><Archive size={23} className="text-rose-300"/> إدارة أرشيف الشقق</div><p className="mt-1 text-[11px] leading-5 text-slate-400">أرشفة الشقق بدون حذف بياناتها، واسترجاعها في أي وقت</p></div>
+                <button type="button" disabled={archiveBusy} onClick={() => setArchivePicker(false)} aria-label="إغلاق" className="rounded-xl border border-white/20 bg-white/5 p-2 hover:bg-white/15"><X size={22}/></button>
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <button type="button" onClick={() => switchArchiveView("active")} className={`min-h-9 rounded-lg border px-3 text-xs font-black ${archiveView === "active" ? "border-sky-300/70 bg-[#213b58] text-sky-100" : "border-[#30415a] bg-[#101f32] text-slate-300"}`}>الشقق الحالية ({activeApartments.length})</button>
+                <button type="button" onClick={() => switchArchiveView("archived")} className={`min-h-9 rounded-lg border px-3 text-xs font-black ${archiveView === "archived" ? "border-sky-300/70 bg-[#213b58] text-sky-100" : "border-[#30415a] bg-[#101f32] text-slate-300"}`}>الأرشيف ({apartments.length - activeApartments.length})</button>
+              </div>
+              <div className="relative mt-2"><Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={17}/><input value={archiveSearch} onChange={e => {setArchiveSearch(e.target.value);setArchiveConfirm(false);}} placeholder="ابحث برقم الشقة أو اسم العمارة أو النوع أو الموقع..." className="h-9 w-full rounded-lg border border-[#34445c] bg-[#0a1727] pr-10 pl-3 text-xs text-white outline-none placeholder:text-slate-500 focus:border-sky-400"/></div>
+              <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[11px] sm:text-xs">
+                <span className="font-bold text-slate-300">المحدد: <strong className="text-rose-300">{archiveSelection.length}</strong> من {archiveCandidates.length} المعروضة</span>
+                <div className="flex gap-2"><button type="button" onClick={() => {setArchiveSelection(prev => Array.from(new Set([...prev, ...archiveCandidates.map(a => a.id)])));setArchiveConfirm(false);}} className="rounded-md border border-[#40516b] px-2 py-1 font-bold text-slate-200">تحديد الكل</button><button type="button" onClick={() => {setArchiveSelection([]);setArchiveConfirm(false);}} className="rounded-md border border-[#40516b] px-2 py-1 font-bold text-slate-200">إلغاء التحديد</button></div>
+              </div>
+            </header>
+            <div className="min-h-0 flex-1 overflow-y-auto p-2 sm:p-3">
+              {archiveCandidates.length === 0 ? <div className="py-10 text-center text-slate-400">{archiveView === "archived" ? "لا توجد شقق مؤرشفة مطابقة." : "لا توجد شقق مطابقة."}</div> :
+                <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4 lg:grid-cols-6">
+                  {archiveCandidates.map(a => <button key={a.id} type="button" disabled={archiveBusy} onClick={() => {setArchiveSelection(prev => prev.includes(a.id) ? prev.filter(id => id !== a.id) : [...prev, a.id]);setArchiveConfirm(false);}} className={`flex min-h-[46px] items-center gap-2 rounded-lg border px-2 py-1.5 text-right transition ${archiveSelection.includes(a.id) ? "border-rose-300/70 bg-rose-300/10" : "border-[#2c3a51] bg-[#111f32] hover:border-sky-300/50"}`}>
+                    <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-md border ${archiveSelection.includes(a.id) ? "border-rose-300 bg-rose-300 text-[#162034]" : "border-white/30"}`}>{archiveSelection.includes(a.id) ? "✓" : ""}</span>
+                    <span className="min-w-0 flex-1"><strong className="block truncate text-xs text-white">شقة {a.number}</strong><span className="block truncate text-[9px] text-slate-500">{a.buildingName || a.type} · {a.status}</span></span>
+                  </button>)}
+                </div>}
+            </div>
+            <footer className="shrink-0 border-t border-[#35425a] bg-[#0b1729] p-2.5 sm:p-3">
+              {archiveConfirm && archiveView === "active" && <p className="mb-3 rounded-xl border border-rose-300/40 bg-rose-900/25 p-3 text-center text-sm font-bold text-rose-100">تأكيد أرشفة {archiveSelection.length} شقة؟ ستختفي من القوائم النشطة وتبقى بياناتها محفوظة في Supabase.</p>}
+              <div className="flex flex-wrap gap-3"><button type="button" disabled={archiveBusy} onClick={() => setArchivePicker(false)} className="min-h-10 flex-1 rounded-lg border border-[#34445d] bg-[#14243b] px-4 text-sm font-bold">إلغاء</button><button type="button" disabled={!canWrite || !archiveSelection.length || archiveBusy} onClick={() => void applyArchive()} className={`min-h-10 flex-[2] rounded-lg px-4 text-sm font-black disabled:cursor-not-allowed disabled:opacity-40 ${archiveView === "archived" ? "bg-sky-400 text-[#0b1a2d]" : "bg-gradient-to-l from-rose-300 to-rose-500 text-[#301824]"}`}>{archiveBusy ? "جارٍ تنفيذ العملية..." : archiveView === "archived" ? `استرجاع ${archiveSelection.length} شقة` : archiveConfirm ? `تأكيد أرشفة ${archiveSelection.length} شقة` : `أرشفة ${archiveSelection.length} شقة`}</button></div>
+            </footer>
+          </div>
+        </div>
+      )}
 
        {/* Add / edit apartment — residential_apartments only, never building_state */}
       <style>{`.apartment-entry-modal label{display:block;min-width:0}.apartment-entry-modal label>span{font-size:14px;font-weight:800;margin-bottom:7px;color:#f1f8f4}.apartment-entry-modal label>input,.apartment-entry-modal label>select{height:48px;min-width:0;width:100%;background:#062b25;border:1px solid rgba(180,220,198,.36);border-radius:12px;padding:0 14px;font-size:14px;box-sizing:border-box}.apartment-entry-modal label>input:focus,.apartment-entry-modal label>select:focus{border-color:#e5bc54;outline:none}`}</style>
@@ -912,9 +1115,18 @@ export default function Apartments() {
               </div>
               <button type="button" onClick={() => setShowModal(false)} aria-label="إغلاق" className="absolute left-4 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-xl border border-white/20 bg-white/5 hover:bg-white/10"><X size={20}/></button>
             </header>
+            <div className="mx-auto flex w-full max-w-[660px] shrink-0 gap-3 bg-[#052f27] px-4 py-3 sm:gap-5 sm:px-6">
+              <button type="button" onClick={() => setApartmentTab("apartment")}
+                aria-pressed={apartmentTab === "apartment"}
+                className={`flex min-h-[58px] flex-1 items-center justify-center gap-3 rounded-2xl border-2 px-3 py-4 text-base font-black shadow-md transition sm:min-h-[70px] sm:text-xl ${apartmentTab === "apartment" ? "border-amber-300 bg-amber-300 text-[#082d24]" : "border-emerald-300/35 bg-[#073d32] text-emerald-100 hover:border-amber-300"}`}><Building2 size={25}/> بيانات الشقة</button>
+              <button type="button" onClick={() => setApartmentTab("owner")}
+                aria-pressed={apartmentTab === "owner"}
+                className={`flex min-h-[58px] flex-1 items-center justify-center gap-3 rounded-2xl border-2 px-3 py-4 text-base font-black shadow-md transition sm:min-h-[70px] sm:text-xl ${apartmentTab === "owner" ? "border-amber-300 bg-amber-300 text-[#082d24]" : "border-emerald-300/35 bg-[#073d32] text-emerald-100 hover:border-amber-300"}`}><UserRoundCheck size={25}/> بيانات المالك</button>
+            </div>
             <div className="min-h-0 flex-1 overflow-y-auto lg:overflow-hidden">
               <div className="grid min-h-full grid-cols-1 lg:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
                 <div className="min-w-0 overflow-y-auto p-5 sm:p-7 lg:max-h-[720px]">
+                  {apartmentTab === "apartment" ? <>
                   <div className="mb-3 flex items-center gap-2 border-b border-amber-300/20 pb-2 text-base font-black text-amber-200"><Building2 size={18}/> بيانات الشقة الأساسية</div>
                   <div className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
                     <FormInput label="رقم / اسم الشقة *" value={form.number} onChange={(value) => setForm({ ...form, number: value })} placeholder="مثال: 1/6A أو شقة 101" />
@@ -944,6 +1156,27 @@ export default function Apartments() {
                     <FormInput label="أقرب معلم" value={form.landmark} onChange={(value) => setForm({ ...form, landmark: value })} placeholder="مثال: صيدلية النهدي" />
                   </div>
                   <label className="mt-4 block min-w-0"><span className="mb-1.5 block text-xs font-bold text-emerald-50">ملاحظات إضافية</span><textarea value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} rows={2} placeholder="اكتب أي ملاحظات خاصة بالشقة..." className="w-full resize-y rounded-xl border border-emerald-200/35 bg-[#062b25] px-4 py-3 text-sm text-white outline-none placeholder:text-emerald-100/40 focus:border-amber-300/70"/></label>
+                  </> : <section className="space-y-5">
+                    <div className="flex items-center gap-3 border-b border-amber-300/25 pb-3 text-lg font-black text-amber-200"><UserRoundCheck size={23}/> بيانات مالك الشقة</div>
+                    <p className="text-sm leading-7 text-emerald-100/75">اربط الشقة بمالك مسجل، أو أضف مالكًا جديدًا. يمكن ربط أكثر من شقة بنفس المالك.</p>
+                    {ownersError && <p role="alert" className="rounded-xl border border-rose-300/35 bg-rose-950/30 p-3 text-sm text-rose-200">{ownersError}</p>}
+                    <div className="grid grid-cols-2 gap-3">
+                      <button type="button" onClick={() => setOwnerMode("existing")} className={`rounded-xl border px-3 py-3 text-sm font-black ${ownerMode === "existing" ? "border-amber-300 bg-amber-300/20 text-amber-200" : "border-white/20 text-emerald-100"}`}>اختيار مالك مسجل</button>
+                      <button type="button" onClick={() => { setOwnerMode("new"); setOwnerId(""); }} className={`rounded-xl border px-3 py-3 text-sm font-black ${ownerMode === "new" ? "border-amber-300 bg-amber-300/20 text-amber-200" : "border-white/20 text-emerald-100"}`}>+ مالك جديد</button>
+                    </div>
+                    {ownerMode === "existing" ? <label className="block text-sm font-bold text-emerald-50">المالك
+                      <select value={ownerId} onChange={e => setOwnerId(e.target.value)} className="mt-2 h-12 w-full rounded-xl border border-emerald-300/40 bg-[#062b25] px-3 text-white">
+                        <option value="">بدون مالك محدد</option>
+                        {owners.map(o => <option key={o.id} value={o.id}>{o.full_name}{o.mobile ? ` — ${o.mobile}` : ""}</option>)}
+                      </select>
+                    </label> : <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      {([ ["full_name", "اسم المالك *", "text", "اسم المالك بالكامل"], ["mobile", "رقم الجوال", "tel", "05xxxxxxxx"], ["phone", "رقم الهاتف", "tel", "رقم إضافي"], ["email", "البريد الإلكتروني", "email", "example@email.com"], ["nationality", "الجنسية", "text", "مثال: سعودي"], ["identity_number", "رقم الهوية / الإقامة", "text", "رقم الهوية أو الإقامة"] ] as const).map(([key, label, type, placeholder]) =>
+                        <label key={key} className="block text-sm font-bold text-emerald-50">{label}
+                          <input type={type} value={ownerForm[key]} onChange={e => setOwnerForm(prev => ({ ...prev, [key]: e.target.value }))} placeholder={placeholder} className="mt-2 h-12 w-full rounded-xl border border-emerald-300/40 bg-[#062b25] px-3 text-white placeholder:text-emerald-100/40 focus:border-amber-300" />
+                        </label>)}
+                    </div>}
+                    <div className="rounded-xl border border-amber-300/25 bg-amber-300/5 p-3 text-xs leading-6 text-amber-100/80">سيتم حفظ بيانات المالك وربطها بالشقة عند الضغط على زر حفظ الشقة أسفل النافذة.</div>
+                  </section>}
                 </div>
                 <aside className="relative hidden min-h-[540px] overflow-hidden border-r border-amber-300/20 lg:block" style={{ backgroundImage: "linear-gradient(0deg,rgba(2,31,26,.5),rgba(2,31,26,.05)),url('/aqary-smart-background.png')", backgroundSize: "cover", backgroundPosition: "center" }}>
                   <div className="absolute inset-0 bg-gradient-to-t from-[#031e19]/75 via-transparent to-[#031e19]/10"/>

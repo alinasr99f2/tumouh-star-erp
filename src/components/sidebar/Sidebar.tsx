@@ -13,6 +13,7 @@ import {
   House,
   Store,
   MapPin,
+  BarChart3,
 } from "lucide-react";
 
 import { sidebarMenu } from "../../data/menu";
@@ -464,7 +465,7 @@ function Sidebar({ onLogout }: SidebarProps) {
           <div className="space-y-3">
             {sidebarMenu
               .filter((item) => {
-                if (item.title === "المركز المالي") return false;
+                if (item.title === "المركز المالي" || item.title === "التقارير" || item.path === "/reports") return false;
                 if (item.path === "/activity-log") return !permissionsLoading && hasPermission("activity_logs_view");
                 return true;
               })
@@ -654,6 +655,17 @@ function Sidebar({ onLogout }: SidebarProps) {
                        })}
                      </div>
                    )}
+
+                  {isUnits && (
+                    <NavLink
+                      to="/reports"
+                      onClick={handleMobileNavigate}
+                      className={({ isActive }) => `group relative flex min-h-[64px] items-center gap-4 rounded-2xl border px-5 py-4 transition-all duration-300 ease-out ${isActive ? "border-[#F6D878] bg-gradient-to-r from-[#145B46] via-[#0B4537] to-[#073529] font-bold text-white shadow-lg shadow-[#C49A3A]/15" : "border-transparent bg-black/[0.08] text-white hover:border-[#C49A3A]/55 hover:bg-[#557B6A] hover:-translate-x-1 hover:shadow-md"}`}
+                    >
+                      <BarChart3 size={25} strokeWidth={1.8} className="shrink-0 transition-all duration-300 group-hover:scale-110 group-hover:text-[#F6D878]" />
+                      <span className="flex-1 text-[16px] leading-6">التقارير</span>
+                    </NavLink>
+                  )}
 
                   {isProjects && projectsOpen && (
                     <div

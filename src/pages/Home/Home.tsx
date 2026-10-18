@@ -7,6 +7,7 @@ import {
   History,
   LayoutGrid,
   ShieldCheck,
+  ChartNoAxesCombined,
   Headset,
   Sun,
   Moon,
@@ -136,6 +137,13 @@ export default function Home() {
       icon: LayoutGrid,
       path: "/apartments-hub",
       color: "green",
+    },
+    {
+      title: "التقارير",
+      description: "عرض وتحليل التقارير المالية والتشغيلية والإحصائيات الخاصة بالنظام",
+      icon: ChartNoAxesCombined,
+      path: "/reports",
+      color: "yellow",
     },
     {
       title: "المستخدمين والصلاحيات",
