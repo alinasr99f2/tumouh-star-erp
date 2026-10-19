@@ -21,7 +21,7 @@ import {
   ChevronDown,
   LayoutGrid,
   List,
-  Archive, RefreshCw, CalendarPlus, UserRoundPlus, SearchCheck, CalendarClock, Droplets, Zap, ReceiptText, CalendarCheck2, FileBarChart2, ContactRound, CalendarDays, ArrowUpLeft,
+  Archive, RefreshCw, CalendarPlus, UserRoundPlus, SearchCheck, CalendarClock, Droplets, Zap, ReceiptText, CalendarCheck2, FileBarChart2, ContactRound, CalendarDays, ArrowUpLeft, FilePlus2,
 } from "lucide-react";
 
 type ApartmentStatus = string;
@@ -29,6 +29,15 @@ type RentCategory = "يومي" | "شهري" | "سنوي";
 
 // Custom dropdown choices are saved only in this browser until a tenant-scoped backend is connected.
 const CHOICE_STORAGE_KEY = "aqary-smart-apartments-custom-choices-v1";
+const roundRent = (value: number) => Math.round(value * 100) / 100;
+const priceForPeriod = (monthly: number | undefined, period: string) => monthly === undefined ? undefined : roundRent(period === "سنوي" ? monthly * 12 : period === "يومي" ? monthly * 12 / 365 : monthly);
+const rentString = (value: number | undefined) => value === undefined ? "" : String(value);
+const TYPE_CATALOG_KEY = "aqary-smart-apartment-type-catalog-v1";
+type TypeCatalog = { names: Record<string,string>; prices: Record<string,number>; hidden: string[] };
+function readTypeCatalog(): TypeCatalog {
+  try { const value = JSON.parse(window.localStorage.getItem(TYPE_CATALOG_KEY) || "{}"); return { names: value.names && typeof value.names === "object" ? value.names : {}, prices: value.prices && typeof value.prices === "object" ? value.prices : {}, hidden: Array.isArray(value.hidden) ? value.hidden : [] }; } catch { return {names:{},prices:{},hidden:[]}; }
+}
+
 type CustomChoices = { cities: Record<string, string[]>; types: string[]; statuses: string[] };
 const EMPTY_CUSTOM_CHOICES: CustomChoices = { cities: {}, types: [], statuses: [] };
 const DEFAULT_APARTMENT_TYPES = ["غرفة وصالة", "غرفتين وصالة", "ثلاث غرف وصالة", "أربع غرف وصالة", "دوبلكس", "استوديو"];
@@ -192,7 +201,50 @@ export default function Apartments() {
   const [choiceEditor, setChoiceEditor] = useState<"city" | "type" | "status" | null>(null);
   const [newChoice, setNewChoice] = useState("");
   const [choiceError, setChoiceError] = useState("");
-  const apartmentTypes = useMemo(() => Array.from(new Set([...DEFAULT_APARTMENT_TYPES, ...customChoices.types])), [customChoices.types]);
+  const [typeCatalog, setTypeCatalog] = useState<TypeCatalog>(readTypeCatalog);
+  const [typeEditOriginal, setTypeEditOriginal] = useState<string | null>(null);
+  const [typeNameInput, setTypeNameInput] = useState("");
+  const [typePriceInput, setTypePriceInput] = useState("");
+  const [typeAnnualInput, setTypeAnnualInput] = useState("");
+  const [typeDailyInput, setTypeDailyInput] = useState("");
+  const updateTypeMonthly = (value: string) => { setTypePriceInput(value); const n = Number(value); setTypeAnnualInput(value === "" ? "" : String(roundRent(n * 12))); setTypeDailyInput(value === "" ? "" : String(roundRent(n * 12 / 365))); };
+  const updateTypeAnnual = (value: string) => { setTypeAnnualInput(value); const n = Number(value); setTypePriceInput(value === "" ? "" : String(roundRent(n / 12))); setTypeDailyInput(value === "" ? "" : String(roundRent(n / 365))); };
+  const updateTypeDaily = (value: string) => { setTypeDailyInput(value); const n = Number(value); setTypeAnnualInput(value === "" ? "" : String(roundRent(n * 365))); setTypePriceInput(value === "" ? "" : String(roundRent(n * 365 / 12))); };
+  const [typeManagerError, setTypeManagerError] = useState("");
+  const [typeManagerNotice, setTypeManagerNotice] = useState("");
+  const [typeDeleteTarget, setTypeDeleteTarget] = useState<string | null>(null);
+  const apartmentTypes = useMemo(() => Array.from(new Set([...DEFAULT_APARTMENT_TYPES, ...customChoices.types].map(name => typeCatalog.names[name] || name))).filter(name => !typeCatalog.hidden.includes(name)), [customChoices.types, typeCatalog]);
+  useEffect(() => { try { window.localStorage.setItem(TYPE_CATALOG_KEY, JSON.stringify(typeCatalog)); } catch { /* Browser storage unavailable */ } }, [typeCatalog]);
+  const editType = (name: string) => { setTypeEditOriginal(name); setTypeNameInput(name); updateTypeMonthly(rentString(typeCatalog.prices[name])); setTypeManagerError(""); setTypeManagerNotice(""); setTypeDeleteTarget(null); };
+  const resetTypeEditor = () => { setTypeEditOriginal(null); setTypeNameInput(""); setTypePriceInput(""); setTypeAnnualInput(""); setTypeDailyInput(""); setTypeManagerError(""); setTypeDeleteTarget(null); };
+  const saveTypeCatalog = () => {
+    const name = typeNameInput.trim().replace(/\s+/g," ");
+    const oldName = typeEditOriginal;
+    const price = typePriceInput.trim() === "" ? null : Number(typePriceInput);
+    if (!name || name.length > 80) { setTypeManagerError("أدخل اسمًا صحيحًا لا يتجاوز 80 حرفًا."); return; }
+    if (price !== null && (!Number.isFinite(price) || price < 0)) { setTypeManagerError("قيمة الإيجار غير صحيحة."); return; }
+    if (apartmentTypes.some(t => t.toLocaleLowerCase("ar") === name.toLocaleLowerCase("ar") && t !== oldName)) { setTypeManagerError("اسم النوع موجود بالفعل."); return; }
+    if (oldName && oldName !== name && apartments.some(a => !a.archivedAt && a.type === oldName)) { setTypeManagerError("هذا النوع مرتبط بشقق مسجلة. لا يمكن تغيير اسمه قبل نقل الشقق إلى نوع آخر."); return; }
+    if (!oldName) setCustomChoices(prev => ({...prev,types:[...prev.types,name]}));
+    setTypeCatalog(prev => {
+      const names = {...prev.names}; const prices = {...prev.prices};
+      if (oldName && oldName !== name) {
+        for (const [key,value] of Object.entries(names)) if (value === oldName) names[key] = name;
+        if (!Object.values(names).includes(name)) names[oldName] = name;
+        delete prices[oldName];
+      }
+      if (price !== null) prices[name] = price; else delete prices[name];
+      return {...prev,names,prices,hidden:prev.hidden.filter(t => t !== name)};
+    });
+    setTypeManagerNotice(oldName ? "تم تعديل النوع في قائمة الأنواع المحلية." : "تم إضافة النوع إلى قائمة الأنواع المحلية.");
+    resetTypeEditor();
+  };
+  const deleteTypeCatalog = (name: string) => {
+    if (apartments.some(a => a.type === name)) { setTypeManagerError("لا يمكن حذف النوع لأنه مرتبط بشقق مسجلة، بما فيها المؤرشفة."); setTypeDeleteTarget(null); return; }
+    setCustomChoices(prev => ({...prev,types:prev.types.filter(t=>t!==name)}));
+    setTypeCatalog(prev => { const prices={...prev.prices}; delete prices[name]; return {...prev,prices,hidden:[...prev.hidden,name]}; });
+    setTypeManagerNotice("تم إخفاء النوع من القائمة المحلية بنجاح."); resetTypeEditor();
+  };
   const apartmentStatuses = useMemo(() => Array.from(new Set([...DEFAULT_APARTMENT_STATUSES, ...customChoices.statuses])), [customChoices.statuses]);
   useEffect(() => {
     try { window.localStorage.setItem(CHOICE_STORAGE_KEY, JSON.stringify(customChoices)); }
@@ -229,6 +281,7 @@ export default function Apartments() {
   const [bookingBusy, setBookingBusy] = useState(false);
   const [bookingError, setBookingError] = useState("");
   const [bookingTenantAfterCreate, setBookingTenantAfterCreate] = useState(false);
+  const [contractTenantAfterCreate, setContractTenantAfterCreate] = useState(false);
   const [bookingForm, setBookingForm] = useState({ apartment_id: "", tenant_id: "", start_date: "", end_date: "", total_amount: "", paid_amount: "0", payment_method: "نقدي", booking_status: "confirmed", notes: "" });
   const openBooking = () => { setBookingError(""); setBookingForm({apartment_id:"",tenant_id:"",start_date:"",end_date:"",total_amount:"",paid_amount:"0",payment_method:"نقدي",booking_status:"confirmed",notes:""});setBookingModal(true);void loadResidentialTenants(); };
   const saveBooking = async () => {
@@ -312,6 +365,7 @@ export default function Apartments() {
     if (error) { setTenantError(`تعذر حفظ العميل: ${error.message}`); return; }
     setTenantModal(false);
     if (bookingTenantAfterCreate && createdTenant?.id) { setBookingForm(prev=>({...prev,tenant_id:createdTenant.id}));setBookingTenantAfterCreate(false); }
+    if (contractTenantAfterCreate && createdTenant?.id) { setContractForm(prev=>({...prev,tenant_id:createdTenant.id}));setContractTenantAfterCreate(false); }
     setTenantForm({ full_name: "", phone: "", identity_number: "", nationality: "", email: "", notes: "" });
     await loadResidentialTenants();
     setActionNotice("تم تسجيل العميل الجديد بنجاح.");
@@ -320,6 +374,215 @@ export default function Apartments() {
   type PropertyOwner = { id: string; full_name: string; mobile: string | null; phone: string | null; email: string | null; nationality: string | null; identity_number: string | null };
   const emptyOwnerForm = { full_name: "", mobile: "", phone: "", email: "", nationality: "", identity_number: "" };
   const [owners, setOwners] = useState<PropertyOwner[]>([]);
+  const [standaloneOwnerModal, setStandaloneOwnerModal] = useState(false);
+  const [standaloneOwnerForm, setStandaloneOwnerForm] = useState({ full_name: "", mobile: "", phone: "", email: "", nationality: "", identity_number: "" });
+  const [standaloneOwnerError, setStandaloneOwnerError] = useState("");
+  const [savingStandaloneOwner, setSavingStandaloneOwner] = useState(false);
+  const [ownerCreatedForContract, setOwnerCreatedForContract] = useState(false);
+  const openStandaloneOwner = () => {
+    setStandaloneOwnerForm({ full_name: "", mobile: "", phone: "", email: "", nationality: "", identity_number: "" });
+    setStandaloneOwnerError("");
+    void loadOwners();
+    setStandaloneOwnerModal(true);
+  };
+  const normalizeOwnerText = (value: string) => value.trim().replace(/\s+/g, " ").toLocaleLowerCase("ar");
+  const normalizeOwnerNumber = (value: string) => value.replace(/[\s()+-]/g, "").replace(/^00966/, "0").replace(/^966/, "0").replace(/^\+966/, "0");
+  const ownerSuggestions = useMemo(() => {
+    const values = standaloneOwnerForm;
+    return owners.filter(owner => {
+      const name = normalizeOwnerText(values.full_name);
+      const mobile = normalizeOwnerNumber(values.mobile);
+      const identity = values.identity_number.trim();
+      const email = values.email.trim().toLowerCase();
+      return (name.length >= 2 && normalizeOwnerText(owner.full_name).includes(name)) ||
+        (mobile.length >= 3 && [owner.mobile, owner.phone].some(v => v && normalizeOwnerNumber(v).includes(mobile))) ||
+        (identity.length >= 3 && owner.identity_number?.includes(identity)) ||
+        (email.length >= 3 && owner.email?.toLowerCase().includes(email));
+    }).slice(0, 6);
+  }, [owners, standaloneOwnerForm]);
+  const findDuplicateOwner = (records: PropertyOwner[]) => records.find(owner => {
+    const mobile = normalizeOwnerNumber(standaloneOwnerForm.mobile);
+    const identity = standaloneOwnerForm.identity_number.trim();
+    const email = standaloneOwnerForm.email.trim().toLowerCase();
+    return (identity.length > 0 && owner.identity_number?.trim() === identity) ||
+      (mobile.length > 0 && [owner.mobile, owner.phone].some(v => v && normalizeOwnerNumber(v) === mobile)) ||
+      (email.length > 0 && owner.email?.trim().toLowerCase() === email);
+  });
+  const saveStandaloneOwner = async () => {
+    if (savingStandaloneOwner) return;
+    if (!canWrite) { setStandaloneOwnerError("ليس لديك صلاحية إضافة مالك."); return; }
+    const full_name = standaloneOwnerForm.full_name.trim();
+    if (!full_name) { setStandaloneOwnerError("اسم المالك مطلوب."); return; }
+    const email = standaloneOwnerForm.email.trim();
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setStandaloneOwnerError("البريد الإلكتروني غير صحيح."); return; }
+    setSavingStandaloneOwner(true); setStandaloneOwnerError("");
+    const { data: existingOwners, error: checkError } = await supabase.from("property_owners")
+      .select("id,full_name,mobile,phone,email,nationality,identity_number")
+      .eq("company_id", RESIDENTIAL_COMPANY_ID);
+    if (checkError) { setSavingStandaloneOwner(false); setStandaloneOwnerError(`تعذر التحقق من الملاك المسجلين: ${checkError.message}`); return; }
+    const duplicate = findDuplicateOwner((existingOwners ?? []) as PropertyOwner[]);
+    if (duplicate) { setSavingStandaloneOwner(false); setStandaloneOwnerError(`هذا المالك مسجل بالفعل باسم ${duplicate.full_name}. لا يمكن تسجيله مرة أخرى بنفس الجوال أو الهوية أو البريد الإلكتروني.`); return; }
+    const { error } = await supabase.from("property_owners").insert({
+      company_id: RESIDENTIAL_COMPANY_ID, full_name,
+      mobile: standaloneOwnerForm.mobile.trim() || null,
+      phone: standaloneOwnerForm.phone.trim() || null,
+      email: email || null,
+      nationality: standaloneOwnerForm.nationality.trim() || null,
+      identity_number: standaloneOwnerForm.identity_number.trim() || null,
+    });
+    setSavingStandaloneOwner(false);
+    if (error) { setStandaloneOwnerError(error.code === "23505" ? "هذا المالك مسجل بالفعل (رقم الجوال أو الهوية مكرر)." : `تعذر حفظ المالك: ${error.message}`); return; }
+    setStandaloneOwnerModal(false);
+    if (ownerCreatedForContract) {
+      const { data: latestOwner } = await supabase.from("property_owners").select("id").eq("company_id", RESIDENTIAL_COMPANY_ID).eq("full_name", full_name).order("created_at", {ascending:false}).limit(1).maybeSingle();
+      if (latestOwner?.id) setContractForm(prev => ({...prev, owner_id: latestOwner.id}));
+      setOwnerCreatedForContract(false);
+    }
+    await loadOwners();
+    setActionNotice("تم تسجيل المالك الجديد بنجاح، ويمكن ربطه بالشقق من بيانات المالك.");
+  };
+  const [contractModal, setContractModal] = useState(false);
+  const [contractSaving, setContractSaving] = useState(false);
+  const [contractError, setContractError] = useState("");
+  const emptyContractForm = {apartment_id:"", owner_id:"", tenant_id:"", contract_number:"", contract_type:"إيجار", rent_period:"", start_date:"", end_date:"", contract_amount:"", payment_frequency:"شهري", first_due_date:"", notes:""};
+  const [contractForm, setContractForm] = useState(emptyContractForm);
+  const [contractPeriods, setContractPeriods] = useState<string[]>(["يومي", "شهري", "سنوي"]);
+  const [addingContractPeriod, setAddingContractPeriod] = useState(false);
+  const [newContractPeriod, setNewContractPeriod] = useState("");
+  const [savingContractPeriod, setSavingContractPeriod] = useState(false);
+  const [contractPeriodError, setContractPeriodError] = useState("");
+  const loadContractPeriods = async () => {
+    const { data, error } = await supabase.from("residential_rent_period_options")
+      .select("name").eq("company_id", RESIDENTIAL_COMPANY_ID).order("name");
+    if (!error) setContractPeriods(Array.from(new Set(["يومي", "شهري", "سنوي", ...(data ?? []).map(row => row.name as string)])));
+  };
+  useEffect(() => { void loadContractPeriods(); }, []);
+  const addContractPeriod = async () => {
+    const name = newContractPeriod.trim().replace(/\s+/g, " ");
+    if (!canWrite) { setContractPeriodError("ليس لديك صلاحية الإضافة."); return; }
+    if (!name || name.length > 50) { setContractPeriodError("أدخل مدة صحيحة لا تتجاوز 50 حرفًا."); return; }
+    if (contractPeriods.some(v => v.toLocaleLowerCase("ar") === name.toLocaleLowerCase("ar"))) {
+      setContractForm(prev => ({ ...prev, rent_period: name }));
+      setAddingContractPeriod(false); setNewContractPeriod(""); return;
+    }
+    setSavingContractPeriod(true); setContractPeriodError("");
+    const { error } = await supabase.from("residential_rent_period_options")
+      .insert({ company_id: RESIDENTIAL_COMPANY_ID, name });
+    setSavingContractPeriod(false);
+    if (error) { setContractPeriodError(`تعذر حفظ المدة: ${error.message}`); return; }
+    setContractPeriods(prev => [...prev, name]);
+    setContractForm(prev => ({ ...prev, rent_period: name }));
+    setNewContractPeriod(""); setAddingContractPeriod(false);
+  };
+
+  // Contract duration describes the whole lease, while payment frequency divides its total into installments.
+  // Dates use an exclusive end boundary: a lease ending on Oct 20 has its last payable period before Oct 20.
+  const endDateForContractDuration = (start: string, duration: string) => {
+    if (!start) return "";
+    const date = new Date(`${start}T12:00:00Z`);
+    if (Number.isNaN(date.getTime())) return "";
+    const monthCount = duration === "شهري" ? 1 : duration === "سنوي" ? 12 : duration === "سنتين" ? 24 : duration === "ثلاث سنوات" ? 36 : 0;
+    if (duration === "يومي") date.setUTCDate(date.getUTCDate()+1);
+    else if (duration === "أسبوعي") date.setUTCDate(date.getUTCDate()+7);
+    else if (monthCount) {
+      const day=date.getUTCDate();
+      date.setUTCDate(1);
+      date.setUTCMonth(date.getUTCMonth()+monthCount);
+      const last=new Date(Date.UTC(date.getUTCFullYear(),date.getUTCMonth()+1,0)).getUTCDate();
+      date.setUTCDate(Math.min(day,last));
+    } else return ""; // Custom labels require an explicitly selected end date.
+    return date.toISOString().slice(0,10);
+  };
+  const contractInstallmentPreview = useMemo(() => {
+    const f = contractForm;
+    const total = Number(f.contract_amount);
+    if (f.contract_type !== "إيجار" || !f.start_date || !f.end_date || !f.first_due_date ||
+        f.end_date <= f.start_date || f.first_due_date < f.start_date || f.first_due_date >= f.end_date ||
+        !Number.isFinite(total) || total <= 0) return [] as {dueDate:string;amount:number}[];
+    const monthStep = ({"شهري":1,"ربع سنوي":3,"نصف سنوي":6,"سنوي":12} as Record<string,number>)[f.payment_frequency] ?? 0;
+    const anchor = new Date(`${f.first_due_date}T12:00:00Z`);
+    const nextDate = (index:number) => {
+      if (!monthStep) { const d=new Date(anchor); d.setUTCDate(d.getUTCDate()+index); return d.toISOString().slice(0,10); }
+      const year=anchor.getUTCFullYear(), month=anchor.getUTCMonth()+index*monthStep;
+      const lastDay=new Date(Date.UTC(year,month+1,0)).getUTCDate();
+      return new Date(Date.UTC(year,month,Math.min(anchor.getUTCDate(),lastDay),12)).toISOString().slice(0,10);
+    };
+    const dates:string[]=[];
+    for(let i=0;i<2000;i++) { const date=nextDate(i); if(date>=f.end_date) break; dates.push(date); }
+    if (!dates.length || dates.length>=2000 || Math.round(total*100)<dates.length) return [];
+    const cents=Math.round(total*100), base=Math.floor(cents/dates.length);
+    return dates.map((dueDate,i)=>({dueDate,amount:(i===dates.length-1?cents-base*(dates.length-1):base)/100}));
+  }, [contractForm]);
+  const contractPreviewIssue = (() => {
+    const f=contractForm;
+    if(f.contract_type!=="إيجار") return "";
+    if(!f.start_date || !f.end_date) return "حدد تاريخ بداية العقد ونهايته لعرض الأقساط.";
+    if(f.end_date<=f.start_date) return "تاريخ النهاية لازم يكون بعد تاريخ البداية.";
+    if(!f.first_due_date) return "حدد تاريخ أول استحقاق.";
+    if(f.first_due_date<f.start_date || f.first_due_date>=f.end_date) return "تاريخ أول استحقاق لازم يكون داخل فترة العقد، قبل تاريخ نهايته.";
+    if(!(Number(f.contract_amount)>0)) return "أدخل قيمة إجمالي العقد أكبر من صفر.";
+    if(!contractInstallmentPreview.length) return "تعذر حساب الأقساط. راجع قيمة العقد ودورية السداد والتواريخ.";
+    return "";
+  })();
+  const openContractModal = () => {setContractForm(emptyContractForm);setContractError("");setContractModal(true);void loadOwners();void loadResidentialTenants();void loadContractPeriods();};
+  const saveContract = async () => {
+    if (contractSaving) return;
+    if (!canWrite) {setContractError("ليس لديك صلاحية إضافة عقد.");return;}
+    const f = contractForm;
+    if (!f.apartment_id || !f.owner_id || !f.tenant_id || !f.contract_number.trim() || !f.start_date || !f.end_date) {setContractError("اختر الشقة والمالك والمستأجر، وأدخل رقم العقد وتواريخه.");return;}
+    const selectedApartment = apartments.find(a => a.id === f.apartment_id);
+    if (selectedApartment?.ownerId && f.owner_id !== selectedApartment.ownerId) {
+      setContractError("المالك المختار مختلف عن المالك المسجل للشقة. اختر مالك الشقة الصحيح أو عدّل بيانات ملكية الشقة أولًا."); return;
+    }
+    if (!f.rent_period) {setContractError("اختر مدة العقد.");return;}
+    if (f.end_date <= f.start_date) {setContractError("تاريخ النهاية يجب أن يكون بعد البداية.");return;}
+    if (f.contract_type === "إيجار" && (!f.contract_amount || Number(f.contract_amount) <= 0)) {setContractError("أدخل إجمالي قيمة عقد الإيجار.");return;}
+    if (f.contract_amount && (!Number.isFinite(Number(f.contract_amount)) || Number(f.contract_amount)<0)) {setContractError("قيمة العقد غير صحيحة.");return;}
+    setContractSaving(true);setContractError("");
+    const normalizedContractNumber = f.contract_number.trim();
+    const { data: existingContractNumbers, error: duplicateCheckError } = await supabase
+      .from("residential_contracts")
+      .select("id,contract_number")
+      .eq("company_id", RESIDENTIAL_COMPANY_ID)
+      .not("contract_number", "is", null);
+    if (duplicateCheckError) {
+      setContractSaving(false);
+      setContractError(`تعذر التحقق من أرقام العقود المسجلة: ${duplicateCheckError.message}`);
+      return;
+    }
+    const duplicateContract = (existingContractNumbers ?? []).find(
+      row => String(row.contract_number ?? "").trim().toLocaleLowerCase() === normalizedContractNumber.toLocaleLowerCase()
+    );
+    if (duplicateContract) {
+      setContractSaving(false);
+      setContractError(`رقم العقد «${normalizedContractNumber}» مسجل بالفعل. برجاء استخدام رقم عقد مختلف.`);
+      return;
+    }
+    if (f.contract_type === "إيجار" && (!f.first_due_date || !contractInstallmentPreview.length)) {
+      setContractSaving(false); setContractError("حدد تاريخ أول استحقاق ودورية السداد وتأكد من ظهور جدول الأقساط."); return;
+    }
+    const rentPeriod = f.rent_period || apartments.find(a => a.id === f.apartment_id)?.rentCategory || "شهري";
+    const {error} = f.contract_type === "إيجار"
+      ? await supabase.rpc("create_residential_contract_with_schedule", {
+          p_company_id: RESIDENTIAL_COMPANY_ID, p_apartment_id:f.apartment_id,
+          p_owner_id:f.owner_id, p_tenant_id:f.tenant_id,
+          p_contract_number:normalizedContractNumber, p_contract_type:f.contract_type,
+          p_start_date:f.start_date, p_end_date:f.end_date,
+          p_contract_amount:Number(f.contract_amount), p_rent_period:rentPeriod,
+          p_notes:f.notes.trim() || null, p_payment_frequency:f.payment_frequency,
+          p_first_due_date:f.first_due_date,
+        })
+      : await supabase.from("residential_contracts").insert({
+          company_id:RESIDENTIAL_COMPANY_ID, apartment_id:f.apartment_id,owner_id:f.owner_id,
+          tenant_id:f.tenant_id, contract_number:normalizedContractNumber,contract_type:f.contract_type,
+          start_date:f.start_date,end_date:f.end_date,
+          rent_amount:f.contract_amount ? Number(f.contract_amount) : 0,
+          rent_period:rentPeriod,status:"نشط", notes:f.notes.trim() || null
+        });
+    setContractSaving(false);
+    if (error) {setContractError(error.code === "23505" ? "رقم العقد مسجل بالفعل. برجاء استخدام رقم مختلف." : `تعذر حفظ العقد: ${error.message}. راجع أعمدة الجدول وصلاحياته في Supabase.`);return;}
+    setContractModal(false);void loadContractSummary();setActionNotice("تم تسجيل العقد وربطه بالشقة والمالك بنجاح.");
+  };
   const [ownerId, setOwnerId] = useState("");
   const [ownerMode, setOwnerMode] = useState<"existing" | "new">("new");
   const [ownerForm, setOwnerForm] = useState(emptyOwnerForm);
@@ -342,7 +605,7 @@ export default function Apartments() {
       // Fetch fresh records from Supabase; preserve current search and filters.
       const succeeded = await loadResidentialApartments();
       if (!succeeded) return;
-      await Promise.all([loadResidentialTenants(), loadOwners(), loadNationalities()]);
+      await Promise.all([loadResidentialTenants(), loadOwners(), loadNationalities(), loadContractSummary()]);
       setRefreshNotice("تم تحديث بيانات الشقق بنجاح");
     } catch (error) {
       setLoadError(`تعذر تحديث البيانات: ${error instanceof Error ? error.message : "خطأ غير متوقع"}`);
@@ -358,6 +621,260 @@ export default function Apartments() {
 
   const [search, setSearch] = useState("");
   const [detailCategory, setDetailCategory] = useState<string | null>(null);
+  type ContractReportRow = { id: string; apartment_id: string; owner_id: string | null; tenant_id: string | null; contract_number: string; contract_type: string; start_date: string; end_date: string; rent_amount: number | null; rent_period?: string; status?: string; notes?: string | null };
+  const [reportContracts, setReportContracts] = useState<ContractReportRow[]>([]);
+  const [selectedReportContract, setSelectedReportContract] = useState<ContractReportRow | null>(null);
+  const [contractActionMode, setContractActionMode] = useState<"view" | "edit" | "archive" | null>(null);
+  const [contractActionBusy, setContractActionBusy] = useState(false);
+  const [contractActionError, setContractActionError] = useState("");
+  const [editSchedule, setEditSchedule] = useState<{due_date:string;amount:number;installment_no:number}[]>([]);
+  const [editFrequency, setEditFrequency] = useState("");
+  const [editFirstDue, setEditFirstDue] = useState("");
+  const [editScheduleLoading, setEditScheduleLoading] = useState(false);
+  const [confirmReschedule, setConfirmReschedule] = useState(false);
+  const [contractEdit, setContractEdit] = useState({contract_number:"",contract_type:"",start_date:"",end_date:"",notes:""});
+  const openContractAction = (contract: ContractReportRow, mode: "view" | "edit" | "archive") => {
+    setSelectedReportContract(contract); setContractActionMode(mode); setContractActionError("");
+    setConfirmReschedule(false);setEditSchedule([]);setEditFrequency("");setEditFirstDue("");
+    if(mode==="edit") {
+      setEditScheduleLoading(true);
+      void Promise.all([
+        supabase.from("residential_rent_terms").select("payment_frequency,first_due_date").eq("company_id",RESIDENTIAL_COMPANY_ID).eq("contract_id",contract.id).maybeSingle(),
+        supabase.from("residential_rent_installments").select("installment_no,due_date,amount").eq("company_id",RESIDENTIAL_COMPANY_ID).eq("contract_id",contract.id).order("installment_no")
+      ]).then(([terms, installments])=>{
+        if(terms.error || installments.error) setContractActionError(terms.error?.message||installments.error?.message||"تعذر تحميل جدول السداد");
+        else {setEditFrequency(terms.data?.payment_frequency||"");setEditFirstDue(terms.data?.first_due_date||"");setEditSchedule(installments.data||[]);}
+      }).catch(()=>setContractActionError("تعذر تحميل جدول السداد")).finally(()=>setEditScheduleLoading(false));
+    }
+    setContractEdit({contract_number:contract.contract_number ?? "",contract_type:contract.contract_type ?? "إيجار",start_date:contract.start_date ?? "",end_date:contract.end_date ?? "",notes:contract.notes ?? ""});
+  };
+  const contractDateChanged = !!selectedReportContract && (contractEdit.start_date!==selectedReportContract.start_date || contractEdit.end_date!==selectedReportContract.end_date);
+  const newSchedulePreview = (() => {
+    if(!selectedReportContract || !contractEdit.start_date || !contractEdit.end_date || contractEdit.end_date<=contractEdit.start_date || !editFrequency || !editFirstDue) return [] as {due_date:string;amount:number;installment_no:number}[];
+    const first = editFirstDue===selectedReportContract.start_date ? contractEdit.start_date : editFirstDue;
+    if(first<contractEdit.start_date || first>=contractEdit.end_date) return [];
+    const step=({"يومي":0,"شهري":1,"ربع سنوي":3,"نصف سنوي":6,"سنوي":12} as Record<string,number>)[editFrequency];
+    if(step===undefined) return [];
+    const anchor=new Date(`${first}T12:00:00Z`);
+    const dates:string[]=[];
+    for(let i=0;i<2000;i++) {
+      let date:string;
+      if(step===0) {const d=new Date(anchor);d.setUTCDate(d.getUTCDate()+i);date=d.toISOString().slice(0,10);}
+      else {const year=anchor.getUTCFullYear(),month=anchor.getUTCMonth()+i*step;const last=new Date(Date.UTC(year,month+1,0)).getUTCDate();date=new Date(Date.UTC(year,month,Math.min(anchor.getUTCDate(),last),12)).toISOString().slice(0,10);}
+      if(date>=contractEdit.end_date)break;
+      dates.push(date);
+    }
+    const cents=Math.round(Number(selectedReportContract.rent_amount||0)*100);
+    if(!dates.length || dates.length>=2000 || cents<dates.length) return [];
+    const base=Math.floor(cents/dates.length);
+    return dates.map((due_date,i)=>({due_date,installment_no:i+1,amount:(i===dates.length-1?cents-base*(dates.length-1):base)/100}));
+  })();
+  const saveContractAction = async () => {
+    if (!selectedReportContract || !contractActionMode || contractActionBusy) return;
+    if (!canWrite) {setContractActionError("ليس لديك صلاحية تعديل العقود.");return;}
+    setContractActionBusy(true); setContractActionError("");
+    const contract = selectedReportContract;
+    if (contractActionMode === "edit") {
+      const number = contractEdit.contract_number.trim();
+      if (!number) {setContractActionError("رقم العقد مطلوب.");setContractActionBusy(false);return;}
+      if (!contractEdit.start_date || !contractEdit.end_date || contractEdit.end_date <= contractEdit.start_date) {
+        setContractActionError("تأكد من إدخال تاريخ بداية ونهاية صحيحين، وأن النهاية بعد البداية."); setContractActionBusy(false); return;
+      }
+      const datesChanged = contractDateChanged;
+      if(datesChanged && (editScheduleLoading || !editFrequency || !newSchedulePreview.length)) {
+        setContractActionError("لا يمكن حساب جدول الأقساط الجديد. تأكد من تحميل إعدادات السداد وصحة التواريخ.");setContractActionBusy(false);return;
+      }
+      if(datesChanged && !confirmReschedule) {
+        setContractActionError("راجع مواعيد الأقساط الجديدة ثم فعّل مربع تأكيد تغيير مواعيد الاستحقاق.");setContractActionBusy(false);return;
+      }
+      const {data: duplicate,error: checkError} = await supabase.from("residential_contracts").select("id")
+        .eq("company_id",RESIDENTIAL_COMPANY_ID).eq("contract_number",number).neq("id",contract.id).limit(1);
+      if (checkError) {setContractActionError(checkError.message);setContractActionBusy(false);return;}
+      if (duplicate?.length) {setContractActionError("رقم العقد مستخدم بالفعل.");setContractActionBusy(false);return;}
+      const {error} = await supabase.rpc("update_residential_contract_schedule",{
+        p_company_id:RESIDENTIAL_COMPANY_ID,p_contract_id:contract.id,p_contract_number:number,
+        p_start_date:contractEdit.start_date,p_end_date:contractEdit.end_date,p_notes:contractEdit.notes.trim(),
+        p_expected_start_date:contract.start_date,p_expected_end_date:contract.end_date
+      });
+      if (error) {setContractActionError(error.message);setContractActionBusy(false);return;}
+    } else if (contractActionMode === "archive") {
+      const newStatus = contract.status === "مؤرشف" ? "نشط" : "مؤرشف";
+      const {error} = await supabase.from("residential_contracts").update({status:newStatus})
+        .eq("company_id",RESIDENTIAL_COMPANY_ID).eq("id",contract.id);
+      if (error) {setContractActionError(error.message);setContractActionBusy(false);return;}
+    }
+    setContractActionBusy(false);setContractActionMode(null);setSelectedReportContract(null);
+    await openReport("تقارير العقود");
+  };
+
+  const [expiryModalOpen, setExpiryModalOpen] = useState(false);
+  const [expirySearch, setExpirySearch] = useState("");
+  const [expiryLoading, setExpiryLoading] = useState(false);
+  const [expiryError, setExpiryError] = useState("");
+  const [expiryContracts, setExpiryContracts] = useState<ContractReportRow[]>([]);
+  const openExpiryModal = async () => {
+    setExpiryModalOpen(true); setExpirySearch(""); setExpiryError(""); setExpiryLoading(true);
+    const results = await Promise.allSettled([
+      supabase.from("residential_contracts").select("id,apartment_id,owner_id,tenant_id,contract_number,contract_type,start_date,end_date,rent_amount,rent_period,status,notes").eq("company_id", RESIDENTIAL_COMPANY_ID).order("end_date", {ascending:true}),
+      loadResidentialApartments(), loadResidentialTenants(), loadOwners()
+    ]);
+    const result = results[0];
+    if (result.status === "fulfilled") {
+      if (result.value.error) setExpiryError(result.value.error.message);
+      else setExpiryContracts((result.value.data ?? []) as ContractReportRow[]);
+    } else setExpiryError("تعذر تحميل بيانات العقود. حاول مرة أخرى.");
+    setExpiryLoading(false);
+  };
+  const expiryReportRows = () => {
+    const query = expirySearch.trim().toLocaleLowerCase();
+    const today = new Date().toLocaleDateString("en-CA");
+    return expiryContracts.filter(c => [c.contract_number, apartments.find(a=>a.id===c.apartment_id)?.number, tenants.find(t=>t.id===c.tenant_id)?.full_name, owners.find(o=>o.id===c.owner_id)?.full_name].join(" ").toLocaleLowerCase().includes(query))
+      .slice().sort((a,b) => a.end_date.localeCompare(b.end_date))
+      .map((c,i) => {
+        const expired = c.end_date < today;
+        const upcoming = !expired && (new Date(c.end_date+"T00:00:00").getTime()-new Date(today+"T00:00:00").getTime()) <= 30*86400000;
+        return [String(i+1), c.contract_number||"—", apartments.find(a=>a.id===c.apartment_id)?.number||"—", tenants.find(t=>t.id===c.tenant_id)?.full_name||"—", owners.find(o=>o.id===c.owner_id)?.full_name||"—", c.start_date||"—", c.end_date||"—", expired?"منتهي":upcoming?"قريب الانتهاء":"ساري"];
+      });
+  };
+  const expiryReportHtml = () => {
+    const headers = ["م","رقم العقد","الشقة","المستأجر","المالك","تاريخ البداية","تاريخ الانتهاء","حالة العقد"];
+    const rows = expiryReportRows();
+    const logoUrl = new URL("/aqary-smart-logo.png", window.location.origin).href;
+    const safe = (value: unknown) => String(value ?? "").replace(/[&<>"']/g, char => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char] ?? char));
+    return `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"/><title>تقرير العقود حسب تاريخ الانتهاء</title><style>
+      *{box-sizing:border-box}body{font-family:Tahoma,Arial,sans-serif;color:#15382f;margin:25px;direction:rtl}
+      .report-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;border-bottom:3px solid #13503e;padding:8px 4px 15px;direction:rtl}
+      .report-heading__title{flex:1;text-align:right;padding-top:12px}h1{color:#12503e;font-size:23px;margin:0 0 12px}
+      .report-heading__meta{font-size:13px;font-weight:bold;margin:0}.report-heading__brand{width:170px;flex-shrink:0;text-align:center;direction:rtl;color:#12503e;font-weight:bold}
+      .report-heading__brand img{display:block;max-width:120px;max-height:100px;object-fit:contain;margin:0 auto 6px}.report-heading__brand div{font-size:13px;line-height:1.65}
+      table{width:100%;border-collapse:collapse;margin-top:18px;font-size:12px}th{background:#13503e;color:white}th,td{border:1px solid #9caea6;padding:9px;text-align:right}
+      tr:nth-child(even){background:#edf5ef}thead{display:table-header-group}tr{break-inside:avoid;page-break-inside:avoid}
+      @page{size:A4 landscape;margin:12mm}@media print{body{margin:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}.report-heading{break-inside:avoid}}
+      </style></head><body><header class="report-heading"><div class="report-heading__title"><h1>عقاري سمارت | تقرير العقود حسب تاريخ الانتهاء</h1><p class="report-heading__meta">تاريخ التقرير: ${new Date().toLocaleDateString("ar-SA")} | عدد النتائج: ${rows.length} | إجمالي العقود المسجلة: ${expiryContracts.length}</p></div><div class="report-heading__brand"><img src="${safe(logoUrl)}" alt="شعار عقاري سمارت"/><div>م/ علي نصر</div><div dir="ltr">0570026229</div></div></header>
+      <table><thead><tr>${headers.map(h=>`<th>${safe(h)}</th>`).join("")}</tr></thead><tbody>${rows.map(row=>`<tr>${row.map(cell=>`<td>${safe(cell)}</td>`).join("")}</tr>`).join("")}</tbody></table></body></html>`;
+  };
+  const printExpiryReport = () => {
+    if (expiryLoading || expiryError) return;
+    const popup = window.open("", "_blank", "width=1100,height=750");
+    if (!popup) { setExpiryError("المتصفح منع نافذة الطباعة. اسمح بالنوافذ المنبثقة وحاول مجددًا."); return; }
+    popup.document.open(); popup.document.write(expiryReportHtml()); popup.document.close();
+    popup.focus(); popup.setTimeout(()=>popup.print(),350);
+  };
+  const exportExpiryExcel = () => {
+    if (expiryLoading || expiryError) return;
+    const html = expiryReportHtml().replace("<html lang=", '<html xmlns:x="urn:schemas-microsoft-com:office:excel" lang=');
+    const blob = new Blob(["\ufeff",html],{type:"application/vnd.ms-excel;charset=utf-8"});
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a"); link.href=url; link.download=`contracts-by-expiry-${new Date().toISOString().slice(0,10)}.xls`;
+    document.body.appendChild(link);link.click();link.remove();window.setTimeout(()=>URL.revokeObjectURL(url),1000);
+  };
+  const [contractSummary, setContractSummary] = useState<{ count: number; nearest: string | null; loading: boolean; error: boolean }>({ count: 0, nearest: null, loading: true, error: false });
+  const loadContractSummary = async () => {
+    const { data, error } = await supabase.from("residential_contracts")
+      .select("end_date").eq("company_id", RESIDENTIAL_COMPANY_ID);
+    if (error) { setContractSummary(prev => ({ ...prev, loading: false, error: true })); return; }
+    const dates = (data ?? []).map(row => row.end_date as string | null).filter((v): v is string => !!v);
+    const today = new Date().toISOString().slice(0, 10);
+    const upcoming = dates.filter(date => date >= today).sort();
+    setContractSummary({ count: (data ?? []).length, nearest: upcoming[0] ?? dates.sort().at(-1) ?? null, loading: false, error: false });
+  };
+  useEffect(() => { void loadContractSummary(); }, []);
+
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportError, setReportError] = useState("");
+  const [reportSearch, setReportSearch] = useState("");
+  const financialCategories = ["إجمالي الإيجارات", "إجمالي المستحقات", "إجمالي فواتير المياه", "إجمالي فواتير الكهرباء"];
+  const financialRows = () => detailCategory === "إجمالي الإيجارات" ? reportContracts.map(c => [c.contract_number || "—", apartments.find(a=>a.id===c.apartment_id)?.number || "—", tenants.find(t=>t.id===c.tenant_id)?.full_name || "—", c.start_date, c.end_date, `${formatPrice(Number(c.rent_amount ?? 0))} ر.س`, "غير متاح", "غير متاح"]) : [];
+  const financialHeaders = ["رقم العقد", "الشقة", "المستأجر", "تاريخ البداية", "تاريخ الانتهاء", "قيمة الإيجار", "المحصل", "المتبقي"];
+  const occupancyCategories = ["إجمالي الشقق", "إجمالي المؤجرة", "إجمالي الفارغة", "إجمالي المحجوزة"];
+  const occupancyApartments = () => activeApartments.filter(a =>
+    detailCategory === "إجمالي الشقق" ||
+    (detailCategory === "إجمالي المؤجرة" ? a.status === "مؤجرة" :
+     detailCategory === "إجمالي المحجوزة" ? a.status === "محجوزة" : a.status === "متاحة")
+  );
+  const occupancyRows = () => occupancyApartments().map(a => [
+    a.number, a.buildingName || "—", a.type, String(a.rooms), a.status,
+    `${formatPrice(a.price)} ر.س`, a.rentCategory || "—",
+    owners.find(o => o.id === a.ownerId)?.full_name || "—",
+    a.location || "—"
+  ]).filter(row => row.some(cell => String(cell).toLocaleLowerCase().includes(reportSearch.trim().toLocaleLowerCase())));
+  const reportTableData = () => {
+    const category = detailCategory;
+    const headers = financialCategories.includes(category ?? "") ? (category === "إجمالي الإيجارات" ? financialHeaders : ["الشقة", "نوع المستحق", "تاريخ الفاتورة", "القيمة", "المحصل", "المتبقي"]) : occupancyCategories.includes(category ?? "") ? ["رقم الشقة", "العمارة", "نوع الشقة", "الغرف", "الحالة", "الإيجار", "فترة الإيجار", "المالك", "الموقع"]
+      : category === "تقارير الشقق" ? ["رقم الشقة","العمارة","النوع","الحالة","الإيجار","المالك"]
+      : category === "تقارير العقود" ? ["رقم العقد","نوع العقد","الشقة","المستأجر","المالك","البداية","النهاية","قيمة الإيجار"]
+      : category === "تقارير العملاء" ? ["العميل","الجوال","الهوية","الجنسية","البريد","عدد العقود"]
+      : ["المالك","الجوال","الهوية","الجنسية","الشقق","العقود"];
+    const rows = financialCategories.includes(category ?? "") ? financialRows().filter(row=>row.some(cell=>String(cell).toLocaleLowerCase().includes(reportSearch.trim().toLocaleLowerCase()))) : occupancyCategories.includes(category ?? "") ? occupancyRows() : (category === "تقارير الشقق" ? activeApartments.map(a=>[a.number,a.buildingName||"—",a.type,a.status,`${formatPrice(a.price)} ر.س`,owners.find(o=>o.id===a.ownerId)?.full_name||"—"])
+      : category === "تقارير العقود" ? reportContracts.map(c=>[c.contract_number,c.contract_type,apartments.find(a=>a.id===c.apartment_id)?.number||"—",tenants.find(t=>t.id===c.tenant_id)?.full_name||"—",owners.find(o=>o.id===c.owner_id)?.full_name||"—",c.start_date,c.end_date,c.rent_amount==null?"—":`${formatPrice(Number(c.rent_amount))} ر.س`])
+      : category === "تقارير العملاء" ? tenants.map(t=>[t.full_name,t.phone||"—",t.identity_number||"—",t.nationality||"—",t.email||"—",String(reportContracts.filter(c=>c.tenant_id===t.id).length)])
+      : owners.map(o=>[o.full_name,o.mobile||o.phone||"—",o.identity_number||"—",o.nationality||"—",String(apartments.filter(a=>a.ownerId===o.id&&!a.archivedAt).length),String(reportContracts.filter(c=>c.owner_id===o.id).length)]))
+      .filter(row=>row.some(cell=>String(cell).toLocaleLowerCase().includes(reportSearch.trim().toLocaleLowerCase())));
+    return { headers, rows };
+  };
+  const escapeReportHtml = (value: unknown) => String(value ?? "").replace(/[&<>"']/g, char => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char] ?? char));
+  const reportHtml = () => {
+    const {headers,rows} = reportTableData();
+    const logoUrl = new URL("/aqary-smart-logo.png", window.location.origin).href;
+    return `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"/><title>${escapeReportHtml(detailCategory)}</title><style>
+      *{box-sizing:border-box}body{font-family:Tahoma,Arial,sans-serif;color:#15382f;margin:25px;direction:rtl}
+      .report-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;border-bottom:3px solid #13503e;padding:8px 4px 15px;direction:rtl}
+      .report-heading__title{flex:1;text-align:right;padding-top:12px}
+      h1{color:#12503e;font-size:23px;margin:0 0 12px} .report-heading__meta{font-size:13px;font-weight:bold;margin:0}
+      .report-heading__brand{width:170px;flex-shrink:0;text-align:center;direction:rtl;color:#12503e;font-weight:bold}
+      .report-heading__brand img{display:block;max-width:120px;max-height:100px;object-fit:contain;margin:0 auto 6px}
+      .report-heading__brand div{font-size:13px;line-height:1.65}
+      table{width:100%;border-collapse:collapse;margin-top:18px;font-size:12px}
+      th{background:#13503e;color:white}th,td{border:1px solid #9caea6;padding:9px;text-align:right}
+      tr:nth-child(even){background:#edf5ef}thead{display:table-header-group}tr{break-inside:avoid;page-break-inside:avoid}
+      @page{size:A4 landscape;margin:12mm}
+      @media print{body{margin:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}.report-heading{break-inside:avoid}}
+      </style></head><body>
+      <header class="report-heading">
+        <div class="report-heading__title"><h1>عقاري سمارت | ${escapeReportHtml(detailCategory)}</h1><p class="report-heading__meta">تاريخ التقرير: ${new Date().toLocaleDateString("ar-SA")} | عدد النتائج: ${rows.length}</p></div>
+        <div class="report-heading__brand"><img src="${escapeReportHtml(logoUrl)}" alt="شعار عقاري سمارت"/><div>م/ علي نصر</div><div dir="ltr">0570026229</div></div>
+      </header>
+      <table><thead><tr>${headers.map(h=>`<th>${escapeReportHtml(h)}</th>`).join("")}</tr></thead><tbody>${rows.map(row=>`<tr>${row.map(cell=>`<td>${escapeReportHtml(cell)}</td>`).join("")}</tr>`).join("")}</tbody></table></body></html>`;
+  };
+  const printReport = () => {
+    if (reportLoading || reportError) return;
+    const popup = window.open("", "_blank", "width=1100,height=750");
+    if (!popup) { setReportError("المتصفح منع نافذة الطباعة. اسمح بالنوافذ المنبثقة وحاول مجددًا."); return; }
+    popup.document.open(); popup.document.write(reportHtml()); popup.document.close();
+    popup.focus(); popup.setTimeout(()=>popup.print(), 350);
+  };
+  const exportReportExcel = () => {
+    if (reportLoading || reportError) return;
+    // Excel-compatible HTML spreadsheet; Arabic and RTL supported without dependencies.
+    const html = reportHtml().replace("<html lang=", '<html xmlns:x="urn:schemas-microsoft-com:office:excel" lang=');
+    const blob = new Blob(["\\ufeff", html], {type:"application/vnd.ms-excel;charset=utf-8"});
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a"); link.href=url; link.download=`${detailCategory ?? "report"}-${new Date().toISOString().slice(0,10)}.xls`;
+    document.body.appendChild(link); link.click(); link.remove(); window.setTimeout(()=>URL.revokeObjectURL(url),1000);
+  };
+  const openReport = async (category: string) => {
+    setDetailCategory(category); setReportSearch(""); setReportError("");
+    if (!["تقارير الشقق", "تقارير العقود", "تقارير العملاء", "تقارير الملاك", "إجمالي الإيجارات"].includes(category)) return;
+    setReportLoading(true);
+    const jobs: PromiseLike<unknown>[] = [];
+    // Refresh each report from its company-scoped source.
+    if (category === "تقارير الشقق") jobs.push(loadResidentialApartments());
+    if (category === "تقارير العملاء") jobs.push(loadResidentialTenants());
+    if (category === "تقارير الملاك") jobs.push(loadOwners());
+    if (category === "تقارير العقود" || category === "تقارير العملاء" || category === "تقارير الملاك" || category === "إجمالي الإيجارات") {
+      jobs.push((async () => {
+        const {data,error} = await supabase.from("residential_contracts")
+          .select("id,apartment_id,owner_id,tenant_id,contract_number,contract_type,start_date,end_date,rent_amount,rent_period,status,notes")
+          .eq("company_id", RESIDENTIAL_COMPANY_ID).order("start_date", {ascending:false});
+        if (error) setReportError(error.message);
+        else setReportContracts((data ?? []) as ContractReportRow[]);
+      })());
+    }
+    if (category === "تقارير العقود" || category === "إجمالي الإيجارات") jobs.push(loadResidentialApartments(),loadResidentialTenants(),loadOwners());
+    await Promise.allSettled(jobs);
+    setReportLoading(false);
+  };
+
   const [actionNotice, setActionNotice] = useState<string | null>(null);
   const isSaveSuccess = actionNotice?.startsWith("تم حفظ بيانات الشقة في Supabase بنجاح") || actionNotice === "تم تسجيل العميل الجديد بنجاح." || actionNotice?.startsWith("تمت أرشفة") || actionNotice?.startsWith("تم استرجاع");
   useEffect(() => {
@@ -373,9 +890,19 @@ export default function Apartments() {
   const [operationNotes, setOperationNotes] = useState("");
   const [operationApartments, setOperationApartments] = useState<string[]>([]);
   const [operationSearch, setOperationSearch] = useState("");
+  const [operationRentEdited, setOperationRentEdited] = useState(false);
+  const selectedRentApartments = apartments.filter(a => !a.archivedAt && operationApartments.includes(a.number));
+  const automaticRentAmount = selectedRentApartments.reduce((sum, a) => sum + (Number.isFinite(a.price) ? a.price : 0), 0);
+  const rentTotal = operationRentEdited ? Number(operationAmount || 0) : automaticRentAmount;
+  useEffect(() => {
+    if (operationModal !== "rent" || operationRentEdited) return;
+    setOperationAmount(selectedRentApartments.length ? String(roundRent(automaticRentAmount)) : "");
+  }, [operationModal, automaticRentAmount, operationRentEdited, selectedRentApartments.length]);
+
   const openOperationModal = (kind: "charge" | "collectCharge" | "rent" | "collectRent" | "types") => {
     setOperationType("كهرباء"); setOperationAmount(""); setOperationNotes("");
-    setOperationApartments([]); setOperationSearch(""); setOperationModal(kind);
+    setOperationApartments([]); setOperationSearch(""); setOperationRentEdited(false); setOperationModal(kind);
+    if (kind === "types") { resetTypeEditor(); setTypeManagerNotice(""); }
   };
   useEffect(() => {
     const request = (location.state as { residentialFinancialAction?: { kind?: string; apartmentId?: string; apartmentNumber?: string } } | null)?.residentialFinancialAction;
@@ -635,25 +1162,32 @@ export default function Apartments() {
             <div className="mb-3 grid h-16 w-16 place-items-center rounded-[23px] border border-amber-300/60 bg-gradient-to-br from-amber-200/20 via-[#153d31] to-[#08241f] text-amber-300 shadow-[0_0_28px_rgba(244,190,65,.25),inset_0_1px_0_rgba(255,255,255,.24)]"><Building2 size={34} strokeWidth={1.7}/></div>
             <h1 className="text-center text-[clamp(1.55rem,3vw,2.7rem)] font-black leading-tight tracking-wide text-white"><span className="text-amber-300">إدارة</span> الشقق والعقود</h1>
             <p className="mt-2 text-center text-sm font-semibold text-emerald-100/70">الشقق المتاحة والمؤجرة والحجوزات والتحصيلات</p>
-            <div className="mt-6 grid w-full max-w-[1400px] grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_150px_150px_150px_300px]">
-              <div className="group relative min-w-0"><Search size={21} className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-emerald-300"/><input value={search} onChange={(event)=>setSearch(event.target.value)} placeholder="ابحث بالاسم أو رقم الهاتف أو رقم العقد أو رقم الشقة..." aria-label="البحث في الشقق" className="h-[66px] w-full rounded-2xl border border-emerald-300/45 bg-[#064138]/60 pr-12 pl-5 text-center text-sm font-semibold text-white shadow-[inset_0_1px_8px_rgba(0,0,0,.25),0_0_20px_rgba(14,192,148,.12)] outline-none backdrop-blur-xl placeholder:text-emerald-100/45 focus:border-amber-300 focus:ring-2 focus:ring-amber-300/15"/></div>
-              <button type="button" onClick={()=>setDetailCategory("تقارير الشقق")} className="group flex min-h-[66px] items-center justify-center gap-3 rounded-2xl border border-emerald-300/55 bg-gradient-to-br from-emerald-400/20 to-[#072e28] px-3 font-black text-white shadow-[0_0_22px_rgba(0,210,160,.12)] transition hover:-translate-y-1 hover:border-emerald-200"><FileBarChart2 className="text-emerald-300" size={26}/>تقارير الشقق</button>
-              <button type="button" onClick={()=>setDetailCategory("تقارير العملاء")} className="group flex min-h-[66px] items-center justify-center gap-3 rounded-2xl border border-amber-300/60 bg-gradient-to-br from-amber-300/20 to-[#342a16]/60 px-3 font-black text-white shadow-[0_0_22px_rgba(242,182,45,.12)] transition hover:-translate-y-1 hover:border-amber-200"><ContactRound className="text-amber-300" size={26}/>تقارير العملاء</button>
-              <button type="button" onClick={()=>setDetailCategory("تقارير الشهر")} className="group flex min-h-[66px] items-center justify-center gap-2 rounded-2xl border border-sky-300/55 bg-gradient-to-br from-sky-400/20 to-[#092b31] px-2 text-sm font-black text-white shadow-[0_0_22px_rgba(56,189,248,.12)] transition hover:-translate-y-1 hover:border-sky-200"><CalendarDays className="shrink-0 text-sky-300" size={24}/>تقارير الشهر</button>
-              <button type="button" onClick={()=>navigate("/apartments/map")} className="group flex min-h-[66px] items-center justify-center gap-2 rounded-2xl border border-amber-300/60 bg-gradient-to-br from-amber-300/20 via-[#113e32] to-[#072e28] px-3 text-sm font-black text-white shadow-[0_0_22px_rgba(242,182,45,.12)] transition hover:-translate-y-1 hover:border-amber-200"><Map className="shrink-0 text-amber-300" size={25}/>خريطة الشقق</button>
+            <div className="mt-6 grid w-full max-w-[1400px] grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_repeat(4,minmax(0,145px))] lg:items-stretch">
+              <div className="group relative min-w-0 lg:self-stretch"><Search size={21} className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-emerald-300"/><input value={search} onChange={(event)=>setSearch(event.target.value)} placeholder="ابحث بالاسم أو رقم الهاتف أو رقم العقد أو رقم الشقة..." aria-label="البحث في الشقق" className="h-full min-h-[66px] w-full rounded-2xl border border-emerald-300/45 bg-[#064138]/60 pr-12 pl-5 text-center text-sm font-semibold text-white shadow-[inset_0_1px_8px_rgba(0,0,0,.25),0_0_20px_rgba(14,192,148,.12)] outline-none backdrop-blur-xl placeholder:text-emerald-100/45 focus:border-amber-300 focus:ring-2 focus:ring-amber-300/15"/></div>
+              <div className="grid grid-rows-2 gap-2">
+                <button type="button" onClick={()=>{void openReport("تقارير الشقق");}} className="flex min-h-[56px] items-center justify-center gap-2 rounded-xl border border-emerald-300/55 bg-gradient-to-br from-emerald-400/20 to-[#072e28] px-2 text-xs font-black text-white transition hover:border-emerald-200"><FileBarChart2 className="shrink-0 text-emerald-300" size={21}/>تقارير الشقق</button>
+                <button type="button" onClick={()=>{void openReport("تقارير العقود");}} className="flex min-h-[56px] items-center justify-center gap-2 rounded-xl border border-emerald-300/55 bg-gradient-to-br from-emerald-400/20 to-[#072e28] px-2 text-xs font-black text-white transition hover:border-emerald-200"><ReceiptText className="shrink-0 text-emerald-300" size={21}/>تقارير العقود</button>
+              </div>
+              <div className="grid grid-rows-2 gap-2">
+                <button type="button" onClick={()=>{void openReport("تقارير العملاء");}} className="flex min-h-[56px] items-center justify-center gap-2 rounded-xl border border-amber-300/60 bg-gradient-to-br from-amber-300/20 to-[#342a16]/60 px-2 text-xs font-black text-white transition hover:border-amber-200"><ContactRound className="shrink-0 text-amber-300" size={21}/>تقارير العملاء</button>
+                <button type="button" onClick={()=>{void openReport("تقارير الملاك");}} className="flex min-h-[56px] items-center justify-center gap-2 rounded-xl border border-amber-300/60 bg-gradient-to-br from-amber-300/20 to-[#342a16]/60 px-2 text-xs font-black text-white transition hover:border-amber-200"><UserRoundCheck className="shrink-0 text-amber-300" size={21}/>تقارير الملاك</button>
+              </div>
+              <button type="button" onClick={()=>setDetailCategory("تقارير الشهر")} className="flex min-h-[120px] flex-col items-center justify-center gap-3 rounded-2xl border border-sky-300/55 bg-gradient-to-br from-sky-400/20 to-[#092b31] px-2 text-sm font-black text-white transition hover:border-sky-200"><CalendarDays className="text-sky-300" size={29}/>تقارير الشهر</button>
+              <button type="button" onClick={()=>navigate("/apartments/map")} className="flex min-h-[120px] flex-col items-center justify-center gap-3 rounded-2xl border border-amber-300/60 bg-gradient-to-br from-amber-300/20 via-[#113e32] to-[#072e28] px-2 text-sm font-black text-white transition hover:border-amber-200"><Map className="text-amber-300" size={30}/>خريطة الشقق</button>
             </div>
           </div>
         </div>
 
         {/* Eleven coordinated action cards — visual styling only; original handlers preserved. */}
-        <div className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+        <div className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-7">
           {([
             {label:"إضافة شقة",icon:<Plus size={35}/>,click:openAddModal,color:"#10B981",base:"#0C4439"},
+             {label:"إضافة عقد جديد",icon:<FilePlus2 size={34}/>,click:openContractModal,color:"#F5C96B",base:"#4A3A1D"},
             {label:"حذف / أرشفة شقة",icon:<Trash2 size={34}/>,click:()=>openArchivePicker(),color:"#FB7185",base:"#452A37"},
             {label:refreshingData ? "جارٍ تحديث البيانات..." : "تحديث البيانات",icon:<RefreshCw size={34} className={refreshingData ? "animate-spin" : ""}/>,click:()=>{void refreshPageData();},disabled:refreshingData,color:"#38BDF8",base:"#123E50"},
             {label:"حجز جديد",icon:<CalendarPlus size={34}/>,click:openBooking,color:"#FBBF24",base:"#4A3E1D"},
             {label:"عميل جديد",icon:<UserRoundPlus size={34}/>,click:()=>{setBookingTenantAfterCreate(false);setTenantError("");setTenantModal(true);},color:"#C4B5FD",base:"#373052"},
-            {label:"استعلام جديد",icon:<SearchCheck size={34}/>,click:()=>setActionNotice("نموذج الاستعلامات سيُربط بوحدة العملاء والاستعلامات لاحقًا. لم يتم حفظ استعلام."),color:"#22D3EE",base:"#10434B"},
+            {label:"إضافة مالك",icon:<UserRoundCheck size={34}/>,click:openStandaloneOwner,color:"#22D3EE",base:"#10434B"},
           ]).map((a)=><button key={a.label} type="button" onClick={a.click}
             style={{borderColor:`${a.color}95`,background:`linear-gradient(155deg, ${a.base} 0%, #092c29 58%, #051c1a 100%)`,boxShadow:`inset 0 1px 0 ${a.color}35, 0 10px 26px rgba(0,0,0,.24)`}}
             className="group relative flex min-h-[120px] flex-col items-center justify-center gap-3 overflow-hidden rounded-[20px] border px-2 py-4 text-center font-black text-white backdrop-blur-2xl transition duration-300 hover:-translate-y-1.5 hover:brightness-125">
@@ -682,14 +1216,14 @@ export default function Apartments() {
           </button>)}
         </div>
 
-        <button type="button" onClick={()=>setDetailCategory("العقود القريبة من الانتهاء")} className="group relative mb-5 w-full overflow-hidden rounded-[25px] border border-amber-300/75 bg-gradient-to-l from-[#052e27] via-[#05221e] to-[#24351e] text-white shadow-[0_0_23px_rgba(244,191,53,.23),inset_0_1px_0_rgba(255,255,255,.18)] transition hover:border-amber-200 hover:shadow-[0_0_36px_rgba(244,191,53,.33)]">
+        <div onClick={() => { void openExpiryModal(); }} role="button" tabIndex={0} onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); void openExpiryModal(); } }} aria-label="عرض جميع العقود مرتبة حسب تاريخ الانتهاء" className="group relative mb-5 w-full cursor-pointer overflow-hidden rounded-[25px] border border-amber-300/75 bg-gradient-to-l from-[#052e27] via-[#05221e] to-[#24351e] text-white shadow-[0_0_23px_rgba(244,191,53,.23),inset_0_1px_0_rgba(255,255,255,.18)] transition hover:border-amber-200 hover:shadow-[0_0_36px_rgba(244,191,53,.33)]">
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-transparent via-amber-100/[.035] to-transparent"/>
           <div className="relative grid min-h-[192px] grid-cols-1 items-center gap-5 p-5 lg:grid-cols-[minmax(0,1fr)_1.6fr_minmax(0,1fr)]">
             <div className="hidden h-[154px] items-center justify-center lg:flex" aria-hidden="true"><svg width="230" height="152" viewBox="0 0 230 152" fill="none"><ellipse cx="115" cy="137" rx="106" ry="12" fill="#CDA84B" opacity=".16"/><rect x="44" y="24" width="115" height="108" rx="14" fill="#A47B27" stroke="#F4D06B" strokeWidth="2"/><rect x="52" y="38" width="99" height="86" rx="8" fill="#132C26"/><rect x="52" y="38" width="99" height="22" rx="7" fill="#D2AA48"/><path d="M74 18v23M130 18v23" stroke="#F7DE92" strokeWidth="9" strokeLinecap="round"/>{[0,1,2].map((i)=>[0,1,2].map((j)=><rect key={`${i}-${j}`} x={65+j*27} y={71+i*17} width="15" height="10" rx="2" fill="#E9C568" opacity={i===2&&j===2?.4:1}/>))}<circle cx="162" cy="110" r="30" fill="#0C332B" stroke="#F4D06B" strokeWidth="5"/><path d="M162 90v20l14 9" stroke="#F4D06B" strokeWidth="5" strokeLinecap="round"/><circle cx="162" cy="110" r="3" fill="#F4D06B"/></svg></div>
-            <div className="flex flex-col items-center gap-2 text-center"><span className="rounded-full border border-amber-300/45 bg-amber-300/15 px-4 py-1 text-xs font-black text-amber-200">تنبيه العقود</span><h2 className="text-xl font-black text-amber-100 sm:text-2xl">العقود القريبة من الانتهاء</h2><p className="max-w-lg text-xs leading-6 text-emerald-100/65">متابعة العقود التي اقترب موعد انتهائها وتجديدها في الوقت المناسب</p><div className="mt-2 grid w-full max-w-lg grid-cols-2 gap-3"><div className="rounded-2xl border border-emerald-300/20 bg-black/20 p-3"><p className="text-xs text-emerald-100/60">عدد العقود القريبة</p><strong className="mt-1 block text-2xl text-white">—</strong></div><div className="rounded-2xl border border-amber-300/25 bg-black/20 p-3"><p className="text-xs text-emerald-100/60">أقرب تاريخ انتهاء</p><strong className="mt-1 block text-xl text-white">—</strong></div></div></div>
-            <div className="flex justify-center"><span className="rounded-xl border border-amber-300/75 bg-amber-300/10 px-5 py-3 text-sm font-black text-amber-200 shadow-[0_0_15px_rgba(255,193,56,.15)]">عرض العقود وتواريخ الانتهاء ←</span></div>
+            <div className="flex flex-col items-center gap-2 text-center"><span className="rounded-full border border-amber-300/45 bg-amber-300/15 px-4 py-1 text-xs font-black text-amber-200">تنبيه العقود</span><h2 className="text-xl font-black text-amber-100 sm:text-2xl">العقود القريبة من الانتهاء</h2><p className="max-w-lg text-xs leading-6 text-emerald-100/65">متابعة العقود التي اقترب موعد انتهائها وتجديدها في الوقت المناسب</p><div className="mt-2 grid w-full max-w-lg grid-cols-2 gap-3"><div className="rounded-2xl border border-emerald-300/20 bg-black/20 p-3"><p className="text-xs text-emerald-100/60">إجمالي العقود</p><strong className="mt-1 block text-2xl text-white">{contractSummary.loading ? "…" : contractSummary.error ? "—" : contractSummary.count}</strong></div><div className="rounded-2xl border border-amber-300/25 bg-black/20 p-3"><p className="text-xs text-emerald-100/60">أقرب تاريخ انتهاء</p><strong className="mt-1 block text-xl text-white">{contractSummary.loading ? "…" : contractSummary.error ? "—" : contractSummary.nearest ?? "لا توجد عقود"}</strong></div></div></div>
+            <div className="hidden lg:block" aria-hidden="true"/>
           </div>
-        </button>
+        </div>
 
         {/* Premium illustrated occupancy cards — local data only */}
         <div className="mb-6 grid grid-cols-2 gap-3 xl:grid-cols-4">
@@ -698,7 +1232,7 @@ export default function Apartments() {
             {label:"إجمالي المؤجرة",value:rentedCount,art:"rented" as ArtKind,accent:"border-amber-300/55",note:"عرض التفاصيل"},
             {label:"إجمالي الفارغة",value:availableCount,art:"vacant" as ArtKind,accent:"border-emerald-300/55",note:"عرض التفاصيل"},
             {label:"إجمالي المحجوزة",value:reservedCount,art:"reserved" as ArtKind,accent:"border-violet-300/55",note:"عرض التفاصيل"},
-          ]).map(item=><button key={item.label} type="button" onClick={()=>setDetailCategory(item.label)} className={`group relative flex min-h-[225px] flex-col items-center justify-center overflow-hidden rounded-[24px] border bg-gradient-to-br from-white/[.13] via-[#104036]/85 to-[#031c1a] px-3 py-4 text-center text-white shadow-[inset_0_1px_0_rgba(255,255,255,.2),0_14px_30px_rgba(0,0,0,.3)] backdrop-blur-2xl transition duration-300 hover:-translate-y-1 hover:brightness-110 ${item.accent}`}>
+          ]).map(item=><button key={item.label} type="button" onClick={()=>{setReportSearch("");setReportError("");setDetailCategory(item.label);void loadOwners();}} className={`group relative flex min-h-[225px] flex-col items-center justify-center overflow-hidden rounded-[24px] border bg-gradient-to-br from-white/[.13] via-[#104036]/85 to-[#031c1a] px-3 py-4 text-center text-white shadow-[inset_0_1px_0_rgba(255,255,255,.2),0_14px_30px_rgba(0,0,0,.3)] backdrop-blur-2xl transition duration-300 hover:-translate-y-1 hover:brightness-110 ${item.accent}`}>
             <div className="pointer-events-none absolute -top-14 -right-14 h-40 w-40 rounded-full bg-white/[.06] blur-2xl"/>
             <div className="relative mb-1 transition duration-300 group-hover:scale-110"><CardIllustration kind={item.art}/></div>
             <h3 className="relative text-sm font-black sm:text-base">{item.label}</h3>
@@ -716,7 +1250,7 @@ export default function Apartments() {
               {label:"إجمالي المستحقات",art:"dues" as ArtKind,accent:"border-yellow-300/50"},
               {label:"إجمالي فواتير المياه",art:"water" as ArtKind,accent:"border-cyan-300/55"},
               {label:"إجمالي فواتير الكهرباء",art:"electric" as ArtKind,accent:"border-orange-300/55"},
-            ]).map(item=><div key={item.label} className={`relative flex min-h-[288px] flex-col items-center overflow-hidden rounded-[24px] border bg-gradient-to-br from-white/[.13] via-[#0d3a32] to-[#041e1b] p-4 text-center shadow-[inset_0_1px_0_rgba(255,255,255,.18),0_14px_30px_rgba(0,0,0,.25)] backdrop-blur-2xl ${item.accent}`}>
+            ]).map(item=><button type="button" onClick={()=>void openReport(item.label)} key={item.label} className={`relative flex min-h-[288px] flex-col items-center overflow-hidden rounded-[24px] border bg-gradient-to-br from-white/[.13] via-[#0d3a32] to-[#041e1b] p-4 text-center shadow-[inset_0_1px_0_rgba(255,255,255,.18),0_14px_30px_rgba(0,0,0,.25)] backdrop-blur-2xl ${item.accent}`}>
               <div className="pointer-events-none absolute -top-10 left-0 h-28 w-28 rounded-full bg-white/[.05] blur-xl"/>
               <CardIllustration kind={item.art}/>
               <h3 className="mt-1 text-sm font-black text-white sm:text-base">{item.label}</h3>
@@ -725,7 +1259,7 @@ export default function Apartments() {
                 <div className="rounded-2xl border border-emerald-300/40 bg-emerald-400/10 px-2 py-3"><p className="text-xs font-black text-emerald-200">التحصيل</p><strong className="mt-1 block text-xl text-white">—</strong></div>
                 <div className="rounded-2xl border border-amber-300/40 bg-amber-400/10 px-2 py-3"><p className="text-xs font-black text-amber-200">المتبقي</p><strong className="mt-1 block text-xl text-white">—</strong></div>
               </div>
-            </div>)}
+            </button>)}
           </div>
         </div>
 
@@ -901,7 +1435,7 @@ export default function Apartments() {
         </div>
       )}
       {tenantModal && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/85 p-2 backdrop-blur-lg sm:p-5" dir="rtl"
+        <div className="fixed inset-0 z-[185] flex items-center justify-center bg-black/85 p-2 backdrop-blur-lg sm:p-5" dir="rtl"
           onMouseDown={event => { if (event.target === event.currentTarget && !savingTenant) setTenantModal(false); }}>
           <div role="dialog" aria-modal="true" aria-label="إضافة عميل جديد"
             className="relative flex flex-col overflow-hidden rounded-[22px] border border-amber-300/65 bg-[#052d27] text-white shadow-[0_28px_90px_rgba(0,0,0,.65)]"
@@ -963,7 +1497,7 @@ export default function Apartments() {
                       className="mt-2 h-12 w-full rounded-xl border border-emerald-300/45 bg-[#02382f] px-4 text-white outline-none focus:border-amber-300" />
                   </label>
                   {nationalityError && <p role="alert" className="mt-3 text-sm text-rose-200">{nationalityError}</p>}
-                  <div className="mt-5 flex gap-3">
+                  <div className="mt-4 flex gap-2">
                     <button type="submit" disabled={savingNationality || !canWrite} className="min-h-12 flex-1 rounded-xl bg-amber-300 font-black text-emerald-950 disabled:opacity-50">{savingNationality?"جارٍ الحفظ...":"حفظ الجنسية"}</button>
                     <button type="button" disabled={savingNationality} onClick={()=>setNationalityEditor(false)} className="min-h-12 flex-1 rounded-xl border border-white/25 font-bold">إلغاء</button>
                   </div>
@@ -995,18 +1529,24 @@ export default function Apartments() {
                 </div>
               </header>
               <main className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5 lg:p-6">
-                <div className="mb-4 rounded-xl border border-amber-300/25 bg-amber-300/10 px-4 py-2.5 text-center text-xs font-semibold leading-5 text-amber-200">هذه النافذة للمعاينة والتجهيز فقط. الحفظ في قاعدة البيانات غير مفعّل حاليًا، ولن تتأثر بيانات العمائر.</div>
+                <div className="mb-4 rounded-xl border border-amber-300/25 bg-amber-300/10 px-4 py-2.5 text-center text-xs font-semibold leading-5 text-amber-200">{isTypes ? "إدارة أسماء الأنواع وأسعارها المرجعية محفوظة في هذا المتصفح فقط. لا تتغير إيجارات الشقق أو العقود المسجلة تلقائيًا." : "هذه النافذة للمعاينة والتجهيز فقط. الحفظ في قاعدة البيانات غير مفعّل حاليًا، ولن تتأثر بيانات العمائر."}</div>
                 {isTypes ? (
                   <div className="grid min-h-0 grid-cols-1 gap-5 lg:grid-cols-[0.8fr_1.2fr]">
                     <section className="rounded-3xl border border-blue-400/25 bg-[#081c31]/85 p-4 sm:p-5">
                       <div className="mb-4 text-center"><h3 className="text-lg font-black text-blue-200">أنواع الشقق المتاحة</h3><p className="text-xs text-slate-400">الأنواع المسجلة داخل هذه الصفحة</p></div>
-                      <div className="max-h-[390px] space-y-2 overflow-y-auto pr-1">{types.filter(t=>t!=="الكل").length ? types.filter(t=>t!=="الكل").map(t=><div key={t} className="flex items-center justify-between gap-2 rounded-xl border border-blue-300/15 bg-[#0b2137] p-3 text-sm"><strong>{t}</strong><span className="text-blue-300">{activeApartments.filter(a=>a.type===t).length} شقة</span></div>) : <p className="py-12 text-center text-sm text-slate-400">لا توجد أنواع مسجلة حاليًا.</p>}</div>
+                      <div className="max-h-[390px] space-y-2 overflow-y-auto pr-1">{apartmentTypes.length ? apartmentTypes.map(t=><div key={t} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-blue-300/15 bg-[#0b2137] p-3 text-sm"><div><strong className="block">{t}</strong><span className="text-xs text-blue-300">{apartments.filter(a=>a.type===t).length} شقة · شهري: {typeCatalog.prices[t] === undefined ? "غير محدد" : formatPrice(typeCatalog.prices[t])} · سنوي: {typeCatalog.prices[t] === undefined ? "—" : formatPrice(priceForPeriod(typeCatalog.prices[t], "سنوي") ?? 0)} · يومي: {typeCatalog.prices[t] === undefined ? "—" : formatPrice(priceForPeriod(typeCatalog.prices[t], "يومي") ?? 0)} ريال</span></div><div className="flex gap-2"><button type="button" onClick={()=>editType(t)} className="rounded-lg border border-sky-400/40 p-2 text-sky-300" aria-label={`تعديل ${t}`} title="تعديل الاسم والإيجار"><Pencil size={17}/></button><button type="button" onClick={()=>{setTypeDeleteTarget(t);setTypeManagerError("");}} className="rounded-lg border border-rose-400/40 p-2 text-rose-300" aria-label={`حذف ${t}`} title="حذف النوع"><Trash2 size={17}/></button></div></div>) : <p className="py-12 text-center text-sm text-slate-400">لا توجد أنواع مسجلة حاليًا.</p>}</div>
                     </section>
                     <section className="rounded-3xl border border-blue-400/25 bg-[#081c31]/85 p-4 sm:p-5">
-                      <div className="mb-5 text-center"><h3 className="text-lg font-black text-blue-200">إضافة نوع وتحديد الشقق</h3><p className="text-xs text-slate-400">سيتم تفعيل الإدارة بعد ربط بيانات الشقق والصلاحيات</p></div>
-                      <label className="mb-4 block text-center text-sm font-bold">اسم نوع الشقة<input disabled placeholder="اكتب اسم النوع الجديد" className={`${inputClass} disabled:opacity-50`}/></label>
-                      <label className="mb-4 block text-center text-sm font-bold">قيمة الإيجار الشهري (ريال)<input disabled placeholder="0.00" className={`${inputClass} disabled:opacity-50`}/></label>
-                      <div className="rounded-2xl border border-blue-300/15 bg-[#0a2036] px-4 py-10 text-center text-sm text-slate-400">اختيار أرقام الشقق وتوزيع الأنواع سيتاح بعد الربط</div>
+                      <div className="mb-5 text-center"><h3 className="text-lg font-black text-blue-200">{typeEditOriginal ? "تعديل نوع الشقة" : "إضافة نوع شقة"}</h3><p className="text-xs text-slate-400">تعديل بيانات قائمة الأنواع دون تغيير بيانات الشقق المسجلة</p></div>
+                      <label className="mb-4 block text-center text-sm font-bold">اسم نوع الشقة<input value={typeNameInput} onChange={e=>setTypeNameInput(e.target.value)} placeholder="اكتب اسم النوع" className={inputClass}/></label>
+                      <label className="mb-4 block text-center text-sm font-bold">قيمة الإيجار الشهري المرجعية (ريال)<input type="number" min="0" step="0.01" value={typePriceInput} onChange={e=>updateTypeMonthly(e.target.value)} placeholder="0.00" className={inputClass}/></label>
+                      <label className="mb-4 block text-center text-sm font-bold">قيمة الإيجار السنوي المرجعية (ريال)<input type="number" min="0" step="0.01" value={typeAnnualInput} onChange={e=>updateTypeAnnual(e.target.value)} placeholder="0.00" className={inputClass}/></label>
+                      <label className="mb-4 block text-center text-sm font-bold">قيمة الإيجار اليومي المرجعية (ريال)<input type="number" min="0" step="0.01" value={typeDailyInput} onChange={e=>updateTypeDaily(e.target.value)} placeholder="0.00" className={inputClass}/></label>
+                      <p className="mb-3 text-center text-xs text-blue-300">اليومي = السنوي ÷ 365 يومًا، ويمكن تعديل أي قيمة لتحديث الباقي.</p>
+                      {typeManagerError && <p role="alert" className="mb-3 rounded-lg bg-rose-900/40 p-3 text-center text-sm text-rose-200">{typeManagerError}</p>}
+                      {typeManagerNotice && <p role="status" className="mb-3 rounded-lg bg-emerald-900/40 p-3 text-center text-sm text-emerald-200">{typeManagerNotice}</p>}
+                      {typeDeleteTarget && <div className="mb-3 rounded-xl border border-rose-400/40 bg-rose-950/40 p-3 text-center"><p className="mb-3 text-sm">هل تريد حذف النوع «{typeDeleteTarget}» من القائمة؟</p><div className="flex gap-2"><button type="button" onClick={()=>deleteTypeCatalog(typeDeleteTarget)} className="flex-1 rounded-lg bg-rose-700 p-2 font-bold">تأكيد الحذف</button><button type="button" onClick={()=>setTypeDeleteTarget(null)} className="flex-1 rounded-lg border border-white/20 p-2">إلغاء</button></div></div>}
+                      <div className="flex gap-2"><button type="button" onClick={saveTypeCatalog} className="min-h-11 flex-1 rounded-xl bg-gradient-to-l from-emerald-700 to-teal-700 font-black text-white">{typeEditOriginal ? "حفظ التعديل" : "إضافة النوع"}</button><button type="button" onClick={resetTypeEditor} className="rounded-xl border border-white/20 px-5 font-bold">مسح</button></div>
                     </section>
                   </div>
                 ) : (
@@ -1023,17 +1563,21 @@ export default function Apartments() {
                       <div className="mb-4 text-center"><h3 className="text-xl font-black text-white">بيانات {isRent ? "الإيجار" : "المستحق"}</h3><p className="mt-1 text-xs text-slate-400">نفس البيانات تُطبق على جميع الشقق المحددة</p></div>
                       <div className="space-y-3">
                         {!isRent && <label className="block text-center text-sm font-bold">نوع المستحق<select value={operationType} onChange={e=>setOperationType(e.target.value)} className={inputClass}><option>كهرباء</option><option>مياه</option><option>صيانة</option><option>مستحقات أخرى</option></select></label>}
-                        <label className="block text-center text-sm font-bold">المبلغ لكل شقة (ريال)<input type="number" min="0" value={operationAmount} onChange={e=>setOperationAmount(e.target.value)} placeholder="اكتب المبلغ" className={inputClass}/></label>
+                        <label className="block text-center text-sm font-bold">{operationModal === "rent" ? "إجمالي إيجارات الشقق المحددة (ريال)" : "المبلغ لكل شقة (ريال)"}<input type="number" min="0" value={operationAmount} onChange={e=>{setOperationAmount(e.target.value);if(operationModal === "rent")setOperationRentEdited(true);}} placeholder={operationModal === "rent" ? "حدد الشقق لحساب مجموع إيجاراتها" : "اكتب المبلغ"} className={inputClass}/></label>
+                        {operationModal === "rent" && <div className="rounded-xl border border-cyan-300/20 bg-[#071b2b] p-2 text-xs text-cyan-100">
+                          <p className="mb-2 text-center">{operationRentEdited ? "تم تعديل الإجمالي يدويًا؛ الأسعار الأصلية لكل شقة موضحة أدناه." : "يُحسب الإجمالي تلقائيًا من إيجار كل شقة على حدة، حتى لو اختلفت الأسعار."}</p>
+                          {selectedRentApartments.map(a => <div key={a.id} className="flex justify-between gap-2 border-t border-white/10 py-1"><span>شقة {a.number} ({a.rentCategory ?? "شهري"})</span><strong>{formatPrice(a.price)} ريال</strong></div>)}
+                        </div>}
                         <label className="block text-center text-sm font-bold">المستحق عن شهر / أشهر<input type="month" value={operationMonth} onChange={e=>setOperationMonth(e.target.value)} className={inputClass}/></label>
                         <label className="block text-center text-sm font-bold">تاريخ {isCollection ? "التحصيل" : "الإدخال"}<input type="date" value={operationDate} onChange={e=>setOperationDate(e.target.value)} className={inputClass}/></label>
                         <label className="block text-center text-sm font-bold">ملاحظات<textarea rows={3} value={operationNotes} onChange={e=>setOperationNotes(e.target.value)} placeholder="اكتب أي ملاحظات إضافية..." className="mt-1.5 block w-full resize-y rounded-xl border border-sky-400/25 bg-[#0a2036] p-3 text-center text-sm text-white outline-none focus:border-cyan-300"/></label>
-                        <div className="overflow-hidden rounded-xl border border-cyan-300/20 bg-[#071b2b]"><div className="flex items-center justify-between px-3 py-2 text-xs"><span>عدد الشقق المحددة</span><strong className="text-cyan-300">{operationApartments.length}</strong></div><div className="flex items-center justify-between border-t border-white/10 px-3 py-2 text-xs"><span>إجمالي العملية</span><strong className="text-cyan-300">{operationAmount && Number.isFinite(Number(operationAmount)) ? formatPrice(Math.max(0,Number(operationAmount))*operationApartments.length) : "—"} ريال</strong></div></div>
+                        <div className="overflow-hidden rounded-xl border border-cyan-300/20 bg-[#071b2b]"><div className="flex items-center justify-between px-3 py-2 text-xs"><span>عدد الشقق المحددة</span><strong className="text-cyan-300">{operationApartments.length}</strong></div><div className="flex items-center justify-between border-t border-white/10 px-3 py-2 text-xs"><span>إجمالي العملية</span><strong className="text-cyan-300">{operationModal === "rent" ? (selectedRentApartments.length ? formatPrice(Math.max(0,rentTotal)) : "—") : (operationAmount && Number.isFinite(Number(operationAmount)) ? formatPrice(Math.max(0,Number(operationAmount))*operationApartments.length) : "—")} ريال</strong></div></div>
                       </div>
                     </section>
                   </div>
                 )}
               </main>
-              <footer className="grid shrink-0 grid-cols-2 gap-3 border-t border-white/10 bg-[#07172a] p-3 sm:px-5"><button type="button" onClick={()=>setOperationModal(null)} className="min-h-12 rounded-xl border border-white/15 bg-white/5 text-base font-black text-slate-200 transition hover:bg-white/10">✕ إغلاق</button><button type="button" disabled title="الحفظ غير مفعّل حتى ربط القسم بقاعدة البيانات" className="min-h-12 cursor-not-allowed rounded-xl bg-gradient-to-l from-cyan-600/50 to-blue-600/50 text-base font-black text-white opacity-55">✓ {isTypes ? "حفظ توزيع النوع" : "حفظ العملية"}</button></footer>
+              <footer className="grid shrink-0 grid-cols-2 gap-3 border-t border-white/10 bg-[#07172a] p-3 sm:px-5"><button type="button" onClick={()=>setOperationModal(null)} className="min-h-12 rounded-xl border border-white/15 bg-white/5 text-base font-black text-slate-200 transition hover:bg-white/10">✕ إغلاق</button>{isTypes ? <button type="button" onClick={saveTypeCatalog} className="min-h-12 rounded-xl bg-gradient-to-l from-emerald-700 to-teal-700 text-base font-black text-white">✓ {typeEditOriginal ? "حفظ التعديل" : "إضافة النوع"}</button> : <button type="button" disabled title="الحفظ غير مفعّل حتى ربط القسم بقاعدة البيانات" className="min-h-12 cursor-not-allowed rounded-xl bg-gradient-to-l from-cyan-600/50 to-blue-600/50 text-base font-black text-white opacity-55">✓ حفظ العملية</button>}</footer>
             </div>
           </div>
         );
@@ -1063,11 +1607,75 @@ export default function Apartments() {
       ) : (
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 p-4" onMouseDown={(e)=>{if(e.target===e.currentTarget)setActionNotice(null)}}><div dir="rtl" className="w-full max-w-md rounded-2xl border border-amber-400/35 bg-[#09271f] p-6 text-white"><h2 className="mb-3 text-lg font-black text-amber-300">تنبيه</h2><p className="text-sm leading-7">{actionNotice}</p><button type="button" onClick={()=>setActionNotice(null)} className="mt-5 rounded-xl bg-amber-400/20 px-5 py-2 font-bold">إغلاق</button></div></div>
       ))}
-      {detailCategory && <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 p-4" onMouseDown={(e)=>{if(e.target===e.currentTarget)setDetailCategory(null)}}><div dir="rtl" className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-amber-400/35 bg-[#09271f] p-6 text-white"><div className="mb-4 flex items-center justify-between"><h2 className="text-xl font-black text-amber-300">{detailCategory}</h2><button type="button" onClick={()=>setDetailCategory(null)}><X/></button></div>{["إجمالي الشقق","إجمالي المؤجرة","إجمالي الفارغة","إجمالي المحجوزة"].includes(detailCategory) ? <div className="space-y-2">{activeApartments.filter((a)=>detailCategory==="إجمالي الشقق" || (detailCategory==="إجمالي المؤجرة" ? a.status==="مؤجرة" : detailCategory==="إجمالي المحجوزة" ? a.status==="محجوزة" : a.status==="متاحة")).map((a)=><div key={a.id} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 p-3"><strong>{a.number}</strong><span className="text-sm text-emerald-100/70">{a.type} • {a.status}</span></div>)}</div> : <p className="leading-7 text-emerald-100/75">لم تُربط بيانات {detailCategory} بعد. لا توجد تفاصيل موثوقة يمكن عرضها حاليًا.</p>}<p className="mt-4 text-xs text-amber-200/70">هذه الصفحة مستقلة عن بيانات العمائر. بيانات التقارير والعقود لم تُربط بعد.</p></div></div>}
+      {expiryModalOpen && <div dir="rtl" className="fixed inset-0 z-[130] flex items-center justify-center bg-black/80 p-3 sm:p-6" onMouseDown={e => {if(e.target === e.currentTarget) setExpiryModalOpen(false)}}>
+        <div className="flex max-h-[88vh] w-full max-w-6xl flex-col overflow-hidden rounded-[22px] border border-amber-300/60 bg-[#07332b] text-white shadow-2xl">
+          <header className="flex shrink-0 items-center justify-between border-b border-amber-300/30 bg-[#0b4136] p-4 sm:px-6">
+            <div><h2 className="text-xl font-black text-amber-300 sm:text-2xl">جميع العقود حسب تاريخ الانتهاء</h2><p className="mt-1 text-xs text-emerald-100/70">من أقرب تاريخ انتهاء إلى أبعد تاريخ • إجمالي العقود: {expiryLoading ? "…" : expiryContracts.length}</p></div>
+            <button type="button" onClick={() => setExpiryModalOpen(false)} aria-label="إغلاق" className="rounded-lg border border-white/20 p-2 hover:bg-white/10"><X size={20}/></button>
+          </header>
+          <div className="shrink-0 p-4 sm:px-6"><input value={expirySearch} onChange={e => setExpirySearch(e.target.value)} placeholder="بحث برقم العقد أو الشقة أو المستأجر أو المالك..." className="w-full rounded-xl border border-amber-300/30 bg-black/20 px-4 py-3 text-sm text-white outline-none placeholder:text-emerald-100/50 focus:border-amber-300"/></div>
+          <div className="min-h-0 flex-1 overflow-auto px-4 pb-5 sm:px-6">
+            {expiryLoading ? <p className="py-12 text-center">جارٍ تحميل العقود...</p> : expiryError ? <p role="alert" className="py-10 text-center text-rose-300">{expiryError}</p> : <table className="w-full min-w-[850px] text-right text-sm">
+              <thead className="sticky top-0 bg-[#225443] text-amber-200"><tr>{["م","رقم العقد","الشقة","المستأجر","المالك","تاريخ البداية","تاريخ الانتهاء","حالة العقد"].map(h=><th key={h} className="whitespace-nowrap p-3">{h}</th>)}</tr></thead>
+              <tbody className="divide-y divide-white/10">
+                {expiryContracts.filter(c => { const row = [c.contract_number,apartments.find(a=>a.id===c.apartment_id)?.number,tenants.find(t=>t.id===c.tenant_id)?.full_name,owners.find(o=>o.id===c.owner_id)?.full_name].join(" ").toLocaleLowerCase();return row.includes(expirySearch.trim().toLocaleLowerCase()); }).map((c,i)=>{
+                  const today = new Date().toLocaleDateString("en-CA");
+                  const expired = c.end_date < today;
+                  const upcoming = !expired && (new Date(c.end_date+"T00:00:00").getTime()-new Date(today+"T00:00:00").getTime()) <= 30*86400000;
+                  return <tr key={c.id} className="hover:bg-white/5"><td className="p-3">{i+1}</td><td className="p-3">{c.contract_number||"—"}</td><td className="p-3">{apartments.find(a=>a.id===c.apartment_id)?.number||"—"}</td><td className="p-3">{tenants.find(t=>t.id===c.tenant_id)?.full_name||"—"}</td><td className="p-3">{owners.find(o=>o.id===c.owner_id)?.full_name||"—"}</td><td className="whitespace-nowrap p-3">{c.start_date||"—"}</td><td className="whitespace-nowrap p-3 font-bold text-amber-200">{c.end_date||"—"}</td><td className="p-3"><span className={`rounded-lg px-3 py-1 font-bold ${expired?"bg-rose-500/20 text-rose-300":upcoming?"bg-amber-400/20 text-amber-200":"bg-emerald-400/20 text-emerald-300"}`}>{expired?"منتهي":upcoming?"قريب الانتهاء":"ساري"}</span></td></tr>;
+                })}
+              </tbody>
+            </table>}
+            {!expiryLoading && !expiryError && expiryContracts.length===0 && <p className="py-8 text-center text-emerald-100/70">لا توجد عقود مسجلة حاليًا</p>}
+          </div>
+          <div className="shrink-0 grid grid-cols-3 gap-2 border-t border-amber-300/25 bg-[#082a26] p-3 sm:gap-3 sm:p-4">
+            <button type="button" disabled={expiryLoading || !!expiryError} onClick={exportExpiryExcel} className="flex min-h-12 items-center justify-center rounded-xl border border-emerald-400/40 bg-emerald-500/20 px-2 text-xs font-black text-emerald-200 transition hover:bg-emerald-500/30 disabled:opacity-40 sm:text-sm">تصدير Excel</button>
+            <button type="button" disabled={expiryLoading || !!expiryError} onClick={printExpiryReport} title="اختر حفظ كـ PDF من نافذة الطباعة" className="flex min-h-12 items-center justify-center rounded-xl border border-rose-400/40 bg-rose-500/15 px-2 text-xs font-black text-rose-200 transition hover:bg-rose-500/25 disabled:opacity-40 sm:text-sm">حفظ PDF</button>
+            <button type="button" disabled={expiryLoading || !!expiryError} onClick={printExpiryReport} className="flex min-h-12 items-center justify-center rounded-xl border border-sky-400/40 bg-sky-500/15 px-2 text-xs font-black text-sky-200 transition hover:bg-sky-500/25 disabled:opacity-40 sm:text-sm">طباعة</button>
+          </div>
+        </div>
+      </div>}
+      {detailCategory && <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/75 p-3 sm:p-6" onMouseDown={e=>{if(e.target===e.currentTarget)setDetailCategory(null)}}>
+        <div dir="rtl" role="dialog" aria-modal="true" aria-label={detailCategory} className="flex max-h-[88vh] w-full max-w-6xl flex-col overflow-hidden rounded-[24px] border border-amber-400/50 bg-gradient-to-br from-[#104337] via-[#082d28] to-[#041c1b] text-white shadow-2xl">
+          <div className="flex items-center justify-between border-b border-amber-300/25 p-5"><div><h2 className="text-xl font-black text-amber-300">{detailCategory}</h2><p className="mt-1 text-xs text-emerald-100/65">تقارير عقاري سمارت • البيانات المسجلة للشركة</p></div><button type="button" onClick={()=>setDetailCategory(null)} className="rounded-lg border border-white/20 p-2 hover:bg-white/10" aria-label="إغلاق"><X size={20}/></button></div>
+          <div className="overflow-y-auto p-4 sm:p-6">
+            {["تقارير الشقق","تقارير العقود","تقارير العملاء","تقارير الملاك"].includes(detailCategory) ? <>
+              <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">{(detailCategory==="تقارير الشقق" ? [["إجمالي الشقق",activeApartments.length],["المؤجرة",rentedCount],["المتاحة",availableCount],["المحجوزة",reservedCount]] : detailCategory==="تقارير العقود" ? [["إجمالي العقود",reportContracts.length],["السارية",reportContracts.filter(c=>c.start_date<=new Date().toISOString().slice(0,10)&&c.end_date>=new Date().toISOString().slice(0,10)).length],["المنتهية",reportContracts.filter(c=>c.end_date<new Date().toISOString().slice(0,10)).length],["القادمة",reportContracts.filter(c=>c.start_date>new Date().toISOString().slice(0,10)).length]] : detailCategory==="تقارير العملاء" ? [["إجمالي العملاء",tenants.length],["مرتبطون بعقود",new Set(reportContracts.map(c=>c.tenant_id).filter(Boolean)).size],["بدون عقود",tenants.filter(t=>!reportContracts.some(c=>c.tenant_id===t.id)).length],["إجمالي العقود",reportContracts.length]] : [["إجمالي الملاك",owners.length],["ملاك لديهم شقق",new Set(apartments.map(a=>a.ownerId).filter(Boolean)).size],["ملاك لديهم عقود",new Set(reportContracts.map(c=>c.owner_id).filter(Boolean)).size],["إجمالي الشقق",activeApartments.length]]).map(([label,value])=><div key={String(label)} className="rounded-xl border border-amber-300/30 bg-black/20 p-3 text-center"><p className="text-xs text-emerald-100/70">{label}</p><strong className="mt-2 block text-2xl text-amber-200">{reportLoading?"…":value}</strong></div>)}</div>
+              <div className="relative mb-4"><Search size={18} className="absolute right-3 top-3 text-emerald-300"/><input value={reportSearch} onChange={e=>setReportSearch(e.target.value)} placeholder="بحث داخل التقرير..." className="w-full rounded-xl border border-emerald-300/35 bg-[#052b26] py-2.5 pr-10 pl-3 text-white outline-none focus:border-amber-300"/></div>
+              {reportError && <p className="mb-3 rounded-lg border border-red-400/40 p-3 text-red-200">تعذر تحميل بعض بيانات التقرير: {reportError}</p>}
+              {reportLoading ? <p className="py-12 text-center">جارٍ تحميل التقرير...</p> : detailCategory === "تقارير العقود" ? <div className="overflow-x-auto rounded-xl border border-white/15">
+                <table className="w-full min-w-[980px] text-right text-sm"><thead className="bg-amber-300/15 text-amber-200"><tr>{["رقم العقد","نوع العقد","الشقة","المستأجر","المالك","البداية","النهاية","قيمة الإيجار","الحالة","الإجراءات"].map(h=><th key={h} className="whitespace-nowrap p-3">{h}</th>)}</tr></thead>
+                <tbody className="divide-y divide-white/10">{reportContracts.filter(c=>[c.contract_number,c.contract_type,apartments.find(a=>a.id===c.apartment_id)?.number,tenants.find(t=>t.id===c.tenant_id)?.full_name,owners.find(o=>o.id===c.owner_id)?.full_name].join(" ").toLocaleLowerCase().includes(reportSearch.trim().toLocaleLowerCase())).map(c=><tr key={c.id} className="hover:bg-white/5">
+                  <td className="whitespace-nowrap p-3">{c.contract_number}</td><td className="p-3">{c.contract_type}</td><td className="p-3">{apartments.find(a=>a.id===c.apartment_id)?.number||"—"}</td><td className="whitespace-nowrap p-3">{tenants.find(t=>t.id===c.tenant_id)?.full_name||"—"}</td><td className="whitespace-nowrap p-3">{owners.find(o=>o.id===c.owner_id)?.full_name||"—"}</td><td className="p-3">{c.start_date}</td><td className="p-3">{c.end_date}</td><td className="whitespace-nowrap p-3">{formatPrice(Number(c.rent_amount??0))} ر.س</td><td className="p-3">{c.status||"—"}</td>
+                  <td className="p-3"><div className="flex items-center gap-1.5"><button type="button" title="عرض العقد" aria-label="عرض العقد" onClick={()=>openContractAction(c,"view")} className="rounded-lg border border-sky-300/50 bg-sky-400/15 p-2 text-sky-200 hover:bg-sky-400/30"><Eye size={17}/></button><button type="button" title="تعديل العقد" aria-label="تعديل العقد" onClick={()=>openContractAction(c,"edit")} className="rounded-lg border border-amber-300/50 bg-amber-400/15 p-2 text-amber-200 hover:bg-amber-400/30"><Pencil size={17}/></button><button type="button" title={c.status==="مؤرشف"?"استرجاع العقد":"أرشفة العقد"} aria-label={c.status==="مؤرشف"?"استرجاع العقد":"أرشفة العقد"} onClick={()=>openContractAction(c,"archive")} className="rounded-lg border border-rose-300/50 bg-rose-400/15 p-2 text-rose-200 hover:bg-rose-400/30"><Archive size={17}/></button></div></td>
+                </tr>)}</tbody></table></div> : <div className="overflow-x-auto rounded-xl border border-white/15"><table className="w-full min-w-[680px] text-right text-sm"><thead className="bg-amber-300/15 text-amber-200"><tr>{(detailCategory==="تقارير الشقق"?["رقم الشقة","العمارة","النوع","الحالة","الإيجار","المالك"]:detailCategory==="تقارير العقود"?["رقم العقد","نوع العقد","الشقة","المستأجر","المالك","البداية","النهاية","قيمة الإيجار"]:detailCategory==="تقارير العملاء"?["العميل","الجوال","الهوية","الجنسية","البريد","عدد العقود"]:["المالك","الجوال","الهوية","الجنسية","الشقق","العقود"]).map(h=><th key={h} className="whitespace-nowrap p-3">{h}</th>)}</tr></thead><tbody className="divide-y divide-white/10">{(detailCategory==="تقارير الشقق" ? activeApartments.map(a=>[a.number,a.buildingName||"—",a.type,a.status,`${formatPrice(a.price)} ر.س`,owners.find(o=>o.id===a.ownerId)?.full_name||"—"]) : detailCategory==="تقارير العقود" ? reportContracts.map(c=>[c.contract_number,c.contract_type,apartments.find(a=>a.id===c.apartment_id)?.number||"—",tenants.find(t=>t.id===c.tenant_id)?.full_name||"—",owners.find(o=>o.id===c.owner_id)?.full_name||"—",c.start_date,c.end_date,c.rent_amount==null?"—":`${formatPrice(Number(c.rent_amount))} ر.س`]) : detailCategory==="تقارير العملاء" ? tenants.map(t=>[t.full_name,t.phone||"—",t.identity_number||"—",t.nationality||"—",t.email||"—",String(reportContracts.filter(c=>c.tenant_id===t.id).length)]) : owners.map(o=>[o.full_name,o.mobile||o.phone||"—",o.identity_number||"—",o.nationality||"—",String(apartments.filter(a=>a.ownerId===o.id&&!a.archivedAt).length),String(reportContracts.filter(c=>c.owner_id===o.id).length)])).filter(row=>row.some(cell=>String(cell).toLocaleLowerCase().includes(reportSearch.trim().toLocaleLowerCase()))).map((row,i)=><tr key={i} className="hover:bg-white/5">{row.map((cell,j)=><td key={j} className="whitespace-nowrap p-3">{cell}</td>)}</tr>)}</tbody></table></div>}
+            </> : financialCategories.includes(detailCategory) ? <>
+              {detailCategory === "إجمالي الإيجارات" ? <><div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3">{[["العقود المسجلة",reportContracts.length],["إجمالي قيمة العقود",`${formatPrice(reportContracts.reduce((sum,c)=>sum+Number(c.rent_amount??0),0))} ر.س`],["التحصيل والمتبقي","غير متاح"]].map(([label,value])=><div key={String(label)} className="rounded-xl border border-amber-300/30 bg-black/20 p-3 text-center"><p className="text-xs text-emerald-100/70">{label}</p><strong className="mt-2 block text-lg text-amber-200">{reportLoading?"…":value}</strong></div>)}</div><p className="mb-3 text-xs text-amber-200">القيم المعروضة مستمدة من العقود المسجلة، وليست مبالغ التحصيل الفعلية.</p></> : <p className="mb-4 rounded-xl border border-amber-300/30 bg-black/20 p-4 text-center text-amber-200">لم يتم ربط مصدر الفواتير والتحصيلات لهذا القسم بعد؛ لن تُعرض أرقام غير مؤكدة.</p>}
+              <div className="relative mb-4"><Search size={18} className="absolute right-3 top-3 text-emerald-300"/><input value={reportSearch} onChange={e=>setReportSearch(e.target.value)} placeholder="بحث داخل التقرير..." className="w-full rounded-xl border border-emerald-300/35 bg-[#052b26] py-2.5 pr-10 pl-3 text-white outline-none"/></div>
+              {reportError && <p className="mb-3 text-rose-300">{reportError}</p>}
+              {reportLoading ? <p className="py-8 text-center">جارٍ تحميل البيانات...</p> : <div className="overflow-x-auto rounded-xl border border-white/15"><table className="w-full min-w-[750px] text-right text-sm"><thead className="bg-amber-300/15 text-amber-200"><tr>{(detailCategory === "إجمالي الإيجارات" ? financialHeaders : ["الشقة","نوع المستحق","تاريخ الفاتورة","القيمة","المحصل","المتبقي"]).map(h=><th key={h} className="p-3">{h}</th>)}</tr></thead><tbody>{financialRows().filter(row=>row.some(cell=>String(cell).toLocaleLowerCase().includes(reportSearch.trim().toLocaleLowerCase()))).map((row,i)=><tr key={i} className="border-t border-white/10">{row.map((cell,j)=><td key={j} className="whitespace-nowrap p-3">{cell}</td>)}</tr>)}</tbody></table>{financialRows().length===0 && <p className="p-5 text-center text-emerald-100/70">لا توجد بيانات مرتبطة بالتقرير حاليًا</p>}</div>}
+            </> : occupancyCategories.includes(detailCategory) ? <>
+              <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">{[["عدد الشقق",activeApartments.length],["المؤجرة",rentedCount],["الفارغة",availableCount],["المحجوزة",reservedCount]].map(([label,value])=><div key={String(label)} className="rounded-xl border border-amber-300/30 bg-black/20 p-3 text-center"><p className="text-xs text-emerald-100/70">{label}</p><strong className="mt-2 block text-2xl text-amber-200">{value}</strong></div>)}</div>
+              <div className="relative mb-4"><Search size={18} className="absolute right-3 top-3 text-emerald-300"/><input value={reportSearch} onChange={e=>setReportSearch(e.target.value)} placeholder="بحث برقم الشقة أو العمارة أو المالك أو الحالة..." className="w-full rounded-xl border border-emerald-300/35 bg-[#052b26] py-2.5 pr-10 pl-3 text-white outline-none focus:border-amber-300"/></div>
+              <div className="overflow-x-auto rounded-xl border border-white/15"><table className="w-full min-w-[900px] text-right text-sm"><thead className="bg-amber-300/15 text-amber-200"><tr>{["رقم الشقة","العمارة","نوع الشقة","الغرف","الحالة","الإيجار","فترة الإيجار","المالك","الموقع"].map(h=><th key={h} className="whitespace-nowrap p-3">{h}</th>)}</tr></thead><tbody className="divide-y divide-white/10">{occupancyRows().map((row,i)=><tr key={i} className="hover:bg-white/5">{row.map((cell,j)=><td key={j} className="whitespace-nowrap p-3">{cell}</td>)}</tr>)}</tbody></table></div>
+              {occupancyRows().length===0 && <p className="py-6 text-center text-emerald-100/70">لا توجد شقق مطابقة للعرض الحالي</p>}
+            </> : <p className="py-8 text-center text-emerald-100/75">لم تُربط بيانات {detailCategory} بعد.</p>}
+          </div>
+          {(["تقارير الشقق","تقارير العقود","تقارير العملاء","تقارير الملاك",...occupancyCategories,...financialCategories].includes(detailCategory)) && (
+            <div className="shrink-0 grid grid-cols-3 gap-2 border-t border-amber-300/25 bg-[#082a26] p-3 sm:gap-3 sm:p-4">
+              <button type="button" disabled={reportLoading || !!reportError} onClick={exportReportExcel} className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-emerald-400/40 bg-emerald-500/20 px-2 text-xs font-black text-emerald-200 transition hover:bg-emerald-500/30 disabled:opacity-40 sm:text-sm">تصدير Excel</button>
+              <button type="button" disabled={reportLoading || !!reportError} onClick={printReport} title="اختر حفظ كـ PDF من نافذة الطباعة" className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-rose-400/40 bg-rose-500/15 px-2 text-xs font-black text-rose-200 transition hover:bg-rose-500/25 disabled:opacity-40 sm:text-sm">حفظ PDF</button>
+              <button type="button" disabled={reportLoading || !!reportError} onClick={printReport} className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-sky-400/40 bg-sky-500/15 px-2 text-xs font-black text-sky-200 transition hover:bg-sky-500/25 disabled:opacity-40 sm:text-sm">طباعة</button>
+            </div>
+          )}
+        </div>
+      </div>}
       {archivePicker && (
         <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/80 p-3 backdrop-blur-md sm:p-5" dir="rtl" onMouseDown={e => { if (e.target === e.currentTarget && !archiveBusy) setArchivePicker(false); }}>
-          <div role="dialog" aria-modal="true" aria-label="إدارة أرشيف الشقق" style={{ width: "min(680px, calc(100vw - 32px))", maxWidth: "680px", maxHeight: "min(520px, 88dvh)", margin: "auto", boxSizing: "border-box" }} className="flex flex-col overflow-hidden rounded-[23px] border border-[#4c4564] bg-[#0b1829] text-white shadow-[0_30px_100px_rgba(0,0,0,.7)]">
-            <header className="shrink-0 border-b border-[#35425a] bg-[#0d2035] px-4 py-3 sm:px-5">
+          <div role="dialog" aria-modal="true" aria-label="إدارة أرشيف الشقق" style={{ width: "min(820px, calc(100vw - 32px))", maxWidth: "820px", height: "min(610px, 88dvh)", maxHeight: "88dvh", margin: "auto", boxSizing: "border-box" }} className="relative flex flex-col overflow-hidden rounded-[25px] border border-sky-300/45 bg-[#07162e] text-white shadow-[0_30px_100px_rgba(0,0,0,.7)]">
+            <div className="pointer-events-none absolute inset-0" style={{backgroundImage:"url('/delete.png')",backgroundSize:"contain",backgroundPosition:"center",backgroundRepeat:"no-repeat",backgroundColor:"#06152c"}} />
+            <div className="pointer-events-none absolute inset-0 bg-[#06152c]/45" />
+            <header className="relative z-10 shrink-0 border-b border-sky-300/25 bg-[#081a34]/65 backdrop-blur-sm px-4 py-3 sm:px-5">
               <div className="flex items-start justify-between gap-3">
                 <div><div className="flex items-center gap-3 text-lg font-black text-white sm:text-xl"><Archive size={23} className="text-rose-300"/> إدارة أرشيف الشقق</div><p className="mt-1 text-[11px] leading-5 text-slate-400">أرشفة الشقق بدون حذف بياناتها، واسترجاعها في أي وقت</p></div>
                 <button type="button" disabled={archiveBusy} onClick={() => setArchivePicker(false)} aria-label="إغلاق" className="rounded-xl border border-white/20 bg-white/5 p-2 hover:bg-white/15"><X size={22}/></button>
@@ -1082,16 +1690,16 @@ export default function Apartments() {
                 <div className="flex gap-2"><button type="button" onClick={() => {setArchiveSelection(prev => Array.from(new Set([...prev, ...archiveCandidates.map(a => a.id)])));setArchiveConfirm(false);}} className="rounded-md border border-[#40516b] px-2 py-1 font-bold text-slate-200">تحديد الكل</button><button type="button" onClick={() => {setArchiveSelection([]);setArchiveConfirm(false);}} className="rounded-md border border-[#40516b] px-2 py-1 font-bold text-slate-200">إلغاء التحديد</button></div>
               </div>
             </header>
-            <div className="min-h-0 flex-1 overflow-y-auto p-2 sm:p-3">
+            <div className="relative z-10 min-h-0 flex-1 overflow-y-auto p-3 sm:p-4">
               {archiveCandidates.length === 0 ? <div className="py-10 text-center text-slate-400">{archiveView === "archived" ? "لا توجد شقق مؤرشفة مطابقة." : "لا توجد شقق مطابقة."}</div> :
-                <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4 lg:grid-cols-6">
-                  {archiveCandidates.map(a => <button key={a.id} type="button" disabled={archiveBusy} onClick={() => {setArchiveSelection(prev => prev.includes(a.id) ? prev.filter(id => id !== a.id) : [...prev, a.id]);setArchiveConfirm(false);}} className={`flex min-h-[46px] items-center gap-2 rounded-lg border px-2 py-1.5 text-right transition ${archiveSelection.includes(a.id) ? "border-rose-300/70 bg-rose-300/10" : "border-[#2c3a51] bg-[#111f32] hover:border-sky-300/50"}`}>
-                    <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-md border ${archiveSelection.includes(a.id) ? "border-rose-300 bg-rose-300 text-[#162034]" : "border-white/30"}`}>{archiveSelection.includes(a.id) ? "✓" : ""}</span>
-                    <span className="min-w-0 flex-1"><strong className="block truncate text-xs text-white">شقة {a.number}</strong><span className="block truncate text-[9px] text-slate-500">{a.buildingName || a.type} · {a.status}</span></span>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {archiveCandidates.map(a => <button key={a.id} type="button" disabled={archiveBusy} onClick={() => {setArchiveSelection(prev => prev.includes(a.id) ? prev.filter(id => id !== a.id) : [...prev, a.id]);setArchiveConfirm(false);}} className={`flex min-h-[84px] items-center gap-3 rounded-xl border px-4 py-3 text-right shadow-lg transition ${archiveSelection.includes(a.id) ? "border-rose-300/70 bg-rose-300/10" : "border-[#2c3a51] bg-[#111f32] hover:border-sky-300/50"}`}>
+                    <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-md border ${archiveSelection.includes(a.id) ? "border-rose-300 bg-rose-300 text-[#162034]" : "border-white/30"}`}>{archiveSelection.includes(a.id) ? "✓" : ""}</span>
+                    <span className="min-w-0 flex-1"><strong className="block truncate text-base font-black text-white">شقة {a.number}</strong><span className="mt-1 block truncate text-xs text-slate-300">{a.buildingName || a.type} · {a.status}</span></span>
                   </button>)}
                 </div>}
             </div>
-            <footer className="shrink-0 border-t border-[#35425a] bg-[#0b1729] p-2.5 sm:p-3">
+            <footer className="relative z-10 shrink-0 border-t border-sky-300/25 bg-[#081a34]/70 backdrop-blur-sm p-2.5 sm:p-3">
               {archiveConfirm && archiveView === "active" && <p className="mb-3 rounded-xl border border-rose-300/40 bg-rose-900/25 p-3 text-center text-sm font-bold text-rose-100">تأكيد أرشفة {archiveSelection.length} شقة؟ ستختفي من القوائم النشطة وتبقى بياناتها محفوظة في Supabase.</p>}
               <div className="flex flex-wrap gap-3"><button type="button" disabled={archiveBusy} onClick={() => setArchivePicker(false)} className="min-h-10 flex-1 rounded-lg border border-[#34445d] bg-[#14243b] px-4 text-sm font-bold">إلغاء</button><button type="button" disabled={!canWrite || !archiveSelection.length || archiveBusy} onClick={() => void applyArchive()} className={`min-h-10 flex-[2] rounded-lg px-4 text-sm font-black disabled:cursor-not-allowed disabled:opacity-40 ${archiveView === "archived" ? "bg-sky-400 text-[#0b1a2d]" : "bg-gradient-to-l from-rose-300 to-rose-500 text-[#301824]"}`}>{archiveBusy ? "جارٍ تنفيذ العملية..." : archiveView === "archived" ? `استرجاع ${archiveSelection.length} شقة` : archiveConfirm ? `تأكيد أرشفة ${archiveSelection.length} شقة` : `أرشفة ${archiveSelection.length} شقة`}</button></div>
             </footer>
@@ -1099,7 +1707,103 @@ export default function Apartments() {
         </div>
       )}
 
-       {/* Add / edit apartment — residential_apartments only, never building_state */}
+      {contractActionMode && selectedReportContract && <div className="fixed inset-0 z-[170] flex items-center justify-center bg-black/80 p-3" dir="rtl" onMouseDown={e=>{if(e.target===e.currentTarget&&!contractActionBusy)setContractActionMode(null)}}>
+        <div role="dialog" aria-modal="true" aria-label="إدارة العقد" className={`w-full ${contractActionMode === "view" ? "max-w-[440px]" : contractActionMode === "edit" ? "max-w-[430px]" : "max-w-[340px]"} max-h-[75vh] overflow-y-auto rounded-2xl border border-amber-300/60 bg-[#06352d] p-3 text-white shadow-2xl`}>
+          <div className="mb-3 flex items-center justify-between gap-3"><h3 className="text-base font-black text-amber-200">{contractActionMode==="view"?"تفاصيل العقد":contractActionMode==="edit"?"تعديل العقد":selectedReportContract.status==="مؤرشف"?"استرجاع العقد":"أرشفة العقد"} — {selectedReportContract.contract_number}</h3><button type="button" onClick={()=>setContractActionMode(null)} aria-label="إغلاق"><X size={20}/></button></div>
+          {contractActionMode === "view" ? <div className="grid grid-cols-2 gap-2 text-xs">{[["رقم العقد",selectedReportContract.contract_number],["نوع العقد",selectedReportContract.contract_type],["الشقة",apartments.find(a=>a.id===selectedReportContract.apartment_id)?.number||"—"],["المستأجر",tenants.find(t=>t.id===selectedReportContract.tenant_id)?.full_name||"—"],["المالك",owners.find(o=>o.id===selectedReportContract.owner_id)?.full_name||"—"],["البداية",selectedReportContract.start_date],["النهاية",selectedReportContract.end_date],["المدة",selectedReportContract.rent_period||"—"],["إجمالي قيمة العقد",`${formatPrice(Number(selectedReportContract.rent_amount??0))} ر.س`],["الحالة",selectedReportContract.status||"—"],["ملاحظات",selectedReportContract.notes||"—"]].map(([label,value])=><div key={label} className="rounded-lg border border-emerald-300/20 bg-black/20 p-2"><div className="text-[11px] text-emerald-200">{label}</div><div className="mt-0.5 font-bold break-words">{value}</div></div>)}</div> : contractActionMode === "edit" ? <div className="space-y-2 text-xs">
+            <label className="block font-bold">رقم العقد<input value={contractEdit.contract_number} onChange={e=>setContractEdit(p=>({...p,contract_number:e.target.value}))} className="mt-1 w-full rounded-lg border border-emerald-300/40 bg-[#042b24] px-2 py-1.5"/></label>
+            <div className="grid grid-cols-2 gap-2"><label className="block font-bold">تاريخ البداية<input type="date" value={contractEdit.start_date} onChange={e=>{setContractEdit(p=>({...p,start_date:e.target.value}));setConfirmReschedule(false);}} className="mt-1 w-full min-w-0 rounded-lg border border-emerald-300/40 bg-[#042b24] p-1.5"/></label><label className="block font-bold">تاريخ النهاية<input type="date" value={contractEdit.end_date} onChange={e=>{setContractEdit(p=>({...p,end_date:e.target.value}));setConfirmReschedule(false);}} className="mt-1 w-full min-w-0 rounded-lg border border-emerald-300/40 bg-[#042b24] p-1.5"/></label></div>
+            <label className="block font-bold">الملاحظات<textarea rows={2} value={contractEdit.notes} onChange={e=>setContractEdit(p=>({...p,notes:e.target.value}))} className="mt-1 w-full rounded-lg border border-emerald-300/40 bg-[#042b24] p-2"/></label>
+            <div className="rounded-lg border border-amber-300/30 bg-black/15 p-2">
+              <div className="mb-1 flex items-center justify-between gap-2"><span className="font-bold text-amber-200">مواعيد استحقاق الأقساط</span><span className="text-emerald-200">{editFrequency||"—"}</span></div>
+              {editScheduleLoading ? <p>جارٍ تحميل الأقساط...</p> : <div className="max-h-36 overflow-y-auto"><table className="w-full text-center text-[11px]"><thead><tr className="text-amber-200"><th>القسط</th><th>الموعد الحالي</th><th>الموعد الجديد</th><th>المبلغ</th></tr></thead><tbody>{(contractDateChanged?newSchedulePreview:editSchedule).map((item,i)=><tr key={item.installment_no} className="border-t border-emerald-300/15"><td>{item.installment_no}</td><td>{editSchedule[i]?.due_date||"—"}</td><td className={contractDateChanged?"text-amber-200 font-bold":""}>{item.due_date}</td><td>{Number(item.amount).toLocaleString("ar-SA")} ر.س</td></tr>)}</tbody></table></div>}
+              {contractDateChanged && !newSchedulePreview.length && <p className="mt-1 text-rose-200">تعذر حساب الجدول الجديد. تحقق من تاريخ أول استحقاق ومدة العقد.</p>}
+              {contractDateChanged && newSchedulePreview.length>0 && <label className="mt-2 flex items-start gap-2 rounded-lg border border-amber-300/30 p-2"><input type="checkbox" checked={confirmReschedule} onChange={e=>setConfirmReschedule(e.target.checked)} className="mt-0.5"/><span>أؤكد تغيير مواعيد استحقاق الأقساط وفق الجدول الجديد. لن يُسمح بإعادة الجدولة إذا سُجلت تحصيلات على العقد.</span></label>}
+            </div>
+          </div> : <p className="rounded-lg border border-amber-300/30 p-4 text-sm">{selectedReportContract.status==="مؤرشف"?"هل تريد استرجاع هذا العقد إلى الحالة النشطة؟":"هل تريد أرشفة هذا العقد؟ ستظل بياناته وسجلاته المالية محفوظة، ولن يتم حذفه نهائيًا."}</p>}
+          {contractActionError && <p role="alert" className="mt-3 rounded-lg border border-red-300/50 p-3 text-red-200">{contractActionError}</p>}
+          <div className="mt-4 flex gap-2">{contractActionMode!=="view" && <button type="button" disabled={contractActionBusy||!canWrite} onClick={()=>void saveContractAction()} className="flex-1 rounded-xl bg-amber-300 px-3 py-2.5 font-bold text-[#07352d] disabled:opacity-40">{contractActionBusy?"جارٍ الحفظ...":contractActionMode==="edit"?"حفظ التعديلات":selectedReportContract.status==="مؤرشف"?"تأكيد الاسترجاع":"تأكيد الأرشفة"}</button>}<button type="button" onClick={()=>setContractActionMode(null)} className="flex-1 rounded-xl border border-emerald-300/40 px-3 py-2.5">إغلاق</button></div>
+        </div></div>}
+
+      {contractModal && (
+        <div className="fixed inset-0 z-[165] flex items-center justify-center bg-black/80 p-3 backdrop-blur-md" dir="rtl" onMouseDown={e=>{if(e.target===e.currentTarget&&!contractSaving)setContractModal(false);}}>
+          <div role="dialog" aria-modal="true" aria-label="إضافة عقد جديد" className="relative flex flex-col overflow-hidden rounded-[24px] border border-amber-300/65 bg-[#052b24] text-white shadow-[0_30px_100px_rgba(0,0,0,.75)]" style={{width:"min(820px, calc(100vw - 32px))",maxWidth:"820px",maxHeight:"min(720px, 92dvh)",margin:"auto",flex:"0 1 820px"}}>
+            <div className="pointer-events-none absolute inset-0" style={{backgroundImage:"url('/add-contract.png')",backgroundPosition:"center",backgroundSize:"contain",backgroundRepeat:"no-repeat",backgroundColor:"#052b24",opacity:0.88}}/>
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-l from-[#052b24]/80 via-[#052b24]/62 to-[#052b24]/30"/>
+            <div className="relative min-h-0 overflow-y-auto p-4 sm:p-6">
+              <button type="button" onClick={()=>setContractModal(false)} className="absolute left-4 top-4 rounded-full border border-amber-300/50 bg-[#073b31] p-2"><X size={17}/></button>
+              <header className="mb-5 text-center"><FilePlus2 size={32} className="mx-auto text-amber-300"/><h2 className="text-2xl font-black text-amber-200">إضافة عقد جديد</h2><p className="text-xs text-emerald-100/75">ربط عقد بشقة ومالك مسجلين</p></header>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <label className="text-sm font-bold">الشقة *<select value={contractForm.apartment_id} onChange={e=>{const a=apartments.find(x=>x.id===e.target.value);setContractForm(p=>({...p,apartment_id:e.target.value,owner_id:a?.ownerId || "",rent_period:p.rent_period,contract_amount:a ? String(a.price) : ""}));setContractError("");}} className="mt-1 block h-11 w-full rounded-xl border border-emerald-300/40 bg-[#06372f] px-3"><option value="">اختر الشقة</option>{apartments.filter(a=>!a.archivedAt).map(a=><option key={a.id} value={a.id}>{a.number} — {a.buildingName || a.location}</option>)}</select></label>
+                <div><label className="text-sm font-bold">المالك *</label><div className="mt-1 flex gap-2"><select value={contractForm.owner_id} onChange={e=>setContractForm(p=>({...p,owner_id:e.target.value}))} className="h-11 min-w-0 flex-1 rounded-xl border border-emerald-300/40 bg-[#06372f] px-3"><option value="">اختر مالكًا مسجلًا</option>{owners.map(o=><option key={o.id} value={o.id}>{o.full_name} — {o.mobile || o.identity_number || ""}</option>)}</select><button type="button" title="إضافة مالك جديد" onClick={()=>{setOwnerCreatedForContract(true);openStandaloneOwner();}} className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-amber-300/60 bg-amber-300/20 text-amber-200"><Plus size={23}/></button></div></div>
+                <div><label className="text-sm font-bold">المستأجر *</label><div className="mt-1 flex gap-2"><select value={contractForm.tenant_id} onChange={e=>setContractForm(p=>({...p,tenant_id:e.target.value}))} className="h-11 min-w-0 flex-1 rounded-xl border border-emerald-300/40 bg-[#06372f] px-3"><option value="">اختر مستأجرًا مسجلًا</option>{tenants.map(t=><option key={t.id} value={t.id}>{t.full_name} — {t.phone || t.identity_number || ""}</option>)}</select><button type="button" title="إضافة مستأجر جديد" aria-label="إضافة مستأجر جديد" onClick={()=>{setContractTenantAfterCreate(true);setBookingTenantAfterCreate(false);setTenantError("");setTenantForm({full_name:"",phone:"",identity_number:"",nationality:"",email:"",notes:""});setTenantModal(true);}} className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-amber-300/60 bg-amber-300/20 text-amber-200"><Plus size={23}/></button></div></div>
+                <label className="text-sm font-bold">رقم العقد *<input value={contractForm.contract_number} onChange={e=>setContractForm(p=>({...p,contract_number:e.target.value}))} className="mt-1 h-11 w-full rounded-xl border border-emerald-300/40 bg-[#06372f] px-3"/></label>
+                <label className="text-sm font-bold">نوع العقد<select value={contractForm.contract_type} onChange={e=>setContractForm(p=>({...p,contract_type:e.target.value}))} className="mt-1 h-11 w-full rounded-xl border border-emerald-300/40 bg-[#06372f] px-3"><option>إيجار</option><option>إدارة أملاك</option><option>أخرى</option></select></label>
+                <div className="text-sm font-bold"><label htmlFor="contract-rent-period">مدة العقد *</label><div className="mt-1 flex gap-2"><select id="contract-rent-period" value={contractForm.rent_period} onChange={e=>setContractForm(p=>({...p,rent_period:e.target.value,end_date:endDateForContractDuration(p.start_date,e.target.value)||p.end_date}))} className="h-11 min-w-0 flex-1 rounded-xl border border-emerald-300/40 bg-[#06372f] px-3"><option value="">اختر مدة العقد</option>{contractPeriods.map(period=><option key={period} value={period}>{period}</option>)}</select><button type="button" title="إضافة مدة عقد جديدة" onClick={()=>{setAddingContractPeriod(v=>!v);setContractPeriodError("");}} className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-amber-300/60 bg-amber-300/20 text-amber-200"><Plus size={23}/></button></div>{addingContractPeriod && <div className="mt-2 rounded-xl border border-amber-300/40 bg-[#052b24] p-3"><label className="block text-xs">اسم مدة العقد الجديدة<input value={newContractPeriod} onChange={e=>setNewContractPeriod(e.target.value)} placeholder="مثال: سنتين" maxLength={50} className="mt-1 h-10 w-full rounded-lg border border-emerald-300/40 bg-[#06372f] px-3"/></label><button type="button" disabled={savingContractPeriod} onClick={()=>void addContractPeriod()} className="mt-2 rounded-lg bg-amber-300 px-4 py-2 font-bold text-[#052b24] disabled:opacity-50">{savingContractPeriod?"جارٍ الحفظ...":"حفظ المدة"}</button>{contractPeriodError && <p className="mt-2 text-xs text-rose-200">{contractPeriodError}</p>}</div>}</div>
+                <label className="text-sm font-bold">تاريخ البداية *<input type="date" value={contractForm.start_date} onChange={e=>setContractForm(p=>({...p,start_date:e.target.value,end_date:endDateForContractDuration(e.target.value,p.rent_period)||p.end_date,first_due_date:e.target.value}))} className="mt-1 h-11 w-full rounded-xl border border-emerald-300/40 bg-[#06372f] px-3"/></label>
+                <label className="text-sm font-bold">تاريخ النهاية *<input type="date" value={contractForm.end_date} onChange={e=>setContractForm(p=>({...p,end_date:e.target.value}))} className="mt-1 h-11 w-full rounded-xl border border-emerald-300/40 bg-[#06372f] px-3"/></label>
+                <label className="text-sm font-bold sm:col-span-2">إجمالي قيمة العقد (ر.س) — تُملأ مبدئيًا بإيجار الشقة وقابلة للتعديل<input type="number" min="0" value={contractForm.contract_amount} onChange={e=>setContractForm(p=>({...p,contract_amount:e.target.value}))} className="mt-1 h-11 w-full rounded-xl border border-emerald-300/40 bg-[#06372f] px-3"/></label>
+                {contractForm.apartment_id && <p className="sm:col-span-2 -mt-2 text-xs text-emerald-100/85">الإيجار الافتراضي للشقة: {formatPrice(apartments.find(a=>a.id===contractForm.apartment_id)?.price ?? 0)} ر.س / {apartments.find(a=>a.id===contractForm.apartment_id)?.rentCategory ?? "غير محدد"}. القيمة المسجلة للشقة تخص فترة الإيجار المذكورة. عدّل إجمالي العقد وفق مدته قبل الحفظ؛ هذا الإجمالي هو الذي سيُوزّع على الأقساط.</p>}
+                {contractForm.contract_type === "إيجار" && <div className="sm:col-span-2 rounded-2xl border border-amber-300/35 bg-[#052c25]/85 p-4">
+                  <h3 className="mb-3 text-base font-black text-amber-200">جدول سداد الإيجار</h3>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <label className="text-sm font-bold">دورية السداد *<select value={contractForm.payment_frequency} onChange={e=>setContractForm(p=>({...p,payment_frequency:e.target.value}))} className="mt-1 h-11 w-full rounded-xl border border-emerald-300/40 bg-[#06372f] px-3"><option>يومي</option><option>شهري</option><option>ربع سنوي</option><option>نصف سنوي</option><option>سنوي</option></select></label>
+                    <label className="text-sm font-bold">تاريخ أول استحقاق *<input type="date" value={contractForm.first_due_date} onChange={e=>setContractForm(p=>({...p,first_due_date:e.target.value}))} className="mt-1 h-11 w-full rounded-xl border border-emerald-300/40 bg-[#06372f] px-3"/></label>
+                  </div>
+                  <p className="mt-3 text-xs text-emerald-100/80">مدة العقد تُحدد من تاريخ البداية والنهاية، ودورية السداد تُحدد عدد الأقساط. يتم توزيع إجمالي قيمة العقد على الأقساط تلقائيًا.</p>
+                  {contractPreviewIssue && <p role="status" className="mt-3 rounded-lg border border-amber-300/40 bg-amber-900/20 p-2 text-xs font-bold text-amber-100">{contractPreviewIssue}</p>}
+                  {contractInstallmentPreview.length > 0 && <div className="mt-3 max-h-48 overflow-auto rounded-xl border border-emerald-300/25">
+                    <table className="w-full text-right text-xs"><thead className="sticky top-0 bg-[#0a4739] text-amber-200"><tr><th className="p-2">القسط</th><th className="p-2">تاريخ الاستحقاق</th><th className="p-2">القيمة (ر.س)</th></tr></thead><tbody>{contractInstallmentPreview.map((item,i)=><tr key={i} className="border-t border-emerald-300/15"><td className="p-2">{i+1}</td><td className="p-2">{item.dueDate}</td><td className="p-2">{item.amount.toLocaleString("ar-SA",{minimumFractionDigits:2})}</td></tr>)}</tbody></table>
+                  </div>}
+                  <p className="mt-2 text-xs font-bold text-amber-100">عدد الأقساط: {contractInstallmentPreview.length} — الإجمالي: {contractInstallmentPreview.reduce((sum,item)=>sum+item.amount,0).toLocaleString("ar-SA",{maximumFractionDigits:2})} ر.س</p>
+                </div>}
+                <label className="text-sm font-bold sm:col-span-2">ملاحظات<textarea rows={2} value={contractForm.notes} onChange={e=>setContractForm(p=>({...p,notes:e.target.value}))} className="mt-1 w-full rounded-xl border border-emerald-300/40 bg-[#06372f] p-3"/></label>
+              </div>
+              {contractError && <p role="alert" className="mt-3 rounded-xl border border-rose-300/40 bg-rose-900/40 p-3 text-sm">{contractError}</p>}
+              <div className="mt-4 flex gap-2"><button type="button" disabled={contractSaving || !canWrite} onClick={()=>void saveContract()} className="min-h-11 flex-[2] rounded-xl bg-gradient-to-l from-[#f3d477] to-[#b88828] font-black text-[#09251f] disabled:opacity-50">{contractSaving?"جارٍ الحفظ...":"حفظ العقد"}</button><button type="button" onClick={()=>setContractModal(false)} className="min-h-11 flex-1 rounded-xl border border-amber-300/40 bg-[#073b31] font-bold">إلغاء</button></div>
+            </div>
+          </div>
+        </div>
+      )}
+
+       {standaloneOwnerModal && (
+        <div className="fixed inset-0 z-[175] flex items-center justify-center bg-black/80 p-3 backdrop-blur-md" dir="rtl" onMouseDown={e => { if (e.target === e.currentTarget && !savingStandaloneOwner) setStandaloneOwnerModal(false); }}>
+          <div role="dialog" aria-modal="true" aria-label="إضافة مالك جديد" className="relative flex w-full max-w-[720px] flex-col overflow-hidden rounded-[24px] border border-amber-300/65 bg-[#052b24] text-white shadow-[0_30px_100px_rgba(0,0,0,.75)]" style={{width:"min(720px, calc(100vw - 32px))",maxWidth:"720px",maxHeight:"min(760px, 92dvh)",margin:"auto",flex:"0 1 720px"}}>
+            <div className="pointer-events-none absolute inset-0 bg-cover bg-left" style={{backgroundImage:"url('/add-client-bg.png')"}} />
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-l from-[#052b24]/90 via-[#052b24]/78 to-[#052b24]/10" />
+            <button type="button" disabled={savingStandaloneOwner} onClick={() => setStandaloneOwnerModal(false)} aria-label="إغلاق" className="absolute left-3 top-3 z-20 grid h-8 w-8 place-items-center rounded-full border border-amber-200/55 bg-[#073b31]/80 text-white hover:bg-amber-300/20"><X size={17}/></button>
+            <div className="relative min-h-0">
+              <div className="relative z-10 min-h-0 max-h-[75dvh] overflow-y-auto px-4 pb-3 pt-4 sm:pl-5 sm:pr-[30%]">
+                <header className="mb-3 text-center">
+                  <UserRoundCheck size={31} className="mx-auto mb-1 text-amber-300"/>
+                  <h2 className="text-xl font-black text-amber-200 sm:text-2xl">إضافة مالك جديد</h2>
+                  <p className="mt-1 text-xs text-emerald-100/75">سجل بيانات المالك الآن واربطه بشقة أو أكثر لاحقًا</p>
+                </header>
+                <div className="grid grid-cols-1 gap-x-3 gap-y-2 sm:grid-cols-2">
+                  {([ ["full_name", "اسم المالك *", "text", "الاسم بالكامل"], ["mobile", "رقم الجوال", "tel", "05xxxxxxxx"], ["phone", "رقم هاتف إضافي", "tel", "رقم إضافي"], ["email", "البريد الإلكتروني", "email", "example@email.com"], ["nationality", "الجنسية", "text", "الجنسية"], ["identity_number", "رقم الهوية / الإقامة", "text", "رقم الهوية أو الإقامة"] ] as const).map(([key, label, type, placeholder]) => (
+                    <label key={key} className="block min-w-0 text-right text-xs font-bold text-emerald-50">{label}
+                      <input type={type} value={standaloneOwnerForm[key]} onChange={e => setStandaloneOwnerForm(prev => ({...prev, [key]: e.target.value}))} placeholder={placeholder} className="mt-1 h-10 w-full rounded-xl border border-emerald-300/40 bg-[#062b25]/90 px-3 text-sm text-white outline-none placeholder:text-emerald-100/35 focus:border-amber-300"/>
+                    </label>
+                  ))}
+                </div>
+                {ownerSuggestions.length > 0 && <div className="mt-3 rounded-xl border border-amber-300/40 bg-[#092f28] p-2 text-right">
+                  <p className="mb-2 text-xs font-bold text-amber-200">ملاك مسجلون قد يطابقون البيانات المدخلة — اختر اسمًا لعرض بياناته</p>
+                  {ownerSuggestions.map(owner => <button key={owner.id} type="button" onClick={() => setStandaloneOwnerError(`المالك ${owner.full_name} مسجل بالفعل. الجوال: ${owner.mobile || "غير مسجل"} — الهوية: ${owner.identity_number || "غير مسجلة"}. يمكن ربطه بالشقة من بيانات الشقة.`)} className="mb-1 block w-full rounded-lg border border-emerald-300/20 px-3 py-2 text-right text-xs text-emerald-50 hover:bg-emerald-400/10">
+                    <strong>{owner.full_name}</strong> <span className="text-emerald-100/60">— {owner.mobile || owner.identity_number || owner.email || "بدون بيانات اتصال"}</span>
+                  </button>)}
+                </div>}
+                {standaloneOwnerError && <p role="alert" className="mt-3 rounded-xl border border-rose-300/40 bg-rose-900/25 p-3 text-xs text-rose-100">{standaloneOwnerError}</p>}
+              </div>
+            </div>
+            <footer className="relative z-10 flex shrink-0 gap-3 border-t border-amber-300/30 bg-[#052b24]/75 px-4 py-2 sm:px-6">
+              <button type="button" disabled={savingStandaloneOwner || !canWrite} onClick={() => void saveStandaloneOwner()} className="min-h-11 flex-[2] rounded-xl bg-gradient-to-l from-[#f3d477] to-[#b88828] font-black text-[#09251f] disabled:opacity-50">{savingStandaloneOwner ? "جارٍ الحفظ..." : "حفظ المالك"}</button>
+              <button type="button" disabled={savingStandaloneOwner} onClick={() => setStandaloneOwnerModal(false)} className="min-h-11 flex-1 rounded-xl border border-amber-300/40 bg-white/5 font-bold">إلغاء</button>
+            </footer>
+          </div>
+        </div>
+      )}
+
+      {/* Add / edit apartment — residential_apartments only, never building_state */}
       <style>{`.apartment-entry-modal label{display:block;min-width:0}.apartment-entry-modal label>span{font-size:14px;font-weight:800;margin-bottom:7px;color:#f1f8f4}.apartment-entry-modal label>input,.apartment-entry-modal label>select{height:48px;min-width:0;width:100%;background:#062b25;border:1px solid rgba(180,220,198,.36);border-radius:12px;padding:0 14px;font-size:14px;box-sizing:border-box}.apartment-entry-modal label>input:focus,.apartment-entry-modal label>select:focus{border-color:#e5bc54;outline:none}`}</style>
       {/* Add / edit modal — compact layout matching Add Building */}
       {showModal && (
@@ -1133,11 +1837,11 @@ export default function Apartments() {
                     <FormInput label="اسم العمارة" value={form.buildingName} onChange={(value) => setForm({ ...form, buildingName: value })} placeholder="مثال: عمارة سنتر" />
                     <FormInput label="عدد الغرف" type="number" value={form.rooms} onChange={(value) => setForm({ ...form, rooms: value })} placeholder="2" />
                     <FormInput label={`قيمة الإيجار (${form.rentCategory}) بالريال *`} type="number" value={form.price} onChange={(value) => setForm({ ...form, price: value })} placeholder="مثال: 2500" />
-                    <FormSelect label="الفئة / مدة الإيجار" value={form.rentCategory} onChange={(value) => setForm({ ...form, rentCategory: value as RentCategory })} options={["يومي", "شهري", "سنوي"]} />
+                    <FormSelect label="الفئة / مدة الإيجار" value={form.rentCategory} onChange={(value) => setForm(prev => ({ ...prev, rentCategory: value as RentCategory, price: rentString(priceForPeriod(typeCatalog.prices[prev.type], value)) || prev.price }))} options={["يومي", "شهري", "سنوي"]} />
                     <FormInput label="المساحة (م²) *" type="number" value={form.area} onChange={(value) => setForm({ ...form, area: value })} placeholder="100" />
                     <div className="relative min-w-0">
                       <button type="button" title="إضافة نوع الشقة" aria-label="إضافة نوع الشقة" onClick={() => openChoiceEditor("type")} className="absolute left-0 top-0 z-10 grid h-6 w-6 place-items-center rounded-md border border-amber-300/55 bg-amber-300/15 text-amber-200 transition hover:bg-amber-300/30"><Plus size={15} strokeWidth={2.6}/></button>
-                      <FormSelect label="نوع الشقة" value={form.type} onChange={(value) => setForm({ ...form, type: value })} options={apartmentTypes} />
+                      <FormSelect label="نوع الشقة" value={form.type} onChange={(value) => setForm(prev => ({ ...prev, type: value, price: rentString(priceForPeriod(typeCatalog.prices[value], prev.rentCategory)) || prev.price }))} options={apartmentTypes} />
                     </div>
                     <div className="relative min-w-0">
                       <button type="button" title="إضافة حالة الشقة" aria-label="إضافة حالة الشقة" onClick={() => openChoiceEditor("status")} className="absolute left-0 top-0 z-10 grid h-6 w-6 place-items-center rounded-md border border-amber-300/55 bg-amber-300/15 text-amber-200 transition hover:bg-amber-300/30"><Plus size={15} strokeWidth={2.6}/></button>
