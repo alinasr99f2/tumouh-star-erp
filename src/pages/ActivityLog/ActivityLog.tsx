@@ -17,6 +17,7 @@ import {
   Users,
   Edit3,
   LogIn,
+  LogOut,
   Eye,
   Upload,
   ShieldCheck,
@@ -26,6 +27,7 @@ import "./ActivityLog.css";
 
 type ActivityType =
   | "login"
+  | "session_expired"
   | "add"
   | "edit"
   | "delete"
@@ -62,6 +64,11 @@ const typeConfig: Record<
     label: "تسجيل دخول",
     icon: LogIn,
     className: "activity-login",
+  },
+  session_expired: {
+    label: "انتهاء جلسة",
+    icon: LogOut,
+    className: "activity-delete",
   },
   add: {
     label: "إضافة",
@@ -154,14 +161,15 @@ function ActivityLog() {
         const date = new Date(timestamp);
         const validDate = !Number.isNaN(date.getTime());
         const rawType = String(row.action_type ?? "other");
-        const knownTypes = ["login", "add", "edit", "delete", "view", "upload", "permission"];
+        const knownTypes = ["login", "session_expired", "add", "edit", "delete", "view", "upload", "permission"];
+        const normalizedType = ["session_end", "session_timeout", "session_expiry", "auto_logout"].includes(rawType) ? "session_expired" : rawType;
         return {
           id: Number(row.id) || index + 1,
           userId: String(row.user_id ?? ""),
           avatarUrl: avatarByUserId.get(String(row.user_id ?? "")) ?? "",
           user: String(row.user_name ?? "غير معروف"),
           role: String(row.user_role ?? ""),
-          type: (knownTypes.includes(rawType) ? rawType : "other") as ActivityType,
+          type: (knownTypes.includes(normalizedType) ? normalizedType : "other") as ActivityType,
           section: String(row.section ?? "النظام"),
           details: String(row.details ?? ""),
           date: validDate ? formatter.format(date) : "—",
@@ -447,6 +455,7 @@ function ActivityLog() {
             >
               <option value="all">كل العمليات</option>
               <option value="login">تسجيل دخول</option>
+              <option value="session_expired">انتهاء جلسة</option>
               <option value="add">إضافة</option>
               <option value="edit">تعديل</option>
               <option value="delete">حذف</option>
