@@ -128,6 +128,8 @@ const initialApartments: Apartment[] = [];
 
 const formatPrice = (value: number) =>
   new Intl.NumberFormat("ar-SA").format(value);
+const formatFinancialPrice = (value: number) =>
+  new Intl.NumberFormat("en-US").format(value);
 
 type ArtKind = "building" | "rented" | "vacant" | "reserved" | "rent" | "dues" | "water" | "electric";
 
@@ -168,6 +170,8 @@ export default function Apartments() {
   const [loadError, setLoadError] = useState("");
   const [refreshingData, setRefreshingData] = useState(false);
   const [refreshNotice, setRefreshNotice] = useState("");
+  const [leaseFinance, setLeaseFinance] = useState<{due:number; total:number; collected:number; remaining:number; error:string; loading:boolean}>({due:0,total:0,collected:0,remaining:0,error:"",loading:true});
+  const [leaseStatusError, setLeaseStatusError] = useState("");
 
   const loadResidentialApartments = async () => {
     setLoadingApartments(true);
@@ -191,7 +195,47 @@ export default function Apartments() {
       .select("id,apartment_number,building_name,rooms_count,rent_amount,rent_period,area_sqm,apartment_type,apartment_status,region,city,district_street,nearest_landmark,notes,owner_id,archived_at")
       .eq("company_id", RESIDENTIAL_COMPANY_ID).order("created_at", { ascending: false });
     if (error) { setLoadError(`تعذر تحميل الشقق: ${error.message}`); }
-    else setApartments(((data ?? []) as ResidentialRow[]).map(fromResidentialRow));
+    else {
+      const rawApartments = ((data ?? []) as ResidentialRow[]).map(fromResidentialRow);
+      // An active lease takes precedence over a stale manually stored apartment status.
+      const today = new Date().toLocaleDateString("en-CA");
+      const {data: leases,error: leasesError} = await supabase.from("residential_contracts")
+        .select("id,apartment_id,start_date,end_date,status,contract_type")
+        .eq("company_id",RESIDENTIAL_COMPANY_ID);
+      if (leasesError) {
+        setLeaseStatusError(`تعذر مراجعة العقود: ${leasesError.message}`);
+        setApartments(rawApartments);
+      } else {
+        setLeaseStatusError("");
+        const occupied = new Set((leases ?? []).filter(c => c.status === "نشط" && c.contract_type === "إيجار" && c.start_date <= today && c.end_date > today).map(c => c.apartment_id));
+        setApartments(rawApartments.map(a => ({...a,status:occupied.has(a.id) ? "مؤجرة" : a.status === "مؤجرة" ? "متاحة" : a.status})));
+      }
+      // Installment ledger: show due charges, not fictitious collections.
+      setLeaseFinance(prev=>({...prev,loading:true}));
+       const [installmentResult, allocationResult] = await Promise.all([
+         supabase.from("residential_rent_installments").select("*").eq("company_id",RESIDENTIAL_COMPANY_ID),
+         supabase.from("residential_rent_allocations").select("*").eq("company_id",RESIDENTIAL_COMPANY_ID)
+       ]);
+       const financeError = installmentResult.error || allocationResult.error || leasesError;
+       if (financeError) setLeaseFinance({due:0,total:0,collected:0,remaining:0,loading:false,error:financeError.message});
+       else {
+         const activeIds = new Set((leases??[]).filter(c=>c.status === "نشط" && c.contract_type === "إيجار").map(c=>c.id));
+         const rows = (installmentResult.data??[]).filter(i=>activeIds.has(String(i.contract_id)));
+         const dueRows = rows.filter(i=>String(i.due_date)<=today);
+         const dueIds = new Set(dueRows.map(i=>String(i.id)));
+         const allocations = allocationResult.data??[];
+         const hasAllocations = allocations.length>0;
+         const allocationKey = hasAllocations ? ["installment_id","rent_installment_id"].find(k=>k in allocations[0]) : "installment_id";
+         const amountKey = hasAllocations ? ["amount","allocated_amount","applied_amount"].find(k=>k in allocations[0]) : "amount";
+         if (!allocationKey || !amountKey) {
+           setLeaseFinance({due:0,total:0,collected:0,remaining:0,loading:false,error:"تعذر تحديد أعمدة ربط التحصيلات بالأقساط؛ يلزم مراجعة بنية جدول التحصيلات."});
+         } else {
+           const due = roundRent(dueRows.reduce((sum,i)=>sum+Number(i.amount||0),0));
+           const collected = roundRent(allocations.filter(a=>dueIds.has(String(a[allocationKey]))).reduce((sum,a)=>sum+Number(a[amountKey]||0),0));
+           setLeaseFinance({due,total:roundRent(rows.reduce((sum,i)=>sum+Number(i.amount||0),0)),collected,remaining:roundRent(due-collected),loading:false,error:""});
+         }
+       }
+    }
     setLoadingApartments(false);
     return !error;
   };
@@ -581,7 +625,7 @@ export default function Apartments() {
         });
     setContractSaving(false);
     if (error) {setContractError(error.code === "23505" ? "رقم العقد مسجل بالفعل. برجاء استخدام رقم مختلف." : `تعذر حفظ العقد: ${error.message}. راجع أعمدة الجدول وصلاحياته في Supabase.`);return;}
-    setContractModal(false);void loadContractSummary();setActionNotice("تم تسجيل العقد وربطه بالشقة والمالك بنجاح.");
+    setContractModal(false);void loadContractSummary();void loadResidentialApartments();setActionNotice("تم تسجيل العقد وربطه بالشقة والمالك بنجاح.");
   };
   const [ownerId, setOwnerId] = useState("");
   const [ownerMode, setOwnerMode] = useState<"existing" | "new">("new");
@@ -705,6 +749,7 @@ export default function Apartments() {
     }
     setContractActionBusy(false);setContractActionMode(null);setSelectedReportContract(null);
     await openReport("تقارير العقود");
+    await loadResidentialApartments();
   };
 
   const [expiryModalOpen, setExpiryModalOpen] = useState(false);
@@ -1243,7 +1288,7 @@ export default function Apartments() {
 
         {/* Premium illustrated financial cards — no fabricated financial figures */}
         <div className="mb-6">
-          <div className="mb-4 flex flex-col items-center text-center"><h2 className="text-2xl font-black text-amber-300">✦ الملخص المالي ✦</h2><p className="mt-1 text-xs text-emerald-100/60">ستظهر القيم بعد ربط البيانات المالية والفترة الزمنية</p></div>
+          <div className="mb-4 flex flex-col items-center text-center"><h2 className="text-2xl font-black text-amber-300">✦ الملخص المالي ✦</h2><p className="mt-1 text-xs text-emerald-100/60">الإيجارات: الأقساط المستحقة حتى اليوم، والتحصيلات المسجلة المرتبطة بها</p>{leaseStatusError && <p className="text-xs text-rose-300">{leaseStatusError}</p>}</div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {([
               {label:"إجمالي الإيجارات",art:"rent" as ArtKind,accent:"border-amber-300/55"},
@@ -1254,10 +1299,12 @@ export default function Apartments() {
               <div className="pointer-events-none absolute -top-10 left-0 h-28 w-28 rounded-full bg-white/[.05] blur-xl"/>
               <CardIllustration kind={item.art}/>
               <h3 className="mt-1 text-sm font-black text-white sm:text-base">{item.label}</h3>
-              <div className="mt-2 text-2xl font-black text-white">— <span className="text-xs text-emerald-100/55">ريال</span></div>
+              <div className="mt-2 text-2xl font-black text-white">{item.art!=="rent" ? formatFinancialPrice(0) : !leaseFinance.error && !leaseFinance.loading ? formatFinancialPrice(leaseFinance.due) : "—"} <span className="text-xs text-emerald-100/55">ريال</span></div>
+              {item.art==="rent" && leaseFinance.error && <p className="text-xs text-rose-300">تعذر تحميل الأقساط</p>}
+              {item.art!=="rent" && <p className="mt-1 text-[10px] text-amber-200/80">قيمة مبدئية — لم يتم ربط سجلات هذا القسم بعد</p>}
               <div className="mt-auto grid w-full grid-cols-2 gap-2 pt-4">
-                <div className="rounded-2xl border border-emerald-300/40 bg-emerald-400/10 px-2 py-3"><p className="text-xs font-black text-emerald-200">التحصيل</p><strong className="mt-1 block text-xl text-white">—</strong></div>
-                <div className="rounded-2xl border border-amber-300/40 bg-amber-400/10 px-2 py-3"><p className="text-xs font-black text-amber-200">المتبقي</p><strong className="mt-1 block text-xl text-white">—</strong></div>
+                <div className="rounded-2xl border border-emerald-300/40 bg-emerald-400/10 px-2 py-3"><p className="text-xs font-black text-emerald-200">التحصيل</p><strong className="mt-1 block text-xl text-white">{item.art!=="rent" ? formatFinancialPrice(0) : !leaseFinance.loading && !leaseFinance.error ? formatFinancialPrice(leaseFinance.collected) : "—"}</strong></div>
+                <div className="rounded-2xl border border-amber-300/40 bg-amber-400/10 px-2 py-3"><p className="text-xs font-black text-amber-200">المتبقي</p><strong className="mt-1 block text-xl text-white">{item.art!=="rent" ? formatFinancialPrice(0) : !leaseFinance.loading && !leaseFinance.error ? formatFinancialPrice(leaseFinance.remaining) : "—"}</strong></div>
               </div>
             </button>)}
           </div>
