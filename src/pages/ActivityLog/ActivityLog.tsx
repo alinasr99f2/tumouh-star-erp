@@ -162,7 +162,7 @@ function ActivityLog() {
         const validDate = !Number.isNaN(date.getTime());
         const rawType = String(row.action_type ?? "other");
         const knownTypes = ["login", "session_expired", "add", "edit", "delete", "view", "upload", "permission"];
-        const normalizedType = ["session_end", "session_timeout", "session_expiry", "auto_logout"].includes(rawType) ? "session_expired" : rawType;
+        const normalizedType = ["idle_timeout", "max_duration", "session_end", "session_timeout", "session_expiry", "auto_logout"].includes(rawType) ? "session_expired" : rawType;
         return {
           id: Number(row.id) || index + 1,
           userId: String(row.user_id ?? ""),
@@ -654,6 +654,7 @@ function ActivityLog() {
 
                       <span
                         className={`activity-badge ${config.className}`}
+                        style={item.type === "session_expired" ? { background: "rgba(220, 38, 38, 0.18)", color: "#fca5a5", border: "1px solid rgba(248, 113, 113, 0.48)" } : undefined}
                       >
                         <Icon size={14} />
                         {config.label}
