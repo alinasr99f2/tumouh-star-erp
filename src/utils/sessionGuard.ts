@@ -36,13 +36,30 @@ export function recordActivity() {
 }
 
 export async function endManagedSession(reason: "idle_timeout" | "max_duration" | "manual" | "missing") {
-  if (reason !== "missing") {
-    try {
-      const { error } = await supabase.rpc("record_session_end", { p_reason: reason });
-      if (error) console.warn("Session end audit unavailable:", error.message);
-    } catch (error) { console.warn("Session end audit unavailable:", error); }
+  try {
+    if (reason !== "missing") {
+      try {
+        const { error } = await supabase.rpc("record_session_end", { p_reason: reason });
+        if (error) {
+          console.error("Session end audit failed:", {
+            reason,
+            message: error.message,
+            code: error.code,
+            details: error.details,
+            hint: error.hint,
+          });
+        } else {
+          console.info("Session end audit saved:", reason);
+        }
+      } catch (error) {
+        console.error("Session end audit request failed:", reason, error);
+      }
+    } else {
+      console.warn("Managed session metadata missing; session end audit skipped.");
+    }
+  } finally {
+    clearManagedSession();
+    // Local scope avoids logging out another device.
+    await supabase.auth.signOut({ scope: "local" });
   }
-  clearManagedSession();
-  // local scope avoids logging out another device.
-  await supabase.auth.signOut({ scope: "local" });
 }

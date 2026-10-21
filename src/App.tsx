@@ -44,34 +44,61 @@ function ProtectedRoute() {
     if (DEV_MODE) return;
     let mounted = true;
     let closing = false;
+    let checking = false;
+
     const check = async () => {
-      if (closing) return;
-      const { data: { user }, error } = await supabase.auth.getUser();
-      if (!mounted) return;
-      if (error || !user) {
-        setHasSession(false);
+      if (closing || checking) return;
+      checking = true;
+      try {
+        // Read the local expiry first. This avoids refreshing activity or
+        // unmounting the protected route before the audit RPC completes.
+        const storedUserId = sessionStorage.getItem("aqary_session_user_v1");
+        const localReason = storedUserId ? sessionExpiryReason(storedUserId) : null;
+        if (localReason && localReason !== "missing") {
+          closing = true;
+          try {
+            await endManagedSession(localReason);
+          } catch (err) {
+            console.error("تعذر إنهاء الجلسة:", err);
+          } finally {
+            if (mounted) window.location.replace("/login");
+          }
+          return;
+        }
+
+        const { data: { user }, error } = await supabase.auth.getUser();
+        if (!mounted || closing) return;
+        if (error || !user) {
+          setHasSession(false);
+          setSessionReady(true);
+          return;
+        }
+        const reason = sessionExpiryReason(user.id);
+        if (reason) {
+          closing = true;
+          try {
+            await endManagedSession(reason);
+          } catch (err) {
+            console.error("تعذر إنهاء الجلسة:", err);
+          } finally {
+            if (mounted) window.location.replace("/login");
+          }
+          return;
+        }
+        setHasSession(true);
         setSessionReady(true);
-        return;
+      } catch (err) {
+        console.error("تعذر فحص الجلسة:", err);
+      } finally {
+        checking = false;
       }
-      const reason = sessionExpiryReason(user.id);
-      if (reason) {
-        closing = true;
-        setHasSession(false);
-        setSessionReady(true);
-        try { await endManagedSession(reason); }
-        catch (err) { console.error("تعذر إنهاء الجلسة:", err); }
-        finally { if (mounted) window.location.replace("/login"); }
-        return;
-      }
-      setHasSession(true);
-      setSessionReady(true);
     };
+
     const onActivity = () => {
-      // Check expiry BEFORE accepting activity so an expired session cannot revive.
-      void check();
-      // Only update last activity if the stored session is still valid.
+      if (closing) return;
       const id = sessionStorage.getItem("aqary_session_user_v1");
       if (id && !sessionExpiryReason(id)) recordActivity();
+      void check();
     };
     const onWake = () => { void check(); };
     const events = ["pointerdown", "keydown", "touchstart", "scroll"] as const;
@@ -81,7 +108,7 @@ function ProtectedRoute() {
     const timer = window.setInterval(() => { void check(); }, 15000);
     void check();
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (!mounted) return;
+      if (!mounted || closing) return;
       if (event === "SIGNED_OUT") {
         setHasSession(false);
         setSessionReady(true);
