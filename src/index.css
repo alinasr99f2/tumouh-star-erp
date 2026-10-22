@@ -447,3 +447,113 @@ article {
     scroll-behavior: auto !important;
   }
 }
+/* AQARY SMART: preference foundation. Existing hard-coded page colors require phased migration. */
+:root[data-aqary-theme="light"] {
+  --aqar-bg-primary: #f1f6f2;
+  --aqar-bg-secondary: #e5efe9;
+  --aqar-bg-surface: #ffffff;
+  --aqar-text-primary: #12392e;
+  --aqar-text-secondary: #466d5f;
+  --aqar-text-muted: #698579;
+}
+:root[data-aqary-theme="dark"] {
+  --aqar-bg-primary: #091512;
+  --aqar-bg-secondary: #10241e;
+  --aqar-bg-surface: #17312a;
+  --aqar-text-primary: #f5faf6;
+  --aqar-text-secondary: #bdd5ca;
+  --aqar-text-muted: #8aada0;
+}
+:root[data-aqary-theme="light"] body { background: #f1f6f2; color: #12392e; }
+:root[data-aqary-theme="dark"] body { background: #091512; color: #f5faf6; }
+:root[data-aqary-theme="light"] [data-aqary-layout="true"] { background: #eaf3ed; }
+:root[data-aqary-theme="dark"] [data-aqary-layout="true"] { background: #091512; }
+:root[data-aqary-theme="light"] [data-aqary-layout="true"] > div > main { background: #f1f6f2; }
+:root[data-aqary-theme="dark"] [data-aqary-layout="true"] > div > main { background: #091512; }
+:root[data-aqary-theme="light"] [data-aqary-layout="true"] > div > main > div[aria-hidden="true"] { opacity: .08; }
+:root[data-aqary-theme="dark"] [data-aqary-layout="true"] > div > main > div[aria-hidden="true"] { opacity: .25; }
+:root[data-aqary-theme="light"] [data-aqary-layout="true"] header { background: #dcece2; color: #12392e; border-color: #b9d6c6; }
+:root[data-aqary-theme="dark"] [data-aqary-layout="true"] header { background: #06110e; }
+:root[data-aqary-theme="light"] [data-aqary-layout="true"] header input,
+:root[data-aqary-theme="light"] [data-aqary-layout="true"] header button { background: #fff; color: #174736; border-color: #b9d6c6; }
+:root[data-aqary-theme="light"] [data-aqary-layout="true"] aside { background: #d9e9de; color: #174736; }
+:root[data-aqary-theme="light"] [data-aqary-layout="true"] aside > div { color: #174736; }
+:root[data-aqary-theme="dark"] [data-aqary-layout="true"] aside { background: #10261f; }
+:root[dir="ltr"] body { direction: ltr; }
+:root[data-aqary-theme="light"] [data-aqary-layout="true"] aside .text-white,
+:root[data-aqary-theme="light"] [data-aqary-layout="true"] aside .text-white\/70,
+:root[data-aqary-theme="light"] [data-aqary-layout="true"] aside .text-white\/75 { color: #174736; }
+:root[data-aqary-theme="light"] [data-aqary-layout="true"] aside .bg-black\/\[0\.08\] { background-color: #ecf5ee; }
+:root[data-aqary-theme="light"] [data-aqary-layout="true"] aside .bg-black\/\[0\.10\] { background-color: #e7f2e9; }
+:root[data-aqary-theme="light"] [data-aqary-layout="true"] aside .text-\[\#E0EEE7\] { color: #486d5e; }
+:root[dir="ltr"] [data-aqary-layout="true"] aside { direction: ltr; }
+:root[dir="ltr"] [data-aqary-layout="true"] header { direction: ltr; }
+
+
+/* AQARY SMART: Shell themes — sidebar and topbar only.
+   Scoped to the app layout, leaving page components and the default theme untouched. */
+:root[data-aqary-theme="light"] [data-aqary-layout="true"] header {
+  background: #f8fbf8 !important;
+  color: #174736 !important;
+  border-bottom: 1px solid #cbded1 !important;
+}
+:root[data-aqary-theme="light"] [data-aqary-layout="true"] header input {
+  background: #eaf4ed !important;
+  color: #173d30 !important;
+  border-color: #c5dccc !important;
+}
+:root[data-aqary-theme="light"] [data-aqary-layout="true"] header input::placeholder { color: #648376 !important; opacity: 1; }
+:root[data-aqary-theme="light"] [data-aqary-layout="true"] header button {
+  background: #eaf4ed !important;
+  color: #174736 !important;
+  border-color: #d2e3d8 !important;
+}
+:root[data-aqary-theme="light"] [data-aqary-layout="true"] header button:hover { background: #d5e9dc !important; }
+:root[data-aqary-theme="light"] [data-aqary-layout="true"] header .text-emerald-200\/70 { color: #4c7463 !important; }
+
+:root[data-aqary-theme="light"] [data-aqary-layout="true"] aside {
+  background: #e6f0e8 !important;
+  color: #174736 !important;
+  border-color: #c7d9cc !important;
+}
+:root[data-aqary-theme="light"] [data-aqary-layout="true"] aside > div,
+:root[data-aqary-theme="light"] [data-aqary-layout="true"] aside > div > div { color: #174736; }
+:root[data-aqary-theme="light"] [data-aqary-layout="true"] aside > div:has(> img[src="/aqary-smart-logo.png"]) {
+  background: #d9e9dd !important;
+}
+:root[data-aqary-theme="light"] [data-aqary-layout="true"] aside a,
+:root[data-aqary-theme="light"] [data-aqary-layout="true"] aside button { color: #194838; }
+:root[data-aqary-theme="light"] [data-aqary-layout="true"] aside a:not([aria-current="page"]) {
+  background: #f4f8f4 !important;
+  border-color: #d6e5d9 !important;
+}
+:root[data-aqary-theme="light"] [data-aqary-layout="true"] aside a[aria-current="page"] {
+  background: linear-gradient(100deg, #b9dcca, #d8eee0) !important;
+  color: #0e4633 !important;
+  border-color: #c49a3a !important;
+}
+:root[data-aqary-theme="light"] [data-aqary-layout="true"] aside a[aria-current="page"] .text-white { color: #0e4633 !important; }
+:root[data-aqary-theme="light"] [data-aqary-layout="true"] aside .text-white,
+:root[data-aqary-theme="light"] [data-aqary-layout="true"] aside .text-white\/90,
+:root[data-aqary-theme="light"] [data-aqary-layout="true"] aside .text-white\/70,
+:root[data-aqary-theme="light"] [data-aqary-layout="true"] aside .text-white\/75 { color: #174736 !important; }
+:root[data-aqary-theme="light"] [data-aqary-layout="true"] aside .text-\[\#E0EEE7\] { color: #567467 !important; }
+:root[data-aqary-theme="light"] [data-aqary-layout="true"] aside button:hover { background-color: #d0e6d7 !important; }
+
+:root[data-aqary-theme="dark"] [data-aqary-layout="true"] header {
+  background: #081b15 !important; color: #edf7f1 !important; border-color: #25483a !important;
+}
+:root[data-aqary-theme="dark"] [data-aqary-layout="true"] header input,
+:root[data-aqary-theme="dark"] [data-aqary-layout="true"] header button {
+  background: #123528 !important; color: #eaf6ed !important; border-color: #315846 !important;
+}
+:root[data-aqary-theme="dark"] [data-aqary-layout="true"] aside {
+  background: #10271f !important; border-color: #355443 !important;
+}
+:root[data-aqary-theme="dark"] [data-aqary-layout="true"] aside > div:has(> img[src="/aqary-smart-logo.png"]) {
+  background: #15382b !important;
+}
+:root[data-aqary-theme="dark"] [data-aqary-layout="true"] aside a[aria-current="page"] {
+  background: linear-gradient(100deg, #1b5640, #103c2f) !important;
+  border-color: #d4ad4d !important;
+}

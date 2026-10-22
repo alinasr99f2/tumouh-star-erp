@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "../../utils/supabase";
 import { applyFinancialOperation } from "../../utils/financialOperations";
 import { usePermissions } from "../../utils/permissions";
@@ -283,6 +284,8 @@ const getBuildingStorageKey = (baseKey: string) => {
 };
 
 export default function ApartmentMap() {
+  const globalSearchLocation = useLocation();
+  const globalSearchNavigate = useNavigate();
   const { hasPermission } = usePermissions();
   const canViewApartments = hasPermission("apartments_view");
   const canAddApartments = hasPermission("building_apartment_add");
@@ -454,6 +457,16 @@ export default function ApartmentMap() {
   const [mapApartmentSearch, setMapApartmentSearch] = useState("");
 
   const [apartments, setApartments] = useState<Apartment[]>([]);
+  useEffect(() => {
+    const request = (globalSearchLocation.state as { globalSearchBuildingApartmentNumber?: string } | null);
+    if (!request?.globalSearchBuildingApartmentNumber || !remoteStateHydratedRef.current) return;
+    const apartment = apartments.find(a => String(a.number) === request.globalSearchBuildingApartmentNumber);
+    if (apartment) {
+      setSelectedApartment(apartment);
+      globalSearchNavigate(globalSearchLocation.pathname, { replace: true, state: null });
+    }
+  }, [globalSearchLocation.state, globalSearchLocation.pathname, apartments, globalSearchNavigate]);
+
 
   // مزامنة بيانات العمارة مع Supabase حتى تظهر نفس البيانات على أي جهاز.
   const remoteStateHydratedRef = useRef(false);

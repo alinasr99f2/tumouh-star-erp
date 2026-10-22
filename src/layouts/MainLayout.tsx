@@ -7,9 +7,11 @@ import { supabase } from "../utils/supabase";
 import { clearManagedSession } from "../utils/sessionGuard";
 import { usePermissions } from "../utils/permissions";
 import UsersPermissions from "../pages/Users/UsersPermissions";
+import { useAppPreferences } from "../utils/appPreferences";
 
 function MainLayout() {
   const navigate = useNavigate();
+  const { language, isEnglish } = useAppPreferences();
   const location = useLocation();
   const { loading: permissionsLoading, hasPermission } = usePermissions();
   const onUsersPage = location.pathname === "/users-permissions";
@@ -86,6 +88,7 @@ function MainLayout() {
 
   return (
     <div
+      data-aqary-layout="true"
       className="
         flex
         h-screen
@@ -394,7 +397,7 @@ function MainLayout() {
                 sm:text-2xl
               "
             >
-              تسجيل الخروج
+              {isEnglish ? "Log Out" : "تسجيل الخروج"}
             </h2>
 
             {/* Message */}
@@ -406,7 +409,7 @@ function MainLayout() {
                 text-gray-400
               "
             >
-              هل أنت متأكد من رغبتك في تسجيل الخروج؟
+              {isEnglish ? "Are you sure you want to log out?" : "هل أنت متأكد من رغبتك في تسجيل الخروج؟"}
             </p>
 
             {/* Buttons */}
@@ -449,7 +452,7 @@ function MainLayout() {
                   disabled:opacity-50
                 "
               >
-                لا، إلغاء
+                {isEnglish ? "No, cancel" : "لا، إلغاء"}
               </button>
 
               {/* Confirm Logout */}
@@ -474,8 +477,8 @@ function MainLayout() {
                 "
               >
                 {loggingOut
-                  ? "جاري تسجيل الخروج..."
-                  : "نعم، تسجيل الخروج"}
+                  ? (isEnglish ? "Logging out..." : "جاري تسجيل الخروج...")
+                  : (isEnglish ? "Yes, log out" : "نعم، تسجيل الخروج")}
               </button>
 
             </div>

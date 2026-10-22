@@ -735,6 +735,7 @@ export default function Apartments() {
   }, [refreshNotice]);
 
   const [search, setSearch] = useState("");
+  const [searchFocused, setSearchFocused] = useState(false);
   const [detailCategory, setDetailCategory] = useState<string | null>(null);
   type ContractReportRow = { id: string; apartment_id: string; owner_id: string | null; tenant_id: string | null; contract_number: string; contract_type: string; start_date: string; end_date: string; rent_amount: number | null; rent_period?: string; status?: string; notes?: string | null };
   const [reportContracts, setReportContracts] = useState<ContractReportRow[]>([]);
@@ -994,6 +995,10 @@ export default function Apartments() {
   // Monthly report is a dated snapshot: due items up to month end, payments up to month end.
   const [monthlyOpen, setMonthlyOpen] = useState(false);
   const [monthlyMonth, setMonthlyMonth] = useState(() => new Date().toLocaleDateString("en-CA").slice(0,7));
+  const [monthlyPeriodMode, setMonthlyPeriodMode] = useState<"month" | "range">("month");
+  const [monthlyFrom, setMonthlyFrom] = useState(() => new Date().toLocaleDateString("en-CA").slice(0,7)+"-01");
+  const [monthlyTo, setMonthlyTo] = useState(() => new Date().toLocaleDateString("en-CA"));
+  const [monthlyShowArea, setMonthlyShowArea] = useState(false);
   const [monthlyShowOwner, setMonthlyShowOwner] = useState(false);
   const [monthlyShowOther, setMonthlyShowOther] = useState(false);
   const [monthlyShowWater, setMonthlyShowWater] = useState(false);
@@ -1005,14 +1010,21 @@ export default function Apartments() {
   type MonthlyLine = { apartment: Apartment; contract: ContractReportRow | null; tenant: ResidentialTenant | null; owner: PropertyOwner | null; rentDue: number; rentPaid: number; otherDue: number; otherPaid: number; waterDue: number; waterPaid: number; electricityDue: number; electricityPaid: number; lastPayment: string | null };
   const [monthlyLines, setMonthlyLines] = useState<MonthlyLine[]>([]);
   const [monthlyLoadedMonth, setMonthlyLoadedMonth] = useState("");
+  const [monthlyLoadedRange, setMonthlyLoadedRange] = useState<{from:string;to:string;mode:"month"|"range"}|null>(null);
+  const monthlyPeriodLabel = monthlyLoadedRange?.mode === "range" ? `${monthlyLoadedRange.from} إلى ${monthlyLoadedRange.to}` : monthlyLoadedMonth;
+  const monthlyFilenamePeriod = monthlyLoadedRange?.mode === "range" ? `${monthlyLoadedRange.from}_to_${monthlyLoadedRange.to}` : monthlyLoadedMonth;
   const monthlyEnd = (month: string) => { const [y,m] = month.split("-").map(Number); return new Date(Date.UTC(y,m,0)).toISOString().slice(0,10); };
   const monthlyDate = (v: unknown) => typeof v === "string" ? v.slice(0,10) : "";
   const monthlyNum = (v: unknown) => Number(v ?? 0) || 0;
   const loadMonthlyReport = async (month: string) => {
-    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) { setMonthlyError("اختر شهرًا صحيحًا أولًا."); return; }
-    setMonthlyBusy(true); setMonthlyError(""); setMonthlyLoadedMonth("");
-    const end = monthlyEnd(month);
-    const [ap, ct, tn, ow, ins, alloc, charges, chargePayments] = await Promise.all([
+    const isRange = monthlyPeriodMode === "range";
+    if (!isRange && !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) { setMonthlyError("اختر شهرًا صحيحًا أولًا."); return; }
+    if (isRange && (!/^\d{4}-\d{2}-\d{2}$/.test(monthlyFrom) || !/^\d{4}-\d{2}-\d{2}$/.test(monthlyTo) || monthlyFrom > monthlyTo || Number.isNaN(Date.parse(monthlyFrom)) || Number.isNaN(Date.parse(monthlyTo)))) { setMonthlyError("حدد تاريخ بداية ونهاية صحيحين، وتأكد أن البداية لا تتجاوز النهاية."); return; }
+    setMonthlyBusy(true); setMonthlyError(""); setMonthlyLoadedMonth(""); setMonthlyLoadedRange(null);
+    const start = isRange ? monthlyFrom : "";
+    const end = isRange ? monthlyTo : monthlyEnd(month);
+    const inPeriod = (value: unknown) => { const date=monthlyDate(value); return !!date && date<=end && (!isRange || date>=start); };
+    const [ap, ct, tn, ow, ins, alloc, charges, chargePayments, rentReceipts] = await Promise.all([
       supabase.from("residential_apartments").select("id,apartment_number,building_name,rooms_count,rent_amount,rent_period,area_sqm,apartment_type,apartment_status,region,city,district_street,nearest_landmark,notes,owner_id,archived_at").eq("company_id",RESIDENTIAL_COMPANY_ID),
       supabase.from("residential_contracts").select("id,apartment_id,owner_id,tenant_id,contract_number,contract_type,start_date,end_date,rent_amount,rent_period,status,notes").eq("company_id",RESIDENTIAL_COMPANY_ID),
       supabase.from("residential_tenants").select("id,full_name,phone,identity_number,nationality,email,notes").eq("company_id",RESIDENTIAL_COMPANY_ID),
@@ -1021,8 +1033,9 @@ export default function Apartments() {
       supabase.from("residential_rent_allocations").select("*").eq("company_id",RESIDENTIAL_COMPANY_ID),
       supabase.from("residential_charges").select("id,apartment_id,charge_type,title,amount,issued_at,due_date").eq("company_id",RESIDENTIAL_COMPANY_ID),
       supabase.from("residential_charge_payments").select("charge_id,amount,paid_at").eq("company_id",RESIDENTIAL_COMPANY_ID),
+      supabase.from("residential_rent_receipts").select("id,paid_at").eq("company_id",RESIDENTIAL_COMPANY_ID),
     ]);
-    const errors = [ap,ct,tn,ow,ins,alloc,charges,chargePayments].map(r=>r.error?.message).filter(Boolean);
+    const errors = [ap,ct,tn,ow,ins,alloc,charges,chargePayments,rentReceipts].map(r=>r.error?.message).filter(Boolean);
     if (errors.length) { setMonthlyError("تعذر تحميل التقرير: "+errors.join(" | ")); setMonthlyBusy(false); return; }
     const contracts = (ct.data ?? []) as ContractReportRow[];
     const tenantsList = (tn.data ?? []) as ResidentialTenant[];
@@ -1031,30 +1044,31 @@ export default function Apartments() {
     const allocations = (alloc.data ?? []) as Record<string,unknown>[];
     const allocKey = ["installment_id","rent_installment_id"].find(k => allocations.length===0 || k in allocations[0]);
     const amountKey = ["amount","allocated_amount","applied_amount"].find(k => allocations.length===0 || k in allocations[0]);
-    const allocDateKey = ["paid_at","payment_date","allocated_at","created_at"].find(k => allocations.length===0 || k in allocations[0]);
-    if (allocations.length && (!allocKey || !amountKey || !allocDateKey)) { setMonthlyError("سجل توزيع الإيجارات لا يحتوي أعمدة ربط أو تاريخ تحصيل كافية لإعداد تقرير تاريخي دقيق."); setMonthlyBusy(false); return; }
+    const receiptDates = new Map((rentReceipts.data ?? []).map(r=>[String(r.id),String(r.paid_at)]));
+    const allocationPaymentDate = (allocation: Record<string,unknown>) => receiptDates.get(String(allocation.receipt_id ?? "")) ?? "";
+    if (allocations.length && (!allocKey || !amountKey || allocations.some(a=>!allocationPaymentDate(a)))) { setMonthlyError("تعذر مطابقة بعض توزيعات الإيجار مع تواريخ إيصالاتها؛ لا يمكن إعداد تقرير تاريخي دقيق."); setMonthlyBusy(false); return; }
     const chargeRows = (charges.data ?? []) as BillRow[];
     const paymentRows = (chargePayments.data ?? []) as BillPayment[];
     const lines: MonthlyLine[] = ((ap.data ?? []) as ResidentialRow[]).map(raw => {
       const apartment = fromResidentialRow(raw);
       const relatedContracts = contracts.filter(c => c.apartment_id === apartment.id && c.contract_type === "إيجار" && c.start_date <= end);
-      const contract = relatedContracts.filter(c => c.end_date > month+"-01").sort((a,b)=>b.start_date.localeCompare(a.start_date))[0] ?? relatedContracts.sort((a,b)=>b.start_date.localeCompare(a.start_date))[0] ?? null;
-      const matchingInstallments = installments.filter(i => relatedContracts.some(c=>c.id===String(i.contract_id)) && monthlyDate(i.due_date) <= end);
+      const contract = relatedContracts.filter(c => c.end_date > (isRange ? start : month+"-01")).sort((a,b)=>b.start_date.localeCompare(a.start_date))[0] ?? relatedContracts.sort((a,b)=>b.start_date.localeCompare(a.start_date))[0] ?? null;
+      const matchingInstallments = installments.filter(i => relatedContracts.some(c=>c.id===String(i.contract_id)) && inPeriod(i.due_date));
       const matchingIds = new Set(matchingInstallments.map(i=>String(i.id)));
-      const rentAlloc = allocations.filter(a=>matchingIds.has(String(a[allocKey ?? "installment_id"])) && monthlyDate(a[allocDateKey ?? "created_at"]) <= end);
+      const rentAlloc = allocations.filter(a=>matchingIds.has(String(a[allocKey ?? "installment_id"])) && inPeriod(allocationPaymentDate(a)));
       const rentDue = matchingInstallments.reduce((v,i)=>v+monthlyNum(i.amount),0);
       const rentPaid = rentAlloc.reduce((v,a)=>v+monthlyNum(a[amountKey ?? "amount"]),0);
       const amounts = (type: string) => {
-        const rows = chargeRows.filter(b=>b.apartment_id===apartment.id && (type==="other" ? !["water","electricity"].includes(b.charge_type) : b.charge_type===type) && monthlyDate(b.due_date || b.issued_at)<=end);
+        const rows = chargeRows.filter(b=>b.apartment_id===apartment.id && (type==="other" ? !["water","electricity"].includes(b.charge_type) : b.charge_type===type) && inPeriod(b.due_date || b.issued_at));
         const ids = new Set(rows.map(b=>b.id));
-        const paid = paymentRows.filter(p=>ids.has(p.charge_id) && monthlyDate(p.paid_at)<=end);
+        const paid = paymentRows.filter(p=>ids.has(p.charge_id) && inPeriod(p.paid_at));
         return {due:rows.reduce((v,b)=>v+monthlyNum(b.amount),0),paid:paid.reduce((v,p)=>v+monthlyNum(p.amount),0),dates:paid.map(p=>monthlyDate(p.paid_at))};
       };
       const other=amounts("other"), water=amounts("water"), electricity=amounts("electricity");
-      const dates=[...rentAlloc.map(a=>monthlyDate(a[allocDateKey ?? "created_at"])),...other.dates,...water.dates,...electricity.dates].filter(Boolean).sort();
+      const dates=[...rentAlloc.map(a=>monthlyDate(allocationPaymentDate(a))),...other.dates,...water.dates,...electricity.dates].filter(Boolean).sort();
       return {apartment,contract,tenant:tenantsList.find(t=>t.id===contract?.tenant_id)??null,owner:ownersList.find(o=>o.id===(contract?.owner_id??apartment.ownerId))??null,rentDue,rentPaid,otherDue:other.due,otherPaid:other.paid,waterDue:water.due,waterPaid:water.paid,electricityDue:electricity.due,electricityPaid:electricity.paid,lastPayment:dates.at(-1)??null};
     });
-    setMonthlyLines(lines); setMonthlyLoadedMonth(month); setMonthlyBusy(false);
+    setMonthlyLines(lines); setMonthlyLoadedMonth(isRange ? `${start} إلى ${end}` : month); setMonthlyLoadedRange({from:isRange?start:`${month}-01`,to:end,mode:isRange?"range":"month"}); setMonthlyBusy(false);
   };
   const monthlyTotals = (l:MonthlyLine) => ({
     due:l.rentDue+(monthlyShowOther?l.otherDue:0)+(monthlyShowWater?l.waterDue:0)+(monthlyShowElectricity?l.electricityDue:0),
@@ -1062,12 +1076,12 @@ export default function Apartments() {
   });
   const monthlyVisible = monthlyLines.filter(l=> (!monthlyOnlyDue || monthlyTotals(l).due-monthlyTotals(l).paid>0.005) && [l.apartment.number,l.apartment.buildingName,l.tenant?.full_name,l.contract?.contract_number].join(" ").toLocaleLowerCase().includes(monthlySearch.toLocaleLowerCase()));
   const monthlySum = (field:"due"|"paid") => monthlyVisible.reduce((sum,l)=>sum+monthlyTotals(l)[field],0);
-  const monthlyHeaders = () => ["الشقة","العمارة","النوع","المساحة","المستأجر","جوال المستأجر","رقم العقد","بداية العقد","نهاية العقد",...(monthlyShowOwner?["المالك","جوال المالك"]:[]),"الإيجار المستحق","الإيجار المحصل",...(monthlyShowOther?["المستحقات الأخرى","محصل الأخرى"]:[]),...(monthlyShowWater?["المياه المستحقة","المياه المحصلة"]:[]),...(monthlyShowElectricity?["الكهرباء المستحقة","الكهرباء المحصلة"]:[]),"إجمالي المستحق","إجمالي المحصل","المتبقي","آخر تحصيل"];
-  const monthlyCells = (l:MonthlyLine) => [l.apartment.number,l.apartment.buildingName||"—",l.apartment.type,`${l.apartment.area} م²`,l.tenant?.full_name||"—",l.tenant?.phone||"—",l.contract?.contract_number||"—",l.contract?.start_date||"—",l.contract?.end_date||"—",...(monthlyShowOwner?[l.owner?.full_name||"—",l.owner?.mobile||l.owner?.phone||"—"]:[]),l.rentDue,l.rentPaid,...(monthlyShowOther?[l.otherDue,l.otherPaid]:[]),...(monthlyShowWater?[l.waterDue,l.waterPaid]:[]),...(monthlyShowElectricity?[l.electricityDue,l.electricityPaid]:[]),monthlyTotals(l).due,monthlyTotals(l).paid,monthlyTotals(l).due-monthlyTotals(l).paid,l.lastPayment||"—"];
+  const monthlyHeaders = () => ["الشقة","العمارة","النوع",...(monthlyShowArea?["المساحة"]:[]),"المستأجر","جوال المستأجر","رقم العقد","بداية العقد","نهاية العقد",...(monthlyShowOwner?["المالك","جوال المالك"]:[]),"الإيجار المستحق","الإيجار المحصل",...(monthlyShowOther?["المستحقات الأخرى","محصل الأخرى"]:[]),...(monthlyShowWater?["المياه المستحقة","المياه المحصلة"]:[]),...(monthlyShowElectricity?["الكهرباء المستحقة","الكهرباء المحصلة"]:[]),"إجمالي المستحق","إجمالي المحصل","المتبقي","آخر تحصيل"];
+  const monthlyCells = (l:MonthlyLine) => [l.apartment.number,l.apartment.buildingName||"—",l.apartment.type,...(monthlyShowArea?[`${l.apartment.area} م²`]:[]),l.tenant?.full_name||"—",l.tenant?.phone||"—",l.contract?.contract_number||"—",l.contract?.start_date||"—",l.contract?.end_date||"—",...(monthlyShowOwner?[l.owner?.full_name||"—",l.owner?.mobile||l.owner?.phone||"—"]:[]),l.rentDue,l.rentPaid,...(monthlyShowOther?[l.otherDue,l.otherPaid]:[]),...(monthlyShowWater?[l.waterDue,l.waterPaid]:[]),...(monthlyShowElectricity?[l.electricityDue,l.electricityPaid]:[]),monthlyTotals(l).due,monthlyTotals(l).paid,monthlyTotals(l).due-monthlyTotals(l).paid,l.lastPayment||"—"];
   const monthlyReportHtml = () => {
     const safe = (v: unknown) => String(v ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] ?? c));
     const logoUrl = new URL("/aqary-smart-logo.png", window.location.origin).href;
-    return `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>التقرير الشهري ${safe(monthlyLoadedMonth)}</title><style>
+    return `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>تقرير الشقق ${safe(monthlyPeriodLabel)}</title><style>
       *{box-sizing:border-box}body{font-family:Tahoma,Arial,sans-serif;color:#15382f;direction:rtl;margin:20px}
       .report-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;border-bottom:3px solid #13503e;padding:8px 4px 15px;direction:rtl;margin-bottom:16px}
       .report-heading__title{flex:1;text-align:right;padding-top:12px}h1{color:#12503e;font-size:23px;margin:0 0 12px}
@@ -1080,12 +1094,12 @@ export default function Apartments() {
       @page{size:A3 landscape;margin:10mm}@media print{body{margin:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}.report-heading{break-inside:avoid}}
       </style></head><body>
       <header class="report-heading"><div class="report-heading__title"><h1>عقاري سمارت | التقرير الشهري للشقق</h1>
-      <p class="report-heading__meta">شهر التقرير: ${safe(monthlyLoadedMonth)} | عدد الشقق: ${monthlyVisible.length} | المستحق: ${formatFinancialPrice(monthlySum("due"))} ر.س | المحصل: ${formatFinancialPrice(monthlySum("paid"))} ر.س | المتبقي: ${formatFinancialPrice(monthlySum("due")-monthlySum("paid"))} ر.س</p></div>
+      <p class="report-heading__meta">فترة التقرير: ${safe(monthlyPeriodLabel)} | عدد الشقق: ${monthlyVisible.length} | المستحق: ${formatFinancialPrice(monthlySum("due"))} ر.س | المحصل: ${formatFinancialPrice(monthlySum("paid"))} ر.س | المتبقي: ${formatFinancialPrice(monthlySum("due")-monthlySum("paid"))} ر.س</p></div>
       <div class="report-heading__brand"><img src="${safe(logoUrl)}" alt="شعار عقاري سمارت"/><div>م/ علي نصر</div><div dir="ltr">0570026229</div></div></header>
       <table><thead><tr>${monthlyHeaders().map(h=>`<th>${safe(h)}</th>`).join("")}</tr></thead><tbody>${monthlyVisible.map(l=>`<tr>${monthlyCells(l).map(c=>`<td>${safe(typeof c==="number"?formatFinancialPrice(c):c)}</td>`).join("")}</tr>`).join("")}</tbody></table></body></html>`;
   };
   const printMonthly = () => { if(!monthlyLoadedMonth)return;const w=window.open("","_blank","width=1200,height=800");if(!w){setMonthlyError("اسمح بالنوافذ المنبثقة للطباعة.");return;}w.document.open();w.document.write(monthlyReportHtml());w.document.close();w.focus();w.setTimeout(()=>w.print(),350); };
-  const exportMonthly = () => { if(!monthlyLoadedMonth)return;const csv=[monthlyHeaders(),...monthlyVisible.map(monthlyCells)].map(row=>row.map(v=>'"'+String(v??"").replace(/"/g,'""')+'"').join(",")).join("\r\n");const blob=new Blob(["\ufeff",csv],{type:"text/csv;charset=utf-8"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`aqary-monthly-${monthlyLoadedMonth}.csv`;document.body.appendChild(a);a.click();a.remove();window.setTimeout(()=>URL.revokeObjectURL(url),1000); };
+  const exportMonthly = () => { if(!monthlyLoadedMonth)return;const csv=[monthlyHeaders(),...monthlyVisible.map(monthlyCells)].map(row=>row.map(v=>'"'+String(v??"").replace(/"/g,'""')+'"').join(",")).join("\r\n");const blob=new Blob(["\ufeff",csv],{type:"text/csv;charset=utf-8"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`aqary-monthly-${monthlyFilenamePeriod}.csv`;document.body.appendChild(a);a.click();a.remove();window.setTimeout(()=>URL.revokeObjectURL(url),1000); };
   const [reportLoading, setReportLoading] = useState(false);
   const [reportError, setReportError] = useState("");
   const [reportSearch, setReportSearch] = useState("");
@@ -1321,6 +1335,20 @@ export default function Apartments() {
   const [selectedApartment, setSelectedApartment] =
     useState<Apartment | null>(null);
 
+  useEffect(() => {
+    const request = (location.state as { globalSearchApartmentId?: string; globalSearchQuery?: string } | null);
+    if (!request || loadingApartments) return;
+    if (request.globalSearchApartmentId) {
+      const match = apartments.find(a => a.id === request.globalSearchApartmentId);
+      if (match) setSelectedApartment(match);
+      else setActionNotice("لم يتم العثور على الشقة المطلوبة أو لا تملك صلاحية عرضها.");
+    } else if (request.globalSearchQuery) {
+      setSearch(request.globalSearchQuery);
+      setSearchFocused(true);
+    } else return;
+    navigate(location.pathname, { replace: true, state: null });
+  }, [location.state, location.pathname, loadingApartments, apartments, navigate]);
+
   const [form, setForm] = useState({
     number: "",
     type: "غرفتين وصالة",
@@ -1512,7 +1540,7 @@ export default function Apartments() {
       {/* Independent apartments dashboard — visual layout only; no building_state writes */}
       <section className="mx-auto max-w-[1600px]" dir="rtl">
         {/* Premium independent visual dashboard. Financial and contract data remain unconnected. */}
-        <div className="relative mb-5 overflow-hidden rounded-[28px] border border-amber-300/35 bg-[#031e1b]/90 shadow-[0_20px_60px_rgba(0,0,0,.35)]">
+        <div className="relative z-40 mb-5 overflow-visible rounded-[28px] border border-amber-300/35 bg-[#031e1b]/90 shadow-[0_20px_60px_rgba(0,0,0,.35)]">
           <div className="pointer-events-none absolute inset-0 opacity-70" style={{backgroundImage:"radial-gradient(ellipse at 50% 0%,rgba(0,170,131,.21),transparent 65%),linear-gradient(125deg,transparent 30%,rgba(234,189,75,.07) 55%,transparent 80%)"}} />
           <div className="pointer-events-none absolute -left-16 top-4 h-56 w-56 rounded-full border border-amber-400/15" />
           <div className="pointer-events-none absolute -right-16 top-4 h-56 w-56 rounded-full border border-amber-400/15" />
@@ -1521,7 +1549,32 @@ export default function Apartments() {
             <h1 className="text-center text-[clamp(1.55rem,3vw,2.7rem)] font-black leading-tight tracking-wide text-white"><span className="text-amber-300">إدارة</span> الشقق والعقود</h1>
             <p className="mt-2 text-center text-sm font-semibold text-emerald-100/70">الشقق المتاحة والمؤجرة والحجوزات والتحصيلات</p>
             <div className="mt-6 grid w-full max-w-[1400px] grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_repeat(4,minmax(0,145px))] lg:items-stretch">
-              <div className="group relative min-w-0 lg:self-stretch"><Search size={21} className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-emerald-300"/><input value={search} onChange={(event)=>setSearch(event.target.value)} placeholder="ابحث بالاسم أو رقم الهاتف أو رقم العقد أو رقم الشقة..." aria-label="البحث في الشقق" className="h-full min-h-[66px] w-full rounded-2xl border border-emerald-300/45 bg-[#064138]/60 pr-12 pl-5 text-center text-sm font-semibold text-white shadow-[inset_0_1px_8px_rgba(0,0,0,.25),0_0_20px_rgba(14,192,148,.12)] outline-none backdrop-blur-xl placeholder:text-emerald-100/45 focus:border-amber-300 focus:ring-2 focus:ring-amber-300/15"/></div>
+              <div className="group relative z-30 min-w-0 lg:self-stretch" onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setSearchFocused(false); }}>
+                <Search size={21} className="pointer-events-none absolute right-4 top-[33px] -translate-y-1/2 text-emerald-300"/>
+                <input value={search} onFocus={()=>setSearchFocused(true)} onKeyDown={(event)=>{if(event.key === "Escape") setSearchFocused(false);}} onChange={(event)=>{setSearch(event.target.value);setSearchFocused(true);}} placeholder="ابحث برقم الشقة أو النوع أو المستأجر أو الموقع..." aria-label="البحث في الشقق" autoComplete="off" className="h-full min-h-[66px] w-full rounded-2xl border border-emerald-300/45 bg-[#064138]/60 pr-12 pl-5 text-center text-sm font-semibold text-white shadow-[inset_0_1px_8px_rgba(0,0,0,.25),0_0_20px_rgba(14,192,148,.12)] outline-none backdrop-blur-xl placeholder:text-emerald-100/45 focus:border-amber-300 focus:ring-2 focus:ring-amber-300/15"/>
+                {searchFocused && search.trim() && (
+                  <div role="region" aria-label="نتائج البحث عن الشقق" className="absolute inset-x-0 top-[calc(100%+8px)] z-50 max-h-[320px] overflow-y-auto rounded-2xl border border-amber-300/55 bg-[#062a26] p-2 text-right shadow-[0_20px_45px_rgba(0,0,0,.65)]">
+                    {filteredApartments.length ? (
+                      <>
+                        <p className="px-3 py-2 text-xs font-bold text-amber-200">نتائج البحث ({filteredApartments.length})</p>
+                        {filteredApartments.map((apartment)=>(
+                          <div key={apartment.id} className={`mb-2 rounded-xl border px-3 py-3 ${apartmentStatusColors(apartment.status).edge} ${apartmentStatusColors(apartment.status).background}`}>
+                            <div className="flex items-center justify-between gap-3">
+                              <span className="min-w-0"><strong className="block text-sm text-white">شقة {apartment.number}</strong><small className="block truncate text-xs text-emerald-100/75">{apartment.type} · {apartment.tenant || apartment.location || "بدون مستأجر"}</small></span>
+                              <span className={`shrink-0 rounded-full border px-2 py-1 text-xs font-bold ${apartmentStatusColors(apartment.status).badge}`}>{apartment.status || "غير محدد"}</span>
+                            </div>
+                            <div className="mt-3 grid grid-cols-3 gap-2">
+                              <button type="button" onClick={()=>{setSelectedApartment(apartment);setSearchFocused(false);}} className="flex items-center justify-center gap-1 rounded-lg border border-sky-400/40 bg-sky-500/15 px-2 py-2 text-xs font-bold text-sky-100 transition hover:bg-sky-500/30"><Eye size={14}/>عرض</button>
+                              <button type="button" onClick={()=>{openEditModal(apartment);setSearchFocused(false);}} className="flex items-center justify-center gap-1 rounded-lg border border-amber-400/40 bg-amber-500/15 px-2 py-2 text-xs font-bold text-amber-100 transition hover:bg-amber-500/30"><Pencil size={14}/>تعديل</button>
+                              <button type="button" onClick={()=>{handleDelete(apartment.id);setSearchFocused(false);}} className="flex items-center justify-center gap-1 rounded-lg border border-rose-400/40 bg-rose-500/15 px-2 py-2 text-xs font-bold text-rose-100 transition hover:bg-rose-500/30"><Trash2 size={14}/>حذف</button>
+                            </div>
+                          </div>
+                        ))}
+                      </>
+                    ) : <p className="px-4 py-7 text-center text-sm font-bold text-amber-100">لا توجد نتائج مطابقة</p>}
+                  </div>
+                )}
+              </div>
               <div className="grid grid-rows-2 gap-2">
                 <button type="button" onClick={()=>{void openReport("تقارير الشقق");}} className="flex min-h-[56px] items-center justify-center gap-2 rounded-xl border border-emerald-300/55 bg-gradient-to-br from-emerald-400/20 to-[#072e28] px-2 text-xs font-black text-white transition hover:border-emerald-200"><FileBarChart2 className="shrink-0 text-emerald-300" size={21}/>تقارير الشقق</button>
                 <button type="button" onClick={()=>{void openReport("تقارير العقود");}} className="flex min-h-[56px] items-center justify-center gap-2 rounded-xl border border-emerald-300/55 bg-gradient-to-br from-emerald-400/20 to-[#072e28] px-2 text-xs font-black text-white transition hover:border-emerald-200"><ReceiptText className="shrink-0 text-emerald-300" size={21}/>تقارير العقود</button>
@@ -1717,7 +1770,7 @@ export default function Apartments() {
                   {filteredApartments.map((apartment) => (
                     <tr
                       key={apartment.id}
-                      className="transition hover:bg-white/[0.035]"
+                      className={`transition hover:bg-white/[0.07] ${apartmentStatusColors(apartment.status).row}`}
                     >
                       <td className="px-5 py-4 font-bold text-white">
                         {apartment.number}
@@ -2002,18 +2055,37 @@ export default function Apartments() {
       </div>}
       {monthlyOpen && <div className="fixed inset-0 z-[135] flex items-center justify-center bg-black/80 p-2 sm:p-5" dir="rtl" onMouseDown={e=>{if(e.target===e.currentTarget)setMonthlyOpen(false)}}>
         <div role="dialog" aria-modal="true" aria-label="التقرير الشهري للشقق" className="flex max-h-[94vh] w-full max-w-[1500px] flex-col overflow-hidden rounded-3xl border border-amber-400/50 bg-gradient-to-br from-[#104337] via-[#082d28] to-[#041c1b] text-white shadow-2xl">
-          <div className="flex shrink-0 items-center justify-between border-b border-amber-300/30 p-4 sm:p-5"><div><h2 className="flex items-center gap-2 text-xl font-black text-amber-300"><CalendarDays size={25}/> التقرير الشهري للشقق</h2><p className="mt-1 text-xs text-emerald-100/65">عقاري سمارت • تقرير المستحقات والتحصيلات حتى نهاية الشهر المختار</p></div><button type="button" onClick={()=>setMonthlyOpen(false)} aria-label="إغلاق" className="rounded-xl border border-white/20 p-2 hover:bg-white/10"><X size={20}/></button></div>
+          <div className="flex shrink-0 items-center justify-between border-b border-amber-300/30 p-4 sm:p-5"><div><h2 className="flex items-center gap-2 text-xl font-black text-amber-300"><CalendarDays size={25}/> التقرير الشهري للشقق</h2><p className="mt-1 text-xs text-emerald-100/65">عقاري سمارت • تقرير المستحقات والتحصيلات حسب الشهر أو الفترة المختارة</p></div><button type="button" onClick={()=>setMonthlyOpen(false)} aria-label="إغلاق" className="rounded-xl border border-white/20 p-2 hover:bg-white/10"><X size={20}/></button></div>
           <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
-            <div className="mb-4 grid gap-3 rounded-2xl border border-amber-300/30 bg-black/20 p-4 lg:grid-cols-[minmax(200px,1fr)_minmax(260px,1.6fr)_auto] lg:items-end">
-              <label className="grid gap-2 text-sm font-bold text-emerald-100">شهر التقرير<input type="month" value={monthlyMonth} onChange={e=>{setMonthlyMonth(e.target.value);setMonthlyLoadedMonth("");}} className="min-h-11 rounded-xl border border-emerald-300/40 bg-[#062b26] px-3 text-white [color-scheme:dark]"/></label>
-              <div className="grid gap-3"><label className="flex cursor-pointer items-center gap-2 text-sm"><input type="checkbox" checked={monthlyShowOwner} onChange={e=>setMonthlyShowOwner(e.target.checked)} className="accent-amber-400"/> إظهار بيانات المالك</label><label className="flex cursor-pointer items-center gap-2 text-sm"><input type="checkbox" checked={monthlyShowOther} onChange={e=>setMonthlyShowOther(e.target.checked)} className="accent-amber-400"/> إظهار المستحقات الأخرى وتحصيلاتها</label><label className="flex cursor-pointer items-center gap-2 text-sm"><input type="checkbox" checked={monthlyShowWater} onChange={e=>setMonthlyShowWater(e.target.checked)} className="accent-amber-400"/> إظهار مستحقات المياه وتحصيلاتها</label><label className="flex cursor-pointer items-center gap-2 text-sm"><input type="checkbox" checked={monthlyShowElectricity} onChange={e=>setMonthlyShowElectricity(e.target.checked)} className="accent-amber-400"/> إظهار مستحقات الكهرباء وتحصيلاتها</label><label className="flex cursor-pointer items-center gap-2 text-sm"><input type="checkbox" checked={monthlyOnlyDue} onChange={e=>setMonthlyOnlyDue(e.target.checked)} className="accent-amber-400"/> الشقق ذات المتبقي فقط</label></div>
-              <button type="button" disabled={monthlyBusy} onClick={()=>void loadMonthlyReport(monthlyMonth)} className="min-h-11 rounded-xl bg-amber-400 px-6 font-black text-[#082a26] hover:bg-amber-300 disabled:opacity-50">{monthlyBusy?"جارٍ التحميل...":"عرض التقرير"}</button>
+            <div className="mb-4 grid gap-5 rounded-2xl border border-amber-300/35 bg-black/25 p-4 lg:grid-cols-[minmax(300px,0.9fr)_minmax(440px,1.5fr)] lg:p-5">
+              <div className="space-y-4 rounded-xl border border-emerald-300/20 bg-[#062b26]/80 p-4">
+                <h3 className="text-base font-black text-amber-200">تحديد فترة التقرير</h3>
+                <div className="grid grid-cols-2 gap-2 rounded-xl bg-black/25 p-1.5">
+                  <button type="button" onClick={()=>{setMonthlyPeriodMode("month");setMonthlyLoadedMonth("");}} className={`rounded-lg px-3 py-2.5 text-sm font-bold transition ${monthlyPeriodMode==="month"?"bg-amber-400 text-[#092a25]":"text-emerald-100 hover:bg-white/10"}`}>شهر محدد</button>
+                  <button type="button" onClick={()=>{setMonthlyPeriodMode("range");setMonthlyLoadedMonth("");}} className={`rounded-lg px-3 py-2.5 text-sm font-bold transition ${monthlyPeriodMode==="range"?"bg-amber-400 text-[#092a25]":"text-emerald-100 hover:bg-white/10"}`}>من تاريخ إلى تاريخ</button>
+                </div>
+                {monthlyPeriodMode === "month" ? <label className="grid gap-2 text-sm font-bold text-emerald-100">شهر التقرير<input type="month" value={monthlyMonth} onChange={e=>{setMonthlyMonth(e.target.value);setMonthlyLoadedMonth("");}} className="min-h-12 w-full rounded-xl border border-emerald-300/40 bg-[#062b26] px-3 text-white outline-none focus:border-amber-300 [color-scheme:dark]"/></label> : <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2"><label className="grid gap-2 text-sm font-bold text-emerald-100">من تاريخ<input type="date" value={monthlyFrom} onChange={e=>{setMonthlyFrom(e.target.value);setMonthlyLoadedMonth("");}} className="min-h-12 w-full rounded-xl border border-emerald-300/40 bg-[#062b26] px-3 text-white outline-none focus:border-amber-300 [color-scheme:dark]"/></label><label className="grid gap-2 text-sm font-bold text-emerald-100">إلى تاريخ<input type="date" value={monthlyTo} min={monthlyFrom} onChange={e=>{setMonthlyTo(e.target.value);setMonthlyLoadedMonth("");}} className="min-h-12 w-full rounded-xl border border-emerald-300/40 bg-[#062b26] px-3 text-white outline-none focus:border-amber-300 [color-scheme:dark]"/></label></div>}
+                <button type="button" disabled={monthlyBusy} onClick={()=>void loadMonthlyReport(monthlyMonth)} className="min-h-12 w-full rounded-xl bg-amber-400 px-6 text-base font-black text-[#082a26] hover:bg-amber-300 disabled:opacity-50">{monthlyBusy?"جارٍ التحميل...":"عرض التقرير"}</button>
+              </div>
+              <div className="rounded-xl border border-emerald-300/20 bg-[#062b26]/80 p-4">
+                <h3 className="mb-3 text-base font-black text-amber-200">تخصيص أعمدة التقرير</h3>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {([
+                    ["إظهار بيانات المالك",monthlyShowOwner,setMonthlyShowOwner],
+                    ["إظهار المستحقات الأخرى وتحصيلاتها",monthlyShowOther,setMonthlyShowOther],
+                    ["إظهار مستحقات المياه وتحصيلاتها",monthlyShowWater,setMonthlyShowWater],
+                    ["إظهار مستحقات الكهرباء وتحصيلاتها",monthlyShowElectricity,setMonthlyShowElectricity],
+                    ["الشقق ذات المتبقي فقط",monthlyOnlyDue,setMonthlyOnlyDue],
+                    ["إظهار مساحة الشقة",monthlyShowArea,setMonthlyShowArea],
+                  ] as [string,boolean,(value:boolean)=>void][]).map(([label,checked,onChange])=><label key={label} className="flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border border-white/15 bg-white/[0.04] px-3 py-2.5 text-sm font-bold text-white transition hover:border-amber-300/40 hover:bg-white/10"><input type="checkbox" checked={checked} onChange={e=>onChange(e.target.checked)} className="h-5 w-5 shrink-0 accent-amber-400"/><span>{label}</span></label>)}
+                </div>
+              </div>
             </div>
             {monthlyError && <p className="mb-4 rounded-xl border border-rose-400/50 bg-rose-500/10 p-3 text-rose-200">{monthlyError}</p>}
             {monthlyLoadedMonth && !monthlyBusy && <>
               <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">{([["عدد الشقق",monthlyVisible.length],["إجمالي المستحق",`${formatFinancialPrice(monthlySum("due"))} ر.س`],["إجمالي المحصل",`${formatFinancialPrice(monthlySum("paid"))} ر.س`],["إجمالي المتبقي",`${formatFinancialPrice(monthlySum("due")-monthlySum("paid"))} ر.س`]] as [string,string|number][]).map(([label,value])=><div key={label} className="rounded-xl border border-amber-300/30 bg-black/20 p-3 text-center"><p className="text-xs text-emerald-100/70">{label}</p><strong className="mt-2 block text-xl text-amber-200">{value}</strong></div>)}</div>
               <div className="relative mb-3"><Search size={17} className="absolute right-3 top-3 text-emerald-300"/><input value={monthlySearch} onChange={e=>setMonthlySearch(e.target.value)} placeholder="بحث برقم الشقة أو العمارة أو المستأجر أو العقد..." className="w-full rounded-xl border border-emerald-300/35 bg-[#052b26] py-2.5 pr-10 pl-3 text-white outline-none focus:border-amber-300"/></div>
-              <p className="mb-3 text-xs text-emerald-100/70">المبالغ المستحقة حتى نهاية الشهر المحدد، والتحصيلات المسجلة حتى ذلك التاريخ. يشمل المتبقي المتراكم من الأشهر السابقة. التصدير والطباعة يحترمان خيارات إظهار الأعمدة، والإجماليات المعروضة تشمل الأقسام المختارة فقط.</p>
+              <p className="mb-3 text-xs text-emerald-100/70">{monthlyLoadedRange?.mode === "range" ? "تقرير الفترة يعرض المستحقات التي يحل موعدها داخل الفترة والتحصيلات المرتبطة بها والمسجلة داخل الفترة. لا يشمل أرصدة الفترات السابقة." : "تقرير الشهر تراكمي حتى نهاية الشهر المختار، ويشمل المتبقي من الأشهر السابقة."} التصدير والطباعة يحترمان خيارات الأعمدة والأقسام المختارة.</p>
               <div className="overflow-x-auto rounded-xl border border-white/15"><table className="w-full min-w-[1450px] text-right text-xs"><thead className="bg-amber-300/15 text-amber-200"><tr>{monthlyHeaders().map(h=><th key={h} className="whitespace-nowrap p-3">{h}</th>)}</tr></thead><tbody className="divide-y divide-white/10">{monthlyVisible.map(l=><tr key={l.apartment.id} className="hover:bg-white/5">{monthlyCells(l).map((v,i)=><td key={i} className="whitespace-nowrap p-3">{typeof v==="number"?formatFinancialPrice(v):v}</td>)}</tr>)}</tbody></table>{monthlyVisible.length===0&&<p className="p-8 text-center text-emerald-100/70">لا توجد شقق مطابقة للفترة والفلاتر المختارة.</p>}</div>
             </>}
             {monthlyBusy && <p className="py-12 text-center text-amber-200">جارٍ تجهيز التقرير من قاعدة البيانات...</p>}
@@ -2456,6 +2528,15 @@ function FilterSelect({
   );
 }
 
+// Unified apartment status palette for cards, list rows and badges.
+function apartmentStatusColors(status: ApartmentStatus) {
+  if (status === "مؤجرة") return { edge: "border-emerald-400/65", background: "bg-emerald-950/35", stripe: "bg-emerald-400", icon: "border-emerald-400/40 bg-emerald-400/15 text-emerald-200", badge: "border-emerald-400/50 bg-emerald-400/15 text-emerald-200", dot: "bg-emerald-400", row: "border-r-4 border-r-emerald-400 bg-emerald-400/[0.045]" };
+  if (status === "محجوزة") return { edge: "border-sky-400/65", background: "bg-sky-950/35", stripe: "bg-sky-400", icon: "border-sky-400/40 bg-sky-400/15 text-sky-200", badge: "border-sky-400/50 bg-sky-400/15 text-sky-200", dot: "bg-sky-400", row: "border-r-4 border-r-sky-400 bg-sky-400/[0.045]" };
+  if (status === "تحت الصيانة") return { edge: "border-yellow-400/65", background: "bg-yellow-950/25", stripe: "bg-yellow-400", icon: "border-yellow-400/40 bg-yellow-400/15 text-yellow-200", badge: "border-yellow-400/50 bg-yellow-400/15 text-yellow-200", dot: "bg-yellow-400", row: "border-r-4 border-r-yellow-400 bg-yellow-400/[0.045]" };
+  if (status === "متاحة" || status === "فارغة") return { edge: "border-rose-400/65", background: "bg-rose-950/30", stripe: "bg-rose-400", icon: "border-rose-400/40 bg-rose-400/15 text-rose-200", badge: "border-rose-400/50 bg-rose-400/15 text-rose-200", dot: "bg-rose-400", row: "border-r-4 border-r-rose-400 bg-rose-400/[0.045]" };
+  return { edge: "border-slate-400/55", background: "bg-slate-800/40", stripe: "bg-slate-400", icon: "border-slate-400/35 bg-slate-400/10 text-slate-200", badge: "border-slate-400/40 bg-slate-400/10 text-slate-200", dot: "bg-slate-400", row: "border-r-4 border-r-slate-400 bg-slate-400/[0.045]" };
+}
+
 function ApartmentCard({
   apartment,
   onView,
@@ -2467,27 +2548,19 @@ function ApartmentCard({
   onEdit: () => void;
   onDelete: () => void;
 }) {
-  const available = apartment.status === "متاحة";
+  const colors = apartmentStatusColors(apartment.status);
 
   return (
-    <article className="group overflow-hidden rounded-[24px] border border-white/10 bg-slate-950/45 shadow-xl backdrop-blur-xl transition duration-300 hover:-translate-y-1 hover:border-amber-300/25">
+    <article className={`group overflow-hidden rounded-[24px] border ${colors.edge} ${colors.background} shadow-xl backdrop-blur-xl transition duration-300 hover:-translate-y-1 hover:brightness-110`}>
       <div
-        className={`h-1.5 w-full ${
-          available
-            ? "bg-gradient-to-l from-emerald-400 via-emerald-500 to-transparent"
-            : "bg-gradient-to-l from-amber-300 via-amber-500 to-transparent"
-        }`}
+        className={`h-1.5 w-full ${colors.stripe}`}
       />
 
       <div className="p-5">
         <div className="mb-5 flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
             <div
-              className={`flex h-12 w-12 items-center justify-center rounded-2xl border ${
-                available
-                  ? "border-emerald-300/20 bg-emerald-400/10 text-emerald-200"
-                  : "border-amber-300/20 bg-amber-400/10 text-amber-200"
-              }`}
+              className={`flex h-12 w-12 items-center justify-center rounded-2xl border ${colors.icon}`}
             >
               <Home size={24} />
             </div>
@@ -2565,21 +2638,10 @@ function ApartmentCard({
 }
 
 function StatusBadge({ status }: { status: ApartmentStatus }) {
-  const available = status === "متاحة";
-
+  const colors = apartmentStatusColors(status);
   return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-extrabold ${
-        available
-          ? "border-emerald-300/25 bg-emerald-400/10 text-emerald-200"
-          : "border-amber-300/25 bg-amber-400/10 text-amber-200"
-      }`}
-    >
-      <span
-        className={`h-1.5 w-1.5 rounded-full ${
-          available ? "bg-emerald-300" : "bg-amber-300"
-        }`}
-      />
+    <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-extrabold ${colors.badge}`}>
+      <span className={`h-1.5 w-1.5 rounded-full ${colors.dot}`} />
       {status}
     </span>
   );

@@ -32,6 +32,7 @@ import FinancialCenter from "./pages/FinancialCenter/FinancialCenter";
 
 import ContactUs from "./pages/Contact/ContactUs";
 import Apartments from "./pages/Apartments/Apartments";
+import Rooms from "./pages/Rooms/Rooms";
 import ResidentialApartmentMap from "./pages/Apartments/ResidentialApartmentMap";
 import ApartmentsHub from "./pages/Apartments/ApartmentsHub";
 import ActivityLog from "./pages/ActivityLog/ActivityLog";
@@ -286,6 +287,7 @@ function App() {
             <Route element={<PermissionRoute permission="apartments_view" />}>
               <Route path="/apartments-hub" element={<ApartmentsHub />} />
               <Route path="/apartments" element={<Apartments />} />
+              <Route path="/rooms" element={<Rooms />} />
               <Route path="/apartments/map" element={<ResidentialApartmentMap />} />
             </Route>
 

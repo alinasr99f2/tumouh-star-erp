@@ -7,7 +7,7 @@ import { useNavigate } from "react-router-dom";
 
 const sections = [
   { title: "الشقق المتاحة / المؤجرة", description: "إدارة الشقق والعقود وبيانات المستأجرين ومتابعة حالة كل شقة", icon: LayoutGrid, path: "/apartments" },
-  { title: "الغرف", description: "إدارة الغرف ومتابعة الإشغال والإيجارات", icon: BedDouble },
+  { title: "الغرف", description: "إدارة الغرف ومتابعة الإشغال والإيجارات", icon: BedDouble, path: "/rooms" },
   { title: "المنازل", description: "إدارة المنازل وبيانات العقود والمستأجرين", icon: House },
   { title: "المحلات التجارية", description: "إدارة المحلات التجارية ومتابعة عقود الإيجار", icon: Store },
   { title: "الأراضي العقارية", description: "إدارة الأراضي العقارية ومتابعة بياناتها", icon: MapPinned },

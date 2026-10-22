@@ -19,9 +19,14 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "../../utils/supabase";
 
 import "./Home.css";
+import "./HomePreferences.css";
+import { useAppPreferences } from "../../utils/appPreferences";
 
 export default function Home() {
   const navigate = useNavigate();
+  const { language, theme } = useAppPreferences();
+  const en = language === "en";
+  const tr = (ar: string, english: string) => en ? english : ar;
 
   const [showWelcome, setShowWelcome] = useState(false);
   const [welcomeName, setWelcomeName] = useState("بك");
@@ -104,6 +109,10 @@ export default function Home() {
 
   const closeWelcome = () => setShowWelcome(false);
 
+
+  const homeTranslations: Record<string, string> = {"لوحة التحكم": "Dashboard", "المشاريع": "Projects", "العمائر": "Buildings", "إدارة الوحدات العقارية": "Property Units", "التقارير": "Reports", "المستخدمين والصلاحيات": "Users & Permissions", "سجل النشاط": "Activity Log", "تواصل معنا": "Contact Us", "متابعة الأداء والإحصائيات والتقارير الرئيسية للنظام": "Monitor system performance, statistics, and key reports", "إدارة المشاريع ومتابعة التفاصيل والتواصل والمهام والتقدم": "Manage projects, details, communication, tasks, and progress", "إدارة العمائر السكنية والتجارية ومتابعة الوحدات والإيجارات": "Manage residential and commercial buildings, units, and rentals", "المؤجرة / الفارغة": "Rented / Vacant", "عرض وتحليل التقارير المالية والتشغيلية والإحصائيات الخاصة بالنظام": "View and analyze financial, operational, and statistical reports", "إدارة المستخدمين وتحديد الصلاحيات والوصول إلى أقسام النظام": "Manage users, permissions, and access to system sections", "متابعة جميع العمليات والحركات التي تتم داخل النظام": "Track all operations and activity within the system", "تواصل مع فريق عقاري سمارت للحصول على المساعدة والدعم": "Contact the AQARY SMART team for help and support"};
+  const cardLabel = (value: string) => en ? homeTranslations[value] ?? value : value;
+
   const cards = [
     {
       title: "لوحة التحكم",
@@ -175,7 +184,7 @@ export default function Home() {
     <>
       {showWelcome && (
   <div
-    dir="rtl"
+    dir={en ? "ltr" : "rtl"}
     className="
       fixed inset-0 z-[9999]
       flex items-center justify-center
@@ -214,7 +223,7 @@ export default function Home() {
           {welcomeAvatarUrl ? (
             <img
               src={welcomeAvatarUrl}
-              alt={`صورة ${welcomeName}`}
+              alt={tr(`صورة ${welcomeName}`, `Photo of ${welcomeName}`)}
               className="h-full w-full rounded-full object-cover"
               onError={() => setWelcomeAvatarUrl(null)}
             />
@@ -320,7 +329,7 @@ export default function Home() {
       <button
         type="button"
         onClick={closeWelcome}
-        aria-label="إغلاق رسالة الترحيب"
+        aria-label={tr("إغلاق رسالة الترحيب", "Close welcome message")}
         className="
           absolute
           left-5
@@ -474,7 +483,7 @@ export default function Home() {
               sm:text-[48px]
             "
           >
-            {welcomeGreeting}
+            {en ? (welcomeIcon === "sun" ? "Good morning" : welcomeIcon === "moon" ? "Good evening" : "Welcome") : welcomeGreeting}
             </h2>
           </div>
 
@@ -522,7 +531,7 @@ export default function Home() {
               sm:text-[18px]
             "
           >
-            {welcomeMessage}
+            {en ? (welcomeIcon === "sun" ? "Wishing you a productive morning and a great start to your day." : welcomeIcon === "moon" ? "Wishing you a peaceful, productive evening and continued success." : "Wishing you a productive day and every success in your work.") : welcomeMessage}
           </p>
 
           {/* الفاصل الملكي */}
@@ -573,7 +582,7 @@ export default function Home() {
             "
           >
 
-            {/* شريط الـ15 ثانية */}
+            {/* شريط الـ{tr("15 ثانية", "15 seconds")} */}
             <div
               className="
                 w-full
@@ -592,11 +601,11 @@ export default function Home() {
                 "
               >
                 <span>
-                  سيتم الإغلاق تلقائيًا
+                  {tr("سيتم الإغلاق تلقائيًا", "Closes automatically")}
                 </span>
 
                 <span className="text-yellow-300">
-                  15 ثانية
+                  {tr("15 ثانية", "15 seconds")}
                 </span>
               </div>
 
@@ -679,7 +688,7 @@ export default function Home() {
               text-white/35
             "
           >
-            نتمنى لك يومًا موفقًا ومثمرًا
+            {tr("نتمنى لك يومًا موفقًا ومثمرًا", "Wishing you a successful and productive day")}
           </p>
 
         </div>
@@ -702,7 +711,8 @@ export default function Home() {
   }
 `}</style>
     <div
-      dir="rtl"
+      dir={en ? "ltr" : "rtl"}
+      data-home-theme={theme}
       className="
         relative
         min-h-full
@@ -803,7 +813,7 @@ export default function Home() {
               md:text-5xl
             "
           >
-            الشاشة الرئيسية
+            {tr("الشاشة الرئيسية", "Home")}
           </h1>
 
           <p
@@ -815,7 +825,7 @@ export default function Home() {
               md:text-base
             "
           >
-            مرحبًا بك في عقاري سمارت لإدارة العقارات
+            {tr("مرحبًا بك في عقاري سمارت لإدارة العقارات", "Welcome to AQARY SMART Property Management")}
           </p>
         </div>
 
@@ -846,7 +856,7 @@ export default function Home() {
 
             return (
               <div
-                key={card.title}
+                key={cardLabel(card.title)}
                 className={`
                   aqar-feature-card
                   group
@@ -1045,7 +1055,7 @@ export default function Home() {
                     text-white
                   "
                 >
-                  {card.title}
+                  {cardLabel(card.title)}
                 </h2>
 
                 {/* =================================
@@ -1071,7 +1081,7 @@ export default function Home() {
                     text-gray-300
                   "
                 >
-                  {card.description}
+                  {cardLabel(card.description)}
                 </p>
 
                 {/* =================================
@@ -1137,7 +1147,7 @@ export default function Home() {
                     }
                   `}
                 >
-                  <span>الدخول إلى القسم</span>
+                  <span>{tr("الدخول إلى القسم", "Open section")}</span>
 
                   <ArrowLeft
                     size={24}

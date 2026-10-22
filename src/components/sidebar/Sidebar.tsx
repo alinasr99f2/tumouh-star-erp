@@ -19,6 +19,7 @@ import {
 import { sidebarMenu } from "../../data/menu";
 import { supabase } from "../../utils/supabase";
 import { usePermissions } from "../../utils/permissions";
+import { useAppPreferences, translateLabel } from "../../utils/appPreferences";
 
 type SidebarProps = {
   onLogout: () => void;
@@ -32,6 +33,8 @@ type CurrentUser = {
 
 function Sidebar({ onLogout }: SidebarProps) {
   const location = useLocation();
+  const { language, isEnglish } = useAppPreferences();
+  const tr = (label: string) => translateLabel(label, language);
   const { loading: permissionsLoading, hasPermission } = usePermissions();
 
   const [projectsOpen, setProjectsOpen] = useState(() => {
@@ -177,7 +180,7 @@ function Sidebar({ onLogout }: SidebarProps) {
 
   const unitSections = [
     { title: "الشقق المتاحة / المؤجرة", path: "/apartments", icon: LayoutGrid, available: true },
-    { title: "الغرف", path: "/rooms", icon: BedDouble, available: false },
+    { title: "الغرف", path: "/rooms", icon: BedDouble, available: true },
     { title: "المنازل", path: "/houses", icon: House, available: false },
     { title: "المحلات التجارية", path: "/commercial-shops", icon: Store, available: false },
     { title: "الأراضي العقارية", path: "/real-estate-lands", icon: MapPin, available: false },
@@ -203,7 +206,7 @@ function Sidebar({ onLogout }: SidebarProps) {
 
       <button
         type="button"
-        aria-label="فتح القائمة الجانبية"
+        aria-label={isEnglish ? "Open sidebar" : "فتح القائمة الجانبية"}
         aria-expanded={mobileOpen}
         onClick={() => setMobileOpen(true)}
         className="
@@ -237,7 +240,7 @@ function Sidebar({ onLogout }: SidebarProps) {
       {mobileOpen && (
         <button
           type="button"
-          aria-label="إغلاق القائمة الجانبية"
+          aria-label={isEnglish ? "Close sidebar" : "إغلاق القائمة الجانبية"}
           onClick={() => setMobileOpen(false)}
           className="
             fixed
@@ -255,6 +258,7 @@ function Sidebar({ onLogout }: SidebarProps) {
       {/* ===================================================== */}
 
       <aside
+        dir={isEnglish ? "ltr" : "rtl"}
         className={`
           fixed
           inset-y-0
@@ -287,7 +291,7 @@ function Sidebar({ onLogout }: SidebarProps) {
 
         <button
           type="button"
-          aria-label="إغلاق القائمة الجانبية"
+          aria-label={isEnglish ? "Close sidebar" : "إغلاق القائمة الجانبية"}
           onClick={() => setMobileOpen(false)}
           className="
             absolute
@@ -414,7 +418,7 @@ function Sidebar({ onLogout }: SidebarProps) {
                 </h3>
 
                 <p className="mt-1 text-sm text-[#E0EEE7]">
-                  {currentUser.role}
+                  {tr(currentUser.role)}
                 </p>
               </div>
             </div>
@@ -459,7 +463,7 @@ function Sidebar({ onLogout }: SidebarProps) {
               tracking-widest
             "
           >
-            MAIN MENU
+            {isEnglish ? "MAIN MENU" : "القائمة الرئيسية"}
           </p>
 
           <div className="space-y-3">
@@ -539,7 +543,7 @@ function Sidebar({ onLogout }: SidebarProps) {
                               hover:shadow-black/10
                             `
                         }
-                        ${isProjects || isBuildings || isUnits ? "pl-14" : ""}
+                        ${isProjects || isBuildings || isUnits ? (isEnglish ? "pr-14" : "pl-14") : ""}
                       `
                       }
                     >
@@ -556,7 +560,7 @@ function Sidebar({ onLogout }: SidebarProps) {
                       />
 
                       <span className="flex-1 text-[16px] leading-6">
-                        {isUnits ? "إدارة الوحدات العقارية" : item.title}
+                        {tr(isUnits ? "إدارة الوحدات العقارية" : item.title)}
                       </span>
                     </NavLink>
 
@@ -580,15 +584,15 @@ function Sidebar({ onLogout }: SidebarProps) {
                         }}
                         aria-label={
                           isProjects
-                            ? projectsOpen ? "إخفاء المشاريع" : "إظهار المشاريع"
+                            ? projectsOpen ? tr("إخفاء المشاريع") : tr("إظهار المشاريع")
                             : isBuildings
-                            ? buildingsOpen ? "إخفاء العمائر" : "إظهار العمائر"
-                            : unitsOpen ? "إخفاء أقسام الوحدات العقارية" : "إظهار أقسام الوحدات العقارية"
+                            ? buildingsOpen ? tr("إخفاء العمائر") : tr("إظهار العمائر")
+                            : unitsOpen ? tr("إخفاء أقسام الوحدات العقارية") : tr("إظهار أقسام الوحدات العقارية")
                         }
                         aria-expanded={isProjects ? projectsOpen : isBuildings ? buildingsOpen : unitsOpen}
-                        className="
+                        className={`
                           absolute
-                          left-2
+                          ${isEnglish ? "right-2" : "left-2"}
                           top-1/2
                           -translate-y-1/2
                           z-20
@@ -607,7 +611,7 @@ function Sidebar({ onLogout }: SidebarProps) {
                           transition-all
                           duration-200
                           cursor-pointer
-                        "
+                        `}
                       >
                         {(isProjects ? projectsOpen : isBuildings ? buildingsOpen : unitsOpen) ? (
                           <ChevronDown
@@ -616,6 +620,7 @@ function Sidebar({ onLogout }: SidebarProps) {
                           />
                         ) : (
                           <ChevronLeft
+                            className={isEnglish ? "rotate-180" : ""}
                             size={20}
                             strokeWidth={2.2}
                           />
@@ -643,13 +648,13 @@ function Sidebar({ onLogout }: SidebarProps) {
                              className={({ isActive }) => `group flex min-h-[48px] items-center gap-3 rounded-xl border px-4 py-3 text-sm transition-all duration-300 ${isActive ? "border-[#D4AD4D] bg-gradient-to-r from-[#145B46] to-[#073529] font-bold text-[#F6D878] shadow-md" : "border-transparent text-white/90 hover:border-[#C49A3A]/35 hover:bg-black/[0.10] hover:text-white"}`}
                            >
                              <Icon size={19} className="shrink-0" />
-                             <span>{section.title}</span>
+                             <span>{tr(section.title)}</span>
                            </NavLink>
                          ) : (
-                           <div key={section.path} className="flex min-h-[48px] items-center gap-3 rounded-xl border border-transparent px-4 py-3 text-sm text-white/75" title="سيتم تفعيل الصفحة عند تجهيزها">
+                           <div key={section.path} className="flex min-h-[48px] items-center gap-3 rounded-xl border border-transparent px-4 py-3 text-sm text-white/75" title={tr("سيتم تفعيل الصفحة عند تجهيزها")}>
                              <Icon size={19} className="shrink-0" />
-                             <span>{section.title}</span>
-                             <span className="mr-auto whitespace-nowrap text-[10px] text-[#F6D878]">قريبًا</span>
+                             <span>{tr(section.title)}</span>
+                             <span className="mr-auto whitespace-nowrap text-[10px] text-[#F6D878]">{tr("قريبًا")}</span>
                            </div>
                          );
                        })}
@@ -663,7 +668,7 @@ function Sidebar({ onLogout }: SidebarProps) {
                       className={({ isActive }) => `group relative flex min-h-[64px] items-center gap-4 rounded-2xl border px-5 py-4 transition-all duration-300 ease-out ${isActive ? "border-[#F6D878] bg-gradient-to-r from-[#145B46] via-[#0B4537] to-[#073529] font-bold text-white shadow-lg shadow-[#C49A3A]/15" : "border-transparent bg-black/[0.08] text-white hover:border-[#C49A3A]/55 hover:bg-[#557B6A] hover:-translate-x-1 hover:shadow-md"}`}
                     >
                       <BarChart3 size={25} strokeWidth={1.8} className="shrink-0 transition-all duration-300 group-hover:scale-110 group-hover:text-[#F6D878]" />
-                      <span className="flex-1 text-[16px] leading-6">التقارير</span>
+                      <span className="flex-1 text-[16px] leading-6">{tr("التقارير")}</span>
                     </NavLink>
                   )}
 
@@ -722,7 +727,7 @@ function Sidebar({ onLogout }: SidebarProps) {
                           size={19}
                           className="shrink-0 transition-transform duration-300 group-hover:scale-110"
                         />
-                        <span className="truncate">المركز المالي</span>
+                        <span className="truncate">{tr("المركز المالي")}</span>
                       </NavLink>
 
                       <NavLink
@@ -769,7 +774,7 @@ function Sidebar({ onLogout }: SidebarProps) {
                           size={19}
                           className="shrink-0 transition-transform duration-300 group-hover:scale-110"
                         />
-                        <span className="truncate">مشروع فلل تبوك</span>
+                        <span className="truncate">{tr("مشروع فلل تبوك")}</span>
                       </NavLink>
                     </div>
                   )}
@@ -860,7 +865,7 @@ function Sidebar({ onLogout }: SidebarProps) {
                             text-white/70
                           "
                         >
-                          لا توجد عمائر مضافة حاليًا
+                          {tr("لا توجد عمائر مضافة حاليًا")}
                         </div>
                       )}
                     </div>
@@ -893,7 +898,7 @@ function Sidebar({ onLogout }: SidebarProps) {
             "
           >
             <p className="text-xs text-white/70">
-              النظام
+              {tr("النظام")}
             </p>
 
             <h4 className="font-semibold mt-1 text-white">
@@ -930,7 +935,7 @@ function Sidebar({ onLogout }: SidebarProps) {
           >
             <LogOut size={20} />
 
-            تسجيل الخروج
+            {tr("تسجيل الخروج")}
           </button>
         </div>
       </aside>

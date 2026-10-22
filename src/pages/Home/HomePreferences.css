@@ -1,0 +1,59 @@
+/* AQARY SMART home page themes: scoped so the default design remains untouched. */
+:root[data-aqary-theme="light"] .aqar-home-page {
+  color: #173b31;
+}
+:root[data-aqary-theme="light"] .aqar-home-page .aqar-home-title { color: #173b31 !important; text-shadow: none !important; }
+:root[data-aqary-theme="light"] .aqar-home-page .aqar-home-description { color: #506c61 !important; }
+:root[data-aqary-theme="light"] .aqar-home-page .aqar-home-badge { background: #fff7dd !important; color: #8b681f !important; border-color: #d5b35c !important; }
+:root[data-aqary-theme="light"] .aqar-home-page .aqar-feature-card {
+  background: linear-gradient(155deg, #ffffff 0%, #f4faf6 100%) !important;
+  border-color: #d5e6da !important;
+  box-shadow: 0 12px 32px rgba(27, 72, 49, .10) !important;
+}
+:root[data-aqary-theme="light"] .aqar-home-page .aqar-card-title { color: #163b30 !important; }
+:root[data-aqary-theme="light"] .aqar-home-page .aqar-card-description { color: #516d61 !important; }
+:root[data-aqary-theme="light"] .aqar-home-page .aqar-card-button { color: #204b3d !important; background: #f5faf5 !important; border-color: #bb9a46 !important; }
+:root[data-aqary-theme="light"] .aqar-home-page .aqar-card-icon { color: #b48a2b !important; }
+:root[data-aqary-theme="light"] .aqar-home-page .aqar-feature-card:hover { border-color: #bb9a46 !important; box-shadow: 0 18px 42px rgba(27,72,49,.15) !important; }
+:root[data-aqary-theme="dark"] .aqar-home-page .aqar-feature-card {
+  background: linear-gradient(145deg, #17352c, #081813 78%) !important;
+  border-color: rgba(199,162,76,.35) !important;
+  box-shadow: 0 14px 36px rgba(0,0,0,.40) !important;
+}
+:root[data-aqary-theme="dark"] .aqar-home-page .aqar-card-title { color: #f5f8f4 !important; }
+:root[data-aqary-theme="dark"] .aqar-home-page .aqar-card-description { color: #bbd3c6 !important; }
+:root[data-aqary-theme="dark"] .aqar-home-page .aqar-card-button { background: rgba(18,66,48,.45) !important; border-color: #ae9148 !important; }
+:root[data-aqary-theme="dark"] .aqar-home-page .aqar-home-description { color: #b9d1c3 !important; }
+/* The card navigation arrow follows the selected reading direction. */
+:root[dir="ltr"] .aqar-home-page .aqar-card-button svg { transform: rotate(180deg); }
+
+
+/* Home + layout surface: the original MainLayout paints a hard-coded green
+   gradient above the body, so theme variables alone cannot change it. */
+:root[data-aqary-theme="light"] main[data-aqary-main="true"] {
+  background: #f1f6f2 !important;
+  color: #173b31;
+}
+:root[data-aqary-theme="light"] main[data-aqary-main="true"] > div[aria-hidden="true"] > div:first-child {
+  background: linear-gradient(135deg, #f7fbf8 0%, #e9f2eb 50%, #f1f6f2 100%) !important;
+}
+:root[data-aqary-theme="light"] main[data-aqary-main="true"] > div[aria-hidden="true"] > div:nth-child(3) {
+  opacity: .18;
+}
+:root[data-aqary-theme="light"] main[data-aqary-main="true"] > div[aria-hidden="true"] > div:nth-child(4) {
+  opacity: .13;
+}
+:root[data-aqary-theme="light"] .aqar-home-page .aqar-home-title {
+  color: #173b31 !important;
+  -webkit-text-fill-color: #173b31 !important;
+}
+:root[data-aqary-theme="light"] .aqar-home-page .aqar-home-description {
+  color: #4c6b5d !important;
+  -webkit-text-fill-color: #4c6b5d !important;
+}
+:root[data-aqary-theme="dark"] main[data-aqary-main="true"] {
+  background: #091512 !important;
+}
+:root[data-aqary-theme="dark"] main[data-aqary-main="true"] > div[aria-hidden="true"] > div:first-child {
+  background: linear-gradient(135deg, #10231c 0%, #091512 55%, #06110d 100%) !important;
+}

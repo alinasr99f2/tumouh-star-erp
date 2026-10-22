@@ -214,3 +214,45 @@
     transform: none;
   }
 }
+
+
+/* =========================================================
+   AQARY SMART - HOME PAGE THEME BACKGROUNDS
+   Overrides the original fixed green Home.css background.
+   Default mode intentionally keeps the original identity.
+   ========================================================= */
+
+:root[data-aqary-theme="light"] .aqar-home-page {
+  background: radial-gradient(circle at 50% 0%, rgba(212,173,77,.10), transparent 42%),
+              linear-gradient(135deg, #f6faf6 0%, #eef5ef 52%, #e6f0e9 100%) !important;
+  color: #173b31 !important;
+}
+:root[data-aqary-theme="light"] .aqar-home-page::before {
+  background: radial-gradient(ellipse at center top, rgba(212,173,77,.08), transparent 55%) !important;
+}
+:root[data-aqary-theme="light"] .aqar-home-page::after {
+  opacity: .035 !important;
+  filter: grayscale(1) brightness(.7) !important;
+}
+:root[data-aqary-theme="light"] .aqar-home-page .aqar-home-title {
+  color: #173b31 !important;
+  text-shadow: none !important;
+}
+:root[data-aqary-theme="light"] .aqar-home-page .aqar-home-description {
+  color: #4d6a5d !important;
+}
+
+:root[data-aqary-theme="dark"] .aqar-home-page {
+  background: radial-gradient(circle at 50% 0%, rgba(212,173,77,.045), transparent 42%),
+              linear-gradient(135deg, #0a1915 0%, #07130f 55%, #030b09 100%) !important;
+  color: #f5f8f4 !important;
+}
+:root[data-aqary-theme="dark"] .aqar-home-page::before {
+  background: radial-gradient(ellipse at center top, rgba(212,173,77,.035), transparent 55%) !important;
+}
+:root[data-aqary-theme="dark"] .aqar-home-page .aqar-home-title {
+  color: #f5f8f4 !important;
+}
+:root[data-aqary-theme="dark"] .aqar-home-page .aqar-home-description {
+  color: #b9d1c3 !important;
+}
