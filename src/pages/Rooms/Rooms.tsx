@@ -34,6 +34,68 @@ export default function Rooms(){
  const [reportSearch,setReportSearch]=useState("");
  const [financial,setFinancial]=useState<{installments:any[];allocations:any[];charges:any[];payments:any[];error:string;loading:boolean}>({installments:[],allocations:[],charges:[],payments:[],error:"",loading:true});
  const [operation,setOperation]=useState<"contract"|"booking"|null>(null),[operationRoom,setOperationRoom]=useState<Room|null>(null);
+ const [contractRoomSelection,setContractRoomSelection]=useState("");
+ const [contractDuration,setContractDuration]=useState("شهري");
+ const [contractNotes,setContractNotes]=useState("");
+ const [contractType,setContractType]=useState("إيجار");
+ const [contractTypes,setContractTypes]=useState<string[]>(["إيجار"]);
+ const [contractTypeModal,setContractTypeModal]=useState(false);
+ const [newContractType,setNewContractType]=useState("");
+ const [contractTypeBusy,setContractTypeBusy]=useState(false);
+ const [tenantModal,setTenantModal]=useState(false);
+ const [tenantBusy,setTenantBusy]=useState(false);
+ const [newTenant,setNewTenant]=useState({full_name:"",phone:"",identity_number:"",nationality:"",email:"",notes:""});
+ const [firstDueDate,setFirstDueDate]=useState(today());
+ const [contractNumberError,setContractNumberError]=useState("");
+ const [scheduleError,setScheduleError]=useState("");
+ const [editedDueDates,setEditedDueDates]=useState<Record<number,string>>({});
+
+ const [durationOptions,setDurationOptions]=useState<string[]>(["يومي","شهري","سنوي"]);
+ const [durationAddOpen,setDurationAddOpen]=useState(false);
+ const [newDuration,setNewDuration]=useState("");
+ const [durationSaving,setDurationSaving]=useState(false);
+ const [durationError,setDurationError]=useState("");
+ const addDurationOption=async()=>{
+  const name=newDuration.trim();
+  if(!name||!canWrite)return;
+  if(durationOptions.includes(name)){setDurationError("مدة العقد موجودة بالفعل.");return;}
+  setDurationSaving(true);setDurationError("");
+  const {error:insertError}=await supabase.from("residential_room_contract_duration_options").insert({company_id:COMPANY_ID,name});
+  setDurationSaving(false);
+  if(insertError){setDurationError(insertError.message);return;}
+  setDurationOptions(prev=>[...prev,name]);setContractDuration(name);setNewDuration("");setDurationAddOpen(false);
+ };
+
+ const saveNewTenant=async()=>{
+  if(!canWrite||!newTenant.full_name.trim()){setError("اسم المستأجر مطلوب.");return;}
+  setTenantBusy(true);setError("");
+  const {data,error:dbError}=await supabase.from("residential_tenants").insert({company_id:COMPANY_ID,full_name:newTenant.full_name.trim(),phone:newTenant.phone.trim()||null,identity_number:newTenant.identity_number.trim()||null,nationality:newTenant.nationality.trim()||null,email:newTenant.email.trim()||null,notes:newTenant.notes.trim()||null}).select("id,full_name").single();
+  setTenantBusy(false);
+  if(dbError){setError("تعذر إضافة المستأجر: "+dbError.message);return;}
+  setTenants(prev=>[...prev,data as Tenant]);setOpForm(prev=>({...prev,tenant_id:data.id}));setTenantModal(false);
+  setNewTenant({full_name:"",phone:"",identity_number:"",nationality:"",email:"",notes:""});
+ };
+ const saveContractType=async()=>{
+  const name=newContractType.trim();if(!canWrite||!name)return;
+  if(contractTypes.includes(name)){setError("نوع العقد موجود بالفعل.");return;}
+  setContractTypeBusy(true);setError("");
+  const {error:dbError}=await supabase.from("residential_room_contract_types").insert({company_id:COMPANY_ID,name});
+  setContractTypeBusy(false);
+  if(dbError){setError("تعذر حفظ نوع العقد: "+dbError.message);return;}
+  setContractTypes(prev=>[...prev,name]);setContractType(name);setNewContractType("");setContractTypeModal(false);
+ };
+ const addInterval=(date:Date,period:string)=>{
+  const d=new Date(date.getTime());
+  if(period==="يومي")d.setUTCDate(d.getUTCDate()+1);
+  else if(period==="أسبوعي")d.setUTCDate(d.getUTCDate()+7);
+  else {
+   const months=period==="شهري"?1:period==="ربع سنوي"?3:period==="نصف سنوي"?6:period==="سنوي"?12:0;
+   if(!months)return null;
+   const day=d.getUTCDate();d.setUTCDate(1);d.setUTCMonth(d.getUTCMonth()+months);
+   const last=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth()+1,0)).getUTCDate();d.setUTCDate(Math.min(day,last));
+  }
+  return d;
+ };
  const [locationOptions,setLocationOptions]=useState<LocationOption[]>([]);
  const [optionModal,setOptionModal]=useState<{kind:string;title:string}|null>(null);
  const [optionName,setOptionName]=useState("");
@@ -69,6 +131,31 @@ export default function Rooms(){
  const optionSelect=(title:string,kind:string,value:string,onChange:(value:string)=>void,disabled=false)=>
   <div className="min-w-0"><span className={label}>{title}</span><div className="flex items-center gap-1.5"><select disabled={disabled} className={`${field} min-h-[47px] min-w-0 flex-1 py-2.5 text-sm sm:text-base disabled:opacity-50`} value={value} onChange={e=>onChange(e.target.value)}><option value="">اختر {title}</option>{optionsFor(kind,["city","district","landmark"].includes(kind)?form.region||"":undefined).concat(value&&!optionsFor(kind,["city","district","landmark"].includes(kind)?form.region||"":undefined).includes(value)?[value]:[]).map(x=><option key={x} value={x}>{x}</option>)}</select><button type="button" disabled={disabled||!canWrite} title={`إضافة ${title}`} onClick={()=>{setOptionModal({kind,title});setOptionName("");setError("");}} className="grid h-[47px] w-[47px] shrink-0 place-items-center rounded-xl border border-amber-300/50 bg-amber-300/15 text-amber-200 disabled:opacity-40"><Plus size={21}/></button></div></div>;
  const [opForm,setOpForm]=useState({tenant_id:"",bed_id:"",start_date:today(),end_date:"",amount:"",paid:"0",period:"شهري",number:"",payment:"نقدي"});
+ const schedule=useMemo(()=>{
+  const start=firstDueDate,end=opForm.end_date,contractStart=opForm.start_date;
+  if(!start||!end||!contractStart||end<=contractStart||start<contractStart||start>=end)return [];
+  const total=Number(opForm.amount);if(!Number.isFinite(total)||total<0)return [];
+  const result:string[]=[];let current=new Date(start+"T00:00:00Z");
+  const last=new Date(end+"T00:00:00Z");
+  for(let i=0;i<500&&current<last;i++){
+   result.push(current.toISOString().slice(0,10));
+   const next=addInterval(current,opForm.period);if(!next||next<=current)return [];
+   current=next;
+  }
+  return result;
+ },[firstDueDate,opForm.end_date,opForm.start_date,opForm.amount,opForm.period]);
+
+ useEffect(()=>{setEditedDueDates({});setScheduleError("");},[schedule]);
+ const installmentsPreview=useMemo(()=>{
+  const cents=Math.round(Number(opForm.amount)*100);
+  if(!Number.isFinite(cents)||cents<0||!schedule.length)return [];
+  const each=Math.floor(cents/schedule.length);
+  return schedule.map((autoDate,index)=>({
+   installment_no:index+1,
+   due_date:editedDueDates[index]??autoDate,
+   amount:(each+(index===schedule.length-1?cents-each*schedule.length:0))/100
+  }));
+ },[schedule,editedDueDates,opForm.amount]);
  const load=useCallback(async()=>{
   setLoading(true);setError("");
   const {data:auth,error:authError}=await supabase.auth.getUser();
@@ -76,6 +163,9 @@ export default function Rooms(){
   const member=await supabase.from("residential_company_users").select("role").eq("company_id",COMPANY_ID).eq("user_id",auth.user.id).maybeSingle();
   if(member.error||!member.data){setError(member.error?.message||"الحساب غير مرتبط بالشركة.");setLoading(false);return;}
   setCanWrite(member.data.role==="owner");
+  const typeResult=await supabase.from("residential_room_contract_types").select("name").eq("company_id",COMPANY_ID).order("name");
+  if(!typeResult.error)setContractTypes(Array.from(new Set(["إيجار",...(typeResult.data??[]).map(x=>x.name)])));
+
   const [r,b,l,k,t,o,ins,alloc,charges,payments,loc]=await Promise.all([
    supabase.from("residential_rooms").select("*").eq("company_id",COMPANY_ID).order("created_at",{ascending:false}),
    supabase.from("residential_room_beds").select("id,room_id,bed_number,status,notes").eq("company_id",COMPANY_ID),
@@ -83,8 +173,8 @@ export default function Rooms(){
    supabase.from("residential_room_bookings").select("id,room_id,bed_id,tenant_id,start_date,end_date,booking_status").eq("company_id",COMPANY_ID),
    supabase.from("residential_tenants").select("id,full_name").eq("company_id",COMPANY_ID),
    supabase.from("property_owners").select("id,full_name").eq("company_id",COMPANY_ID),
-   supabase.from("residential_room_rent_installments").select("id,contract_id,amount,due_date").eq("company_id",COMPANY_ID),
-   supabase.from("residential_room_rent_allocations").select("installment_id,amount").eq("company_id",COMPANY_ID),
+   supabase.from("residential_room_installments").select("id,contract_id,amount,due_date").eq("company_id",COMPANY_ID),
+   supabase.from("residential_room_allocations").select("installment_id,amount").eq("company_id",COMPANY_ID),
    supabase.from("residential_room_charges").select("id,room_id,charge_type,title,amount,due_date").eq("company_id",COMPANY_ID),
    supabase.from("residential_room_charge_payments").select("charge_id,amount").eq("company_id",COMPANY_ID),
     supabase.from("residential_location_options").select("id,kind,name,region_name").eq("company_id",COMPANY_ID)
@@ -95,6 +185,14 @@ export default function Rooms(){
    setRooms((r.data??[]) as Room[]);setBeds((b.data??[]) as Bed[]);setLeases((l.data??[]) as Lease[]);setBookings((k.data??[]) as Booking[]);setTenants((t.data??[]) as Tenant[]);setOwners((o.data??[]) as Owner[]);setLoading(false);
  },[]);
  useEffect(()=>{void load();},[load]);
+  useEffect(()=>{
+   let cancelled=false;
+   void supabase.from("residential_room_contract_duration_options").select("name").eq("company_id",COMPANY_ID).then(({data,error:durationLoadError})=>{
+    if(!cancelled&&!durationLoadError)setDurationOptions(Array.from(new Set(["يومي","شهري","سنوي",...(data??[]).map(x=>x.name)])));
+   });
+   return()=>{cancelled=true;};
+  },[]);
+
  const active=(r:Room,bedId?:string)=>{
   const date=today();const contract=leases.some(c=>c.room_id===r.id&&c.status==="نشط"&&c.start_date<=date&&c.end_date>date&&(!bedId||c.bed_id===bedId||!c.bed_id));
   const booked=bookings.some(b=>b.room_id===r.id&&["confirmed","pending"].includes(b.booking_status)&&b.start_date<=date&&b.end_date>date&&(!bedId||b.bed_id===bedId||!b.bed_id));
@@ -119,19 +217,50 @@ export default function Rooms(){
  const archive=async(r:Room)=>{if(!canWrite)return;if(!window.confirm(r.archived_at?"استعادة الغرفة من الأرشيف؟":"أرشفة الغرفة؟ لن تُحذف البيانات المالية."))return;setBusy(true);const result=await supabase.from("residential_rooms").update({archived_at:r.archived_at?null:new Date().toISOString()}).eq("company_id",COMPANY_ID).eq("id",r.id);setBusy(false);if(result.error)setError(result.error.message);else{setNotice(r.archived_at?"تمت استعادة الغرفة.":"تمت أرشفة الغرفة.");await load();}};
  const addBed=async()=>{if(!bedRoom||!newBed.trim()||!canWrite)return;setBedBusy(true);const result=await supabase.from("residential_room_beds").insert({company_id:COMPANY_ID,room_id:bedRoom.id,bed_number:newBed.trim()});setBedBusy(false);if(result.error)setError(result.error.message);else{setNewBed("");setNotice("تمت إضافة السرير.");await load();}};
  const removeBed=async(b:Bed)=>{if(!canWrite||!window.confirm("حذف هذا السرير؟ لن يتم الحذف إذا كان مرتبطًا بعقد أو حجز."))return;const result=await supabase.from("residential_room_beds").delete().eq("company_id",COMPANY_ID).eq("id",b.id);if(result.error)setError(result.error.message);else await load();};
- const startOperation=(kind:"contract"|"booking",r:Room)=>{setOperation(kind);setOperationRoom(r);setOpForm({tenant_id:"",bed_id:"",start_date:today(),end_date:"",amount:String(r.rent_amount),paid:"0",period:r.rent_period,number:"",payment:"نقدي"});setError("");};
+ const startOperation=(kind:"contract"|"booking",r:Room)=>{setOperation(kind);setOperationRoom(r);if(kind==="contract"){setContractRoomSelection(r.id);setContractDuration("شهري");setContractNotes("");setContractType("إيجار");setFirstDueDate(today());setContractNumberError("");setEditedDueDates({});setScheduleError("");}setOpForm({tenant_id:"",bed_id:"",start_date:today(),end_date:"",amount:String(r.rent_amount),paid:"0",period:r.rent_period,number:"",payment:"نقدي"});setError("");};
  const saveOperation=async()=>{
   if(!operationRoom||!operation||!canWrite)return;
   const f=opForm;const amount=Number(f.amount),paid=Number(f.paid);
   if(!f.tenant_id||!f.start_date||!f.end_date||f.end_date<=f.start_date)return setError("اختر العميل وتواريخ صحيحة.");
   if(operationRoom.rental_mode==="bed"&&!f.bed_id)return setError("يجب اختيار السرير.");
   if(!Number.isFinite(amount)||amount<0||!Number.isFinite(paid)||paid<0||paid>amount)return setError("راجع المبالغ المدخلة.");
+  if(operation==="contract"&&!contractRoomSelection)return setError("اختر الغرفة أولًا.");
   if(operation==="contract"&&!f.number.trim())return setError("رقم العقد مطلوب.");
+  if(operation==="contract"&&(!firstDueDate||firstDueDate<f.start_date||firstDueDate>=f.end_date))return setError("تاريخ أول استحقاق يجب أن يكون ضمن فترة العقد.");
+  if(operation==="contract"&&!installmentsPreview.length)return setError("تعذر حساب الأقساط. راجع دورية السداد والتواريخ.");
+  if(operation==="contract"){
+   const due=installmentsPreview.map(x=>x.due_date);
+   if(due.some(d=>!/^\d{4}-\d{2}-\d{2}$/.test(d)||Number.isNaN(Date.parse(d+"T00:00:00Z"))||d<f.start_date||d>=f.end_date))return setScheduleError("كل تاريخ استحقاق لازم يكون داخل فترة العقد.");
+   if(due.some((d,i)=>i>0&&d<=due[i-1]))return setScheduleError("تواريخ الأقساط لازم تكون متزايدة ومن غير تكرار.");
+  }
+  if(operation==="contract"){
+   const duplicate=await supabase.from("residential_room_contracts").select("id").eq("company_id",COMPANY_ID).eq("contract_number",f.number.trim()).limit(1);
+   if(duplicate.error)return setError("تعذر التحقق من رقم العقد: "+duplicate.error.message);
+   if(duplicate.data?.length){setContractNumberError("رقم العقد مستخدم بالفعل في عقود الغرف.");return setError("رقم العقد مستخدم بالفعل في عقود الغرف.");}
+  }
+
   setBusy(true);setError("");
   const common={company_id:COMPANY_ID,room_id:operationRoom.id,bed_id:operationRoom.rental_mode==="bed"?f.bed_id:null,tenant_id:f.tenant_id,start_date:f.start_date,end_date:f.end_date};
-  const result=operation==="contract"?await supabase.from("residential_room_contracts").insert({...common,contract_number:f.number.trim(),rent_amount:amount,rent_period:f.period,status:"نشط",owner_id:operationRoom.owner_id}):await supabase.from("residential_room_bookings").insert({...common,total_amount:amount,paid_amount:paid,payment_method:f.payment,booking_status:"confirmed"});
-  setBusy(false);if(result.error)return setError(result.error.message);
-  setOperation(null);setOperationRoom(null);setNotice(operation==="contract"?"تم تسجيل العقد. تنبيه: إنشاء جدول الأقساط والتحصيلات خطوة منفصلة.":"تم تسجيل الحجز. تنبيه: المدفوع المسجل بالحجز ليس إيصال تحصيل منفصلًا.");await load();
+  const result=operation==="contract"
+   ?await supabase.rpc("create_room_contract_with_installments",{
+      p_company_id:COMPANY_ID,
+      p_room_id:operationRoom.id,
+      p_bed_id:operationRoom.rental_mode==="bed"?f.bed_id:null,
+      p_tenant_id:f.tenant_id,
+      p_owner_id:operationRoom.owner_id,
+      p_contract_number:f.number.trim(),
+      p_start_date:f.start_date,
+      p_end_date:f.end_date,
+      p_rent_amount:amount,
+      p_rent_period:f.period,
+      p_contract_duration:contractDuration,
+      p_contract_type:contractType,
+      p_notes:contractNotes.trim()||null,
+      p_installments:installmentsPreview
+    })
+   :await supabase.from("residential_room_bookings").insert({...common,total_amount:amount,paid_amount:paid,payment_method:f.payment,booking_status:"confirmed"});
+  setBusy(false);if(result.error)return setError(result.error.code==="23505"?"رقم العقد مستخدم بالفعل في عقود الغرف.":result.error.message);
+  setOperation(null);setOperationRoom(null);setNotice(operation==="contract"?"تم تسجيل عقد الغرفة وحفظ جميع الأقساط بمواعيدها في قاعدة البيانات.":"تم تسجيل الحجز. تنبيه: المدفوع المسجل بالحجز ليس إيصال تحصيل منفصلًا.");await load();
  };
   const totalRooms=current.length;
   const occupiedRooms=current.filter(r=>["مؤجرة","مكتملة الإشغال","إشغال جزئي"].includes(status(r))).length;
@@ -183,7 +312,7 @@ export default function Rooms(){
     </header>
     {notice&&<div className="rounded-xl border border-emerald-300/30 bg-emerald-900/40 p-3">{notice}<button className="mr-3 underline" onClick={()=>setNotice("")}>إغلاق</button></div>}
     {error&&<div className="rounded-xl border border-red-400/50 bg-red-950/50 p-3 text-red-100">{error}<button className="mr-3 underline" onClick={()=>setError("")}>إغلاق</button></div>}
-    <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-7">{action("إضافة غرفة",Plus,openNew,"#10b981",!canWrite)}{action("عقد جديد",FilePlus2,()=>{const r=current.find(r=>status(r)==="متاحة");if(r)startOperation("contract",r);else setNotice("أضف غرفة متاحة أولًا، أو اختر غرفة من القائمة لإنشاء العقد.");},"#f5c96b",!canWrite)}{action("حذف / أرشفة",Trash2,()=>{setShowArchived(true);document.getElementById("rooms-list")?.scrollIntoView({behavior:"smooth"});},"#fb7185")}{action("تحديث البيانات",RefreshCw,()=>void load(),"#38bdf8")}{action("حجز جديد",CalendarPlus,()=>{const r=current.find(r=>status(r)==="متاحة");if(r)startOperation("booking",r);else setNotice("اختر غرفة متاحة من القائمة لإنشاء الحجز.");},"#fbbf24",!canWrite)}{action("العملاء",UserRoundPlus,()=>openReport("تقارير العملاء"),"#c4b5fd")}{action("الملاك",UserRoundCheck,()=>openReport("تقارير الملاك"),"#22d3ee")}</div>
+    <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-7">{action("إضافة غرفة",Plus,openNew,"#10b981",!canWrite)}{action("عقد جديد",FilePlus2,()=>{const r=current.find(r=>status(r)==="متاحة");if(r){startOperation("contract",r);setContractRoomSelection("");}else setNotice("أضف غرفة متاحة أولًا، أو اختر غرفة من القائمة لإنشاء العقد.");},"#f5c96b",!canWrite)}{action("حذف / أرشفة",Trash2,()=>{setShowArchived(true);document.getElementById("rooms-list")?.scrollIntoView({behavior:"smooth"});},"#fb7185")}{action("تحديث البيانات",RefreshCw,()=>void load(),"#38bdf8")}{action("حجز جديد",CalendarPlus,()=>{const r=current.find(r=>status(r)==="متاحة");if(r)startOperation("booking",r);else setNotice("اختر غرفة متاحة من القائمة لإنشاء الحجز.");},"#fbbf24",!canWrite)}{action("العملاء",UserRoundPlus,()=>openReport("تقارير العملاء"),"#c4b5fd")}{action("الملاك",UserRoundCheck,()=>openReport("تقارير الملاك"),"#22d3ee")}</div>
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">{action("إضافة / تحصيل مستحقات",ReceiptText,()=>setNotice("هذه العملية تحتاج ربط نموذج المستحقات والتحصيلات بقاعدة بيانات الغرف، ولم يتم تفعيل الحفظ بعد."),"#34d399")}{action("تحصيل إيجار",Wallet,()=>setNotice("يلزم تفعيل إيصالات الإيجار وتوزيعها على الأقساط قبل تسجيل التحصيلات."),"#a78bfa")}{action("إدارة الأسرّة",BedDouble,()=>{const r=current.find(r=>r.rental_mode==="bed");if(r)setBedRoom(r);else setNotice("أضف غرفة بنظام التأجير بالسرير أولًا.");},"#fbbf24")}{action("أنواع الغرف",Home,()=>openReport("تقارير الغرف"),"#22d3ee")}</div>
     <button type="button" onClick={()=>openReport("العقود القريبة من الانتهاء")} className={`${panel} flex w-full flex-col items-center justify-center gap-3 p-6 text-center transition hover:border-amber-200`}><CalendarDays size={64} className="text-amber-300"/><span className="rounded-full border border-amber-300/40 bg-amber-300/10 px-4 py-1 text-xs font-bold text-amber-200">تنبيه العقود</span><h2 className="text-xl font-black text-amber-100 sm:text-2xl">العقود القريبة من الانتهاء</h2><p className="text-xs text-emerald-100/70">متابعة العقود التي تنتهي خلال 30 يومًا</p><div className="grid w-full max-w-lg grid-cols-2 gap-3"><div className="rounded-xl bg-black/20 p-3">إجمالي العقود<strong className="block text-2xl">{leases.length}</strong></div><div className="rounded-xl bg-black/20 p-3">أقرب انتهاء<strong className="block text-xl">{expiring[0]?.end_date||"لا توجد عقود قريبة"}</strong></div></div></button>
     <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">{[{name:"إجمالي الغرف",value:totalRooms,Icon:LayoutGrid,color:"#7dd3fc"},{name:"إجمالي المؤجرة",value:occupiedRooms,Icon:BedDouble,color:"#fcd34d"},{name:"إجمالي المتاحة",value:freeRooms,Icon:Home,color:"#6ee7b7"},{name:"إجمالي المحجوزة",value:bookedRooms,Icon:CalendarCheck2,color:"#c4b5fd"}].map(x=><button key={x.name} onClick={()=>{setFilter(x.name==="إجمالي المؤجرة"?"مؤجرة":x.name==="إجمالي المتاحة"?"متاحة":x.name==="إجمالي المحجوزة"?"محجوزة":"الكل");document.getElementById("rooms-list")?.scrollIntoView({behavior:"smooth"});}} className={`${panel} flex min-h-[205px] flex-col items-center justify-center gap-2 p-4 text-center transition hover:-translate-y-1`} style={{borderColor:x.color}}><x.Icon size={68} style={{color:x.color}}/><span className="text-sm font-bold">{x.name}</span><strong className="text-3xl">{x.value}</strong><span className="text-xs text-emerald-100/60">عرض التفاصيل</span></button>)}</div>
@@ -219,6 +348,35 @@ export default function Rooms(){
     </div></div>}
    {optionModal&&<div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/80 p-4" onMouseDown={e=>{if(e.target===e.currentTarget&&!optionSaving)setOptionModal(null)}}><div dir="rtl" role="dialog" aria-modal="true" className="w-full max-w-md rounded-2xl border border-amber-300/50 bg-[#06382e] p-5 shadow-2xl"><h3 className="mb-4 text-lg font-black text-amber-300">إضافة {optionModal.title}</h3>{error&&<p className="mb-3 rounded-lg border border-rose-400/40 bg-rose-950/40 p-2 text-sm text-rose-200">{error}</p>}<label className={label}>القيمة الجديدة</label><input autoFocus className={`${field} mb-5 min-h-[47px]`} value={optionName} onChange={e=>setOptionName(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")void addOption()}} placeholder={`اكتب ${optionModal.title}`}/><div className="flex justify-end gap-2"><button type="button" disabled={optionSaving} onClick={()=>{setOptionModal(null);setError("")}} className="rounded-xl border border-white/30 px-5 py-2">إلغاء</button><button type="button" disabled={optionSaving||!optionName.trim()} onClick={()=>void addOption()} className="rounded-xl bg-amber-300 px-5 py-2 font-bold text-[#06382e] disabled:opacity-40">{optionSaving?"جارٍ الحفظ...":"حفظ الخيار"}</button></div></div></div>}
   {bedRoom&&<div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 p-3"><div className="w-full max-w-lg rounded-3xl border border-amber-300/50 bg-[#08372D] p-6"><div className="mb-4 flex items-center justify-between"><h2 className="text-xl font-bold text-amber-300">أسرّة الغرفة {bedRoom.room_number}</h2><button onClick={()=>setBedRoom(null)}><X/></button></div><p className="mb-4 text-sm text-emerald-100/75">عدد الأسرّة المسجلة: {beds.filter(b=>b.room_id===bedRoom.id).length} / العدد المتوقع: {bedRoom.beds_count}</p><div className="max-h-64 space-y-2 overflow-auto">{beds.filter(b=>b.room_id===bedRoom.id).map(b=><div key={b.id} className="flex items-center justify-between rounded-xl border border-white/10 p-3"><span>سرير {b.bed_number} — {active(bedRoom,b.id)}</span><button disabled={!canWrite} onClick={()=>void removeBed(b)} className="text-xs text-red-200 disabled:opacity-40">حذف</button></div>)}</div><div className="mt-4 flex gap-2"><input className={field} placeholder="رقم / اسم السرير" value={newBed} onChange={e=>setNewBed(e.target.value)}/><button disabled={bedBusy||!canWrite} onClick={()=>void addBed()} className="rounded-xl bg-amber-300 px-4 font-bold text-[#073329] disabled:opacity-40">إضافة</button></div></div></div>}
-  {operation&&operationRoom&&<div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-black/75 p-3"><div className="my-auto max-h-[94vh] w-full max-w-xl overflow-y-auto rounded-3xl border border-amber-300/50 bg-[#08372D] p-6"><div className="mb-4 flex items-center justify-between"><h2 className="text-xl font-bold text-amber-300">{operation==="contract"?"عقد جديد":"حجز جديد"} — غرفة {operationRoom.room_number}</h2><button onClick={()=>setOperation(null)}><X/></button></div>{error&&<p className="mb-3 rounded-lg bg-red-950/70 p-3 text-red-100">{error}</p>}<div className="grid gap-4 sm:grid-cols-2"><label className="sm:col-span-2"><span className={label}>العميل</span><select className={field} value={opForm.tenant_id} onChange={e=>setOpForm({...opForm,tenant_id:e.target.value})}><option value="">اختر العميل</option>{tenants.map(t=><option key={t.id} value={t.id}>{t.full_name}</option>)}</select></label>{operationRoom.rental_mode==="bed"&&<label className="sm:col-span-2"><span className={label}>السرير</span><select className={field} value={opForm.bed_id} onChange={e=>setOpForm({...opForm,bed_id:e.target.value})}><option value="">اختر السرير</option>{beds.filter(b=>b.room_id===operationRoom.id).map(b=><option key={b.id} value={b.id}>{b.bed_number}</option>)}</select></label>}{operation==="contract"&&<label className="sm:col-span-2"><span className={label}>رقم العقد</span><input className={field} value={opForm.number} onChange={e=>setOpForm({...opForm,number:e.target.value})}/></label>}<label><span className={label}>تاريخ البداية</span><input type="date" className={field} value={opForm.start_date} onChange={e=>setOpForm({...opForm,start_date:e.target.value})}/></label><label><span className={label}>تاريخ النهاية</span><input type="date" className={field} value={opForm.end_date} onChange={e=>setOpForm({...opForm,end_date:e.target.value})}/></label><label><span className={label}>قيمة {operation==="contract"?"الإيجار":"الحجز"}</span><input type="number" min="0" className={field} value={opForm.amount} onChange={e=>setOpForm({...opForm,amount:e.target.value})}/></label>{operation==="contract"?<label><span className={label}>دورية الإيجار</span><select className={field} value={opForm.period} onChange={e=>setOpForm({...opForm,period:e.target.value})}>{["يومي","شهري","سنوي"].map(x=><option key={x}>{x}</option>)}</select></label>:<><label><span className={label}>المبلغ المدفوع عند الحجز</span><input type="number" min="0" className={field} value={opForm.paid} onChange={e=>setOpForm({...opForm,paid:e.target.value})}/></label><label><span className={label}>طريقة الدفع</span><select className={field} value={opForm.payment} onChange={e=>setOpForm({...opForm,payment:e.target.value})}>{["نقدي","تحويل بنكي","شبكة"].map(x=><option key={x}>{x}</option>)}</select></label></>}</div><p className="mt-4 text-xs text-amber-100/70">سيتم فحص تداخل المواعيد بواسطة قاعدة البيانات. هذه الخطوة تسجل العقد أو الحجز فقط؛ إعداد الأقساط والإيصالات المالية يتم لاحقًا.</p><div className="mt-5 flex justify-end gap-3"><button className="rounded-xl border border-amber-300/40 px-5 py-2" onClick={()=>setOperation(null)}>إلغاء</button><button disabled={busy} onClick={()=>void saveOperation()} className="rounded-xl bg-amber-300 px-6 py-2 font-bold text-[#073329] disabled:opacity-50">حفظ</button></div></div></div>}
+     {operation === "contract" && operationRoom && <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 p-3 backdrop-blur-md" dir="rtl" onMouseDown={e=>{if(e.target===e.currentTarget&&!busy)setOperation(null)}}>
+     <div role="dialog" aria-modal="true" aria-label="إضافة عقد جديد" className="relative mx-auto flex min-w-0 flex-col overflow-hidden rounded-[24px] border border-amber-300/65 bg-[#052b24] text-white shadow-[0_30px_100px_rgba(0,0,0,.75)]" style={{width:"min(890px, calc(100vw - 32px))",maxWidth:"890px",minWidth:0,maxHeight:"min(800px,94dvh)",marginInline:"auto"}}>
+       <div className="pointer-events-none absolute inset-0" style={{backgroundImage:"url('/add-contract.png')",backgroundPosition:"center",backgroundSize:"contain",backgroundRepeat:"no-repeat",backgroundColor:"#052b24",opacity:0.88}}/>
+       <div className="pointer-events-none absolute inset-0 bg-gradient-to-l from-[#052b24]/80 via-[#052b24]/62 to-[#052b24]/30"/>
+       <div className="relative min-h-0 overflow-y-auto p-5 sm:p-7">
+         <button type="button" aria-label="إغلاق" onClick={()=>setOperation(null)} className="absolute left-4 top-4 rounded-full border border-amber-300/50 bg-[#073b31] p-2"><X size={17}/></button>
+         <header className="mb-5 text-center"><FilePlus2 size={32} className="mx-auto text-amber-300"/><h2 className="text-2xl font-black text-amber-200">إضافة عقد جديد</h2><p className="text-xs text-emerald-100/75">ربط عقد بغرفة وعميل مسجلين</p></header>
+         {error&&<p role="alert" className="mb-3 rounded-xl border border-rose-300/40 bg-rose-900/50 p-3 text-sm">{error}</p>}
+         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+           <label className="text-sm font-bold">الغرفة *<select className={`${field} mt-1 h-11`} value={contractRoomSelection} onChange={e=>{const room=rooms.find(r=>r.id===e.target.value);if(room){const previous={...opForm};startOperation("contract",room);setOpForm({...previous,bed_id:"",amount:String(room.rent_amount),period:room.rent_period});}}}><option value="">اختر الغرفة</option>{current.map(r=><option key={r.id} value={r.id}>غرفة {r.room_number}{r.building_name?` — ${r.building_name}`:""}</option>)}</select></label>
+           <label className="text-sm font-bold">المالك<input className={`${field} mt-1 h-11 opacity-85`} readOnly value={owners.find(o=>o.id===operationRoom.owner_id)?.full_name||"لا يوجد مالك مرتبط بالغرفة"}/></label>
+           <div className="text-sm font-bold">المستأجر *<div className="mt-1 flex gap-2"><select className={`${field} h-11 min-w-0 flex-1`} value={opForm.tenant_id} onChange={e=>setOpForm(p=>({...p,tenant_id:e.target.value}))}><option value="">اختر مستأجرًا مسجلًا</option>{tenants.map(t=><option key={t.id} value={t.id}>{t.full_name}</option>)}</select><button type="button" aria-label="إضافة مستأجر" onClick={()=>{setError("");setTenantModal(true)}} className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-amber-300/50 bg-amber-300/15 text-amber-200"><Plus size={20}/></button></div></div>
+           <label className="text-sm font-bold">رقم العقد *<input className={`${field} mt-1 h-11`} value={opForm.number} onChange={e=>{setContractNumberError("");setOpForm(p=>({...p,number:e.target.value}))}}/>{contractNumberError&&<span className="block text-xs text-rose-300">{contractNumberError}</span>}</label>
+           {operationRoom.rental_mode==="bed"&&<label className="text-sm font-bold">السرير *<select className={`${field} mt-1 h-11`} value={opForm.bed_id} onChange={e=>setOpForm(p=>({...p,bed_id:e.target.value}))}><option value="">اختر السرير</option>{beds.filter(b=>b.room_id===operationRoom.id).map(b=><option key={b.id} value={b.id}>{b.bed_number}</option>)}</select></label>}
+           <div className="text-sm font-bold">نوع العقد<div className="mt-1 flex gap-2"><select className={`${field} h-11 min-w-0 flex-1`} value={contractType} onChange={e=>setContractType(e.target.value)}>{contractTypes.map(x=><option key={x}>{x}</option>)}</select><button type="button" aria-label="إضافة نوع عقد" onClick={()=>{setError("");setContractTypeModal(true)}} className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-amber-300/50 bg-amber-300/15 text-amber-200"><Plus size={20}/></button></div></div>
+           <div className="text-sm font-bold">مدة العقد<div className="mt-1 flex items-center gap-2"><select className={`${field} h-11 min-w-0 flex-1`} value={contractDuration} onChange={e=>setContractDuration(e.target.value)}>{durationOptions.map(x=><option key={x} value={x}>{x}</option>)}</select><button type="button" title="إضافة مدة عقد جديدة" onClick={()=>{setDurationError("");setNewDuration("");setDurationAddOpen(true);}} className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-amber-300/50 bg-amber-300/15 text-amber-200"><Plus size={20}/></button></div></div>
+           <label className="text-sm font-bold">تاريخ البداية *<input type="date" className={`${field} mt-1 h-11`} value={opForm.start_date} onChange={e=>setOpForm(p=>({...p,start_date:e.target.value}))}/></label>
+           <label className="text-sm font-bold">تاريخ النهاية *<input type="date" className={`${field} mt-1 h-11`} value={opForm.end_date} onChange={e=>setOpForm(p=>({...p,end_date:e.target.value}))}/></label>
+           <label className="text-sm font-bold sm:col-span-2">إجمالي قيمة العقد (ر.س)<input type="number" min="0" step="0.01" className={`${field} mt-1 h-11`} value={opForm.amount} onChange={e=>setOpForm(p=>({...p,amount:e.target.value}))}/></label>
+           <div className="rounded-2xl border border-amber-300/35 bg-[#052c25]/85 p-4 sm:col-span-2"><h3 className="mb-3 text-base font-black text-amber-200">جدول سداد الإيجار</h3><div className="grid grid-cols-1 gap-3 sm:grid-cols-2"><label className="text-sm font-bold">دورية السداد *<select className={`${field} mt-1 h-11`} value={opForm.period} onChange={e=>setOpForm(p=>({...p,period:e.target.value}))}>{["يومي","أسبوعي","شهري","ربع سنوي","نصف سنوي","سنوي"].map(x=><option key={x}>{x}</option>)}</select></label><label className="text-sm font-bold">تاريخ أول استحقاق *<input type="date" className={`${field} mt-1 h-11`} value={firstDueDate} onChange={e=>setFirstDueDate(e.target.value)}/></label></div><p className="mt-3 text-xs text-emerald-100/80">يمكنك تعديل تاريخ كل دفعة يدويًا قبل الحفظ. تُوزّع قيمة العقد بالتساوي، ويُحفظ العقد والأقساط معًا.</p>{installmentsPreview.length>0?<div className="mt-3 max-h-64 overflow-y-auto rounded-xl border border-amber-300/45 bg-[#05382e]/85"><table className="w-full text-right text-sm sm:text-base"><thead className="sticky top-0 bg-[#125441] text-amber-200"><tr><th className="p-2">القسط</th><th className="p-2">تاريخ الاستحقاق (قابل للتعديل)</th><th className="p-2">القيمة (ر.س)</th></tr></thead><tbody>{installmentsPreview.map((item,i)=><tr key={i} className="border-t border-white/10"><td className="p-2 font-bold text-amber-100">{item.installment_no}</td><td className="p-1.5"><input type="date" aria-label={`تاريخ استحقاق القسط ${i+1}`} className="w-full min-w-[160px] rounded-lg border border-amber-300/70 bg-[#153f32] px-3 py-2 text-sm font-bold text-amber-200 outline-none focus:ring-2 focus:ring-amber-300 [color-scheme:dark]" min={opForm.start_date} max={opForm.end_date} value={item.due_date} onChange={e=>{setScheduleError("");setEditedDueDates(prev=>({...prev,[i]:e.target.value}));}}/></td><td className="p-2 text-base font-black text-amber-300 tabular-nums">{money(item.amount)}</td></tr>)}</tbody></table></div>:<p className="mt-2 text-xs text-amber-200">حدد تاريخ بداية ونهاية صحيحين وأول استحقاق ودورية السداد لعرض الأقساط.</p>}{scheduleError&&<p role="alert" className="mt-2 text-xs font-bold text-rose-300">{scheduleError}</p>}<p className="mt-2 text-xs text-emerald-100/70">عند الحفظ يُسجل العقد وجدول أقساطه في جداول الغرف المستقلة، ولا يمس عقود الشقق.</p></div>
+           <label className="text-sm font-bold sm:col-span-2">ملاحظات<textarea rows={3} className={`${field} mt-1 resize-y`} value={contractNotes} onChange={e=>setContractNotes(e.target.value)} placeholder="اكتب ملاحظات العقد إن وجدت..."/></label>
+         </div>
+         <div className="mt-5 flex gap-3"><button type="button" disabled={busy||!canWrite} onClick={()=>void saveOperation()} className="min-h-11 flex-[2] rounded-xl bg-gradient-to-l from-[#f3d477] to-[#b88828] font-black text-[#09251f] disabled:opacity-50">{busy?"جارٍ الحفظ...":"حفظ العقد"}</button><button type="button" disabled={busy} onClick={()=>setOperation(null)} className="min-h-11 flex-1 rounded-xl border border-amber-300/40 bg-[#073b31]/90 font-bold">إلغاء</button></div>
+       </div>
+     </div>
+   </div>}
+   {tenantModal&&<div className="fixed inset-0 z-[155] flex items-center justify-center bg-black/85 p-4"><div dir="rtl" role="dialog" aria-modal="true" className="max-h-[88dvh] w-full max-w-lg overflow-y-auto rounded-2xl border border-amber-300/50 bg-[#06382e] p-5 text-white"><h3 className="mb-4 text-lg font-black text-amber-300">إضافة مستأجر جديد</h3>{error&&<p className="mb-3 text-sm text-rose-200">{error}</p>}<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">{([ ["full_name","اسم المستأجر *"],["phone","رقم الجوال"],["identity_number","رقم الهوية / الإقامة"],["nationality","الجنسية"],["email","البريد الإلكتروني"],["notes","ملاحظات"] ] as const).map(([key,title])=><label key={key} className="text-sm">{title}<input className={`${field} mt-1 h-11`} value={newTenant[key]} onChange={e=>setNewTenant(p=>({...p,[key]:e.target.value}))}/></label>)}</div><div className="mt-5 flex justify-end gap-2"><button type="button" onClick={()=>{setTenantModal(false);setError("")}} className="rounded-xl border border-white/30 px-5 py-2">إلغاء</button><button type="button" disabled={tenantBusy||!newTenant.full_name.trim()} onClick={()=>void saveNewTenant()} className="rounded-xl bg-amber-300 px-5 py-2 font-black text-[#06382e] disabled:opacity-50">{tenantBusy?"جارٍ الحفظ...":"حفظ المستأجر"}</button></div></div></div>}
+   {contractTypeModal&&<div className="fixed inset-0 z-[155] flex items-center justify-center bg-black/85 p-4"><div dir="rtl" role="dialog" aria-modal="true" className="w-full max-w-sm rounded-2xl border border-amber-300/50 bg-[#06382e] p-5 text-white"><h3 className="mb-4 text-lg font-black text-amber-300">إضافة نوع عقد</h3>{error&&<p className="mb-3 text-sm text-rose-200">{error}</p>}<label className="text-sm">نوع العقد<input autoFocus className={`${field} mt-1 h-11`} value={newContractType} onChange={e=>setNewContractType(e.target.value)}/></label><div className="mt-5 flex justify-end gap-2"><button type="button" onClick={()=>{setContractTypeModal(false);setError("")}} className="rounded-xl border border-white/30 px-5 py-2">إلغاء</button><button type="button" disabled={contractTypeBusy||!newContractType.trim()} onClick={()=>void saveContractType()} className="rounded-xl bg-amber-300 px-5 py-2 font-black text-[#06382e] disabled:opacity-50">{contractTypeBusy?"جارٍ الحفظ...":"حفظ النوع"}</button></div></div></div>}
+   {durationAddOpen&&<div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/85 p-4" onMouseDown={e=>{if(e.target===e.currentTarget&&!durationSaving)setDurationAddOpen(false)}}><div dir="rtl" role="dialog" aria-modal="true" className="w-full max-w-sm rounded-2xl border border-amber-300/50 bg-[#06382e] p-5 text-white shadow-2xl"><h3 className="mb-4 text-lg font-black text-amber-300">إضافة مدة عقد جديدة</h3>{durationError&&<p role="alert" className="mb-3 rounded-lg bg-rose-900/50 p-2 text-sm text-rose-200">{durationError}</p>}<label className={label}>اسم المدة</label><input autoFocus className={`${field} mb-4 h-11`} value={newDuration} onChange={e=>setNewDuration(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")void addDurationOption()}} placeholder="مثال: نصف سنوي"/><div className="flex justify-end gap-2"><button type="button" disabled={durationSaving} onClick={()=>setDurationAddOpen(false)} className="rounded-xl border border-white/30 px-4 py-2">إلغاء</button><button type="button" disabled={durationSaving||!newDuration.trim()} onClick={()=>void addDurationOption()} className="rounded-xl bg-amber-300 px-4 py-2 font-black text-[#06382e] disabled:opacity-50">{durationSaving?"جارٍ الحفظ...":"حفظ المدة"}</button></div></div></div>}
+{operation==="booking"&&operationRoom&&<div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-black/75 p-3"><div className="my-auto max-h-[94vh] w-full max-w-xl overflow-y-auto rounded-3xl border border-amber-300/50 bg-[#08372D] p-6"><div className="mb-4 flex items-center justify-between"><h2 className="text-xl font-bold text-amber-300">{false?"عقد جديد":"حجز جديد"} — غرفة {operationRoom.room_number}</h2><button onClick={()=>setOperation(null)}><X/></button></div>{error&&<p className="mb-3 rounded-lg bg-red-950/70 p-3 text-red-100">{error}</p>}<div className="grid gap-4 sm:grid-cols-2"><label className="sm:col-span-2"><span className={label}>العميل</span><select className={field} value={opForm.tenant_id} onChange={e=>setOpForm({...opForm,tenant_id:e.target.value})}><option value="">اختر العميل</option>{tenants.map(t=><option key={t.id} value={t.id}>{t.full_name}</option>)}</select></label>{operationRoom.rental_mode==="bed"&&<label className="sm:col-span-2"><span className={label}>السرير</span><select className={field} value={opForm.bed_id} onChange={e=>setOpForm({...opForm,bed_id:e.target.value})}><option value="">اختر السرير</option>{beds.filter(b=>b.room_id===operationRoom.id).map(b=><option key={b.id} value={b.id}>{b.bed_number}</option>)}</select></label>}{false&&<label className="sm:col-span-2"><span className={label}>رقم العقد</span><input className={field} value={opForm.number} onChange={e=>setOpForm({...opForm,number:e.target.value})}/></label>}<label><span className={label}>تاريخ البداية</span><input type="date" className={field} value={opForm.start_date} onChange={e=>setOpForm({...opForm,start_date:e.target.value})}/></label><label><span className={label}>تاريخ النهاية</span><input type="date" className={field} value={opForm.end_date} onChange={e=>setOpForm({...opForm,end_date:e.target.value})}/></label><label><span className={label}>قيمة {false?"الإيجار":"الحجز"}</span><input type="number" min="0" className={field} value={opForm.amount} onChange={e=>setOpForm({...opForm,amount:e.target.value})}/></label>{false?<label><span className={label}>دورية الإيجار</span><select className={field} value={opForm.period} onChange={e=>setOpForm({...opForm,period:e.target.value})}>{["يومي","شهري","سنوي"].map(x=><option key={x}>{x}</option>)}</select></label>:<><label><span className={label}>المبلغ المدفوع عند الحجز</span><input type="number" min="0" className={field} value={opForm.paid} onChange={e=>setOpForm({...opForm,paid:e.target.value})}/></label><label><span className={label}>طريقة الدفع</span><select className={field} value={opForm.payment} onChange={e=>setOpForm({...opForm,payment:e.target.value})}>{["نقدي","تحويل بنكي","شبكة"].map(x=><option key={x}>{x}</option>)}</select></label></>}</div><p className="mt-4 text-xs text-amber-100/70">سيتم فحص تداخل المواعيد بواسطة قاعدة البيانات. هذه الخطوة تسجل العقد أو الحجز فقط؛ إعداد الأقساط والإيصالات المالية يتم لاحقًا.</p><div className="mt-5 flex justify-end gap-3"><button className="rounded-xl border border-amber-300/40 px-5 py-2" onClick={()=>setOperation(null)}>إلغاء</button><button disabled={busy} onClick={()=>void saveOperation()} className="rounded-xl bg-amber-300 px-6 py-2 font-bold text-[#073329] disabled:opacity-50">حفظ</button></div></div></div>}
  </main>;
 }
