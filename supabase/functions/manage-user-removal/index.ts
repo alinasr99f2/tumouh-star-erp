@@ -1,6 +1,7 @@
 // Supabase Edge Function: manage-user-removal
 // Keep the service-role key on the server. Deploy with JWT verification enabled.
-import { createClient } from "npm:@supabase/supabase-js@2";
+// REVIEW BUILD ONLY: test in staging before replacing the production function.
+import { createClient } from "@supabase/supabase-js";
 
 const OWNER_AUTH_ID = "efd4f725-d34a-4438-bc15-8ee410c9d5a9";
 const OWNER_EMAIL = "alinasr99f@gmail.com";
@@ -88,6 +89,57 @@ Deno.serve(async (request) => {
     }
     if (!target.auth_user_id) {
       return json(409, { error: "Auth identity not linked; manual review required" });
+    }
+
+    // Tenant authorization is server-side. Never trust a tenant ID from the request.
+    // Platform owner may administer across tenants; everyone else must have exactly
+    // one active membership and the target must belong exclusively to that tenant.
+    // A globally disabled/banned Auth identity affects ALL tenants, so reject any
+    // target with multiple memberships (even inactive ones) pending a tenant-scoped
+    // deactivation design.
+    if (!isOwner) {
+      const { data: actorMemberships, error: actorMembershipError } = await admin
+        .from("tenant_memberships")
+        .select("tenant_id, role, active")
+        .eq("user_id", verified.user.id);
+      if (actorMembershipError || !actorMemberships) {
+        console.error("Unable to verify actor memberships:", actorMembershipError);
+        return json(500, { error: "Unable to verify company membership" });
+      }
+      const activeActorMemberships = actorMemberships.filter((m) => m.active === true);
+      if (activeActorMemberships.length !== 1) {
+        return json(403, { error: "Exactly one active company membership is required" });
+      }
+      const actorTenantId = activeActorMemberships[0].tenant_id;
+
+      const { data: targetMemberships, error: targetMembershipError } = await admin
+        .from("tenant_memberships")
+        .select("tenant_id, role, active")
+        .eq("user_id", target.auth_user_id);
+      if (targetMembershipError || !targetMemberships) {
+        console.error("Unable to verify target memberships:", targetMembershipError);
+        return json(500, { error: "Unable to verify target company" });
+      }
+      if (targetMemberships.length !== 1 ||
+          targetMemberships[0].active !== true ||
+          targetMemberships[0].tenant_id !== actorTenantId) {
+        return json(403, { error: "Target is not exclusively in your active company" });
+      }
+
+      const { data: tenant, error: tenantError } = await admin
+        .from("platform_tenants")
+        .select("id, status")
+        .eq("id", actorTenantId)
+        .maybeSingle();
+      if (tenantError || !tenant || tenant.status !== "active") {
+        return json(403, { error: "Company is not active or could not be verified" });
+      }
+
+      // Company administrators cannot disable another system administrator,
+      // nor the company's owner membership. Only the central platform owner can.
+      if (target.role === "مدير النظام" || targetMemberships[0].role === "owner") {
+        return json(403, { error: "Protected company administrator" });
+      }
     }
 
     // Check every known history/reference table. An error must never permit deletion.
