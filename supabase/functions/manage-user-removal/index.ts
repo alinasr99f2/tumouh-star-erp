@@ -91,12 +91,26 @@ Deno.serve(async (request) => {
       return json(409, { error: "Auth identity not linked; manual review required" });
     }
 
+    // A Supabase Auth ban affects every company. Never globally deactivate a
+    // user who has multiple tenant memberships, even when the actor is the
+    // central platform owner. Company-scoped removal requires a separate flow.
+    const { data: targetMemberships, error: targetMembershipError } = await admin
+      .from("tenant_memberships")
+      .select("tenant_id, role, active")
+      .eq("user_id", target.auth_user_id);
+    if (targetMembershipError || !targetMemberships) {
+      console.error("Unable to verify target memberships:", targetMembershipError);
+      return json(500, { error: "Unable to verify target company memberships" });
+    }
+    if (targetMemberships.length > 1) {
+      return json(409, {
+        error: "Account belongs to multiple companies; use company-scoped deactivation",
+      });
+    }
+
     // Tenant authorization is server-side. Never trust a tenant ID from the request.
-    // Platform owner may administer across tenants; everyone else must have exactly
-    // one active membership and the target must belong exclusively to that tenant.
-    // A globally disabled/banned Auth identity affects ALL tenants, so reject any
-    // target with multiple memberships (even inactive ones) pending a tenant-scoped
-    // deactivation design.
+    // Non-platform actors need exactly one active membership, an administrative
+    // tenant role, and users_delete permission (checked above).
     if (!isOwner) {
       const { data: actorMemberships, error: actorMembershipError } = await admin
         .from("tenant_memberships")
@@ -111,15 +125,13 @@ Deno.serve(async (request) => {
         return json(403, { error: "Exactly one active company membership is required" });
       }
       const actorTenantId = activeActorMemberships[0].tenant_id;
-
-      const { data: targetMemberships, error: targetMembershipError } = await admin
-        .from("tenant_memberships")
-        .select("tenant_id, role, active")
-        .eq("user_id", target.auth_user_id);
-      if (targetMembershipError || !targetMemberships) {
-        console.error("Unable to verify target memberships:", targetMembershipError);
-        return json(500, { error: "Unable to verify target company" });
+      const actorTenantRole = activeActorMemberships[0].role;
+      if (!["owner", "admin"].includes(actorTenantRole)) {
+        return json(403, {
+          error: "Only company owners and administrators can deactivate users",
+        });
       }
+
       if (targetMemberships.length !== 1 ||
           targetMemberships[0].active !== true ||
           targetMemberships[0].tenant_id !== actorTenantId) {
@@ -135,8 +147,8 @@ Deno.serve(async (request) => {
         return json(403, { error: "Company is not active or could not be verified" });
       }
 
-      // Company administrators cannot disable another system administrator,
-      // nor the company's owner membership. Only the central platform owner can.
+      // Company administrators cannot disable another system administrator
+      // or a company owner. The central platform owner is handled separately.
       if (target.role === "مدير النظام" || targetMemberships[0].role === "owner") {
         return json(403, { error: "Protected company administrator" });
       }
