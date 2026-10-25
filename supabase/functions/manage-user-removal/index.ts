@@ -10,18 +10,54 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
+
+
+type RpcError = { message: string; code?: string; details?: string; hint?: string };
+type RpcResult = { data: unknown; error: RpcError | null };
+type RpcClient = {
+  rpc: (functionName: string, args?: Record<string, unknown>) => PromiseLike<RpcResult>;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
 const ACTIVITY_TABLES = [
-  ["activity_logs", "user_id"], ["accounts", "created_by"],
-  ["building_apartments", "created_by"], ["building_state", "created_by"],
-  ["building_transactions", "created_by"], ["buildings", "created_by"],
-  ["categories", "created_by"], ["expense_items", "created_by"],
-  ["expense_stages", "created_by"], ["expenses", "created_by"],
-  ["funding", "created_by"], ["payment_methods", "created_by"],
-  ["project_material_plans", "created_by"], ["project_material_usage", "created_by"],
-  ["project_villas", "created_by"], ["projects", "created_by"],
-  ["residential_apartments", "created_by"], ["residential_contracts", "created_by"],
-  ["residential_tenants", "created_by"], ["suppliers", "created_by"],
-  ["tenant_leases", "created_by"], ["tenants", "created_by"],
+  ["expense_excel_import_batches", "created_by"],
+  ["residential_bookings", "created_by"],
+  ["residential_booking_payments", "created_by"],
+  ["residential_charges", "created_by"],
+  ["residential_charge_payments", "created_by"],
+  ["residential_rent_receipts", "created_by"],
+  ["residential_rooms", "created_by"],
+  ["residential_room_contracts", "created_by"],
+  ["residential_room_bookings", "created_by"],
+  ["residential_room_booking_payments", "created_by"],
+  ["residential_room_charges", "created_by"],
+  ["residential_room_charge_payments", "created_by"],
+  ["residential_room_receipts", "created_by"],
+  ["activity_logs", "user_id"],
+  ["accounts", "created_by"],
+  ["building_apartments", "created_by"],
+  ["building_state", "created_by"],
+  ["building_transactions", "created_by"],
+  ["buildings", "created_by"],
+  ["categories", "created_by"],
+  ["expense_items", "created_by"],
+  ["expense_stages", "created_by"],
+  ["expenses", "created_by"],
+  ["funding", "created_by"],
+  ["payment_methods", "created_by"],
+  ["project_material_plans", "created_by"],
+  ["project_material_usage", "created_by"],
+  ["project_villas", "created_by"],
+  ["projects", "created_by"],
+  ["residential_apartments", "created_by"],
+  ["residential_contracts", "created_by"],
+  ["residential_tenants", "created_by"],
+  ["suppliers", "created_by"],
+  ["tenant_leases", "created_by"],
+  ["tenants", "created_by"],
   ["building_state_backup_20261012", "created_by"],
   ["building_state_backup_before_number_fix_20261012", "created_by"],
 ] as const;
@@ -33,6 +69,54 @@ function json(status: number, body: unknown) {
   });
 }
 
+async function releaseLease(
+  admin: unknown,
+  operationId: string,
+  leaseToken: string,
+  message: string,
+) {
+  const { error } = await (admin as unknown as RpcClient).rpc("release_user_deactivation_lease", {
+    p_operation_id: operationId,
+    p_lease_token: leaseToken,
+    p_error: message,
+  });
+  if (error) {
+    console.error("Unable to release deactivation lease:", {
+      operationId,
+      message: error.message,
+      code: error.code,
+    });
+    return false;
+  }
+  return true;
+}
+
+async function recordProgress(
+  admin: unknown,
+  operationId: string,
+  leaseToken: string,
+  appDisabled: boolean,
+  authBanned: boolean,
+  errorMessage: string | null,
+) {
+  const { data, error } = await (admin as unknown as RpcClient).rpc("update_user_deactivation_progress", {
+    p_operation_id: operationId,
+    p_lease_token: leaseToken,
+    p_app_disabled: appDisabled,
+    p_auth_banned: authBanned,
+    p_error: errorMessage,
+  });
+  if (error) {
+    console.error("Unable to record deactivation progress:", {
+      operationId,
+      message: error.message,
+      code: error.code,
+    });
+    return { ok: false, status: null as string | null };
+  }
+  return { ok: true, status: typeof data === "string" ? data : null };
+}
+
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (request.method !== "POST") return json(405, { error: "Method not allowed" });
@@ -41,10 +125,14 @@ Deno.serve(async (request) => {
     const url = Deno.env.get("SUPABASE_URL");
     const anon = Deno.env.get("SUPABASE_ANON_KEY");
     const service = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    if (!url || !anon || !service) return json(500, { error: "Missing server configuration" });
+    if (!url || !anon || !service) {
+      return json(500, { error: "Missing server configuration" });
+    }
 
     const bearer = request.headers.get("Authorization") ?? "";
-    if (!bearer.startsWith("Bearer ")) return json(401, { error: "Authentication required" });
+    if (!bearer.startsWith("Bearer ")) {
+      return json(401, { error: "Authentication required" });
+    }
     const token = bearer.slice(7);
     const authClient = createClient(url, anon, {
       auth: { persistSession: false, autoRefreshToken: false },
@@ -55,9 +143,11 @@ Deno.serve(async (request) => {
     const admin = createClient(url, service, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
+
     const { data: actor, error: actorError } = await admin.from("users")
-      .select("id, role, active, permissions, auth_user_id")
-      .eq("auth_user_id", verified.user.id).maybeSingle();
+      .select("id, role, active, permissions, auth_user_id, email")
+      .eq("auth_user_id", verified.user.id)
+      .maybeSingle();
     if (actorError) {
       console.error("Unable to load acting user:", actorError.message, actorError.code);
       return json(500, { error: "Unable to verify account status; check Edge Function logs" });
@@ -65,15 +155,47 @@ Deno.serve(async (request) => {
     if (!actor) return json(403, { error: "Account not registered" });
     if (actor.auth_user_id !== verified.user.id) return json(403, { error: "Account identity mismatch" });
     if (actor.active !== true) return json(403, { error: "Account disabled" });
+
     const isOwner = verified.user.id === OWNER_AUTH_ID &&
       verified.user.email?.trim().toLowerCase() === OWNER_EMAIL;
-    if (!isOwner && actor.permissions?.users_delete !== true) {
+
+    // Check the canonical permission record, while preserving the existing
+    // JSON permission format used by the current UI.
+    let hasDeletePermission = actor.permissions?.users_delete === true ||
+      actor.permissions?.["users.delete"] === true;
+    if (!hasDeletePermission && !isOwner) {
+      const { data: permission, error: permissionError } = await admin.from("permissions")
+        .select("id")
+        .eq("code", "users.delete")
+        .maybeSingle();
+      if (permissionError) {
+        console.error("Unable to load users.delete permission:", permissionError.message);
+        return json(500, { error: "Unable to verify delete permission" });
+      }
+      if (permission) {
+        const { data: userPermission, error: userPermissionError } = await admin
+          .from("user_permissions")
+          .select("user_id")
+          .eq("user_id", verified.user.id)
+          .eq("permission_id", permission.id)
+          .maybeSingle();
+        if (userPermissionError) {
+          console.error("Unable to verify users.delete assignment:", userPermissionError.message);
+          return json(500, { error: "Unable to verify delete permission" });
+        }
+        hasDeletePermission = !!userPermission;
+      }
+    }
+    if (!isOwner && !hasDeletePermission) {
       return json(403, { error: "Permission denied" });
     }
 
     let body: unknown;
-    try { body = await request.json(); }
-    catch { return json(400, { error: "Invalid JSON" }); }
+    try {
+      body = await request.json();
+    } catch {
+      return json(400, { error: "Invalid JSON" });
+    }
     const targetId = (body as { targetUserId?: unknown } | null)?.targetUserId;
     if (typeof targetId !== "number" || !Number.isSafeInteger(targetId) || targetId < 1) {
       return json(400, { error: "Invalid user ID" });
@@ -81,19 +203,25 @@ Deno.serve(async (request) => {
 
     const { data: target, error: targetError } = await admin.from("users")
       .select("id, role, email, auth_user_id, active")
-      .eq("id", targetId).maybeSingle();
-    if (targetError || !target) return json(404, { error: "User not found" });
+      .eq("id", targetId)
+      .maybeSingle();
+    if (targetError) {
+      console.error("Unable to load target user:", targetError.message);
+      return json(500, { error: "Unable to verify target user" });
+    }
+    if (!target) return json(404, { error: "User not found" });
     if (target.id === 1 || target.id === actor.id || target.auth_user_id === OWNER_AUTH_ID ||
-        target.email?.trim().toLowerCase() === OWNER_EMAIL || target.role === "مسؤول النظام") {
+        target.email?.trim().toLowerCase() === OWNER_EMAIL ||
+        target.role === "مسؤول النظام") {
       return json(403, { error: "Protected account" });
     }
     if (!target.auth_user_id) {
       return json(409, { error: "Auth identity not linked; manual review required" });
     }
 
-    // A Supabase Auth ban affects every company. Never globally deactivate a
-    // user who has multiple tenant memberships, even when the actor is the
-    // central platform owner. Company-scoped removal requires a separate flow.
+    // A global Auth ban affects every company. This endpoint only supports
+    // targets with at most one tenant membership; multi-company removal needs
+    // a separate company-scoped workflow.
     const { data: targetMemberships, error: targetMembershipError } = await admin
       .from("tenant_memberships")
       .select("tenant_id, role, active")
@@ -108,9 +236,7 @@ Deno.serve(async (request) => {
       });
     }
 
-    // Tenant authorization is server-side. Never trust a tenant ID from the request.
-    // Non-platform actors need exactly one active membership, an administrative
-    // tenant role, and users_delete permission (checked above).
+    let actorTenantId: string | null = null;
     if (!isOwner) {
       const { data: actorMemberships, error: actorMembershipError } = await admin
         .from("tenant_memberships")
@@ -124,85 +250,141 @@ Deno.serve(async (request) => {
       if (activeActorMemberships.length !== 1) {
         return json(403, { error: "Exactly one active company membership is required" });
       }
-      const actorTenantId = activeActorMemberships[0].tenant_id;
+      actorTenantId = activeActorMemberships[0].tenant_id;
       const actorTenantRole = activeActorMemberships[0].role;
       if (!["owner", "admin"].includes(actorTenantRole)) {
-        return json(403, {
-          error: "Only company owners and administrators can deactivate users",
-        });
+        return json(403, { error: "Only company owners and administrators can deactivate users" });
       }
-
-      if (targetMemberships.length !== 1 ||
-          targetMemberships[0].active !== true ||
+      if (targetMemberships.length !== 1 || targetMemberships[0].active !== true ||
           targetMemberships[0].tenant_id !== actorTenantId) {
         return json(403, { error: "Target is not exclusively in your active company" });
       }
-
-      const { data: tenant, error: tenantError } = await admin
-        .from("platform_tenants")
+      const { data: tenant, error: tenantError } = await admin.from("platform_tenants")
         .select("id, status")
         .eq("id", actorTenantId)
         .maybeSingle();
       if (tenantError || !tenant || tenant.status !== "active") {
         return json(403, { error: "Company is not active or could not be verified" });
       }
-
-      // Company administrators cannot disable another system administrator
-      // or a company owner. The central platform owner is handled separately.
-      if (target.role === "مدير النظام" || targetMemberships[0].role === "owner") {
+      if (target.role === "مدير النظام" || ["owner", "admin"].includes(targetMemberships[0].role)) {
         return json(403, { error: "Protected company administrator" });
       }
     }
 
-    // Check every known history/reference table. An error must never permit deletion.
-    let hasActivityOrUncertainty = false;
-    let inspectionUncertain = false;
+    // Inspect all known history/reference tables. Any uncertainty blocks this
+    // global deactivation because the audit/reference inventory is conservative.
+    let hasActivity = false;
     for (const [table, column] of ACTIVITY_TABLES) {
       const { count, error } = await admin.from(table)
         .select(column, { count: "exact", head: true })
         .eq(column, target.auth_user_id);
-      if (error) {
-        console.error(`Unable to inspect ${table}.${column}:`, JSON.stringify({ message: error.message, code: error.code, details: error.details, hint: error.hint }));
-        hasActivityOrUncertainty = true;
-        inspectionUncertain = true;
-        break;
-      }
-      if (count === null) {
-        console.error(`Unable to inspect ${table}.${column}: count returned null without an error`);
-        hasActivityOrUncertainty = true;
-        inspectionUncertain = true;
-        break;
+      if (error || count === null) {
+        console.error(`Unable to inspect ${table}.${column}:`, error ?? "null count");
+        return json(409, {
+          error: "Historical activity inspection incomplete; manual review required",
+        });
       }
       if (count > 0) {
-        hasActivityOrUncertainty = true;
+        hasActivity = true;
         break;
       }
     }
 
-    // Disable app access first, even if Auth later fails. Never claim success on partial failure.
+    // This RPC atomically creates or safely reclaims a released partial-failure
+    // operation and returns both operation ID and lease token. Expired leases
+    // are not reclaimed automatically.
+    const { data: operationData, error: beginError } = await (admin as unknown as RpcClient).rpc(
+      "begin_claim_user_deactivation",
+      {
+        p_actor_auth_user_id: verified.user.id,
+        p_target_user_id: target.id,
+        p_tenant_id: actorTenantId,
+      },
+    );
+    if (beginError || !isRecord(operationData) ||
+        typeof operationData.operation_id !== "string" ||
+        typeof operationData.lease_token !== "string") {
+      console.error("Unable to begin/claim deactivation:", beginError);
+      const code = beginError?.code;
+      const message = beginError?.message ?? "";
+      if (
+        code === "23505" ||
+        message.includes("Open operation") ||
+        message.includes("active or unreconciled lease") ||
+        message.includes("Pending operation") ||
+        message.includes("already exists")
+      ) {
+        return json(409, {
+          error: "An open or unreconciled deactivation operation exists; manual review or safe recovery is required",
+        });
+      }
+      if (
+        message.includes("permission") ||
+        message.includes("membership") ||
+        message.includes("Tenant is required") ||
+        message.includes("Actor account")
+      ) {
+        return json(403, { error: "Current actor authorization could not be verified" });
+      }
+      return json(500, { error: "Unable to register and claim deactivation operation" });
+    }
+    const operationId = operationData.operation_id;
+    const leaseToken = operationData.lease_token;
+
+    // Disable application access first. The operation is recorded before either
+    // irreversible access change, and every result is written to the ledger.
     const { error: disableError } = await admin.from("users")
-      .update({ active: false }).eq("id", target.id);
-    if (disableError) return json(500, { error: "Unable to disable database account" });
+      .update({ active: false })
+      .eq("id", target.id);
+    if (disableError) {
+      const message = `Unable to disable database account: ${disableError.message}`;
+      await recordProgress(admin, operationId, leaseToken, false, false, message);
+      await releaseLease(admin, operationId, leaseToken, message);
+      return json(500, {
+        error: "Unable to disable database account; operation recorded for review",
+        operationId,
+      });
+    }
 
     const { error: banError } = await admin.auth.admin.updateUserById(target.auth_user_id, {
       ban_duration: "876000h",
     });
     if (banError) {
-      console.error("Unable to ban Auth user:", banError.message);
-      return json(500, { error: "Database account disabled, but Auth ban failed; review required" });
+      const message = `Database account disabled, but Auth ban failed: ${banError.message}`;
+      const progress = await recordProgress(admin, operationId, leaseToken, true, false, message);
+      const released = await releaseLease(admin, operationId, leaseToken, message);
+      return json(500, {
+        error: "Database account disabled, but Auth ban failed; review required",
+        operationId,
+        ledgerUpdated: progress.ok,
+        leaseReleased: released,
+      });
     }
 
-    // Safety gate: historical activity tracking is not yet comprehensive.
-    // Never permanently delete an account until server-side auditing is complete.
-    // Existing access records are retained for possible review and reactivation.
+    const progress = await recordProgress(admin, operationId, leaseToken, true, true, null);
+    if (!progress.ok || progress.status !== "completed") {
+      // The Auth ban may have succeeded even if the ledger update failed. Do not
+      // claim completion; leave a visible error and require reconciliation.
+      const released = await releaseLease(
+        admin,
+        operationId,
+        leaseToken,
+        "Both access changes were requested, but completion could not be confirmed in the operation ledger",
+      );
+      return json(500, {
+        error: "Access changes were applied, but operation completion could not be confirmed; manual review required",
+        operationId,
+        leaseReleased: released,
+      });
+    }
+
+    // Do not permanently delete the user or historical records. This endpoint
+    // only deactivates application access and bans Auth, with a retained ledger.
     return json(200, {
       success: true,
       action: "deactivated",
-      reason: inspectionUncertain
-        ? "inspection_incomplete"
-        : hasActivityOrUncertainty
-          ? "activity_found"
-          : "audit_not_ready",
+      operationId,
+      hasHistoricalActivity: hasActivity,
     });
   } catch (error) {
     console.error("manage-user-removal failed:", error);
