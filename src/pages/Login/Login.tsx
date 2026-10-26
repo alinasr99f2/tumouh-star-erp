@@ -142,10 +142,8 @@ export default function Login() {
     try {
       setLoading(true);
 
-      const redirectUrl =
-        window.location.hostname === "localhost"
-          ? `${window.location.origin}/login?recovery=1`
-          : "https://tumouh-star-aur5dcxur-alinasr99f2s-projects.vercel.app/login?recovery=1";
+      // يعمل على دومين البيئة الحالية (Staging أو Production).
+      const redirectUrl = `${window.location.origin}/login?recovery=1`;
 
       const { error: resetError } =
         await supabase.auth.resetPasswordForEmail(emailToReset, {
@@ -246,7 +244,8 @@ export default function Login() {
         return;
       }
 
-      // لا يكفي نجاح Authentication: يجب وجود حساب محلي نشط ومربوط بنفس Auth ID.
+      // لا يكفي نجاح Auth: نتحقق من عضوية نشطة داخل عميل نشط.
+      // التحقق يتم على الخادم من auth.uid() ولا نقرأ public.users من المتصفح.
       const authUserId = loginData.user?.id;
       if (!authUserId) {
         await supabase.auth.signOut();
@@ -254,22 +253,20 @@ export default function Login() {
         return;
       }
 
-      const { data: account, error: accountError } = await supabase
-        .from("users")
-        .select("id, active")
-        .eq("auth_user_id", authUserId)
-        .maybeSingle();
+      const { data: access, error: accessError } = await supabase.rpc(
+        "get_my_login_access"
+      );
 
-      if (accountError) {
+      if (accessError) {
         await supabase.auth.signOut();
-        console.error("تعذر التحقق من حالة الحساب:", accountError);
-        setError("تعذر التحقق من حالة الحساب حاليًا. حاول مرة أخرى.");
+        console.error("تعذر التحقق من عضوية العميل:", accessError);
+        setError("تعذر التحقق من صلاحية الدخول حاليًا. تواصل مع مسؤول النظام.");
         return;
       }
 
-      if (!account || account.active !== true) {
+      if (!access || access.allowed !== true) {
         await supabase.auth.signOut();
-        setError("هذا الحساب غير نشط أو تم حذفه. يرجى التواصل مع مسؤول النظام.");
+        setError("الحساب غير مربوط بمكتب أو شركة عقارية نشطة. تواصل مع مسؤول النظام.");
         return;
       }
 
