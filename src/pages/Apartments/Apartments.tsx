@@ -1,3 +1,4 @@
+import { resolveResidentialTenant, type ResidentialTenantContext } from "../../utils/residentialTenant.ts";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../utils/supabase";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -94,7 +95,7 @@ type Apartment = {
   archivedAt?: string | null;
 };
 
-const RESIDENTIAL_COMPANY_ID = "61bed49c-bc21-476a-865b-1d28db791ad2";
+
 
 type ResidentialRow = {
   id: string; apartment_number: string; building_name: string | null;
@@ -158,7 +159,8 @@ function CardIllustration({ kind }: { kind: ArtKind }) {
   </svg>;
 }
 
-export default function Apartments() {
+function ApartmentsContent({ tenantContext }: { tenantContext: ResidentialTenantContext }) {
+  const RESIDENTIAL_COMPANY_ID = tenantContext.companyId;
   const navigate = useNavigate();
   const location = useLocation();
   const [apartments, setApartments] = useState<Apartment[]>(initialApartments);
@@ -215,15 +217,7 @@ export default function Apartments() {
       setLoadError("يجب تسجيل الدخول بحساب مصرح له لعرض الشقق السكنية.");
       setLoadingApartments(false); return false;
     }
-    const { data: membership, error: membershipError } = await supabase
-      .from("residential_company_users").select("role")
-      .eq("company_id", RESIDENTIAL_COMPANY_ID).eq("user_id", auth.user.id).maybeSingle();
-    if (membershipError || !membership) {
-      setApartments([]); setCanWrite(false);
-      setLoadError(membershipError?.message ?? "حسابك غير مرتبط بشركة طموح ستار في نظام الشقق السكنية.");
-      setLoadingApartments(false); return false;
-    }
-    setCanWrite(membership.role === "owner");
+    setCanWrite(tenantContext.canWrite);
     const { data, error } = await supabase.from("residential_apartments")
       .select("id,apartment_number,building_name,rooms_count,rent_amount,rent_period,area_sqm,apartment_type,apartment_status,region,city,district_street,nearest_landmark,notes,owner_id,archived_at")
       .eq("company_id", RESIDENTIAL_COMPANY_ID).order("created_at", { ascending: false });
@@ -2777,4 +2771,21 @@ function DetailItem({
       <div className="font-bold text-white">{value}</div>
     </div>
   );
+}
+
+
+/** Do not mount data-fetching effects before tenant identity is resolved. */
+export default function Apartments() {
+  const [context, setContext] = useState<ResidentialTenantContext | null>(null);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    let cancelled = false;
+    resolveResidentialTenant()
+      .then(value => { if (!cancelled) setContext(value); })
+      .catch(reason => { if (!cancelled) setError(reason instanceof Error ? reason.message : "تعذر تحديد المكتب الحالي."); });
+    return () => { cancelled = true; };
+  }, []);
+  if (error) return <div dir="rtl" role="alert" className="m-6 rounded-xl border border-red-400 p-6 text-red-200">{error}</div>;
+  if (!context) return <div dir="rtl" className="p-8 text-center">جارٍ التحقق من المكتب والصلاحيات...</div>;
+  return <ApartmentsContent key={context.tenantId} tenantContext={context} />;
 }

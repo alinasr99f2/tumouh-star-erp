@@ -1,9 +1,10 @@
+import { resolveResidentialTenant, type ResidentialTenantContext } from "../../utils/residentialTenant.ts";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../utils/supabase";
 import { BedDouble, Plus, RefreshCw, Search, Pencil, Archive, X, Save, CalendarCheck2, Wallet, LayoutGrid, FileBarChart2, ReceiptText, ContactRound, CalendarDays, CalendarPlus, FilePlus2, Trash2, Banknote, Droplets, Zap, UserRoundPlus, UserRoundCheck, SlidersHorizontal, Home, Map as MapIcon } from "lucide-react";
 
-const COMPANY_ID = "61bed49c-bc21-476a-865b-1d28db791ad2";
+
 type Room = { id:string; room_number:string; apartment_number:string|null; building_name:string|null; room_type:string|null; beds_count:number; rent_amount:number; rent_period:string; area_sqm:number|null; room_status:string; rental_mode:"full"|"bed"; region:string|null; city:string|null; district_street:string|null; nearest_landmark:string|null; owner_id:string|null; notes:string|null; archived_at:string|null };
 type Bed = { id:string; room_id:string; bed_number:string; status:string; notes:string|null };
 type Lease = { id:string; room_id:string; bed_id:string|null; tenant_id:string; start_date:string; end_date:string; status:string; rent_amount:number; contract_number?:string|null; contract_type?:string|null; owner_id?:string|null; rent_period?:string|null; contract_duration?:string|null; notes?:string|null; archived_at?:string|null };
@@ -20,7 +21,8 @@ const today=()=>new Date().toLocaleDateString("en-CA");
 const field="w-full rounded-xl border border-amber-300/25 bg-[#062c24] px-3 py-2 text-white outline-none focus:border-amber-300";
 const label="mb-1 block text-xs font-bold text-emerald-100/80";
 
-export default function Rooms(){
+function RoomsContent({ tenantContext }: { tenantContext: ResidentialTenantContext }) {
+ const COMPANY_ID = tenantContext.companyId;
  const navigate=useNavigate();
  const [rooms,setRooms]=useState<Room[]>([]),[beds,setBeds]=useState<Bed[]>([]),[leases,setLeases]=useState<Lease[]>([]),[bookings,setBookings]=useState<Booking[]>([]),[tenants,setTenants]=useState<Tenant[]>([]),[owners,setOwners]=useState<Owner[]>([]);
  const [refreshing,setRefreshing]=useState(false),[refreshToast,setRefreshToast]=useState("");
@@ -404,9 +406,7 @@ export default function Rooms(){
   setLoading(true);setError("");setFinancial(prev=>({...prev,loading:true,error:""}));
   const {data:auth,error:authError}=await supabase.auth.getUser();
   if(authError||!auth.user){setError("يجب تسجيل الدخول بحساب مصرح له.");setFinancial(prev=>({...prev,loading:false,error:"تعذر التحقق من تسجيل الدخول"}));setLoading(false);return false;}
-  const member=await supabase.from("residential_company_users").select("role").eq("company_id",COMPANY_ID).eq("user_id",auth.user.id).maybeSingle();
-  if(member.error||!member.data){setError(member.error?.message||"الحساب غير مرتبط بالشركة.");setFinancial(prev=>({...prev,loading:false,error:"تعذر التحقق من صلاحية الشركة"}));setLoading(false);return false;}
-  setCanWrite(member.data.role==="owner");
+  setCanWrite(tenantContext.canWrite);
   const statusResult=await supabase.from("residential_room_booking_status_options").select("code,name").eq("company_id",COMPANY_ID).order("name");
   if(!statusResult.error)setBookingStatuses([{code:"confirmed",name:"حجز مؤكد"},{code:"pending",name:"قيد التأكيد"},...(statusResult.data??[])]);
   const nationalityResult=await supabase.from("residential_nationalities").select("name").eq("company_id",COMPANY_ID).order("name");
@@ -435,7 +435,7 @@ export default function Rooms(){
   if(financeError)setError(prev=>prev||`تعذر تحميل السجلات المالية: ${financeError.message}`);
   if(loc.error)setError(prev=>prev||`تعذر تحميل قوائم المواقع: ${loc.error.message}`);setLocationOptions((loc.data??[]) as LocationOption[]);
    setRooms((r.data??[]) as Room[]);setBeds((b.data??[]) as Bed[]);setLeases((l.data??[]) as Lease[]);setBookings((k.data??[]) as Booking[]);setTenants((t.data??[]) as Tenant[]);setOwners((o.data??[]) as Owner[]);setLoading(false);return !issue&&!loc.error&&!financeError;
- },[]);
+ },[COMPANY_ID,tenantContext.canWrite]);
  useEffect(()=>{void load();},[load]);
  const refreshRooms=async()=>{
   if(refreshing||loading)return;
@@ -1117,4 +1117,21 @@ export default function Rooms(){
  </div>
 )}
  </main>;
+}
+
+
+/** Do not mount data-fetching effects before tenant identity is resolved. */
+export default function Rooms() {
+  const [context, setContext] = useState<ResidentialTenantContext | null>(null);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    let cancelled = false;
+    resolveResidentialTenant()
+      .then(value => { if (!cancelled) setContext(value); })
+      .catch(reason => { if (!cancelled) setError(reason instanceof Error ? reason.message : "تعذر تحديد المكتب الحالي."); });
+    return () => { cancelled = true; };
+  }, []);
+  if (error) return <div dir="rtl" role="alert" className="m-6 rounded-xl border border-red-400 p-6 text-red-200">{error}</div>;
+  if (!context) return <div dir="rtl" className="p-8 text-center">جارٍ التحقق من المكتب والصلاحيات...</div>;
+  return <RoomsContent key={context.tenantId} tenantContext={context} />;
 }
