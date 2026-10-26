@@ -356,6 +356,26 @@ export function PermissionsProvider({
         currentUserId.current = user.id;
       }
 
+      // Platform ownership is verified on the server against auth.uid().
+      // Never trust an email address or a client-side UUID for privileged access.
+      const { data: platformOwner, error: platformOwnerError } =
+        await supabase.rpc("is_my_platform_system_owner");
+      if (platformOwnerError) {
+        console.error("تعذر التحقق من مسؤول النظام:", platformOwnerError);
+        setPermissions(emptyPermissions);
+        setIsSystemOwner(false);
+        return;
+      }
+      if (platformOwner === true) {
+        const fullPermissions = ALL_PERMISSIONS.reduce((result, permission) => {
+          result[permission] = true;
+          return result;
+        }, {} as PermissionsMap);
+        setIsSystemOwner(true);
+        setPermissions(fullPermissions);
+        return;
+      }
+
       /**
        * تحميل المستخدم من قاعدة البيانات
        */
@@ -403,10 +423,8 @@ export function PermissionsProvider({
        * مسؤول النظام الأساسي
        * =====================================================
        */
-      const owner =
-        data.role === "مسؤول النظام" ||
-        data.auth_user_id ===
-          "efd4f725-d34a-4438-bc15-8ee410c9d5a9";
+      // Legacy roles do not confer platform-wide ownership.
+      const owner = false;
 
 
       setIsSystemOwner(owner);
