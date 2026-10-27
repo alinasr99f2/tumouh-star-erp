@@ -22,6 +22,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { usePermissions, type PermissionKey } from "../../utils/permissions";
 
 import { supabase } from "../../utils/supabase";
+import { getActiveTenant } from "../../utils/tenantSession";
 import { useAppPreferences, translateLabel } from "../../utils/appPreferences";
 
 type CurrentUser = {
@@ -39,7 +40,6 @@ const PAGE_ITEMS: SearchItem[] = [
   { title: "الشاشة الرئيسية", subtitle: "الرئيسية", path: "/home", group: "الصفحات", keywords: "الرئيسية home" },
   { title: "لوحة التحكم", subtitle: "لوحة المؤشرات", path: "/dashboard", permission: "dashboard_view", group: "الصفحات" },
   { title: "المشاريع", subtitle: "إدارة المشاريع", path: "/projects", permission: "projects_view", group: "الصفحات" },
-  { title: "مشروع فلل تبوك", subtitle: "تفاصيل المشروع", path: "/projects/1", permission: "projects_view", group: "المشاريع" },
   { title: "المركز المالي للمشاريع", subtitle: "مصروفات وتقارير", path: "/projects/financial", permission: "financial_view", group: "الصفحات" },
   { title: "العمائر", subtitle: "إدارة العمائر", path: "/buildings", permission: "buildings_view", group: "الصفحات" },
   { title: "إدارة الوحدات العقارية", subtitle: "الأقسام العقارية", path: "/apartments-hub", permission: "apartments_view", group: "الصفحات" },
@@ -201,65 +201,69 @@ function Topbar() {
 
   useEffect(() => {
     let mounted = true;
+    let requestId = 0;
 
     const loadCurrentUser = async () => {
+      const currentRequest = ++requestId;
       try {
-        const {
-          data: { user: authUser },
-        } = await supabase.auth.getUser();
+        const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+        if (authError) throw authError;
+        if (!mounted || currentRequest !== requestId) return;
 
-        if (!mounted) return;
-
-        if (authUser?.email) {
-          const { data, error } = await supabase
-            .from("users")
-            .select("name, role, avatar_url")
-            .eq("email", authUser.email)
-            .maybeSingle();
-
-          if (!error && data) {
-            setCurrentUser({
-              name: String(data.name ?? "المستخدم"),
-              role: String(data.role ?? "موظف"),
-              avatar_url: data.avatar_url ? String(data.avatar_url) : null,
-            });
-            return;
-          }
+        if (!authUser) {
+          setCurrentUser({ name: "المستخدم", role: "غير مسجل", avatar_url: null });
+          return;
         }
 
-        // احتياطي في حالة عدم العثور على السجل في جدول users.
-        const metadata = authUser?.user_metadata;
-
-        setCurrentUser({
-          name: String(metadata?.name ?? authUser?.email ?? "المستخدم"),
-          role: String(metadata?.role ?? "موظف"),
-          avatar_url: null,
-        });
+        // Role is scoped to the selected tenant, never to legacy public.users
+        // or to user_metadata (which is not an authorization source).
+        const metadata = authUser.user_metadata ?? {};
+        const displayName = String(metadata.name ?? metadata.full_name ?? authUser.email ?? "المستخدم");
+        const avatar = metadata.avatar_url ? String(metadata.avatar_url) : null;
+        let role = "اختر الشركة";
+        try {
+          const tenant = await getActiveTenant();
+          if (tenant) {
+            const roleLabels: Record<string, string> = {
+              owner: "مسؤول الشركة",
+              admin: "مدير النظام",
+              manager: "مدير",
+              supervisor: "مشرف",
+              accountant: "محاسب",
+              employee: "موظف",
+              data_entry: "مدخل بيانات",
+            };
+            role = roleLabels[tenant.role.toLowerCase()] ?? tenant.role;
+          }
+        } catch (tenantError) {
+          console.error("تعذر تحميل دور المستخدم في الشركة الحالية:", tenantError);
+          role = "تعذر تحميل الدور";
+        }
+        if (!mounted || currentRequest !== requestId) return;
+        setCurrentUser({ name: displayName, role, avatar_url: avatar });
       } catch (error) {
         console.error("خطأ في تحميل بيانات المستخدم الحالي:", error);
+        if (mounted && currentRequest === requestId) {
+          setCurrentUser({ name: "المستخدم", role: "تعذر تحميل الدور", avatar_url: null });
+        }
       }
     };
 
     const updateDate = () => {
-      const now = new Date();
-
-      setCurrentDate(
-        now.toLocaleDateString(language === "en" ? "en-GB" : "ar-SA", {
-          day: "numeric",
-          month: "long",
-          year: "numeric",
-        }),
-      );
+      setCurrentDate(new Date().toLocaleDateString(language === "en" ? "en-GB" : "ar-SA", {
+        day: "numeric", month: "long", year: "numeric",
+      }));
     };
 
     void loadCurrentUser();
     updateDate();
-
-    // تحديث التاريخ تلقائيًا لو ظل البرنامج مفتوحًا حتى اليوم التالي.
+    const onTenantChanged = () => { void loadCurrentUser(); };
+    window.addEventListener("aqary:tenant-changed", onTenantChanged);
     const dateTimer = window.setInterval(updateDate, 60 * 1000);
-
     return () => {
       mounted = false;
+      requestId++;
+      window.removeEventListener("aqary:tenant-changed", onTenantChanged);
       window.clearInterval(dateTimer);
     };
   }, [language]);

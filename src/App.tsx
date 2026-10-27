@@ -4,6 +4,7 @@ import {
   Route,
   Navigate,
   Outlet,
+  useNavigate,
 } from "react-router-dom";
 import { useEffect,useCallback, useState } from "react";
 import PermissionDeniedModal from "./components/PermissionDeniedModal";
@@ -17,10 +18,10 @@ import Home from "./pages/Home/Home";
 import CompanyDashboard from "./pages/Dashboard/CompanyDashboard";
 
 import Projects from "./pages/Projects/Projects";
-import ProjectDetails from "./pages/Projects/ProjectDetails";
-import ProjectExpenses from "./pages/Projects/ProjectExpenses";
-import ProjectQuantities from "./pages/Projects/ProjectQuantities";
-import ProjectCharts from "./pages/Projects/ProjectCharts";
+
+
+
+
 
 import Buildings from "./pages/Buildings/Buildings";
 import BuildingDetails from "./pages/Buildings/BuildingDetails";
@@ -40,12 +41,21 @@ function ProtectedRoute() {
   const DEV_MODE = import.meta.env.DEV && import.meta.env.VITE_DEV_MODE === "true";
   const [sessionReady, setSessionReady] = useState(DEV_MODE);
   const [hasSession, setHasSession] = useState(DEV_MODE);
+  const [sessionError, setSessionError] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     if (DEV_MODE) return;
     let mounted = true;
     let closing = false;
     let checking = false;
+    let checkedOnce = false;
+    const timeout = window.setTimeout(() => {
+      if (mounted && !checkedOnce && !closing) {
+        setSessionError(true);
+        setSessionReady(true);
+      }
+    }, 12000);
 
     const check = async () => {
       if (closing || checking) return;
@@ -69,7 +79,29 @@ function ProtectedRoute() {
 
         const { data: { user }, error } = await supabase.auth.getUser();
         if (!mounted || closing) return;
-        if (error || !user) {
+        if (error) {
+          // No saved auth session is normal before the user signs in.
+          // Only actual connectivity/auth-service errors show the retry screen.
+          const missingSession =
+            error.name === "AuthSessionMissingError" ||
+            (error.message || "").toLowerCase().includes("auth session missing");
+          if (missingSession) {
+            checkedOnce = true;
+            window.clearTimeout(timeout);
+            setSessionError(false);
+            setHasSession(false);
+            setSessionReady(true);
+            return;
+          }
+          console.warn("تعذر التحقق من الجلسة مؤقتًا:", error);
+          setSessionError(true);
+          setSessionReady(true);
+          return;
+        }
+        if (!user) {
+          checkedOnce = true;
+          window.clearTimeout(timeout);
+          setSessionError(false);
           setHasSession(false);
           setSessionReady(true);
           return;
@@ -86,17 +118,24 @@ function ProtectedRoute() {
           }
           return;
         }
+        checkedOnce = true;
+        window.clearTimeout(timeout);
+        setSessionError(false);
         setHasSession(true);
         setSessionReady(true);
       } catch (err) {
         console.error("تعذر فحص الجلسة:", err);
+        if (mounted && !closing) {
+          setSessionError(true);
+          setSessionReady(true);
+        }
       } finally {
         checking = false;
       }
     };
 
     const onActivity = () => {
-      if (closing) return;
+      if (closing || !checkedOnce) return;
       const id = sessionStorage.getItem("aqary_session_user_v1");
       if (id && !sessionExpiryReason(id)) recordActivity();
       void check();
@@ -117,15 +156,25 @@ function ProtectedRoute() {
     });
     return () => {
       mounted = false;
+      window.clearTimeout(timeout);
       subscription.unsubscribe();
       window.clearInterval(timer);
       events.forEach((event) => window.removeEventListener(event, onActivity));
       window.removeEventListener("focus", onWake);
       document.removeEventListener("visibilitychange", onWake);
     };
-  }, []);
+  }, [retryCount]);
 
-  if (!sessionReady) return null;
+  if (!sessionReady) return <div dir="rtl" style={{ padding: 32, textAlign: "center" }}>جاري التحقق من الجلسة...</div>;
+  if (sessionError) return (
+    <div dir="rtl" style={{ minHeight: "100vh", display: "grid", placeItems: "center", background: "#062f26", color: "#fff", padding: 24 }}>
+      <div style={{ textAlign: "center", maxWidth: 460 }}>
+        <h2>تعذر الاتصال بخدمة تسجيل الدخول</h2>
+        <p>لم نتمكن من التحقق من الجلسة حاليًا. لم يتم تسجيل خروجك تلقائيًا أو تجاوز حماية النظام.</p>
+        <button type="button" onClick={() => { setSessionReady(false); setSessionError(false); setRetryCount((n) => n + 1); }} style={{ background: "#d9b34c", color: "#062f26", border: 0, borderRadius: 10, padding: "12px 24px", cursor: "pointer", fontWeight: 700 }}>إعادة المحاولة</button>
+      </div>
+    </div>
+  );
   if (!hasSession) return <Navigate to="/login" replace />;
   return <Outlet />;
 }
@@ -135,23 +184,30 @@ function PermissionRoute({
 }: {
   permission: PermissionKey;
 }) {
-  const { loading, hasPermission } = usePermissions();
+  const { loading, hasPermission, activeTenantId, tenantError } = usePermissions();
+  const navigate = useNavigate();
 
   const [showDenied, setShowDenied] = useState(false);
 
   const handleClose = useCallback(() => {
     setShowDenied(false);
-    window.location.replace("/home");
-  }, []);
+    navigate("/home", { replace: true });
+  }, [navigate]);
 
   useEffect(() => {
-    if (!loading && !hasPermission(permission)) {
+    if (!loading && activeTenantId && !tenantError && !hasPermission(permission)) {
       setShowDenied(true);
+    } else {
+      setShowDenied(false);
     }
-  }, [loading, permission, hasPermission]);
+  }, [loading, permission, hasPermission, activeTenantId, tenantError]);
 
-  if (loading) {
+  if (loading || !activeTenantId) {
     return null;
+  }
+
+  if (tenantError) {
+    return <div dir="rtl" style={{ padding: 32 }} role="alert">تعذر تحميل صلاحيات الشركة: {tenantError}</div>;
   }
 
   if (!hasPermission(permission)) {
@@ -182,6 +238,8 @@ function App() {
           element={<Login />}
         />
 
+
+        <Route path="/reset-password" element={<Login />} />
 
         {/* =========================================
             حماية جميع صفحات النظام
@@ -225,19 +283,19 @@ function App() {
             </Route>
 
 <Route element={<PermissionRoute permission="projects_view" />}>
-              <Route path="/projects/:id/charts" element={<ProjectCharts />} />
+              <Route path="/projects/:id/charts" element={<Navigate to="/projects" replace />} />
             </Route>
 
 <Route element={<PermissionRoute permission="projects_view" />}>
-              <Route path="/projects/:id/quantities" element={<ProjectQuantities />} />
+              <Route path="/projects/:id/quantities" element={<Navigate to="/projects" replace />} />
             </Route>
 
 <Route element={<PermissionRoute permission="projects_view" />}>
-              <Route path="/projects/:id/expenses" element={<ProjectExpenses />} />
+              <Route path="/projects/:id/expenses" element={<Navigate to="/projects" replace />} />
             </Route>
 
 <Route element={<PermissionRoute permission="projects_view" />}>
-              <Route path="/projects/:id" element={<ProjectDetails />} />
+              <Route path="/projects/:id" element={<Navigate to="/projects" replace />} />
             </Route>
 
             {/* =========================================

@@ -730,52 +730,7 @@ function Sidebar({ onLogout }: SidebarProps) {
                         <span className="truncate">{tr("المركز المالي")}</span>
                       </NavLink>
 
-                      <NavLink
-                        to="/projects/1"
-                        onClick={handleMobileNavigate}
-                        className={({ isActive }) =>
-                          `
-                          group
-                          flex
-                          min-h-[48px]
-                          items-center
-                          gap-3
-                          rounded-xl
-                          border
-                          px-4
-                          py-3
-                          text-sm
-                          transition-all
-                          duration-300
-                          ${
-                            isActive
-                              ? `
-                                border-[#D4AD4D]
-                                bg-gradient-to-r
-                                from-[#145B46]
-                                to-[#073529]
-                                text-[#F6D878]
-                                font-bold
-                                shadow-md
-                              `
-                              : `
-                                border-transparent
-                                text-white/90
-                                hover:border-[#C49A3A]/35
-                                hover:bg-black/[0.10]
-                                hover:text-white
-                                hover:translate-x-1
-                              `
-                          }
-                        `
-                        }
-                      >
-                        <Building2
-                          size={19}
-                          className="shrink-0 transition-transform duration-300 group-hover:scale-110"
-                        />
-                        <span className="truncate">{tr("مشروع فلل تبوك")}</span>
-                      </NavLink>
+                      
                     </div>
                   )}
 

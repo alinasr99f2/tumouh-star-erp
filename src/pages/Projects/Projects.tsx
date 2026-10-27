@@ -3,23 +3,18 @@ import ProjectSearch from "../../components/projects/ProjectSearch";
 import ProjectFilters from "../../components/projects/ProjectFilters";
 import ProjectStats from "../../components/projects/ProjectStats";
 import ProjectsList from "../../components/projects/ProjectsList";
-import AddProjectModal from "../../components/projects/AddProjectModal";
 
-import { projects as projectsData } from "../../data/projects";
 
 import type { Project, ProjectStatus } from "../../types/project";
 import { WalletCards } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 
 type Filter = "الكل" | ProjectStatus;
 
 export default function Projects() {
-  const navigate = useNavigate();
-
-  const [projects] = useState<Project[]>(projectsData);
+  // لا نعرض مشاريع تجريبية أو بيانات عميل آخر قبل تفعيل جلب المشاريع المعزولة عبر RLS.
+  const projects: Project[] = [];
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<Filter>("الكل");
-  const [openModal, setOpenModal] = useState(false);
 
   const filteredProjects = useMemo(() => {
     return projects.filter((project) => {
@@ -45,12 +40,13 @@ export default function Projects() {
             </h1>
 
             <p className="mt-2 text-gray-400">
-              إدارة جميع مشاريع شركة طموح ستار.
+              إدارة مشاريع الجهة الحالية.
             </p>
           </div>
 
           <button
-            onClick={() => setOpenModal(true)}
+            disabled
+            title="إضافة المشاريع متوقفة مؤقتًا حتى اكتمال الربط الآمن بقاعدة البيانات"
             className="
               rounded-xl
               bg-yellow-400
@@ -60,9 +56,11 @@ export default function Projects() {
               text-[#081B33]
               transition
               hover:bg-yellow-500
+              disabled:cursor-not-allowed
+              disabled:opacity-60
             "
           >
-            + مشروع جديد
+            + مشروع جديد (قريبًا)
           </button>
         </div>
 
@@ -97,18 +95,12 @@ export default function Projects() {
 
         {/* المركز المالي للمشاريع */}
         <div
-          onClick={() => navigate("/projects/financial")}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" || event.key === " ") {
-              navigate("/projects/financial");
-            }
-          }}
+          aria-disabled="true"
+          title="المركز المالي متوقف مؤقتًا لحين ربطه بمشاريع العميل الحالي"
           className="
             group
             relative
-            cursor-pointer
+            cursor-not-allowed
             overflow-hidden
             rounded-3xl
             border
@@ -200,7 +192,7 @@ export default function Projects() {
                 sm:w-[220px]
               "
             >
-              <span>الدخول إلى القسم</span>
+              <span>سيتم التفعيل بعد ربط بيانات المشاريع</span>
               <span className="text-lg transition-transform duration-300 group-hover:-translate-x-1">
                 ←
               </span>
@@ -208,15 +200,16 @@ export default function Projects() {
           </div>
         </div>
 
+        <div className="rounded-xl border border-yellow-400/30 bg-[#073b31]/80 p-4 text-center text-sm text-yellow-100" role="status">
+          لا توجد مشاريع معروضة حاليًا. تم إيقاف البيانات التجريبية لحماية خصوصية العملاء حتى اكتمال ربط المشاريع بقاعدة البيانات.
+        </div>
+
         <ProjectsList
           projects={filteredProjects}
         />
       </div>
 
-      <AddProjectModal
-        open={openModal}
-        onClose={() => setOpenModal(false)}
-      />
+
     </>
   );
 }

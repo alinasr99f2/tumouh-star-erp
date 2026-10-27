@@ -1,6 +1,7 @@
 import * as React from "react";
 import { createContext, useContext, useMemo } from "react";
 import { supabase } from "./supabase";
+import { getActiveTenant, getTenantMemberships, setActiveTenant } from "./tenantSession";
 
 /**
  * =========================================================
@@ -115,6 +116,26 @@ export type PermissionKey =
   | "financial_add"
   | "financial_edit"
   | "financial_delete"
+  | "expenses_view"
+  | "expenses_add"
+  | "expenses_edit"
+  | "expenses_delete"
+  | "accounts_view"
+  | "accounts_add"
+  | "accounts_edit"
+  | "accounts_delete"
+  | "funding_view"
+  | "funding_add"
+  | "funding_edit"
+  | "funding_delete"
+  | "financial_settings_view"
+  | "financial_settings_add"
+  | "financial_settings_edit"
+  | "financial_settings_delete"
+  | "suppliers_view"
+  | "suppliers_add"
+  | "suppliers_edit"
+  | "suppliers_delete"
 
   // =======================================================
   // Users
@@ -229,6 +250,26 @@ const ALL_PERMISSIONS: PermissionKey[] = [
   "financial_add",
   "financial_edit",
   "financial_delete",
+  "expenses_view",
+  "expenses_add",
+  "expenses_edit",
+  "expenses_delete",
+  "accounts_view",
+  "accounts_add",
+  "accounts_edit",
+  "accounts_delete",
+  "funding_view",
+  "funding_add",
+  "funding_edit",
+  "funding_delete",
+  "financial_settings_view",
+  "financial_settings_add",
+  "financial_settings_edit",
+  "financial_settings_delete",
+  "suppliers_view",
+  "suppliers_add",
+  "suppliers_edit",
+  "suppliers_delete",
 
   // Users
   "users_view",
@@ -286,6 +327,10 @@ type PermissionsContextValue = {
   isSystemOwner: boolean;
 
   refreshPermissions: () => Promise<void>;
+  activeTenantId: string | null;
+  availableTenants: { tenantId: string; role: string }[];
+  selectTenant: (tenantId: string) => Promise<void>;
+  tenantError: string | null;
 };
 
 
@@ -312,236 +357,155 @@ export function PermissionsProvider({
   const [isSystemOwner, setIsSystemOwner] =
     React.useState(false);
 
-  // Track the authenticated identity so a token refresh does not unmount the page.
-  const currentUserId = React.useRef<string | null>(null);
+  const [activeTenantId, setActiveTenantId] = React.useState<string | null>(null);
+  const [availableTenants, setAvailableTenants] = React.useState<{ tenantId: string; role: string }[]>([]);
+  const [tenantError, setTenantError] = React.useState<string | null>(null);
+  const requestVersion = React.useRef(0);
 
-
-  /**
-   * تحميل صلاحيات المستخدم
-   */
   const loadPermissions = async () => {
-    // Local UI preview only. Vite production builds always disable this bypass.
-    // This does not grant Supabase database permissions or authentication.
-    if (import.meta.env.DEV && import.meta.env.VITE_DEV_MODE === "true") {
-      const previewPermissions = ALL_PERMISSIONS.reduce((result, permission) => {
-        result[permission] = true;
-        return result;
-      }, {} as PermissionsMap);
-      setPermissions(previewPermissions);
-      setIsSystemOwner(true);
-      setLoading(false);
-      return;
-    }
-
+    const version = ++requestVersion.current;
+    setLoading(true);
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-
-      /**
-       * لا يوجد مستخدم
-       */
-      if (!user) {
-        currentUserId.current = null;
-        setPermissions(emptyPermissions);
-        setIsSystemOwner(false);
-        return;
-      }
-
-
-      // Block the protected UI only when the actual signed-in user changes.
-      if (currentUserId.current !== user.id) {
-        setLoading(true);
-        currentUserId.current = user.id;
-      }
-
-      // Platform ownership is verified on the server against auth.uid().
-      // Never trust an email address or a client-side UUID for privileged access.
-      const { data: platformOwner, error: platformOwnerError } =
-        await supabase.rpc("is_my_platform_system_owner");
-      if (platformOwnerError) {
-        console.error("تعذر التحقق من مسؤول النظام:", platformOwnerError);
-        setPermissions(emptyPermissions);
-        setIsSystemOwner(false);
-        return;
-      }
-      if (platformOwner === true) {
-        const fullPermissions = ALL_PERMISSIONS.reduce((result, permission) => {
-          result[permission] = true;
-          return result;
-        }, {} as PermissionsMap);
+      if (import.meta.env.DEV && import.meta.env.VITE_DEV_MODE === "true") {
+        setPermissions(ALL_PERMISSIONS.reduce((out, code) => { out[code] = true; return out; }, {} as PermissionsMap));
         setIsSystemOwner(true);
-        setPermissions(fullPermissions);
+        setTenantError('وضع المعاينة لا يتيح اختبار عزل بيانات Supabase.');
         return;
       }
-
-      /**
-       * تحميل المستخدم من قاعدة البيانات
-       */
-      const {
-        data,
-        error,
-      } = await supabase
-        .from("users")
-        .select(
-          "role, active, permissions, auth_user_id"
-        )
-        .eq("auth_user_id", user.id)
-        .maybeSingle();
-
-
-      /**
-       * خطأ في قاعدة البيانات
-       */
-      if (error) {
-        console.error(
-          "خطأ في تحميل صلاحيات المستخدم:",
-          error
-        );
-
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      console.info("AQARY AUTH CONTEXT", {
+        configuredProject: (() => { try { return new URL(import.meta.env.VITE_SUPABASE_URL).hostname; } catch { return "invalid URL"; } })(),
+        hasSession: Boolean(session),
+        sessionUserId: session?.user?.id ?? null,
+        authenticatedUserId: user?.id ?? null,
+        userMatchesSession: Boolean(session && user && session.user.id === user.id),
+        authError: authError?.message ?? null,
+      });
+      if (authError) throw authError;
+      if (!user) {
         setPermissions(emptyPermissions);
+        setActiveTenantId(null);
+        setAvailableTenants([]);
         setIsSystemOwner(false);
-
         return;
       }
-
-
-      /**
-       * المستخدم غير موجود أو غير نشط
-       */
-      if (!data || data.active === false) {
+      const { data: platformOwner, error: ownerError } = await supabase.rpc('is_my_platform_system_owner');
+      // Platform-owner status is separate from tenant permissions.
+      // A failure in this optional check must not block valid tenant permissions.
+      if (ownerError) console.warn("Platform owner check failed:", ownerError.message);
+      // Platform owner is verified by a server-side RPC, never by email or local state.
+      // Tenant data access remains subject to database RLS.
+      if (!ownerError && platformOwner === true) {
+        setIsSystemOwner(true);
+        setPermissions(ALL_PERMISSIONS.reduce((out, code) => {
+          out[code] = true;
+          return out;
+        }, {} as PermissionsMap));
+        // A platform owner may open the platform even without a selected tenant.
+        // Tenant-specific data requests still require a valid tenant and server authorization.
+        try {
+          const ownerMemberships = await getTenantMemberships();
+          const ownerActive = await getActiveTenant();
+          if (version !== requestVersion.current) return;
+          setAvailableTenants(ownerMemberships);
+          setActiveTenantId(ownerActive?.tenantId ?? null);
+        } catch (membershipError) {
+          if (version !== requestVersion.current) return;
+          console.warn('Platform owner tenant listing unavailable:', membershipError);
+          setAvailableTenants([]);
+          setActiveTenantId(null);
+        }
+        setTenantError(null);
+        return;
+      }
+      const memberships = await getTenantMemberships();
+      const active = await getActiveTenant();
+      if (version !== requestVersion.current) return;
+      setAvailableTenants(memberships);
+      setActiveTenantId(active?.tenantId ?? null);
+      setIsSystemOwner(!ownerError && platformOwner === true);
+      if (!active) {
         setPermissions(emptyPermissions);
-        setIsSystemOwner(false);
-
+        setTenantError(memberships.length > 1 ? 'اختر الشركة الحالية لعرض صلاحياتها وبياناتها.' : 'لا توجد شركة نشطة مرتبطة بالحساب.');
         return;
       }
-
-
-      /**
-       * =====================================================
-       * مسؤول النظام الأساسي
-       * =====================================================
-       */
-      // Legacy roles do not confer platform-wide ownership.
-      const owner = false;
-
-
-      setIsSystemOwner(owner);
-
-
-      /**
-       * =====================================================
-       * مسؤول النظام = جميع الصلاحيات
-       * =====================================================
-       */
-      if (owner) {
-        const fullPermissions =
-          ALL_PERMISSIONS.reduce(
-            (result, permission) => {
-              result[permission] = true;
-
-              return result;
-            },
-            {} as PermissionsMap
-          );
-
-        setPermissions(fullPermissions);
-
-        return;
-      }
-
-
-      /**
-       * =====================================================
-       * صلاحيات المستخدم العادي
-       * =====================================================
-       */
-      const databasePermissions =
-        data.permissions &&
-        typeof data.permissions === "object"
-          ? (data.permissions as Record<string, unknown>)
-          : {};
-
-
-      /**
-       * تحويل صلاحيات قاعدة البيانات
-       * إلى PermissionsMap موحد
-       */
-      const normalized =
-        ALL_PERMISSIONS.reduce(
-          (result, permission) => {
-            result[permission] =
-              databasePermissions[permission] === true;
-
-            return result;
-          },
-          {} as PermissionsMap
-        );
-
-
-      setPermissions(normalized);
-
-    } catch (error) {
-      console.error(
-        "خطأ غير متوقع في نظام الصلاحيات:",
-        error
+      // Fetch permissions through a narrowly scoped server-side function.
+      // The function validates auth.uid(), active membership and tenant ID.
+      // It does not depend on client-side nested RLS joins.
+      const { data: permissionRows, error: permissionError } = await supabase.rpc(
+        "get_my_tenant_permission_codes",
+        { p_tenant_id: active.tenantId }
       );
+      // Diagnostic only: do not print session tokens or API keys.
+      console.info("AQARY STAGING PERMISSIONS", {
+        tenantId: active.tenantId,
+        userId: user.id,
+        count: permissionRows?.length ?? 0,
+        codes: (permissionRows ?? []).map((row: { code?: string }) => row.code),
+        error: permissionError?.message ?? null,
+        errorCode: permissionError?.code ?? null,
+      });
+      if (permissionError) throw permissionError;
+      if (version !== requestVersion.current) return;
 
+      const codes = new Set<string>(
+        (permissionRows ?? [])
+          .map((row: { code?: string }) => row.code)
+          .filter((code: unknown): code is string => typeof code === "string")
+      );
+      if (codes.size === 0) {
+        throw new Error(
+          "استدعاء صلاحيات الشركة أعاد صفر نتائج. تأكد من جلسة Staging ومعرّف الشركة؛ لن يتم منح صلاحيات تلقائيًا."
+        );
+      }
+      const normalized = ALL_PERMISSIONS.reduce((out, code) => {
+        out[code] = codes.has(code);
+        return out;
+      }, {} as PermissionsMap);
+      // Backward-compatible route key, derived only from tenant-scoped permissions.
+      normalized.financial_view = normalized.financial_view || normalized.accounts_view || normalized.expenses_view || normalized.funding_view;
+      normalized.financial_add = normalized.financial_add || normalized.accounts_add || normalized.expenses_add || normalized.funding_add;
+      normalized.financial_edit = normalized.financial_edit || normalized.accounts_edit || normalized.expenses_edit || normalized.funding_edit;
+      normalized.financial_delete = normalized.financial_delete || normalized.accounts_delete || normalized.expenses_delete || normalized.funding_delete;
+      setPermissions(normalized);
+      setTenantError(null);
+    } catch (err) {
+      if (version !== requestVersion.current) return;
       setPermissions(emptyPermissions);
-
-      setIsSystemOwner(false);
-
+      setTenantError(err instanceof Error ? err.message : 'تعذر تحميل صلاحيات الشركة');
+      console.error('Tenant permissions:', err);
     } finally {
-      setLoading(false);
+      if (version === requestVersion.current) setLoading(false);
     }
   };
 
+  const selectTenant = async (tenantId: string) => {
+    await setActiveTenant(tenantId); // aqary:tenant-changed triggers exactly one reload
+  };
 
-  /**
-   * =========================================================
-   * تحميل الصلاحيات عند تشغيل النظام
-   * + إعادة تحميلها عند تغيير حالة تسجيل الدخول
-   * =========================================================
-   */
   React.useEffect(() => {
     void loadPermissions();
-
-    // Sync permissions changed by another administrator while this session is open.
-    const permissionSync = window.setInterval(() => { void loadPermissions(); }, 15000);
-    const syncOnFocus = () => { if (document.visibilityState === "visible") void loadPermissions(); };
-    window.addEventListener("focus", syncOnFocus);
-
-
-    const {
-      data: { subscription },
-    } =
-      supabase.auth.onAuthStateChange((event, session) => {
-        if (event === "SIGNED_OUT") {
-          currentUserId.current = null;
-          setLoading(true);
-          setPermissions(emptyPermissions);
-          setIsSystemOwner(false);
-          return;
-        }
-        // Supabase can emit SIGNED_IN on tab focus and TOKEN_REFRESHED in the
-        // background. Refresh permissions without temporarily removing the page.
-        if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
-          if (session?.user?.id && currentUserId.current !== session.user.id) {
-            setLoading(true);
-          }
-          void loadPermissions();
-        }
-      });
-
-
+    const onTenantChange = () => { void loadPermissions(); };
+    window.addEventListener('aqary:tenant-changed', onTenantChange);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(event => {
+      if (event === 'SIGNED_OUT') {
+        requestVersion.current++;
+        setPermissions(emptyPermissions);
+        setActiveTenantId(null);
+        setAvailableTenants([]);
+        setIsSystemOwner(false);
+      } else if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+        void loadPermissions();
+      }
+    });
     return () => {
       subscription.unsubscribe();
-      window.clearInterval(permissionSync);
-      window.removeEventListener("focus", syncOnFocus);
+      window.removeEventListener('aqary:tenant-changed', onTenantChange);
+
     };
   }, []);
-
 
   /**
    * =========================================================
@@ -556,44 +520,41 @@ export function PermissionsProvider({
         loading,
 
         isSystemOwner,
+        activeTenantId, availableTenants, selectTenant, tenantError,
 
 
         /**
          * فحص صلاحية واحدة
          */
         hasPermission: (permission) =>
-          isSystemOwner ||
-          permissions[permission] === true,
+          isSystemOwner || (Boolean(activeTenantId) && permissions[permission] === true),
 
 
         /**
          * alias لنفس الفحص
          */
         can: (permission) =>
-          isSystemOwner ||
-          permissions[permission] === true,
+          isSystemOwner || (Boolean(activeTenantId) && permissions[permission] === true),
 
 
         /**
          * المستخدم يحتاج واحدة على الأقل
          */
         canAny: (...requiredPermissions) =>
-          isSystemOwner ||
-          requiredPermissions.some(
+          isSystemOwner || (Boolean(activeTenantId) && requiredPermissions.some(
             (permission) =>
               permissions[permission] === true
-          ),
+          )),
 
 
         /**
          * المستخدم يحتاج جميع الصلاحيات
          */
         canAll: (...requiredPermissions) =>
-          isSystemOwner ||
-          requiredPermissions.every(
+          isSystemOwner || (Boolean(activeTenantId) && requiredPermissions.every(
             (permission) =>
               permissions[permission] === true
-          ),
+          )),
 
 
         /**
@@ -605,14 +566,38 @@ export function PermissionsProvider({
       [
         permissions,
         loading,
-        isSystemOwner,
+        isSystemOwner, activeTenantId, availableTenants, tenantError,
       ]
     );
 
 
   return (
     <PermissionsContext.Provider value={value}>
-      {children}
+      {availableTenants.length > 1 && (
+        <div dir="rtl" style={{ padding: '8px 16px', background: '#103e32', color: '#fff', display: 'flex', gap: 12, alignItems: 'center' }}>
+          <label htmlFor="aqary-tenant-select">الشركة الحالية:</label>
+          <select id="aqary-tenant-select" value={activeTenantId ?? ''}
+            onChange={e => { void selectTenant(e.target.value).catch(err => setTenantError(String(err))); }}
+            style={{ padding: 8, borderRadius: 6, color: '#123a2c' }}>
+            <option value="" disabled>اختر الشركة</option>
+            {availableTenants.map(t => <option key={t.tenantId} value={t.tenantId}>{t.tenantId} — {t.role}</option>)}
+          </select>
+          {tenantError && <span role="alert">{tenantError}</span>}
+        </div>
+      )}
+      {(!loading && !activeTenantId && !isSystemOwner && !(import.meta.env.DEV && import.meta.env.VITE_DEV_MODE === "true")) ? (
+        <div dir="rtl" style={{ minHeight: '70vh', display: 'grid', placeItems: 'center', padding: 32, background: '#063b2f', color: '#fff' }}>
+          <div style={{ textAlign: 'center', maxWidth: 520 }}>
+            <h2>اختيار الشركة الحالية</h2>
+            <p>{tenantError ?? 'اختر الشركة التي تريد العمل على بياناتها.'}</p>
+            {availableTenants.length > 0 && <select aria-label="اختر الشركة الحالية" value="" onChange={e => { void selectTenant(e.target.value).catch(err => setTenantError(String(err))); }} style={{ padding: 12, minWidth: 280, borderRadius: 10, color: '#103e32' }}>
+              <option value="" disabled>اختر الشركة</option>
+              {availableTenants.map(t => <option key={t.tenantId} value={t.tenantId}>{t.tenantId} — {t.role}</option>)}
+            </select>}
+            <div style={{ marginTop: 16 }}><button type="button" onClick={() => { void loadPermissions(); }} style={{ padding: '9px 20px', borderRadius: 8 }}>إعادة المحاولة</button></div>
+          </div>
+        </div>
+      ) : <React.Fragment key={activeTenantId ?? "no-tenant"}>{children}</React.Fragment>}
     </PermissionsContext.Provider>
   );
 }

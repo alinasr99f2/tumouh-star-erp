@@ -58,65 +58,74 @@ export default function Login() {
   const [recoveryMode, setRecoveryMode] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [recoveryReady, setRecoveryReady] = useState(false);
+  const [recoveryChecking, setRecoveryChecking] = useState(false);
+  const [recoverySuccess, setRecoverySuccess] = useState(false);
 
   useEffect(() => {
-    let isMounted = true;
+    let active = true;
+    const params = new URLSearchParams(window.location.search);
+    const fragment = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    const callback =
+      params.get("recovery") === "1" ||
+      window.location.pathname === "/reset-password" ||
+      params.has("code") ||
+      params.has("token_hash") ||
+      fragment.get("type") === "recovery";
 
-    const showRecoveryMode = () => {
-      if (!isMounted) return;
-
+    if (callback) {
       setRecoveryMode(true);
+      setRecoveryChecking(true);
       setResetMode(false);
-      setResetSent(false);
-      setError("");
-    };
-
-    const recoveryParam =
-      new URLSearchParams(window.location.search).get("recovery") === "1";
-
-    // The recovery query parameter is intentionally added to the redirect URL.
-    // Supabase can consume the hash before this component mounts, so the query
-    // parameter gives the page a reliable way to recognize a password reset.
-    if (recoveryParam) {
-      showRecoveryMode();
     }
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (!active) return;
       if (event === "PASSWORD_RECOVERY") {
-        showRecoveryMode();
+        setRecoveryMode(true);
+        setRecoveryReady(true);
+        setRecoveryChecking(false);
+        setError("");
       }
     });
 
-    const checkRecoverySession = async () => {
+    const verifyRecovery = async () => {
+      if (!callback) return;
       try {
-        if (!recoveryParam) return;
-
-        // Give Supabase Auth a moment to finish restoring the recovery session.
-        for (let attempt = 0; attempt < 10; attempt += 1) {
-          const {
-            data: { session },
-          } = await supabase.auth.getSession();
-
-          if (session) {
-            showRecoveryMode();
-            return;
-          }
-
-          await new Promise((resolve) => setTimeout(resolve, 200));
+        const code = params.get("code");
+        const tokenHash = params.get("token_hash");
+        const type = params.get("type");
+        if (code) {
+          const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+          // Supabase may have already exchanged the code automatically.
+          if (exchangeError) console.warn("Recovery code exchange:", exchangeError.message);
+        } else if (tokenHash && type === "recovery") {
+          const { error: verifyError } = await supabase.auth.verifyOtp({
+            token_hash: tokenHash,
+            type: "recovery",
+          });
+          if (verifyError) throw verifyError;
         }
-      } catch (recoveryCheckError) {
-        console.error(recoveryCheckError);
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (!active) return;
+        if (sessionError) throw sessionError;
+        if (session && (code || tokenHash || fragment.get("type") === "recovery" || params.get("recovery") === "1")) {
+          setRecoveryReady(true);
+          setError("");
+          // Remove one-time credentials from the address bar.
+          window.history.replaceState({}, "", "/reset-password");
+        } else {
+          setError("رابط الاستعادة غير صالح أو انتهت صلاحيته. اطلب رابطًا جديدًا من صفحة تسجيل الدخول.");
+        }
+      } catch (err) {
+        console.error("تعذر تفعيل رابط الاستعادة:", err);
+        if (active) setError("تعذر التحقق من رابط الاستعادة. اطلب رابطًا جديدًا.");
+      } finally {
+        if (active) setRecoveryChecking(false);
       }
     };
-
-    void checkRecoverySession();
-
-    return () => {
-      isMounted = false;
-      subscription.unsubscribe();
-    };
+    void verifyRecovery();
+    return () => { active = false; subscription.unsubscribe(); };
   }, []);
 
   const handleForgotPassword = () => {
@@ -143,7 +152,7 @@ export default function Login() {
       setLoading(true);
 
       // يعمل على دومين البيئة الحالية (Staging أو Production).
-      const redirectUrl = `${window.location.origin}/login?recovery=1`;
+      const redirectUrl = `${window.location.origin}/reset-password?recovery=1`;
 
       const { error: resetError } =
         await supabase.auth.resetPasswordForEmail(emailToReset, {
@@ -173,13 +182,18 @@ export default function Login() {
     e.preventDefault();
     setError("");
 
+    if (!recoveryReady) {
+      setError("يجب فتح رابط استعادة كلمة المرور الصحيح من البريد الإلكتروني أولًا.");
+      return;
+    }
+
     if (!newPassword || !confirmNewPassword) {
       setError("من فضلك أدخل كلمة المرور الجديدة وتأكيدها");
       return;
     }
 
-    if (newPassword.length < 6) {
-      setError("كلمة المرور يجب أن تكون 6 أحرف أو أكثر");
+    if (newPassword.length < 8) {
+      setError("كلمة المرور يجب أن تكون 8 أحرف أو أكثر");
       return;
     }
 
@@ -205,13 +219,14 @@ export default function Login() {
 
       await supabase.auth.signOut({ scope: "local" });
       clearManagedSession();
-      setRecoveryMode(false);
-      setResetMode(false);
+      setRecoverySuccess(true);
+      setRecoveryReady(false);
       setNewPassword("");
       setConfirmNewPassword("");
       setResetEmail("");
       setResetSent(false);
-      setError("تم تغيير كلمة المرور بنجاح. يمكنك الآن تسجيل الدخول.");
+      setError("");
+      window.history.replaceState({}, "", "/login");
     } catch (updateException) {
       console.error(updateException);
       setError("حدث خطأ أثناء تغيير كلمة المرور، حاول مرة أخرى");
@@ -338,15 +353,15 @@ export default function Login() {
           <img src="/aqary-smart-logo.png" className="aqary-panel-logo" alt="" aria-hidden="true" />
           <div className="aqary-form-area">
             <div className="login-card-header">
-              <h2 className="login-welcome-title">{translate("مرحبًا بك مرة أخرى", "Welcome Back")}</h2>
-              <p className="login-welcome-description">{translate("سجل الدخول إلى حسابك للمتابعة", "Sign in to your account to continue")}</p>
+              <h2 className="login-welcome-title">{recoveryMode ? translate("تغيير كلمة المرور", "Reset Password") : translate("مرحبًا بك مرة أخرى", "Welcome Back")}</h2>
+              <p className="login-welcome-description">{recoveryMode ? translate("تعيين كلمة مرور جديدة لحسابك", "Set a new account password") : translate("سجل الدخول إلى حسابك للمتابعة", "Sign in to your account to continue")}</p>
             </div>
               {/* نموذج الدخول */}
               <form
                 onSubmit={handleLogin}
                 className="login-form"
                 style={{
-                  display: resetMode || recoveryMode ? "none" : undefined,
+                  display: resetMode || recoveryMode || recoverySuccess ? "none" : undefined,
                 }}
               >
                 {/* اسم المستخدم */}
@@ -452,7 +467,12 @@ export default function Login() {
                   )}
                 </button>
               </form>
-              {recoveryMode ? (
+              {recoverySuccess ? (
+                <div className="login-form" style={{ textAlign: "center", color: "#fff" }}>
+                  <p style={{ color: "#d9b34c", fontWeight: 800 }}>تم تغيير كلمة المرور بنجاح.</p>
+                  <button type="button" className="login-submit-button" onClick={() => { setRecoverySuccess(false); navigate("/login", { replace: true }); }}>الذهاب لتسجيل الدخول</button>
+                </div>
+              ) : recoveryMode ? (
                 <form onSubmit={handleUpdatePassword} className="login-form">
                   <div style={{ textAlign: "center", marginBottom: "18px" }}>
                     <h3
@@ -473,6 +493,8 @@ export default function Login() {
                     >{translate("أدخل كلمة المرور الجديدة لحسابك", "Enter your new account password")}</p>
                   </div>
 
+                  {recoveryChecking && <p style={{ color: "#f9d36a", textAlign: "center" }}>جاري التحقق من رابط الاستعادة...</p>}
+                  {!recoveryChecking && !recoveryReady && <p style={{ color: "#f9d36a", textAlign: "center" }}>لم يتم تفعيل رابط الاستعادة. اطلب رابطًا جديدًا.</p>}
                   <div className="login-field">
                     <label htmlFor="new-password" className="login-field-label">{translate("كلمة المرور الجديدة", "New Password")}</label>
                     <div className="login-input-wrapper">
@@ -537,7 +559,7 @@ export default function Login() {
 
                   <button
                     type="submit"
-                    disabled={loading}
+                    disabled={loading || !recoveryReady || recoveryChecking}
                     className="login-submit-button"
                   >
                     {loading ? (
@@ -554,7 +576,9 @@ export default function Login() {
                     disabled={loading}
                     onClick={() => {
                       setRecoveryMode(false);
+                      setRecoveryReady(false);
                       setResetMode(false);
+                      window.history.replaceState({}, "", "/login");
                       setNewPassword("");
                       setConfirmNewPassword("");
                       setError("");
