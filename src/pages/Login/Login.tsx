@@ -359,6 +359,7 @@ export default function Login() {
               {/* نموذج الدخول */}
               <form
                 onSubmit={handleLogin}
+                autoComplete="off"
                 className="login-form"
                 style={{
                   display: resetMode || recoveryMode || recoverySuccess ? "none" : undefined,
@@ -377,7 +378,7 @@ export default function Login() {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder={translate("أدخل اسم المستخدم", "Enter your email")}
-                      autoComplete="username"
+                      autoComplete="off"
                       disabled={loading}
                       className="login-input"
                     />
@@ -400,7 +401,7 @@ export default function Login() {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder={translate("أدخل كلمة المرور", "Enter your password")}
-                      autoComplete="current-password"
+                      autoComplete="off"
                       disabled={loading}
                       className="login-input login-password-input"
                     />

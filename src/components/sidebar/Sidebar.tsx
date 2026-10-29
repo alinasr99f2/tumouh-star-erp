@@ -31,11 +31,18 @@ type CurrentUser = {
   avatar_url: string | null;
 };
 
+const TENANT_ROLE_LABELS: Record<string, string> = {
+  owner: "مالك الشركة",
+  admin: "مدير النظام",
+  manager: "مدير",
+  employee: "موظف",
+};
+
 function Sidebar({ onLogout }: SidebarProps) {
   const location = useLocation();
   const { language, isEnglish } = useAppPreferences();
   const tr = (label: string) => translateLabel(label, language);
-  const { loading: permissionsLoading, hasPermission } = usePermissions();
+  const { loading: permissionsLoading, hasPermission, isSystemOwner, activeTenantId, availableTenants } = usePermissions();
 
   const [projectsOpen, setProjectsOpen] = useState(() => {
     return (
@@ -75,86 +82,64 @@ function Sidebar({ onLogout }: SidebarProps) {
 
   const [buildings, setBuildings] = useState<SidebarBuilding[]>([]);
 
+  // User identity comes from Supabase Auth. The tenant role is scoped to
+  // the currently selected tenant; never read the legacy public.users table.
   useEffect(() => {
-    let mounted = true;
+    let cancelled = false;
 
     const loadCurrentUser = async () => {
-      try {
-        const {
-          data: { user: authUser },
-        } = await supabase.auth.getUser();
-
-        if (!mounted) return;
-
-        if (authUser?.email) {
-          const { data, error } = await supabase
-            .from("users")
-            .select("name, role, avatar_url")
-            .eq("email", authUser.email)
-            .maybeSingle();
-
-          if (!error && data) {
-            setCurrentUser({
-              name: String(data.name ?? "المستخدم"),
-              role: String(data.role ?? "موظف"),
-              avatar_url: data.avatar_url ? String(data.avatar_url) : null,
-            });
-            return;
-          }
-        }
-
-        const metadata = authUser?.user_metadata;
-        setCurrentUser({
-          name: String(metadata?.name ?? authUser?.email ?? "المستخدم"),
-          role: String(metadata?.role ?? "موظف"),
-          avatar_url: null,
-        });
-      } catch (error) {
-        console.error("خطأ في تحميل بيانات المستخدم الحالي:", error);
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (cancelled) return;
+      if (authError || !user) {
+        setCurrentUser({ name: "المستخدم", role: "", avatar_url: null });
+        return;
       }
+
+      const metadata = user.user_metadata ?? {};
+      const displayName = String(metadata.name || metadata.full_name || user.email || "المستخدم");
+      const avatarUrl = typeof metadata.avatar_url === "string" ? metadata.avatar_url : null;
+      // Use the same selected-tenant membership already validated by the
+      // permissions provider. Never read a global/legacy role for this label.
+      const membership = availableTenants.find((item) => item.tenantId === activeTenantId);
+      const tenantRole = isSystemOwner
+        ? "مسؤول النظام"
+        : membership ? (TENANT_ROLE_LABELS[membership.role] ?? "دور غير معروف") : "لم يتم تحديد الدور";
+      setCurrentUser({ name: displayName, role: tenantRole, avatar_url: avatarUrl });
     };
 
     void loadCurrentUser();
+    return () => { cancelled = true; };
+  }, [activeTenantId, availableTenants, isSystemOwner]);
 
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
+  // Read only buildings for the selected tenant. Database RLS must also
+  // enforce tenant isolation; a client-side filter is not a security boundary.
   useEffect(() => {
     let cancelled = false;
+    setBuildings([]);
+    if (!activeTenantId || permissionsLoading) return () => { cancelled = true; };
 
     const loadBuildings = async () => {
       const { data, error } = await supabase
         .from("buildings")
         .select("id, name")
+        .eq("tenant_id", activeTenantId)
         .eq("status", "active")
         .order("id", { ascending: true });
 
       if (cancelled) return;
-
       if (error) {
-        console.error("خطأ في تحميل العمائر للقائمة الجانبية:", error);
+        console.error("تعذر تحميل عمائر الشركة الحالية:", error);
         setBuildings([]);
         return;
       }
-
-      const normalizedBuildings = (data ?? [])
-        .map((row) => ({
-          id: Number(row.id),
-          name: String(row.name ?? "").trim(),
-        }))
-        .filter((building) => Number.isFinite(building.id) && building.name);
-
-      setBuildings(normalizedBuildings);
+      setBuildings((data ?? [])
+        .map((row) => ({ id: Number(row.id), name: String(row.name ?? "").trim() }))
+        .filter((building) => Number.isFinite(building.id) && building.name));
     };
 
     void loadBuildings();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    return () => { cancelled = true; };
+  }, [activeTenantId, permissionsLoading]);
 
   useEffect(() => {
     if (
@@ -418,7 +403,7 @@ function Sidebar({ onLogout }: SidebarProps) {
                 </h3>
 
                 <p className="mt-1 text-sm text-[#E0EEE7]">
-                  {tr(currentUser.role)}
+                  {currentUser.role ? tr(currentUser.role) : tr("لم يتم تحديد الدور")}
                 </p>
               </div>
             </div>

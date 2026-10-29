@@ -11,7 +11,7 @@ export type ResidentialTenantContext = {
 
 export async function resolveResidentialTenant(): Promise<ResidentialTenantContext> {
   const membership = await getActiveTenant();
-  if (!membership) throw new Error("اختر المكتب الحالي أولًا من قائمة الشركات.");
+  if (!membership) throw new Error("لا توجد شركة حالية محددة لهذا الحساب. مسؤول المنصة يحتاج اختيار شركة للعمل عليها، مع عضوية أو وصول معتمد لها؛ لا يتم اختيار شركة تلقائيًا.");
 
   const { data: tenant, error: tenantError } = await supabase
     .from("platform_tenants")
@@ -29,8 +29,14 @@ export async function resolveResidentialTenant(): Promise<ResidentialTenantConte
     .eq("tenant_id", membership.tenantId)
     .maybeSingle();
 
-  if (companyError || !company || !company.active) {
-    throw new Error("لا توجد شركة سكنية مفعلة مرتبطة بهذا المكتب.");
+  if (companyError) {
+    throw new Error(`تعذر قراءة ربط الشركة السكنية: ${companyError.message}`);
+  }
+  if (!company) {
+    throw new Error("الشركة الحالية ليس لها سجل مرتبط في residential_companies. يلزم إنشاء الربط للشركة المحددة في Staging.");
+  }
+  if (!company.active) {
+    throw new Error("السجل السكني للشركة الحالية غير مفعّل.");
   }
 
   return {

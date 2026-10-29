@@ -7,16 +7,23 @@ import { supabase } from "../utils/supabase";
 import { clearManagedSession } from "../utils/sessionGuard";
 import { usePermissions } from "../utils/permissions";
 import UsersPermissions from "../pages/Users/UsersPermissions";
+import Rooms from "../pages/Rooms/Rooms";
 import { useAppPreferences } from "../utils/appPreferences";
 
 function MainLayout() {
   const navigate = useNavigate();
   const { language, isEnglish } = useAppPreferences();
   const location = useLocation();
-  const { loading: permissionsLoading, hasPermission } = usePermissions();
+  const { loading: permissionsLoading, hasPermission, activeTenantId, tenantError } = usePermissions();
   const onUsersPage = location.pathname === "/users-permissions";
   const canViewUsers = !permissionsLoading && hasPermission("users_view");
   const [usersPageVisited, setUsersPageVisited] = useState(false);
+  const onRoomsPage = location.pathname === "/rooms";
+  const canViewRooms = !permissionsLoading && !!activeTenantId && !tenantError && hasPermission("apartments_view");
+  const [roomsPageVisited, setRoomsPageVisited] = useState(false);
+  useEffect(() => {
+    if (onRoomsPage && canViewRooms) setRoomsPageVisited(true);
+  }, [onRoomsPage, canViewRooms]);
 
   // Mount once on the first authorized visit; hide rather than unmount on navigation.
   useEffect(() => {
@@ -278,7 +285,7 @@ function MainLayout() {
           >
 
             {/* React Router still handles navigation and permission-denied screens. */}
-            <div style={{ display: onUsersPage && canViewUsers ? "none" : undefined }}>
+            <div style={{ display: (onUsersPage && canViewUsers) || (onRoomsPage && canViewRooms) ? "none" : undefined }}>
               <Outlet />
             </div>
 
@@ -287,6 +294,13 @@ function MainLayout() {
             {usersPageVisited && canViewUsers && (
               <div style={{ display: onUsersPage ? undefined : "none" }}>
                 <UsersPermissions />
+              </div>
+            )}
+
+            {/* Preserve Rooms only for the current authorized tenant. */}
+            {roomsPageVisited && canViewRooms && (
+              <div key={activeTenantId} style={{ display: onRoomsPage ? undefined : "none" }}>
+                <Rooms />
               </div>
             )}
 

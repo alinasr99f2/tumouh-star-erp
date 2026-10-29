@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import {
 
   ShieldCheck,
@@ -61,7 +62,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { supabase } from "../../utils/supabase";
-import { createClient } from "@supabase/supabase-js";
+import { usePermissions } from "../../utils/permissions";
 
 const SYSTEM_OWNER_EMAIL = "alinasr99f@gmail.com";
 const USER_AVATARS_BUCKET = "user-avatars";
@@ -647,17 +648,21 @@ const deleteUserAvatar = async (userId: number) => {
 
 export default function UsersPermissions() {
 
+  const { activeTenantId, isSystemOwner: platformOwner, loading: permissionsLoading, hasPermission } = usePermissions();
   const [currentUser, setCurrentUser] = useState<UserRow | null>(null);
 
   const [users, setUsers] = useState<UserRow[]>([]);
 
-  const isSystemOwner =
-
-    currentUser?.email?.trim().toLowerCase() === SYSTEM_OWNER_EMAIL.toLowerCase();
+  const isSystemOwner = platformOwner;
 
   const isManager = currentUser?.role?.trim() === "مدير";
 
-  const canManageUsers = isSystemOwner || isManager;
+  // STAGING: mutations disabled until tenant-scoped write endpoints are verified.
+  const canManageUsers = false; // Legacy edit/delete paths stay disabled.
+  const canCreateTenantUser = import.meta.env.VITE_ENABLE_TENANT_USER_CREATION === "true" &&
+    !!activeTenantId && (platformOwner || hasPermission("users_add"));
+  // Preview creation form only for users entitled to add users in the active tenant.
+  const canPreviewAddUser = platformOwner || hasPermission("users_view") || hasPermission("users_add");
 
   const protectedPermissionKeys = new Set<PermissionKey>([
 
@@ -857,116 +862,57 @@ const editAvatarInputRef = useRef<HTMLInputElement | null>(null);
   };
 
   const loadUsers = async () => {
-
     setLoadingUsers(true);
-
     setDatabaseError(null);
+    setUsers([]);
+    setCurrentUser(null);
 
-
-
-    const { data, error } = await supabase
-
-      .from("users")
-
-      .select("id, name, email, role, active, avatar_url, permissions")
-
-      .order("id", { ascending: true });
-
-
-
-    if (error) {
-
-      console.error("خطأ في تحميل المستخدمين من Supabase:", error);
-
-      setDatabaseError(error.message);
-
-      setUsers([]);
-
+    if (!activeTenantId) {
       setLoadingUsers(false);
-
       return;
-
+    }
+    if (!platformOwner && !hasPermission("users_view")) {
+      setDatabaseError("ليس لديك صلاحية عرض مستخدمي هذه الشركة.");
+      setLoadingUsers(false);
+      return;
     }
 
-
-
-    const rows: UserRow[] = (data ?? []).map((row) => ({
-
-  id: Number(row.id),
-
-  name: String(row.name ?? ""),
-
-  email: String(row.email ?? ""),
-
-  role: (row.role as Role) ?? "موظف",
-
-  active: Boolean(row.active),
-
-  avatar_url: row.avatar_url ? String(row.avatar_url) : null,
-
-  permissions: normalizePermissions(row.permissions),
-
-}));
-
-
-
-    const { data: { user: authUser } } = await supabase.auth.getUser();
-
-    const authEmail = authUser?.email?.trim().toLowerCase() ?? "";
-
-    const me = rows.find(
-
-      (user) => user.email.trim().toLowerCase() === authEmail,
-
-    );
-
-
-
-    setCurrentUser(me ?? null);
-
-
-
-    const ownerEmail = SYSTEM_OWNER_EMAIL.toLowerCase();
-
-    let visibleUsers: UserRow[] = [];
-
-
-
-    if (authEmail === ownerEmail) {
-
-      visibleUsers = rows;
-
-    } else if (me?.role?.trim() === "مدير") {
-
-      visibleUsers = rows.filter(
-
-        (user) => user.email.trim().toLowerCase() !== ownerEmail,
-
-      );
-
-    } else if (me) {
-
-      visibleUsers = rows.filter((user) => user.id === me.id);
-
+    try {
+      const { data, error } = await supabase.rpc("get_tenant_users", {
+        p_tenant_id: activeTenantId,
+      });
+      if (error) throw error;
+      const rows: UserRow[] = (data ?? []).map((row: {
+        auth_user_id: string;
+        name: string | null;
+        email: string | null;
+        tenant_role: string;
+        active: boolean;
+      }, index: number) => ({
+        // Display-only index; NEVER use it as a database identifier.
+        id: index + 1,
+        name: row.name || row.email || "مستخدم",
+        email: row.email || "",
+        role: row.tenant_role === "admin" || row.tenant_role === "owner" ? "مدير" : "موظف",
+        active: row.active === true,
+        avatar_url: null,
+        // The listing RPC does not expose member permission assignments.
+        // Do not present guessed/default permissions as real grants.
+        permissions: Object.fromEntries(Object.keys(defaultPermissions).map(k => [k, false])) as Record<PermissionKey, boolean>,
+      }));
+      setUsers(rows);
+    } catch (error) {
+      console.error("Tenant user listing failed:", error);
+      setDatabaseError(error instanceof Error ? error.message : "تعذر تحميل مستخدمي الشركة");
+    } finally {
+      setLoadingUsers(false);
     }
-
-
-
-    setUsers(visibleUsers);
-
-    setLoadingUsers(false);
-
   };
 
-
-
   useEffect(() => {
-
+    if (permissionsLoading) return;
     void loadUsers();
-
-  }, []);
-
-
+  }, [activeTenantId, permissionsLoading, platformOwner]);
 
   // تحميل الصلاحيات الافتراضية تلقائيًا عند تغيير نوع المستخدم،
 
@@ -1050,237 +996,81 @@ const editAvatarInputRef = useRef<HTMLInputElement | null>(null);
 
 
   const addUser = async () => {
-
-    if (!canManageUsers) {
-
-      alert("ليس لديك صلاحية إضافة مستخدمين.");
-
+    if (!canCreateTenantUser || !activeTenantId) {
+      alert("إضافة المستخدمين غير مفعلة بعد في بيئة الاختبار.");
       return;
-
     }
-
-
-
-    if (!isSystemOwner && newRole === "مسؤول النظام") {
-
-      alert("لا يمكن للمدير إنشاء مسؤول نظام.");
-
-      return;
-
-    }
-
-
-
-    if (!newName.trim() || !newEmail.trim() || !newPassword.trim()) {
-
+    if (savingUsers) return;
+    if (!newName.trim() || !newEmail.trim() || !newPassword) {
       alert("يرجى استكمال بيانات المستخدم.");
-
       return;
-
     }
-
-
-
     if (newPassword !== confirmPassword) {
-
-      alert("كلمة المرور وتأكيد كلمة المرور غير متطابقين.");
-
+      alert("كلمة المرور وتأكيدها غير متطابقين.");
       return;
-
     }
-
-
+    if (newPassword.length < 12 || newPassword.length > 128) {
+      alert("كلمة المرور يجب أن تكون بين 12 و128 حرفًا.");
+      return;
+    }
+    if (newAvatarFile) {
+      alert("رفع صور المستخدمين لم يتم ربطه بخدمة الشركات بعد. أزل الصورة وأعد المحاولة.");
+      return;
+    }
+    if (newRole !== "مدير" && newRole !== "موظف") {
+      alert("خدمة الإنشاء الحالية تدعم مدير أو موظف فقط. باقي التصنيفات تحتاج ربطًا منفصلًا.");
+      return;
+    }
 
     setSavingUsers(true);
-
-
-
     try {
-
-      const { data: insertedUser, error: insertError } = await supabase
-
-        .from("users")
-
-        .insert({
-
+      const { data, error } = await supabase.functions.invoke("manage-tenant-users", {
+        body: {
+          action: "create",
+          tenantId: activeTenantId,
           name: newName.trim(),
-
-          email: newEmail.trim(),
-
-          role: newRole,
-
-          active: true,
-
-          permissions: {
-
-            ...selectedPermissions,
-
-            ...(isManager && !isSystemOwner
-
-              ? {
-
-                  users_view: false,
-
-                  users_add: false,
-
-                  users_edit: false,
-
-                  settings_view: false,
-
-                  settings_add: false,
-
-                  settings_edit: false,
-
-                }
-
-              : {}),
-
-          },
-
-        })
-
-        .select("id, name, email, role, active, avatar_url, permissions")
-        .single();
-
-
-
-      if (insertError) throw insertError;
-
-
-
-      // إنشاء الحساب في عميل Auth منفصل حتى لا تتبدل جلسة المدير الحالية
-      // إذا كان تأكيد البريد معطلاً أو أرجع signUp جلسة للمستخدم الجديد.
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-      if (!supabaseUrl || !supabaseAnonKey) {
-        throw new Error("إعدادات اتصال Supabase غير متاحة في متغيرات البيئة.");
-      }
-      const signupClient = createClient(supabaseUrl, supabaseAnonKey, {
-        auth: {
-          persistSession: false,
-          autoRefreshToken: false,
-          detectSessionInUrl: false,
+          email: newEmail.trim().toLowerCase(),
+          password: newPassword,
+          role: newRole === "مدير" ? "manager" : "employee",
+          permissions: Object.entries(selectedPermissions)
+            .filter(([, enabled]) => enabled === true)
+            .map(([code]) => code),
         },
       });
-
-      const { data: authData, error: authError } = await signupClient.auth.signUp({
-        email: newEmail.trim(),
-        password: newPassword,
-        options: {
-          data: { name: newName.trim(), role: newRole },
-        },
-      });
-
-      // Supabase قد يعيد مستخدمًا وهميًا عند محاولة تسجيل بريد موجود مسبقًا.
-      // لا نربط أي حساب ما لم نتأكد من إنشاء هوية جديدة فعلًا.
-      if (authError || !authData.user || authData.user.identities?.length === 0) {
-        const { error: cleanupError } = await supabase
-          .from("users")
-          .delete()
-          .eq("id", insertedUser.id);
-        if (cleanupError) console.error("تعذر التراجع عن سجل المستخدم:", cleanupError);
-        throw authError ?? new Error("تعذر إنشاء حساب تسجيل الدخول؛ ربما البريد مستخدم بالفعل.");
-      }
-
-      // أهم خطوة: ربط سجل المستخدم بمعرّف Supabase Auth الحقيقي.
-      const { data: linkedUser, error: linkError } = await supabase
-        .from("users")
-        .update({ auth_user_id: authData.user.id })
-        .eq("id", insertedUser.id)
-        .select("id, auth_user_id")
-        .single();
-
-      if (linkError || linkedUser?.auth_user_id !== authData.user.id) {
-        // لا نحذف السجل هنا: حساب Auth قد أُنشئ بالفعل، والحذف سيتركه يتيمًا.
-        // يحتفظ المسؤول بالسجل لتصحيح الربط بدل إعادة إنشاء حساب مكرر.
-        throw new Error(
-          `تم إنشاء حساب الدخول، لكن تعذر ربط الصلاحيات تلقائيًا. ` +
-          `احتفظ بالمستخدم ولا تعِد إنشاءه. التفاصيل: ${linkError?.message ?? "لم يتم تأكيد حفظ الربط"}`
-        );
-      }
-
-      let avatarUrl: string | null = insertedUser.avatar_url ? String(insertedUser.avatar_url) : null;
-      if (newAvatarFile) {
-        try {
-          avatarUrl = await uploadUserAvatar(Number(insertedUser.id), newAvatarFile);
-          const { error: avatarUpdateError } = await supabase.from("users").update({ avatar_url: avatarUrl }).eq("id", insertedUser.id);
-          if (avatarUpdateError) throw avatarUpdateError;
-        } catch (avatarError) {
-          console.error("تعذر حفظ صورة المستخدم الجديد:", avatarError);
-          avatarUrl = null;
-          alert("تم إنشاء المستخدم، لكن تعذر حفظ الصورة. تأكد من إنشاء Storage Bucket باسم user-avatars.");
+      if (error) {
+        let reason = error.message;
+        const context = (error as { context?: Response }).context;
+        if (context && typeof context.json === "function") {
+          try {
+            const payload = await context.json() as { error?: string };
+            if (typeof payload.error === "string") reason = payload.error;
+          } catch { /* Keep original error. */ }
         }
+        throw new Error(reason);
       }
-
-      const newUser: UserRow = {
-
-        id: Number(insertedUser.id),
-
-        name: String(insertedUser.name ?? ""),
-
-        email: String(insertedUser.email ?? ""),
-
-        role: insertedUser.role as Role,
-
-        active: Boolean(insertedUser.active),
-        avatar_url: avatarUrl,
-
-        permissions: normalizePermissions(insertedUser.permissions),
-
-      };
-
-
-
-      setUsers((current) => [newUser, ...current]);
-
+      if (!data || data.success !== true || data.tenantId !== activeTenantId) {
+        throw new Error(data?.error || "لم يتم تأكيد إنشاء المستخدم للشركة المختارة.");
+      }
       setNewName("");
-
       setNewEmail("");
-
       setNewEmailFocused(false);
-
       setNewPassword("");
-
       setConfirmPassword("");
-      setNewAvatarFile(null);
-      if (newAvatarPreview) URL.revokeObjectURL(newAvatarPreview);
-      setNewAvatarPreview(null);
-
       setNewRole("موظف");
-
       setSelectedPermissions(getRolePermissions("موظف"));
-
-
-
-      alert("تم إنشاء المستخدم وربط حساب تسجيل الدخول بصلاحياته بنجاح. إذا كان تأكيد البريد مفعّلًا، يجب على المستخدم تأكيد بريده أولًا.");
-
+      await loadUsers();
+      alert("تم إنشاء الحساب وربطه بالشركة. تأكيد البريد الإلكتروني لم يتم إرساله تلقائيًا؛ يلزم إكمال التفعيل قبل الدخول.");
     } catch (error) {
-
-      console.error("خطأ في إضافة المستخدم:", error);
-
-      alert(
-
-        `تعذر إضافة المستخدم وحفظه في قاعدة البيانات:\n${
-
-          error instanceof Error ? error.message : "خطأ غير معروف"
-
-        }`,
-
-      );
-
+      console.error("Tenant user creation failed:", error);
+      alert(`تعذر إنشاء المستخدم: ${error instanceof Error ? error.message : "خطأ غير معروف"}`);
     } finally {
-
       setSavingUsers(false);
-
     }
-
   };
-
-
 
   const deleteUser = (user: UserRow) => {
 
-    if (!isSystemOwner && !Boolean(currentUser?.permissions?.users_delete)) {
+    if (!canManageUsers || (!isSystemOwner && !Boolean(currentUser?.permissions?.users_delete))) {
 
       alert("عذرًا، غير مسموح للمستخدم الحالي بهذا الإجراء.");
 
@@ -1308,7 +1098,7 @@ const editAvatarInputRef = useRef<HTMLInputElement | null>(null);
 
   const confirmDeleteUser = async () => {
     if (!deleteUserTarget || savingUsers) return;
-    if (!isSystemOwner && !Boolean(currentUser?.permissions?.users_delete)) {
+    if (!canManageUsers || (!isSystemOwner && !Boolean(currentUser?.permissions?.users_delete))) {
       alert("ليس لديك صلاحية حذف المستخدمين.");
       return;
     }
@@ -1996,7 +1786,7 @@ const editAvatarInputRef = useRef<HTMLInputElement | null>(null);
 
         {/* Add User + Roles */}
 
-        {canManageUsers && (
+        {canPreviewAddUser && (
 
         <section className="mb-5 grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
 
@@ -2033,6 +1823,10 @@ const editAvatarInputRef = useRef<HTMLInputElement | null>(null);
             </div>
 
 
+
+            <div role="status" className="mb-4 rounded-xl border border-amber-300/35 bg-amber-300/10 px-4 py-3 text-sm font-semibold text-amber-100">
+              يمكنك تجهيز بيانات المستخدم والصلاحيات بنفس تصميم الصفحة الأصلي. تم تجهيز ربط الإضافة بخدمة الشركة، لكنه مغلق افتراضيًا حتى اكتمال اختبارات الأمان ونشر الخدمة على Staging. تعديل المستخدمين والحذف ما زالا معطلين.
+            </div>
 
             <div className="grid gap-4 lg:grid-cols-[145px_minmax(0,1fr)]">
 
@@ -2111,7 +1905,7 @@ const editAvatarInputRef = useRef<HTMLInputElement | null>(null);
 
                   onChange={(value) => setNewRole(value as Role)}
 
-                  options={Object.keys(roleMeta) as Role[]}
+                  options={(Object.keys(roleMeta) as Role[]).filter(role => role !== "مسؤول النظام")}
 
                 />
 
@@ -2233,7 +2027,7 @@ const editAvatarInputRef = useRef<HTMLInputElement | null>(null);
 
               onClick={() => void addUser()}
 
-              disabled={savingUsers}
+              disabled={!canCreateTenantUser || savingUsers}
 
               className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-amber-300/50 bg-gradient-to-r from-amber-500/20 to-emerald-500/20 text-sm font-black text-white shadow-lg transition hover:from-amber-500/30 hover:to-emerald-500/30"
 
@@ -2241,7 +2035,7 @@ const editAvatarInputRef = useRef<HTMLInputElement | null>(null);
 
               <UserPlus size={19} />
 
-              إضافة المستخدم
+              {canCreateTenantUser ? "إضافة المستخدم" : "الإضافة متوقفة حتى اعتماد الخدمة"}
 
             </button>
 
@@ -2418,6 +2212,10 @@ const editAvatarInputRef = useRef<HTMLInputElement | null>(null);
         </section>
 
 
+
+        <div className="mb-4 rounded-xl border border-amber-300/30 bg-amber-300/10 p-3 text-sm text-amber-100">
+          عرض مستخدمي الشركة الحالية فقط. الإضافة والتعديل والحذف وتغيير الصلاحيات متوقفة مؤقتًا لحين ربطها بعمليات آمنة خاصة بكل شركة. مربعات الصلاحيات غير محمّلة حاليًا ولا تعبّر عن الصلاحيات الفعلية.
+        </div>
 
         {/* Users + Permission Matrix */}
 
@@ -3901,8 +3699,8 @@ function PermissionGroupCard({
         </div>
       </div>
 
-      {isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm" onMouseDown={(event) => { if (event.target === event.currentTarget) setIsOpen(false); }}>
+      {isOpen && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm" onMouseDown={(event) => { if (event.target === event.currentTarget) setIsOpen(false); }}>
           <div dir="rtl" className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-amber-300/20 bg-[#071d19] shadow-2xl shadow-black/50">
             <div className="sticky top-0 z-10 flex items-center justify-between border-b border-white/10 bg-[#071d19]/95 px-5 py-4 backdrop-blur-xl">
               <div className="flex items-center gap-3">
@@ -3953,7 +3751,7 @@ function PermissionGroupCard({
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
     </>
   );
 }
