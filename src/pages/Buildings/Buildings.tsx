@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { supabase } from "../../utils/supabase";
+import { getActiveTenant } from "../../utils/tenantSession";
 import { usePermissions } from "../../utils/permissions";
 import PermissionDeniedModal from "../../components/PermissionDeniedModal";
 import BuildingExcelImport from "./BuildingExcelImport";
@@ -76,9 +77,9 @@ type Building = {
 
   units: number;
 
-  occupiedUnits: number;
+  occupiedUnits: number | null;
 
-  vacantUnits: number;
+  vacantUnits: number | null;
 
   progress: number;
 
@@ -87,20 +88,6 @@ type Building = {
 };
 
 
-
-type BuildingApartment = {
-
-  status?: string;
-
-};
-
-
-
-const initialBuildings: Building[] = [
-
-
-
-];
 
 
 
@@ -188,13 +175,21 @@ const [showArchived, setShowArchived] = useState(false);
 
     const loadBuildings = async () => {
 
+      const activeTenant = await getActiveTenant();
+      if (cancelled) return;
+      if (!activeTenant) {
+        setBuildings([]);
+        return;
+      }
+
       const { data, error } = await supabase
 
   .from("buildings")
 
   .select("id, name, address, building_number, units_count, status")
 
-  .eq("status", "active")
+  .in("status", ["active", "completed", "stopped", "مكتمل", "متوقف"])
+  .eq("tenant_id", activeTenant.tenantId)
 
         .order("id", { ascending: true });
 
@@ -205,108 +200,33 @@ const [showArchived, setShowArchived] = useState(false);
 
 
       if (error) {
-
-        console.error("خطأ في تحميل العمائر من Supabase:", error);
-
+        console.error("خطأ في تحميل العمائر من Supabase:", {
+          tenantId: activeTenant.tenantId,
+          error,
+        });
         return;
-
       }
 
 
+
+      console.info("BUILDINGS DEBUG", {
+        tenantId: activeTenant.tenantId,
+        count: data?.length ?? 0,
+        buildings: data?.map(({ id, name, status }) => ({ id, name, status })),
+      });
 
       if (!data) return;
 
 
 
-      const buildingIds = data.map((row) => Number(row.id)).filter(Boolean);
-
-
-
-      // نقرأ خريطة الشقق الفعلية لكل عمارة من building_state.
-
-      // بهذه الطريقة الأرقام الظاهرة في كارت العمارة تكون مرتبطة بنفس
-
-      // بيانات الشقق التي تظهر داخل صفحة خريطة الشقق الخاصة بالعمارة.
-
-      const { data: buildingStates, error: buildingStatesError } = await supabase
-
-        .from("building_state")
-
-        .select("building_id, apartments")
-
-        .in("building_id", buildingIds);
-
-
-
-      if (buildingStatesError) {
-
-        console.error("خطأ في تحميل بيانات شقق العمائر:", buildingStatesError);
-
-      }
-
-
-
-      const apartmentSummaryByBuilding = new Map<
-
-        number,
-
-        { total: number; rented: number; vacant: number }
-
-      >();
-
-
-
-      (buildingStates ?? []).forEach((state) => {
-
-        const buildingId = Number(state.building_id);
-
-        const apartments = Array.isArray(state.apartments)
-
-          ? (state.apartments as BuildingApartment[])
-
-          : [];
-
-
-
-        const rented = apartments.filter(
-
-          (apartment) =>
-
-            apartment.status === "مؤجرة" ||
-
-            apartment.status === "مؤجرة للشركة"
-
-        ).length;
-
-
-
-        const vacant = apartments.filter(
-
-          (apartment) => apartment.status === "شاغرة"
-
-        ).length;
-
-
-
-        apartmentSummaryByBuilding.set(buildingId, {
-
-          total: apartments.length,
-
-          rented,
-
-          vacant,
-
-        });
-
-      });
-
-
+      // لا نقرأ building_state مباشرة: الجدول محمي ولا يملك المستخدم SELECT.
+      // قراءة بيانات العمائر لا يجب أن تتوقف بسبب بيانات الشقق.
+      // إشغال العمائر القديمة غير معروف إلى أن نوفر RPC قراءة آمنة مقيّدة بالشركة.
 
       const normalized = data.map((row) => {
 
         const id = Number(row.id);
 
-        const apartmentSummary = apartmentSummaryByBuilding.get(id);
 
 
 
@@ -336,11 +256,8 @@ const [showArchived, setShowArchived] = useState(false);
           // للعدد الإجمالي. لا نسمح لبيانات building_state القديمة أو الناقصة
           // أن تستبدل العدد المسجل في جدول buildings.
           units: Number(row.units_count) || 0,
-          occupiedUnits: apartmentSummary?.rented ?? 0,
-          vacantUnits: Math.max(
-            (Number(row.units_count) || 0) - (apartmentSummary?.rented ?? 0),
-            0
-          ),
+          occupiedUnits: null,
+          vacantUnits: null,
 
           progress: 0,
 
@@ -352,37 +269,7 @@ const [showArchived, setShowArchived] = useState(false);
 
 
 
-      setBuildings((current) => {
-
-        const currentById = new Map<number, Building>(current.map((item) => [item.id, item] as [number, Building]));
-
-        normalized.forEach((item) => {
-
-          currentById.set(item.id, {
-
-            ...currentById.get(item.id),
-
-            ...item,
-
-            // لا نفقد بيانات الكارت القديمة مثل نسبة الإنجاز والإيجار،
-
-            // لكن عدد الشقق المؤجرة يجب أن يأتي دائمًا من building_state الفعلي.
-
-            occupiedUnits: item.occupiedUnits,
-
-            vacantUnits: item.vacantUnits,
-
-            progress: currentById.get(item.id)?.progress ?? item.progress,
-
-            annualRent: currentById.get(item.id)?.annualRent ?? item.annualRent,
-
-          });
-
-        });
-
-        return Array.from(currentById.values());
-
-      });
+             setBuildings(normalized);
 
     };
 
@@ -488,34 +375,6 @@ const [showArchived, setShowArchived] = useState(false);
 
     try {
 
-      // نستخدم الجلسة المحلية بدل getUser حتى لا نرسل طلب /auth/v1/user
-
-      // في كل مرة نضغط فيها على حفظ. هذا يتجنب خطأ 403 المتكرر الظاهر في الـ Console.
-
-      const {
-
-  data: { session },
-
-  error: sessionError,
-
-} = await supabase.auth.getSession();
-
-
-
-console.log("SESSION:", session);
-
-console.log("SESSION ERROR:", sessionError);
-
-
-
-if (sessionError) {
-
-  throw sessionError;
-
-}
-
-
-
 const {
 
   data: userData,
@@ -526,9 +385,9 @@ const {
 
 
 
-console.log("USER:", userData.user);
 
-console.log("USER ERROR:", userError);
+
+
 
 
 
@@ -554,138 +413,54 @@ if (!user) {
 
 }
 
-console.log("AUTH USER ID:", user.id);
-
-console.log("AUTH USER EMAIL:", user.email);
 
 
 
-      const { data: building, error } = await supabase
-
-  .from("buildings")
-
-  .insert({
-
-    name,
-
-    building_number: buildingNumber,
-
-    address,
-
-    building_type: "عمارة سكنية",
-
-    units_count: unitsCount,
-
-    created_by: user.id,
-
-  })
-
-  .select("id, name, address, building_number, units_count, status")
-
-  .single();
 
 
 
-if (error) {
-
-  console.error("BUILDING INSERT ERROR:", error);
-
-  console.error("MESSAGE:", error.message);
-
-  console.error("DETAILS:", error.details);
-
-  console.error("HINT:", error.hint);
-
-  console.error("CODE:", error.code);
-
-
-
-  throw error;
-
-}
-
-
-
-console.log("BUILDING CREATED:", building);
-
-      // تهيئة حالة الشقق مباشرة بالعدد الذي أدخله المستخدم.
-      // هذا يمنع أي building_state قديم/ناقص من إظهار عدد مختلف في صفحة العمائر.
-      const initialApartments = Array.from(
-        { length: unitsCount },
-        (_, index) => ({
-          number: String(index + 1),
-          type: "غير محدد",
-          rent: 0,
-          status: "شاغرة",
-          tenant: "لا يوجد مستأجر",
-        })
-      );
-
-      const { error: buildingStateError } = await supabase
-        .from("building_state")
-        .insert(
-          {
-            building_id: Number(building.id),
-            apartments: initialApartments,
-            apartment_types: {},
-            custom_apartment_types: [],
-            custom_apartment_statuses: [],
-            apartment_type_rents: {},
-            apartment_extra_info: {},
-            apartment_tenant_info: {},
-            apartment_contract_info: {},
-            building_charges: [],
-            building_collections: [],
-            updated_at: new Date().toISOString(),
-          }
-        );
-
-      if (buildingStateError) {
-        // إنشاء العمارة الأساسية تم بالفعل؛ لا نفشل العملية كلها إذا تعذر
-        // تهيئة building_state، لأن الصفحة تستطيع الرجوع إلى units_count.
-        console.warn("تعذر تهيئة خريطة شقق العمارة الجديدة:", buildingStateError);
+      // الشركة النشطة اختيار واجهة فقط؛ سياسات RLS تتحقق من العضوية والصلاحية.
+      const activeTenant = await getActiveTenant();
+      if (!activeTenant) {
+        throw new Error("يجب اختيار شركة نشطة قبل إنشاء العمارة.");
       }
 
+      // إنشاء العمارة والشقق في معاملة واحدة داخل قاعدة البيانات.
+      const { data: createdBuildingId, error } = await supabase.rpc(
+        "create_tenant_building",
+        {
+          p_tenant_id: activeTenant.tenantId,
+          p_name: name,
+          p_units_count: unitsCount,
+          p_address: address,
+          p_building_type: "عمارة سكنية",
+          p_notes: null,
+          p_building_number: buildingNumber,
+        }
+      );
 
+      if (error) throw error;
 
-
-    if (!building) {
-
-  throw new Error("تم إنشاء العمارة لكن لم يتم إرجاع بياناتها.");
-
-}
-
-
+      const buildingId = Number(createdBuildingId);
+      if (!Number.isSafeInteger(buildingId) || buildingId <= 0) {
+        throw new Error("لم يتم إرجاع رقم عمارة صحيح من قاعدة البيانات.");
+      }
 
       const newBuilding: Building = {
-
-  id: Number(building.id),
-
-  name: building.name,
-
-  buildingNumber: building.building_number || buildingNumber,
-
-  city: building.address || address,
-
-  status: "قيد التنفيذ",
-
-  units: Number(building.units_count) || 0,
-
-  occupiedUnits: 0,
-
-        vacantUnits: Number(building.units_count) || 0,
-
+        id: buildingId,
+        name,
+        buildingNumber,
+        city: address,
+        status: "قيد التنفيذ",
+        units: unitsCount,
+        occupiedUnits: 0,
+        vacantUnits: unitsCount,
         progress: 0,
-
         annualRent: 0,
-
       };
 
-
-
       setBuildings((current) => [...current, newBuilding]);
-
-      closeCreateModal();
+      setIsCreateModalOpen(false);
 
 
 
@@ -914,6 +689,8 @@ console.log("BUILDING CREATED:", building);
 
 
     try {
+      const activeTenant = await getActiveTenant();
+      if (!activeTenant) throw new Error("يجب اختيار شركة نشطة.");
 
       const databaseStatus =
 
@@ -929,7 +706,7 @@ console.log("BUILDING CREATED:", building);
 
 
 
-      const { error } = await supabase
+      const { data: updatedRows, error } = await supabase
 
         .from("buildings")
 
@@ -943,7 +720,9 @@ console.log("BUILDING CREATED:", building);
 
         })
 
-        .eq("id", editingBuilding.id);
+        .eq("id", editingBuilding.id)
+        .eq("tenant_id", activeTenant.tenantId)
+        .select("id");
 
 
 
@@ -1007,12 +786,19 @@ console.log("BUILDING CREATED:", building);
 
   const loadArchivedBuildings = async () => {
 
+    const activeTenant = await getActiveTenant();
+    if (!activeTenant) {
+      setArchivedBuildings([]);
+      return;
+    }
+
     const { data, error } = await supabase
 
       .from("buildings")
 
       .select("id, name, address, building_number, units_count, status, archived_at")
 
+      .eq("tenant_id", activeTenant.tenantId)
       .eq("status", "archived")
 
       .order("archived_at", { ascending: false });
@@ -1071,8 +857,10 @@ console.log("BUILDING CREATED:", building);
 
 
     try {
+      const activeTenant = await getActiveTenant();
+      if (!activeTenant) throw new Error("يجب اختيار شركة نشطة.");
 
-      const { error } = await supabase
+      const { data: updatedRows, error } = await supabase
 
         .from("buildings")
 
@@ -1084,11 +872,14 @@ console.log("BUILDING CREATED:", building);
 
         })
 
-        .eq("id", building.id);
+        .eq("id", building.id)
+        .eq("tenant_id", activeTenant.tenantId)
+        .select("id");
 
 
 
       if (error) throw error;
+      if (!updatedRows?.length) throw new Error("لم يتم تحديث العمارة؛ تحقق من صلاحيات الشركة.");
 
 
 
@@ -1154,8 +945,10 @@ console.log("BUILDING CREATED:", building);
 
 
     try {
+      const activeTenant = await getActiveTenant();
+      if (!activeTenant) throw new Error("يجب اختيار شركة نشطة.");
 
-      const { error } = await supabase
+      const { data: updatedRows, error } = await supabase
 
         .from("buildings")
 
@@ -1167,13 +960,16 @@ console.log("BUILDING CREATED:", building);
 
   })
 
-  .eq("id", building.id);
+  .eq("id", building.id)
+        .eq("tenant_id", activeTenant.tenantId)
+        .select("id");
 
 
 
 
 
       if (error) throw error;
+      if (!updatedRows?.length) throw new Error("لم يتم تحديث العمارة؛ تحقق من صلاحيات الشركة.");
 
 
 
@@ -1249,7 +1045,7 @@ console.log("BUILDING CREATED:", building);
 
             <p className="mt-3 text-base text-[#B4CEC5]">
 
-              إدارة جميع عمائر شركة طموح ستار
+              إدارة العمائر الخاصة بالشركة النشطة
 
             </p>
 
@@ -1837,20 +1633,10 @@ console.log("BUILDING CREATED:", building);
 
               {filteredBuildings.map((building) => {
 
-                const occupancy =
-
-                  building.units > 0
-
-                    ? Math.round(
-
-                        (building.occupiedUnits /
-
-                          building.units) *
-
-                          100
-
-                      )
-
+                const occupancy = building.occupiedUnits === null
+                  ? null
+                  : building.units > 0
+                    ? Math.round((building.occupiedUnits / building.units) * 100)
                     : 0;
 
 
@@ -2179,7 +1965,7 @@ console.log("BUILDING CREATED:", building);
 
                         <p className="mt-2 text-xl font-extrabold text-white">
 
-                          {building.occupiedUnits}
+                          {building.occupiedUnits ?? "—"}
 
                         </p>
 
@@ -2211,7 +1997,7 @@ console.log("BUILDING CREATED:", building);
 
                         <p className="mt-2 text-xl font-extrabold text-white">
 
-                          {vacantUnits}
+                          {vacantUnits ?? "—"}
 
                         </p>
 
@@ -2243,7 +2029,7 @@ console.log("BUILDING CREATED:", building);
 
                         <p className="mt-2 text-xl font-extrabold text-white">
 
-                          {occupancy}%
+                          {occupancy === null ? "—" : `${occupancy}%`}
 
                         </p>
 
@@ -2285,7 +2071,7 @@ console.log("BUILDING CREATED:", building);
 
     <span className="font-extrabold text-[#F6D878]">
 
-      {occupancy}%
+      {occupancy === null ? "—" : `${occupancy}%`}
 
     </span>
 
@@ -2329,7 +2115,7 @@ console.log("BUILDING CREATED:", building);
 
       style={{
 
-        width: `${Math.min(Math.max(occupancy, 0), 100)}%`,
+        width: `${Math.min(Math.max(occupancy ?? 0, 0), 100)}%`,
 
       }}
 

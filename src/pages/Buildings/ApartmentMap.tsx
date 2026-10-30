@@ -593,13 +593,12 @@ export default function ApartmentMap() {
         return;
       }
 
-      const { data, error } = await supabase
-        .from("building_state")
-        .select(
-          "apartments, apartment_types, custom_apartment_types, custom_apartment_statuses, apartment_type_rents, apartment_extra_info, apartment_tenant_info, apartment_contract_info, building_charges, building_collections"
-        )
-        .eq("building_id", buildingId)
-        .maybeSingle();
+      // Read through a tenant-authorized RPC; direct SELECT on building_state is restricted.
+      const { data: rpcData, error } = await supabase.rpc(
+        "get_tenant_building_state",
+        { p_building_id: buildingId }
+      );
+      const data = rpcData as Record<string, unknown> | null;
 
       if (cancelled) {
         return;
