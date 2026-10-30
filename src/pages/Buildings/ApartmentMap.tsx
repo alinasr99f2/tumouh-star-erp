@@ -852,43 +852,50 @@ export default function ApartmentMap() {
     canEditApartments,
   ]);
 
-  const addApartment = () => {
+  // Addition is persisted through the tenant-authorized RPC, not direct table writes.
+  const addingApartmentRef = useRef(false);
+  const addApartment = async () => {
     if (!canAddApartments) {
       showPermissionDenied();
       return;
     }
-    setApartments((current) => {
-      const nextNumber =
-        current.length > 0
-          ? String(
-              Math.max(
-                ...current.map((apartment) => {
-                  const match = String(apartment.number).match(/^\d+$/);
-                  return match ? Number(match[0]) : 0;
-                })
-              ) + 1
-            )
-          : "1";
+    if (addingApartmentRef.current) return;
+    const buildingId = getCurrentBuildingId();
+    if (!buildingId || !remoteStateHydratedRef.current) {
+      window.alert("انتظر تحميل بيانات العمارة أولاً.");
+      return;
+    }
 
-      const updated = [
-        ...current,
-        {
-          id: crypto.randomUUID(),
-          number: nextNumber,
-          type: "غرفة وصالة",
-          rent: 3000,
-          status: "شاغرة" as ApartmentStatus,
-          tenant: "لا يوجد مستأجر",
-        },
-      ];
+    const nextNumber = String(
+      Math.max(0, ...apartments.map((item) => {
+        const number = String(item.number);
+        return /^\d+$/.test(number) ? Number(number) : 0;
+      })) + 1
+    );
+    const newApartment: Apartment = {
+      id: crypto.randomUUID(),
+      number: nextNumber,
+      type: "غرفة وصالة",
+      rent: 3000,
+      status: "شاغرة",
+      tenant: "لا يوجد مستأجر",
+    };
 
-      window.localStorage.setItem(
-        getBuildingStorageKey("tumouh_star_building_apartments"),
-        JSON.stringify(updated)
-      );
-
-      return updated;
-    });
+    addingApartmentRef.current = true;
+    try {
+      const { error } = await supabase.rpc("add_tenant_building_apartment", {
+        p_building_id: buildingId,
+        p_apartment: newApartment,
+      });
+      if (error) throw error;
+      // Reload authoritative data; the hydration guard prevents autosaving this change.
+      setBuildingRefreshVersion((version) => version + 1);
+    } catch (error) {
+      console.error("فشل إضافة الشقة:", error);
+      window.alert(error instanceof Error ? error.message : "تعذر إضافة الشقة.");
+    } finally {
+      addingApartmentRef.current = false;
+    }
   };
 
   const totalApartments = apartments.length;
