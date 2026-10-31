@@ -314,12 +314,12 @@ function App() {
             </Route>
 
             {/* خريطة الشقق */}
-            <Route element={<PermissionRoute permission="apartment_map_view" />}>
+            <Route element={<PermissionRoute permission="buildings_view" />}>
               <Route path="/buildings/:id/apartments" element={<ApartmentMap />} />
             </Route>
 
             {/* تفاصيل العمارة */}
-            <Route element={<PermissionRoute permission="building_details_view" />}>
+            <Route element={<PermissionRoute permission="buildings_view" />}>
               <Route path="/buildings/:id" element={<BuildingDetails />} />
             </Route>
 
