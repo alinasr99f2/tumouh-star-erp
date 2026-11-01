@@ -2,7 +2,8 @@
 {
   "nodeModulesDir": "none",
   "imports": {
-    "@supabase/supabase-js": "npm:@supabase/supabase-js@2"
+    "@supabase/supabase-js": "npm:@supabase/supabase-js@2",
+    "@simplewebauthn/server": "npm:@simplewebauthn/server@13.2.2"
   },
   "compilerOptions": {
     "strict": true
