@@ -287,7 +287,8 @@ export default function ApartmentMap() {
   const globalSearchLocation = useLocation();
   const globalSearchNavigate = useNavigate();
   const { hasPermission } = usePermissions();
-  const canViewApartments = hasPermission("apartments_view");
+  // Building apartment map is part of Buildings, not independent residential apartments.
+  const canViewApartments = hasPermission("buildings_view") || hasPermission("apartment_map_view");
   const canAddApartments = hasPermission("building_apartment_add");
   const canEditApartments = hasPermission("building_apartment_edit");
   const canDeleteApartments = hasPermission("building_apartment_delete");
