@@ -3,6 +3,7 @@ import { NavLink, useLocation } from "react-router-dom";
 
 import {
   LogOut,
+  ShieldCheck,
   Circle,
   ChevronDown,
   ChevronLeft,
@@ -849,6 +850,27 @@ function Sidebar({ onLogout }: SidebarProps) {
               Version 1.0.0
             </p>
           </div>
+
+          {/* Central administration is visible only to verified platform owners. */}
+          {!permissionsLoading && isSystemOwner && (
+            <NavLink
+              to="/platform-admin"
+              onClick={handleMobileNavigate}
+              className="
+                flex w-full min-h-[54px] items-center justify-center gap-3
+                rounded-2xl border border-[#e8d29b]
+                bg-gradient-to-l from-[#c8a557] to-[#e5ca88]
+                px-4 py-3 font-bold text-[#173d2e]
+                shadow-lg transition-all duration-300
+                hover:from-[#e5ca88] hover:to-[#c8a557]
+                focus-visible:outline focus-visible:outline-2
+                focus-visible:outline-offset-2 focus-visible:outline-[#F6D878]
+              "
+            >
+              <ShieldCheck size={21} />
+              <span>{isEnglish ? "Platform Administration" : "الإدارة المركزية"}</span>
+            </NavLink>
+          )}
 
           <button
             type="button"

@@ -150,31 +150,53 @@ export async function requireWebAuthnContext(
       "Tenant is not active",
     );
   }
-  
-  // Validate active tenant subscription.
-  // Subscription dates must also be valid.
 
-  const now = new Date().toISOString();
+
+  // Validate active tenant subscription.
+  // Check subscription dates on the server.
+
+  const now = Date.now();
 
   const {
     data: subscriptions,
     error: subscriptionError,
   } = await adminClient
     .from("platform_subscriptions")
-    .select("id")
+    .select("id, starts_at, ends_at")
     .eq("tenant_id", tenantId)
-    .eq("status", "active")
-    .or(`starts_at.is.null,starts_at.lte.${now}`)
-    .or(`ends_at.is.null,ends_at.gt.${now}`)
-    .limit(1);
+    .eq("status", "active");
 
   if (subscriptionError) {
+    console.error(
+      "WebAuthn subscription validation error:",
+      subscriptionError,
+    );
+
     throw new Error(
       "Failed to validate tenant subscription",
     );
   }
 
-  if (!subscriptions || subscriptions.length === 0) {
+  const hasValidSubscription = (
+    subscriptions ?? []
+  ).some((subscription) => {
+    const startsAt = subscription.starts_at
+      ? Date.parse(subscription.starts_at)
+      : null;
+
+    const endsAt = subscription.ends_at
+      ? Date.parse(subscription.ends_at)
+      : null;
+
+    return (
+      (startsAt === null ||
+        (Number.isFinite(startsAt) && startsAt <= now)) &&
+      (endsAt === null ||
+        (Number.isFinite(endsAt) && endsAt > now))
+    );
+  });
+
+  if (!hasValidSubscription) {
     throw new WebAuthnAccessError(
       "Tenant has no currently valid subscription",
     );

@@ -38,6 +38,9 @@ import Apartments from "./pages/Apartments/Apartments";
 import ResidentialApartmentMap from "./pages/Apartments/ResidentialApartmentMap";
 import ApartmentsHub from "./pages/Apartments/ApartmentsHub";
 import ActivityLog from "./pages/ActivityLog/ActivityLog";
+
+import PlatformDashboard from "./pages/PlatformAdmin/PlatformDashboard";
+
 function ProtectedRoute() {
   const DEV_MODE = import.meta.env.DEV && import.meta.env.VITE_DEV_MODE === "true";
   const [sessionReady, setSessionReady] = useState(DEV_MODE);
@@ -245,9 +248,17 @@ function App() {
         {/* =========================================
             حماية جميع صفحات النظام
         ========================================= */}
-        <Route element={<ProtectedRoute />}>
-          <Route element={<PermissionsProvider><Outlet /></PermissionsProvider>}>
+       <Route element={<ProtectedRoute />}>
+  <Route element={<PermissionsProvider><Outlet /></PermissionsProvider>}>
 
+    {/* =========================================
+        AQARY SMART - CENTRAL PLATFORM ADMIN
+        Independent from the tenant MainLayout
+    ========================================= */}
+    <Route
+      path="/platform-admin"
+      element={<PlatformDashboard />}
+    />
           {/* =========================================
               الـ Main Layout
           ========================================= */}
