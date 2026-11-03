@@ -5,6 +5,8 @@ import {
 
 import { supabase } from "../utils/supabase";
 
+const DEVICE_STORAGE_KEY = "aqary_staging_device_key";
+
 export type WebAuthnDeviceContext = {
   tenantId: string;
   deviceId: string;
@@ -120,30 +122,61 @@ export async function registerPasskey(
 }
 
 
+async function getStoredDeviceHash(createIfMissing: boolean): Promise<string | null> {
+  let deviceKey = localStorage.getItem(DEVICE_STORAGE_KEY);
+
+  if (!deviceKey && createIfMissing) {
+    deviceKey = crypto.randomUUID();
+    localStorage.setItem(DEVICE_STORAGE_KEY, deviceKey);
+  }
+
+  if (!deviceKey) return null;
+
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(deviceKey),
+  );
+
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+export type CurrentTenantDevice = {
+  device_id: string;
+  device_name: string | null;
+  device_status: "pending" | "approved" | "blocked" | "revoked";
+  approved_at: string | null;
+};
+
+export async function getMyCurrentTenantDevice(
+  tenantId: string,
+): Promise<CurrentTenantDevice | null> {
+  const deviceKeyHash = await getStoredDeviceHash(false);
+  if (!deviceKeyHash) return null;
+
+  const { data, error } = await supabase.rpc(
+    "get_my_current_tenant_device",
+    {
+      p_tenant_id: tenantId,
+      p_device_key_hash: deviceKeyHash,
+    },
+  );
+
+  if (error) throw new Error(error.message);
+
+  const devices = (data ?? []) as CurrentTenantDevice[];
+  return devices[0] ?? null;
+}
+
 export async function requestTenantDevice(
   tenantId: string,
   deviceName: string,
 ): Promise<string> {
-  const storageKey = "aqary_staging_device_key";
-
-  let deviceKey = localStorage.getItem(storageKey);
-
-  if (!deviceKey) {
-    deviceKey = crypto.randomUUID();
-    localStorage.setItem(storageKey, deviceKey);
+  const deviceKeyHash = await getStoredDeviceHash(true);
+  if (!deviceKeyHash) {
+    throw new Error("تعذر إنشاء بصمة الجهاز الحالي.");
   }
-
-  const encoded = new TextEncoder().encode(deviceKey);
-  const digest = await crypto.subtle.digest(
-    "SHA-256",
-    encoded,
-  );
-
-  const deviceKeyHash = Array.from(
-    new Uint8Array(digest),
-  )
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
 
   const { data, error } = await supabase.rpc(
     "request_tenant_device",
