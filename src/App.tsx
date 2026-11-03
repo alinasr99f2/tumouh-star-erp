@@ -19,6 +19,8 @@ import CompanyDashboard from "./pages/Dashboard/CompanyDashboard";
 
 import Projects from "./pages/Projects/Projects";
 
+import DeviceRegistration from "./components/security/DeviceRegistration";
+
 
 
 
@@ -250,6 +252,12 @@ function App() {
               الـ Main Layout
           ========================================= */}
           <Route element={<MainLayout />}>
+
+<Route
+  path="/security/devices"
+  element={<DeviceRegistration />}
+/>
+
 
             {/* الصفحة الرئيسية */}
             <Route
