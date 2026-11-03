@@ -1,9 +1,9 @@
 
-import { createClient } from "@supabase/supabase-js";
+import { createClient } from "npm:@supabase/supabase-js@2.112.2";
 import {
   verifyRegistrationResponse,
   type RegistrationResponseJSON,
-} from "@simplewebauthn/server";
+} from "npm:@simplewebauthn/server@13.2.2";
 
 import {
   getWebAuthnConfig,

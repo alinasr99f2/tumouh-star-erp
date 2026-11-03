@@ -2,7 +2,7 @@
 import {
   createClient,
   type User,
-} from "@supabase/supabase-js";
+} from "npm:@supabase/supabase-js@2.112.2";
 
 type DeviceStatus =
   | "pending"
