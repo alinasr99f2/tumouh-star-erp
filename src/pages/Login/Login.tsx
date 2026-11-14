@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Eye,
   EyeOff,
@@ -61,69 +61,92 @@ export default function Login() {
   const [recoveryReady, setRecoveryReady] = useState(false);
   const [recoveryChecking, setRecoveryChecking] = useState(false);
   const [recoverySuccess, setRecoverySuccess] = useState(false);
+  const recoveryVerifiedRef = useRef(false);
 
   useEffect(() => {
     let active = true;
     const params = new URLSearchParams(window.location.search);
     const fragment = new URLSearchParams(window.location.hash.replace(/^#/, ""));
-    const callback =
-      params.get("recovery") === "1" ||
-      window.location.pathname === "/reset-password" ||
-      params.has("code") ||
-      params.has("token_hash") ||
-      fragment.get("type") === "recovery";
+    const isRecoveryPage = window.location.pathname === "/reset-password";
+    const code = params.get("code");
+    const tokenHash = params.get("token_hash");
+    const recoveryHash = fragment.get("type") === "recovery";
+    const callback = isRecoveryPage || Boolean(code) || Boolean(tokenHash) || recoveryHash;
 
-    if (callback) {
-      setRecoveryMode(true);
-      setRecoveryChecking(true);
-      setResetMode(false);
-    }
+    if (!callback) return;
+
+    setRecoveryMode(true);
+    setRecoveryChecking(true);
+    setResetMode(false);
+    recoveryVerifiedRef.current = false;
+
+    const markVerified = () => {
+      if (!active) return;
+      recoveryVerifiedRef.current = true;
+      setRecoveryReady(true);
+      setRecoveryChecking(false);
+      setError("");
+      // Do not retain one-time recovery credentials in the browser address bar.
+      window.history.replaceState({}, "", "/reset-password");
+    };
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (!active) return;
-      if (event === "PASSWORD_RECOVERY") {
-        setRecoveryMode(true);
-        setRecoveryReady(true);
-        setRecoveryChecking(false);
-        setError("");
-      }
+      // A normal SIGNED_IN event or an existing session must never authorize a reset.
+      if (event === "PASSWORD_RECOVERY") markVerified();
     });
 
     const verifyRecovery = async () => {
-      if (!callback) return;
       try {
-        const code = params.get("code");
-        const tokenHash = params.get("token_hash");
-        const type = params.get("type");
         if (code) {
-          const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
-          // Supabase may have already exchanged the code automatically.
-          if (exchangeError) console.warn("Recovery code exchange:", exchangeError.message);
-        } else if (tokenHash && type === "recovery") {
-          const { error: verifyError } = await supabase.auth.verifyOtp({
+          const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+          if (exchangeError) {
+            // The client may have consumed the code automatically and emitted
+            // PASSWORD_RECOVERY. Only that event can authorize this fallback.
+            if (!recoveryVerifiedRef.current) throw exchangeError;
+          } else if (data.session) {
+            markVerified();
+          } else {
+            throw new Error("Recovery code did not create a session");
+          }
+        } else if (tokenHash && params.get("type") === "recovery") {
+          const { data, error: verifyError } = await supabase.auth.verifyOtp({
             token_hash: tokenHash,
             type: "recovery",
           });
           if (verifyError) throw verifyError;
-        }
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        if (!active) return;
-        if (sessionError) throw sessionError;
-        if (session && (code || tokenHash || fragment.get("type") === "recovery" || params.get("recovery") === "1")) {
-          setRecoveryReady(true);
-          setError("");
-          // Remove one-time credentials from the address bar.
-          window.history.replaceState({}, "", "/reset-password");
-        } else {
-          setError("رابط الاستعادة غير صالح أو انتهت صلاحيته. اطلب رابطًا جديدًا من صفحة تسجيل الدخول.");
+          if (!data.session) throw new Error("Recovery token did not create a session");
+          markVerified();
+        } else if (recoveryHash) {
+          // Older Supabase recovery links deliver a session in the URL fragment.
+          const accessToken = fragment.get("access_token");
+          const refreshToken = fragment.get("refresh_token");
+          if (accessToken && refreshToken) {
+            const { data, error: sessionError } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken,
+            });
+            if (sessionError) throw sessionError;
+            if (!data.session) throw new Error("Recovery link did not create a session");
+            markVerified();
+          } else if (!recoveryVerifiedRef.current) {
+            throw new Error("Missing recovery session credentials");
+          }
+        } else if (!recoveryVerifiedRef.current) {
+          // /reset-password or ?recovery=1 without a valid token is not sufficient.
+          throw new Error("Missing recovery credentials");
         }
       } catch (err) {
-        console.error("تعذر تفعيل رابط الاستعادة:", err);
-        if (active) setError("تعذر التحقق من رابط الاستعادة. اطلب رابطًا جديدًا.");
+        console.warn("Recovery verification failed:", err);
+        if (active && !recoveryVerifiedRef.current) {
+          setRecoveryReady(false);
+          setError("رابط الاستعادة غير صالح أو انتهت صلاحيته. اطلب رابطًا جديدًا من صفحة تسجيل الدخول.");
+        }
       } finally {
         if (active) setRecoveryChecking(false);
       }
     };
+
     void verifyRecovery();
     return () => { active = false; subscription.unsubscribe(); };
   }, []);
@@ -182,7 +205,7 @@ export default function Login() {
     e.preventDefault();
     setError("");
 
-    if (!recoveryReady) {
+    if (!recoveryReady || !recoveryVerifiedRef.current) {
       setError("يجب فتح رابط استعادة كلمة المرور الصحيح من البريد الإلكتروني أولًا.");
       return;
     }
@@ -221,6 +244,7 @@ export default function Login() {
       clearManagedSession();
       setRecoverySuccess(true);
       setRecoveryReady(false);
+      recoveryVerifiedRef.current = false;
       setNewPassword("");
       setConfirmNewPassword("");
       setResetEmail("");
